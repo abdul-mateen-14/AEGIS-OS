@@ -14,7 +14,7 @@ apt-get install -y --no-install-recommends \
     live-build debootstrap binutils \
     squashfs-tools xz-utils xorriso \
     grub-common grub-pc-bin grub-efi-amd64-bin \
-    syslinux-common isolinux \
+    syslinux-common isolinux syslinux-utils \
     mtools dosfstools e2fsprogs \
     rsync curl ca-certificates file
 
