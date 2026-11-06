@@ -14,7 +14,6 @@ apt-get install -y --no-install-recommends \
     live-build debootstrap binutils \
     squashfs-tools xz-utils xorriso \
     grub-common grub-pc-bin grub-efi-amd64-bin \
-    grub-efi-amd64-signed shim-signed \
     syslinux-common isolinux syslinux-utils \
     mtools dosfstools e2fsprogs \
     rsync curl ca-certificates file
@@ -46,42 +45,49 @@ echo "staged syslinux BIOS modules (ldlinux/libcom32/libutil)"
 # live-build 3.0~a57 has NO EFI ISO support (no binary_grub-efi, no ESP, no
 # El Torito EFI entry) — its ISOs boot on nothing newer than 2011. We build
 # the EFI chain ourselves, Debian-hybrid style:
-#   includes.binary/EFI/efiboot.img  FAT ESP: shim + signed grub + fallback cfg
-#   includes.binary/boot/grub/*      /boot/grub/grub.cfg + modules for the
-#                                    signed grub (prefix = /boot/grub)
+#   includes.binary/EFI/efiboot.img  FAT ESP: standalone grub + fallback cfg
+#   includes.binary/boot/grub/*      /boot/grub/grub.cfg + modules + font
 # and inject the El Torito EFI entry (-e) + isohybrid --uefi (MBR partition
 # 0xEF) through the GENISOIMAGE_OPTIONS_EXTRA / ISOHYBRID_OPTIONS env
 # passthrough consumed by lb_config (see debian-live/auto/config).
+#
+# GRUB flavor: grub-mkstandalone — every module + our grub.cfg embedded in
+# one EFI binary, nothing loaded from external paths. (Shim + distro-signed
+# grub was probed in QEMU: shim chainloads it fine, but its memdisk
+# auto-config never finds our media; the same best-effort standalone path
+# is what modern live-build uses when signed binaries are unavailable.
+# Secure Boot support is an M2 item; M1 requires Secure Boot disabled.)
 ESP_DIR="$ROOT/debian-live/config/includes.binary/EFI"
 GRUB_DIR="$ROOT/debian-live/config/includes.binary/boot/grub"
 mkdir -p "$ESP_DIR" "$GRUB_DIR/x86_64-efi" "$GRUB_DIR/fonts"
 
-# Signed EFI binaries + grub module tree (grub-efi-amd64-signed/-bin,
-# shim-signed; dosfstools + mtools for the ESP image).
-SHIM="/usr/lib/shim/shimx64.efi.signed"
-GRUBEFI="/usr/lib/grub/x86_64-efi-signed/grubx64.efi.signed"
-test -e "$SHIM"    || { echo "ERROR: $SHIM missing — install shim-signed"; exit 1; }
-test -e "$GRUBEFI" || { echo "ERROR: $GRUBEFI missing — install grub-efi-amd64-signed"; exit 1; }
-
+# grub module tree + font for /boot/grub (kept for reference & grub-mkrescue)
 cp -f /usr/lib/grub/x86_64-efi/*.mod "$GRUB_DIR/x86_64-efi/"
 for lst in /usr/lib/grub/x86_64-efi/*.lst; do
     cp -f "$lst" "$GRUB_DIR/x86_64-efi/" 2>/dev/null || true
 done
 cp -f /usr/share/grub/unicode.pf2 "$GRUB_DIR/fonts/unicode.pf2"
 
-# Fallback config inside the ESP (the signed grub normally reads
-# /boot/grub/grub.cfg from the ISO; this covers prefix lookup failures).
+# The one config both the EFI binary embeds and /boot/grub carries.
 mcopy_src="$GRUB_DIR/grub.cfg"
 test -f "$mcopy_src" || { echo "ERROR: $mcopy_src missing"; exit 1; }
 
+grub-mkstandalone -O x86_64-efi \
+    --directory=/usr/lib/grub/x86_64-efi \
+    -o "$ESP_DIR/bootx64.efi" \
+    --modules="iso9660 fat part_msdos part_gpt linux search search_fs_file gfxterm all_video png font echo ls normal configfile boot minicmd test sleep" \
+    --locales= --themes= \
+    "boot/grub/grub.cfg=$mcopy_src" \
+    "boot/grub/fonts/unicode.pf2=/usr/share/grub/unicode.pf2"
+test -s "$ESP_DIR/bootx64.efi" || { echo "ERROR: grub-mkstandalone produced no EFI binary"; exit 1; }
+
 rm -f "$ESP_DIR/efiboot.img"
-dd if=/dev/zero of="$ESP_DIR/efiboot.img" bs=1M count=8 status=none
+dd if=/dev/zero of="$ESP_DIR/efiboot.img" bs=1M count=16 status=none
 mkfs.vfat -F 16 -n AEGIS_EFI "$ESP_DIR/efiboot.img" > /dev/null
 mmd -i "$ESP_DIR/efiboot.img" ::/EFI ::/EFI/boot
-mcopy -i "$ESP_DIR/efiboot.img" "$SHIM"    ::/EFI/boot/bootx64.efi
-mcopy -i "$ESP_DIR/efiboot.img" "$GRUBEFI" ::/EFI/boot/grubx64.efi
+mcopy -i "$ESP_DIR/efiboot.img" "$ESP_DIR/bootx64.efi" ::/EFI/boot/bootx64.efi
 mcopy -i "$ESP_DIR/efiboot.img" "$mcopy_src" ::/EFI/boot/grub.cfg
-echo "built efiboot.img (shim + signed grub, 8 MB FAT16)"
+echo "built efiboot.img (standalone grub, 16 MB FAT16)"
 
 echo "=== 1/5 Sync theme + calamares assets into live-build includes ==="
 bash scripts/sync-includes.sh

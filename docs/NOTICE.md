@@ -42,3 +42,12 @@ is licensed MIT — see [`LICENSE`](../LICENSE).
 
 Ubuntu and KDE are trademarks of their respective owners. Aegis OS is not
 affiliated with, endorsed by, or sponsored by Canonical Ltd. or KDE e.V.
+
+## Secure Boot status (M1)
+
+The M1 ISO boots via a standalone GRUB EFI binary — every module and the
+boot configuration are embedded, nothing is looked up externally. This is
+the same best-effort pattern modern live-build uses when distro-signed
+binaries are not wired up. Consequence: boot with **Secure Boot disabled**
+(or via the firmware's one-time boot menu). Proper shim → signed-GRUB
+chainloading is planned for M2.
