@@ -20,3 +20,10 @@ debian-live/config/packages.chroot/*.deb
 __pycache__/
 *.swp
 .DS_Store
+# Credentials must never enter the repository — tokens live in GitHub
+# (Settings → Secrets and variables → Actions → AEGIS_TOKEN) or in a local
+# git-ignored store outside this tree.
+secrets/
+*.token
+*.pem
+*.key

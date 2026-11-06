@@ -31,3 +31,8 @@ jobs:
           files: dist/*
           generate_release_notes: true
           fail_on_unmatched_files: true
+        # Uses the repository secret AEGIS_TOKEN when present (repo Settings →
+        # Secrets and variables → Actions), otherwise falls back to the
+        # ephemeral, auto-provisioned GITHUB_TOKEN — CI works out of the box.
+        env:
+          GITHUB_TOKEN: ${{ secrets.AEGIS_TOKEN || secrets.GITHUB_TOKEN }}
