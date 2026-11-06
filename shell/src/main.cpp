@@ -42,7 +42,9 @@ public:
 
 LayerShellQt::Window *attach(QQuickWindow *win)
 {
-    return LayerShellQt::Window::attach(win);
+    // layer-shell-qt 6.6 renamed attach() to get(): the Window is an attached
+    // object of the QWindow, owned by it ("ownership is not transferred").
+    return LayerShellQt::Window::get(win);
 }
 
 void configureSurface(QQuickWindow *win)
@@ -52,22 +54,24 @@ void configureSurface(QQuickWindow *win)
     if (name == QStringLiteral("desktopWindow")) {
         auto *layer = attach(win);
         layer->setLayer(LayerShellQt::Window::LayerBackground);
-        layer->setAnchors(LayerShellQt::Window::AnchorTop
-                        | LayerShellQt::Window::AnchorBottom
-                        | LayerShellQt::Window::AnchorLeft
-                        | LayerShellQt::Window::AnchorRight);
+        layer->setAnchors(LayerShellQt::Window::Anchors{
+            LayerShellQt::Window::AnchorTop,
+            LayerShellQt::Window::AnchorBottom,
+            LayerShellQt::Window::AnchorLeft,
+            LayerShellQt::Window::AnchorRight});
         layer->setExclusiveZone(-1); // ignore every exclusive zone
-        layer->setKeyboardInteractivity(LayerShellQt::Window::KeyboardIntensitivityNone);
+        layer->setKeyboardInteractivity(LayerShellQt::Window::KeyboardInteractivityNone);
         layer->setScope(QStringLiteral("aegis-desktop"));
     } else if (name == QStringLiteral("panelWindow")) {
         auto *layer = attach(win);
         layer->setLayer(LayerShellQt::Window::LayerTop);
-        layer->setAnchors(LayerShellQt::Window::AnchorTop
-                        | LayerShellQt::Window::AnchorLeft
-                        | LayerShellQt::Window::AnchorRight);
+        layer->setAnchors(LayerShellQt::Window::Anchors{
+            LayerShellQt::Window::AnchorTop,
+            LayerShellQt::Window::AnchorLeft,
+            LayerShellQt::Window::AnchorRight});
         layer->setExclusiveZone(28); // Table 3 — 28 px of global panel
         layer->setDesiredSize(QSize(0, 28));
-        layer->setKeyboardInteractivity(LayerShellQt::Window::KeyboardIntensitivityOnDemand);
+        layer->setKeyboardInteractivity(LayerShellQt::Window::KeyboardInteractivityOnDemand);
         layer->setScope(QStringLiteral("aegis-panel"));
     } else if (name == QStringLiteral("islandWindow")) {
         auto *layer = attach(win);
@@ -75,7 +79,7 @@ void configureSurface(QQuickWindow *win)
         layer->setAnchors(LayerShellQt::Window::AnchorTop);
         layer->setMargins(QMargins(0, 30, 0, 0)); // hangs flush below the panel
         layer->setExclusiveZone(0);
-        layer->setKeyboardInteractivity(LayerShellQt::Window::KeyboardIntensitivityOnDemand);
+        layer->setKeyboardInteractivity(LayerShellQt::Window::KeyboardInteractivityOnDemand);
         layer->setScope(QStringLiteral("aegis-island"));
     } else if (name == QStringLiteral("dockWindow")) {
         auto *layer = attach(win);
@@ -83,7 +87,7 @@ void configureSurface(QQuickWindow *win)
         layer->setAnchors(LayerShellQt::Window::AnchorBottom);
         layer->setMargins(QMargins(0, 0, 0, 10)); // Table 4: 10 px above bottom edge
         layer->setExclusiveZone(0);
-        layer->setKeyboardInteractivity(LayerShellQt::Window::KeyboardIntensitivityOnDemand);
+        layer->setKeyboardInteractivity(LayerShellQt::Window::KeyboardInteractivityOnDemand);
         layer->setScope(QStringLiteral("aegis-dock"));
     } else {
         return;
