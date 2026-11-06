@@ -37,6 +37,7 @@ lb config noauto \
     --debian-installer false \
     --security false \
     --apt-secure false \
+    --initsystem systemd \
     --mirror-bootstrap "http://archive.ubuntu.com/ubuntu" \
     --mirror-chroot "http://archive.ubuntu.com/ubuntu" \
     --mirror-chroot-security "http://security.ubuntu.com/ubuntu" \
