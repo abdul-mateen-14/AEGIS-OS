@@ -28,6 +28,17 @@
 # finalized so the shipped OS verifies its repositories normally.
 set -e
 
+# UEFI support for the ISO (live-build 3.0~a57 has none of its own).
+# lb_binary_iso runs: genisoimage $GENISOIMAGE_OPTIONS $GENISOIMAGE_OPTIONS_EXTRA
+# then isohybrid $ISOHYBRID_OPTIONS — both vars pass through lb_config's env.
+#   -eltorito-alt-boot -e EFI/efiboot.img -no-emul-boot
+#       second El Torito entry pointing at the FAT ESP in the ISO tree
+#       (staged by scripts/build-iso.sh into includes.binary/EFI/)
+#   isohybrid --uefi
+#       adds the MBR partition of type 0xEF so USB sticks boot UEFI too
+export GENISOIMAGE_OPTIONS_EXTRA='-eltorito-alt-boot -e EFI/efiboot.img -no-emul-boot'
+export ISOHYBRID_OPTIONS='--uefi'
+
 lb config noauto \
     --mode debian \
     --distribution resolute \
