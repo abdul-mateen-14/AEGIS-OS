@@ -18,6 +18,15 @@ apt-get install -y --no-install-recommends \
     mtools dosfstools e2fsprogs \
     rsync curl ca-certificates file
 
+# Patch live-build 3.0~a57: the gfxboot "bootlogo" repack block in
+# lb_binary_syslinux is unconditional but only ever worked with
+# --mode ubuntu's gfxboot-theme-ubuntu assets. With a plain vesamenu theme
+# there is no bootlogo archive, so the block aborts the whole build.
+# Delete it — vesamenu reads the loose .cfg files and ignores bootlogo.
+sed -i '/# Hack around the removal of support in gfxboot/,/^rm -rf "\$tmpdir"$/d' \
+    /usr/lib/live/build/lb_binary_syslinux
+echo "patched lb_binary_syslinux (gfxboot bootlogo block removed)"
+
 echo "=== 1/5 Sync theme + calamares assets into live-build includes ==="
 bash scripts/sync-includes.sh
 
