@@ -9,6 +9,12 @@
 # The kernel comes from --linux-packages/--linux-flavours, not a package list:
 # linux-image-generic-hwe-26.04 = "complete firmware + HWE kernel" per M1 scope.
 # If the HWE meta is ever unavailable, swap to "generic" and rebuild.
+#
+# --security false: this live-build (3.0~a57) hardcodes the Debian-style
+# "${DIST}/updates" security pocket in --mode debian, which does not exist on
+# Ubuntu (Ubuntu uses "${DIST}-security"). The -updates pocket is still
+# enabled and carries most fixes. Proper -security wiring is an M2 item
+# (custom sources.list hook or a maintained live-build).
 set -e
 
 lb config noauto \
@@ -22,6 +28,7 @@ lb config noauto \
     --bootappend-live "boot=casper quiet splash hostname=aegis username=aegis autologin" \
     --bootstrap-flavour minimal \
     --debian-installer false \
+    --security false \
     --mirror-bootstrap "http://archive.ubuntu.com/ubuntu" \
     --mirror-chroot "http://archive.ubuntu.com/ubuntu" \
     --mirror-chroot-security "http://security.ubuntu.com/ubuntu" \
