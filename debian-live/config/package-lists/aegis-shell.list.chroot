@@ -1,0 +1,11 @@
+# Runtime deps for the Aegis Shell (Qt Quick 6 on KWin 6 Wayland + LayerShellQt).
+# The aegis-shell .deb itself is staged in config/packages.chroot/.
+layer-shell-qt
+qt6-wayland
+qml6-module-qtquick
+qml6-module-qtquick-controls
+qml6-module-qtquick-layouts
+qml6-module-qtquick-templates
+qml6-module-qtqml-workerscript
+qml6-module-qtquick-window
+fonts-montserrat

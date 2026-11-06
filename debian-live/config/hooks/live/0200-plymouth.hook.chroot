@@ -1,0 +1,12 @@
+#!/bin/sh
+set -e
+# Aegis boot splash: Aegis Mark on true black with hairline progress.
+# Ships as a Plymouth script theme built from the branded PNGs (theme/plymouth/).
+update-alternatives --install /usr/share/plymouth/themes/default.plymouth \
+    default.plymouth /usr/share/plymouth/themes/aegis/aegis.plymouth 200
+update-alternatives --set default.plymouth \
+    /usr/share/plymouth/themes/aegis/aegis.plymouth || true
+
+if [ -x /usr/sbin/update-initramfs ]; then
+    update-initramfs -u
+fi

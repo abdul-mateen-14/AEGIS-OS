@@ -1,0 +1,44 @@
+#!/usr/bin/env bash
+# Syncs design assets (theme/, calamares/, shell/packaging/) into the
+# live-build includes tree. Sources stay in git; includes carry the binaries.
+set -euo pipefail
+
+ROOT="$(cd "$(dirname "$0")/.." && pwd)"
+INC="$ROOT/debian-live/config/includes.chroot"
+
+mkdir -p \
+    "$INC/usr/share/wallpapers/aegis" \
+    "$INC/usr/share/plymouth/themes/aegis" \
+    "$INC/usr/share/color-schemes" \
+    "$INC/usr/share/applications" \
+    "$INC/usr/share/aegis/shell" \
+    "$INC/usr/share/aegis/avatar" \
+    "$INC/etc/calamares/modules" \
+    "$INC/usr/share/calamares/branding"
+
+# Default wallpapers (Aurora Ink · Graphite Dune · Neon Coast · Emerald Ridge)
+cp "$ROOT"/theme/wallpapers/*.jpg "$INC/usr/share/wallpapers/aegis/"
+
+# Plymouth boot splash (Aegis Mark on true black, hairline progress)
+cp "$ROOT"/theme/plymouth/* "$INC/usr/share/plymouth/themes/aegis/"
+
+# Color schemes
+cp "$ROOT"/theme/colors/*.colors "$INC/usr/share/color-schemes/"
+
+# First-party desktop entries
+cp "$ROOT"/theme/desktop-entries/*.desktop "$INC/usr/share/applications/"
+
+# Shell config (wallpaper + default dock: Files, Terminal, AEGIS Browser,
+# OS Cloud, CoreX, Settings, | , Trash)
+cp "$ROOT"/shell/packaging/config.json "$INC/usr/share/aegis/shell/config.json"
+
+# Account avatar (Aegis ID rail + lock screen, M2)
+cp "$ROOT"/theme/avatar/avatar-alex.png "$INC/usr/share/aegis/avatar/"
+
+# Calamares installer config + Aegis branding
+cp "$ROOT"/calamares/settings.conf "$INC/etc/calamares/"
+cp "$ROOT"/calamares/modules/*.conf "$INC/etc/calamares/modules/"
+cp -r "$ROOT"/calamares/branding/aegis "$INC/usr/share/calamares/branding/"
+
+echo "--- includes.chroot contents ---"
+find "$INC" -type f | sed "s|$INC/||" | sort

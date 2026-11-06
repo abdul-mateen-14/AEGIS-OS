@@ -1,0 +1,4 @@
+#!/bin/sh
+# live-build build entry (standard auto/build convention).
+set -e
+lb build 2>&1 | tee build.log

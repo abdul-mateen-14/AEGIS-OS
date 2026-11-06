@@ -1,0 +1,33 @@
+name: Shell CI
+
+on:
+  push:
+    branches: [main]
+    paths: ['shell/**', '.github/workflows/shell-ci.yml']
+  pull_request:
+    paths: ['shell/**']
+  workflow_dispatch:
+
+concurrency:
+  group: shell-ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build-deb:
+    name: Build aegis-shell .deb (free ubuntu-latest runner)
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Build inside ubuntu:resolute (Qt 6 + LayerShellQt)
+        run: bash scripts/ci/run-in-container.sh bash scripts/build-shell.sh
+
+      - name: Upload .deb artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: aegis-shell-deb
+          path: artifacts/*.deb
+          retention-days: 14
+          if-no-files-found: error

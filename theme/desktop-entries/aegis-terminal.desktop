@@ -1,0 +1,11 @@
+[Desktop Entry]
+Type=Application
+Name=Terminal
+GenericName=Terminal Emulator
+Comment=The Aegis first-party Terminal surface
+Exec=konsole
+Icon=utilities-terminal
+Terminal=false
+Categories=Qt;System;TerminalEmulator;
+StartupNotify=true
+X-Aegis-FirstParty=true

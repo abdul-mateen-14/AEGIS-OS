@@ -1,0 +1,6 @@
+#!/bin/sh
+# live-build clean entry (standard auto/clean convention).
+set -e
+lb clean noauto "${@}"
+rm -f build.log
+rm -rf config/packages.chroot/*.deb

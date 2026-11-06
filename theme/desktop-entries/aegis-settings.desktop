@@ -1,0 +1,11 @@
+[Desktop Entry]
+Type=Application
+Name=Settings
+GenericName=System Settings
+Comment=Aegis system settings
+Exec=systemsettings
+Icon=preferences-system
+Terminal=false
+Categories=Qt;Settings;
+StartupNotify=true
+X-Aegis-FirstParty=true

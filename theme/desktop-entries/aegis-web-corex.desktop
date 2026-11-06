@@ -1,0 +1,10 @@
+[Desktop Entry]
+Type=Application
+Name=CoreX
+Comment=CoreX (corex.site.je) — stopgap web launcher until the CoreX .deb ships (see docs/APP-SLOTS.md)
+Exec=xdg-open https://corex.site.je
+Icon=applications-internet
+Terminal=false
+Categories=Network;
+X-Aegis-FirstParty=true
+X-Aegis-Slot=corex

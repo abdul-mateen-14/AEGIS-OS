@@ -1,0 +1,13 @@
+{
+  "wallpaper": "/usr/share/wallpapers/aegis/aurora-ink.jpg",
+  "apps": [
+    { "name": "Files",         "icon": "system-file-manager",   "cmd": "dolphin" },
+    { "name": "Terminal",      "icon": "utilities-terminal",    "cmd": "konsole" },
+    { "name": "AEGIS Browser", "icon": "web-browser",           "cmd": "aegis-browser" },
+    { "name": "OS Cloud",      "icon": "web-browser",           "cmd": "xdg-open https://os-cloudflare.pages.dev" },
+    { "name": "CoreX",         "icon": "applications-internet", "cmd": "xdg-open https://corex.site.je" },
+    { "name": "Settings",      "icon": "preferences-system",    "cmd": "systemsettings" },
+    { "type": "separator" },
+    { "name": "Trash",         "icon": "user-trash",            "cmd": "dolphin trash:/" }
+  ]
+}

@@ -1,0 +1,39 @@
+#!/bin/sh
+# live-build configuration for the Aegis OS M1 ISO.
+#
+# Base (proposal Table 19): Ubuntu LTS core, minimal seed, zram default,
+# KWin 6 Wayland session, Calamares installer.
+# Suite: Ubuntu 26.04 LTS "resolute" — ships KDE Plasma 6.6 LTS / Qt 6 natively
+# and is supported until April 2029.
+#
+# The kernel comes from --linux-packages/--linux-flavours, not a package list:
+# linux-image-generic-hwe-26.04 = "complete firmware + HWE kernel" per M1 scope.
+# If the HWE meta is ever unavailable, swap to "generic" and rebuild.
+set -e
+
+lb config noauto \
+    --mode debian \
+    --distribution resolute \
+    --archive-areas "main restricted universe multiverse" \
+    --binary-images iso-hybrid \
+    --initramfs casper \
+    --linux-packages "linux-image" \
+    --linux-flavours "generic-hwe-26.04" \
+    --bootappend-live "boot=casper quiet splash hostname=aegis username=aegis autologin" \
+    --debian-installer none \
+    --mirror-bootstrap "http://archive.ubuntu.com/ubuntu" \
+    --mirror-chroot "http://archive.ubuntu.com/ubuntu" \
+    --mirror-chroot-security "http://security.ubuntu.com/ubuntu" \
+    --mirror-binary "http://archive.ubuntu.com/ubuntu" \
+    --mirror-binary-security "http://security.ubuntu.com/ubuntu" \
+    --mirror-debian-installer "http://archive.ubuntu.com/ubuntu" \
+    --debootstrap-options "--variant=minbase" \
+    --firmware-binary false \
+    --firmware-chroot false \
+    --backports false \
+    --memtest none \
+    --swap-file-size 0 \
+    --iso-volume "AegisOS" \
+    --iso-application "Aegis OS" \
+    --iso-publisher "Aegis OS Project; https://github.com/abdul-mateen-14/AEGIS-OS; aegis-os" \
+    "${@}"

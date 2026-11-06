@@ -1,0 +1,8 @@
+[Desktop Entry]
+Type=Application
+Name=Aegis
+Comment=Aegis OS liquid-glass Wayland session (KWin 6 + Aegis Shell)
+Exec=dbus-run-session -- /usr/bin/aegis-session
+TryExec=/usr/bin/aegis-session
+DesktopNames=Aegis
+Keywords=aegis;wayland;session

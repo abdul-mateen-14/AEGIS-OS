@@ -1,0 +1,17 @@
+// Aegis OS live session — the live user ("aegis") runs the installer
+// without password prompts. This rule matches ONLY the live user, so it
+// has no effect on installed systems.
+polkit.addRule(function(action, subject) {
+    if (subject.user == "aegis") {
+        if (action.id.indexOf("org.freedesktop.udisks2.") == 0 ||
+            action.id.indexOf("org.freedesktop.policykit.exec") == 0 ||
+            action.id.indexOf("org.freedesktop.timedate1.") == 0 ||
+            action.id.indexOf("org.freedesktop.locale1.") == 0 ||
+            action.id.indexOf("org.freedesktop.hostname1.") == 0 ||
+            action.id.indexOf("org.freedesktop.systemd1.") == 0 ||
+            action.id.indexOf("org.freedesktop.login1.") == 0 ||
+            action.id.indexOf("com.ubuntu.") == 0) {
+            return polkit.Result.YES;
+        }
+    }
+});

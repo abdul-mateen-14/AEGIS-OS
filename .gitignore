@@ -1,0 +1,22 @@
+*.iso
+*.iso.sha256
+build.log
+artifacts/
+debian-live/.build/
+debian-live/chroot/
+debian-live/cache/
+debian-live/binary/
+debian-live/build.log
+# Asset trees synced into the live-build includes at build time
+# (sources live in theme/, calamares/, shell/packaging/)
+debian-live/config/includes.chroot/usr/share/wallpapers/
+debian-live/config/includes.chroot/usr/share/plymouth/
+debian-live/config/includes.chroot/usr/share/color-schemes/
+debian-live/config/includes.chroot/usr/share/calamares/
+debian-live/config/includes.chroot/usr/share/applications/
+debian-live/config/includes.chroot/usr/share/aegis/
+debian-live/config/includes.chroot/etc/calamares/
+debian-live/config/packages.chroot/*.deb
+__pycache__/
+*.swp
+.DS_Store

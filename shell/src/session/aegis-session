@@ -1,0 +1,33 @@
+#!/bin/sh
+# Aegis Wayland session — KWin 6 hosts the display, Aegis Shell is the client.
+# The session ends when the shell exits.
+export QT_QUICK_CONTROLS_STYLE=Basic
+export QT_WAYLAND_DISABLE_WINDOWDECORATION=1
+
+kwin_wayland --xwayland &
+KWIN_PID=$!
+
+cleanup() {
+    [ -n "${KWIN_PID}" ] && kill "$KWIN_PID" 2>/dev/null || true
+}
+trap cleanup EXIT INT TERM
+
+# Wait for the Wayland socket kwin advertises (default wayland-0)
+WAYLAND_DISPLAY="${WAYLAND_DISPLAY:-wayland-0}"
+for _ in $(seq 1 50); do
+    [ -n "$XDG_RUNTIME_DIR" ] && [ -S "$XDG_RUNTIME_DIR/$WAYLAND_DISPLAY" ] && break
+    sleep 0.1
+done
+
+# Session services — deliberately minimal for M1
+command -v kded6 >/dev/null 2>&1 && kded6 >/dev/null 2>&1 &
+for PORTAL in \
+    /usr/libexec/xdg-desktop-portal-kde \
+    /usr/lib/x86_64-linux-gnu/libexec/xdg-desktop-portal-kde; do
+    [ -x "$PORTAL" ] && "$PORTAL" >/dev/null 2>&1 &
+    break
+done
+POLKIT_AGENT=/usr/lib/x86_64-linux-gnu/libexec/polkit-kde-authentication-agent-1
+[ -x "$POLKIT_AGENT" ] && "$POLKIT_AGENT" >/dev/null 2>&1 &
+
+exec /usr/bin/aegis-shell

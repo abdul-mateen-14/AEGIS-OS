@@ -1,0 +1,4 @@
+#!/bin/sh
+set -e
+# Enable zram swap (Table 19: zram default)
+systemctl enable zramswap.service || true

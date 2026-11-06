@@ -1,0 +1,49 @@
+# Aegis OS boot splash (proposal, chapter 07):
+# the Aegis Mark centered on true black; a 240x2 hairline progress bar
+# 36 px below the mark fills with the accent color as the boot advances.
+
+Window.SetBackgroundTopColor(0.0, 0.0, 0.0);
+Window.SetBackgroundBottomColor(0.0, 0.0, 0.0);
+
+// Aegis Mark, scaled to 96 px tall, dead center
+mark.image = Image("aegis-mark.png");
+mark.height = 96;
+mark.width = 96 * mark.image.GetWidth() / mark.image.GetHeight();
+mark.x = Window.GetWidth() / 2 - mark.width / 2;
+mark.y = Window.GetHeight() / 2 - mark.height / 2;
+mark.sprite = Sprite(mark.image.Scale(mark.width, mark.height));
+mark.sprite.SetX(mark.x);
+mark.sprite.SetY(mark.y);
+
+// hairline progress
+bar.width = 240;
+bar.height = 2;
+bar.x = Window.GetWidth() / 2 - bar.width / 2;
+bar.y = mark.y + mark.height + 36;
+bar.progress = 0;
+
+track.image = Image("track.png");
+track.sprite = Sprite(track.image.Scale(bar.width, bar.height));
+track.sprite.SetX(bar.x);
+track.sprite.SetY(bar.y);
+
+fill.image = Image("fill.png");
+fill.sprite = Sprite();
+fill.sprite.SetX(bar.x);
+fill.sprite.SetY(bar.y);
+
+fun boot_progress(duration, progress)
+{
+    bar.progress = progress;
+}
+
+fun refresh()
+{
+    w = bar.width * bar.progress;
+    if (w < 0) w = 0;
+    if (w > bar.width) w = bar.width;
+    fill.sprite.SetImage(fill.image.Scale(w, bar.height));
+}
+
+Plymouth.SetBootProgressFunction(boot_progress);
+Plymouth.SetRefreshFunction(refresh);

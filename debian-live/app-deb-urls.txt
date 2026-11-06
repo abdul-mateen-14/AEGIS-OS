@@ -1,0 +1,9 @@
+# Placeholder — the three Aegis first-party app .deb URLs land here
+# (AEGIS Browser · OS Cloud · CoreX). One URL per line, '#' comments allowed.
+# Until then, app-debs are staged either by:
+#   - the repo VARIABLE AEGIS_APPS_DEB_URLS (Settings > Secrets and variables
+#     > Actions > Variables), or
+#   - dropping the .deb files directly into debian-live/config/packages.chroot/
+#
+# Example (once links are shared):
+# https://example.com/downloads/aegis-browser_1.0_amd64.deb

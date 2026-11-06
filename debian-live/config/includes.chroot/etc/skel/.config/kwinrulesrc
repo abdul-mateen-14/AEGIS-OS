@@ -1,0 +1,12 @@
+[1]
+Description=Aegis Shell glass surfaces — forced backdrop blur + chromeless
+windowclass=aegis-shell
+windowclassmatch=2
+blur=true
+blurrule=2
+noborder=true
+noborderrule=2
+skippager=true
+skippagerrule=2
+skiptaskbar=true
+skiptaskbarrule=2

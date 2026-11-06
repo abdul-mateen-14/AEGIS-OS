@@ -1,0 +1,8 @@
+#!/bin/sh
+# Auto-starts Calamares in the live session only.
+# On an installed system /run/live/medium and /cdrom do not exist, so this
+# exits and the desktop boots clean.
+if [ ! -d /run/live/medium ] && [ ! -d /cdrom ]; then
+    exit 0
+fi
+exec sudo -E calamares

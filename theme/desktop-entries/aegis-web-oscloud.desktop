@@ -1,0 +1,10 @@
+[Desktop Entry]
+Type=Application
+Name=OS Cloud
+Comment=OS Cloud (os-cloudflare.pages.dev) — stopgap web launcher until the OS Cloud .deb ships (see docs/APP-SLOTS.md)
+Exec=xdg-open https://os-cloudflare.pages.dev
+Icon=web-browser
+Terminal=false
+Categories=Network;
+X-Aegis-FirstParty=true
+X-Aegis-Slot=os-cloud

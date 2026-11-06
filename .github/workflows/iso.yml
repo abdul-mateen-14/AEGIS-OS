@@ -1,0 +1,68 @@
+name: ISO
+
+on:
+  workflow_call:
+    inputs:
+      artifact_retention_days:
+        description: 'ISO artifact retention in days'
+        required: false
+        default: 14
+        type: number
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - 'debian-live/**'
+      - 'shell/**'
+      - 'calamares/**'
+      - 'scripts/**'
+      - '.github/workflows/iso.yml'
+
+concurrency:
+  group: iso-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build-iso:
+    name: Build Aegis OS ISO (free ubuntu-latest runner)
+    runs-on: ubuntu-latest
+    timeout-minutes: 150
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Free disk space (~30 GB reclaimed)
+        run: bash scripts/ci/free-disk-space.sh
+
+      - name: Build aegis-shell .deb (inside ubuntu:resolute container)
+        run: bash scripts/ci/run-in-container.sh bash scripts/build-shell.sh
+
+      - name: Stage shell .deb + Aegis app .debs into the image
+        run: |
+          mkdir -p debian-live/config/packages.chroot
+          cp artifacts/aegis-shell_*.deb debian-live/config/packages.chroot/
+          bash scripts/ci/install-app-debs.sh
+        env:
+          AEGIS_APPS_DEB_URLS: ${{ vars.AEGIS_APPS_DEB_URLS }}
+
+      - name: Build the ISO (inside privileged ubuntu:resolute container)
+        run: bash scripts/ci/run-in-container.sh bash scripts/build-iso.sh
+
+      - name: Verify image
+        run: |
+          ISO="$(ls -1 *.iso | head -1)"
+          test -n "$ISO" || { echo "ERROR: no ISO produced"; tail -n 200 build.log 2>/dev/null; exit 1; }
+          ls -lh "$ISO"
+          file "$ISO"
+          sha256sum "$ISO" | tee "$ISO.sha256"
+
+      - name: Upload ISO artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: aegis-os-${{ github.sha }}
+          path: |
+            *.iso
+            *.iso.sha256
+          retention-days: ${{ inputs.artifact_retention_days }}
+          if-no-files-found: error
+          compression-level: 0

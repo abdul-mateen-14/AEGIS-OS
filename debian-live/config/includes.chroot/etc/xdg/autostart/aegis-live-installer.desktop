@@ -1,0 +1,8 @@
+[Desktop Entry]
+Type=Application
+Name=Install Aegis OS
+Comment=Install Aegis OS to this computer
+Exec=/usr/bin/aegis-live-installer
+Icon=aegis-installer
+Terminal=false
+Categories=System;

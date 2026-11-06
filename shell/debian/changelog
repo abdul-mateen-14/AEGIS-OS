@@ -1,0 +1,11 @@
+aegis-shell (1.4.0-m1) resolute; urgency=medium
+
+  * M1 shell core: 28 px glass panel, floating dock with the §2.2
+    magnification recipe (1.85x peak, ±2.4-tile linear falloff, spring
+    mass 0.1 / stiffness 170 / damping 13), launch bounce, 120x4 sliver.
+  * Dynamic Island: ink capsule morph engine, idle 104x32 (v1.4 override,
+    iPhone Pro-class) with all six states of Table 5b.
+  * Glass tokens as code (Tokens.qml), KWin blur forced via kwinrulesrc.
+  * Session: kwin_wayland + Aegis Shell (wayland-sessions/aegis.desktop).
+
+ -- Aegis OS Project <aegis@users.noreply.github.com>  Fri, 06 Nov 2026 12:00:00 +0000

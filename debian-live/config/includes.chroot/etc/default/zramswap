@@ -1,0 +1,3 @@
+# zram default — proposal Table 19 (Ubuntu LTS core, zram default)
+ALGO=zstd
+PERCENT=50

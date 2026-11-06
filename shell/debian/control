@@ -1,0 +1,38 @@
+Source: aegis-shell
+Section: x11
+Priority: optional
+Maintainer: Aegis OS Project <aegis@users.noreply.github.com>
+Build-Depends: debhelper-compat (= 13),
+               cmake,
+               pkg-config,
+               qt6-base-dev,
+               qt6-declarative-dev,
+               liblayershellqt-dev,
+               layer-shell-qt
+Standards-Version: 4.6.2
+Rules-Requires-Root: no
+Homepage: https://github.com/abdul-mateen-14/AEGIS-OS
+
+Package: aegis-shell
+Architecture: amd64
+Depends: ${shlibs:Depends},
+         ${misc:Depends},
+         kwin-wayland,
+         qt6-wayland,
+         qml6-module-qtquick,
+         qml6-module-qtquick-controls,
+         qml6-module-qtquick-layouts,
+         qml6-module-qtquick-templates,
+         qml6-module-qtqml-workerscript,
+         layer-shell-qt,
+         fonts-montserrat
+Description: Liquid-glass shell of Aegis OS (panel, dock, Dynamic Island)
+ Aegis Shell is the Qt Quick 6 shell of Aegis OS, running on KWin 6 Wayland
+ through the layer-shell protocol. Surfaces: a 28 px glass top panel, the
+ floating liquid-glass dock with macOS-grade magnification (clamped linear
+ map, spring mass 0.1 / stiffness 170 / damping 13, two Euler substeps), the
+ 120x4 sliver, and the Dynamic Island live-activity capsule (idle 104x32,
+ spring mass 1 / stiffness 420 / damping 28).
+ .
+ Design tokens are code: shell/src/qml/Tokens.qml mirrors the tables of the
+ Aegis OS UI design proposal v1.3 (+ the v1.4 island override).

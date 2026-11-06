@@ -1,0 +1,67 @@
+# Aegis OS desktop core — M1 "Shell core" (proposal §9.2)
+#
+# Session: KWin 6 Wayland (Kubuntu 26.04 LTS ships Plasma 6.6 LTS / Qt 6).
+# plasma-workspace is kept as the fallback session + kded6/portal provider;
+# the Aegis session (wayland-sessions/aegis.desktop) is the featured one.
+
+# Compositor + session infra
+kwin-wayland
+xwayland
+plasma-workspace
+plasma-desktop
+powerdevil
+kinfocenter
+systemsettings
+polkit-kde-agent-1
+
+# Login manager
+sddm
+
+# M1 first-party surfaces: Files · Terminal
+dolphin
+konsole
+
+# Network (auto-connect on boot; GUI tray arrives in M2)
+network-manager
+wireless-regdb
+plasma-nm
+
+# Bluetooth
+bluez
+bluez-cups
+
+# Audio (PipeWire stack)
+pipewire
+pipewire-pulse
+wireplumber
+
+# Printing & scanning — out of the box (Table 22)
+cups
+printer-driver-gutenprint
+sane-utils
+simple-scan
+
+# Drivers & firmware — complete, no downloads at first boot (Table 22)
+linux-firmware
+mesa-vulkan-drivers
+va-driver-all
+fwupd
+ubuntu-drivers-common
+
+# Secure Boot chain for the installed system
+grub-efi-amd64
+grub-efi-amd64-signed
+shim-signed
+
+# Memory: zram default (Table 19)
+zram-tools
+
+# Fonts: Montserrat is the Aegis design language; Noto covers the rest
+fonts-montserrat
+fonts-noto-core
+fonts-noto-color-emoji
+
+# Portals (file dialogs, screenshots, remote desktop)
+xdg-desktop-portal
+xdg-desktop-portal-kde
+xdg-desktop-portal-gtk

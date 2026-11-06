@@ -1,0 +1,11 @@
+[Desktop Entry]
+Type=Application
+Name=Files
+GenericName=File Manager
+Comment=Browse the file system — the Aegis first-party Files surface
+Exec=dolphin %U
+Icon=system-file-manager
+Terminal=false
+Categories=Qt;System;FileTools;FileManager;
+StartupNotify=true
+X-Aegis-FirstParty=true
