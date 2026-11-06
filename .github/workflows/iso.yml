@@ -8,6 +8,11 @@ on:
         required: false
         default: 14
         type: number
+      iso_version:
+        description: 'Version string baked into the ISO filename (AegisOS-<v>-amd64.iso)'
+        required: false
+        default: ''
+        type: string
   workflow_dispatch:
   push:
     branches: [main]
@@ -52,6 +57,13 @@ jobs:
         run: |
           ISO="$(ls -1 *.iso | head -1)"
           test -n "$ISO" || { echo "ERROR: no ISO produced"; tail -n 200 debian-live/build.log build.log 2>/dev/null; exit 1; }
+          # Brand the filename: AegisOS-<version>-amd64.iso (live-build emits
+          # binary.hybrid.iso; the download page must read Aegis, not "binary").
+          VER="${{ inputs.iso_version || 'dev' }}"
+          VER="${VER#v}"
+          FINAL="AegisOS-${VER}-amd64.iso"
+          mv "$ISO" "$FINAL"
+          ISO="$FINAL"
           ls -lh "$ISO"
           file "$ISO"
           sha256sum "$ISO" | tee "$ISO.sha256"

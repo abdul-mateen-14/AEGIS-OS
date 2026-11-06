@@ -1,12 +1,12 @@
 # Aegis OS
 
-Liquid-glass, Ubuntu-based desktop environment — **KWin 6 Wayland + Qt Quick 6 shell**, built entirely on **GitHub Actions free runners**.
+Liquid-glass desktop OS — a **KWin 6 Wayland compositor with a Qt Quick 6 shell**, built entirely on **GitHub Actions free runners**.
 
 > Hardened by default. Quiet chrome, colorful content. Calm. Fast.
 
-This repository implements the [Aegis OS UI Design Proposal v1.3](docs/DESIGN-TOKENS.md) as a real, buildable OS: a live ISO with the Aegis Shell (28 px glass panel, floating dock with macOS-grade magnification, Dynamic Island), branded Plymouth boot splash, glass tokens as code, and a Calamares installer.
+This repository implements the [Aegis OS UI Design Proposal v1.3](docs/DESIGN-TOKENS.md) as a real, buildable OS: a live ISO with the Aegis Shell (28 px glass panel, floating dock with macOS-grade magnification, Dynamic Island), branded Plymouth boot splash, glass tokens as code, and a fully graphical installer.
 
-**Base (proposal Table 19):** Ubuntu 26.04 LTS "resolute" · KWin 6 Wayland · Qt Quick 6 · zram default · Calamares. Kubuntu 26.04 LTS ships KDE Plasma 6.6 LTS natively, so no PPAs and no suite hacks.
+For engineers: platform lineage, components and licenses live in [`docs/NOTICE.md`](docs/NOTICE.md).
 
 ---
 
@@ -40,7 +40,7 @@ Push anything under `debian-live/`, `shell/`, `calamares/` or `scripts/` to `mai
 1. reclaims ~30 GB on the free `ubuntu-latest` runner (72 GB disk),
 2. builds `aegis-shell_*.deb` inside an `ubuntu:resolute` container,
 3. stages the shell + first-party app `.deb`s,
-4. runs live-build inside the container → `aegis-os_*.iso` (~2.5–3.5 GB),
+4. runs live-build inside the container → `AegisOS-*-amd64.iso` (~2.5–3.5 GB),
 5. uploads the ISO + sha256 as an artifact (releases on `v*` tags).
 
 Free-tier details and cost math: [`docs/CI-FREE-TIER.md`](docs/CI-FREE-TIER.md).
@@ -49,7 +49,7 @@ Free-tier details and cost math: [`docs/CI-FREE-TIER.md`](docs/CI-FREE-TIER.md).
 
 ```bash
 bash scripts/ci/run-in-container.sh bash scripts/build-iso.sh
-# → aegis-os_*.iso in the repo root
+# → AegisOS-*-amd64.iso in the repo root
 ```
 
 Shell-only rebuild: `bash scripts/ci/run-in-container.sh bash scripts/build-shell.sh` → `artifacts/aegis-shell_*.deb`. Full guide: [`docs/BUILD.md`](docs/BUILD.md).
@@ -64,10 +64,10 @@ Per product decision, the Dynamic Island idles at the **iPhone Pro-class pill �
 
 ## Download a release ISO
 
-Grab the ISO from [Releases](https://github.com/abdul-mateen-14/AEGIS-OS/releases). It exceeds GitHub's 2 GiB per-asset cap, so it ships as numbered parts plus a checksum file — reassemble and verify:
+Grab the ISO from [Releases](https://github.com/abdul-mateen-14/AEGIS-OS/releases). It ships as numbered parts plus a checksum file — reassemble and verify:
 
 ```bash
-cat aegis-os-*.iso.part-* > aegis-os.iso
+cat *.iso.part-* > AegisOS.iso
 sha256sum -c SHA256SUMS
 ```
 
@@ -77,13 +77,13 @@ sha256sum -c SHA256SUMS
 # bare metal: flash the ISO to USB (Ventoy/dd/Rufus)
 # or try it in QEMU with UEFI + KVM:
 qemu-system-x86_64 -enable-kvm -m 4096 -bios /usr/share/ovmf/OVMF.fd \
-    -cdrom aegis-os_*.iso
+    -cdrom AegisOS-*-amd64.iso
 ```
 
-Login (live session): user `aegis`, autologin on, empty password via sudo NOPASSWD. Pick the **Aegis** session for the featured shell (Plasma Wayland remains as fallback). Double-click the Dynamic Island to cycle its states; hover the dock to see the magnification field; fold it to the sliver by leaving it idle for 4 s and poke the bottom edge to spring it back.
+Login (live session): user `aegis`, autologin on, empty password via sudo NOPASSWD. The **Aegis** session is the featured one; a stock compatibility session ships as fallback. Double-click the Dynamic Island to cycle its states; hover the dock to see the magnification field; fold it to the sliver by leaving it idle for 4 s and poke the bottom edge to spring it back.
 
-## Open-source foundations
+## Third-party components
 
-Built on the shoulders of: [live-build](https://salsa.debian.org/live-team/live-build) + [casper](https://launchpad.net/ubuntu/+source/casper) (ISO engineering), [KWin / KDE Plasma 6](https://invent.kde.org/plasma/kwin) (compositor, per the proposal's stack table), [LayerShellQt](https://invent.kde.org/libraries/layer-shell-qt) ( Wayland surface layers), [Calamares](https://github.com/calamares/calamares) (installer), [Plymouth](https://gitlab.freedesktop.org/plymouth/plymouth) (boot splash), [Ubuntu](https://ubuntu.com) (base core + firmware). The shell architecture follows the CutefishOS-proven pattern ("Cutefish started it, macOS polished it — Aegis OS finishes it").
+Platform lineage and license notices: [`docs/NOTICE.md`](docs/NOTICE.md).
 
 License: MIT — see [`LICENSE`](LICENSE).

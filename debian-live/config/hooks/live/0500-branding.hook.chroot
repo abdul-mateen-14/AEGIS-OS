@@ -1,0 +1,45 @@
+#!/bin/sh
+set -e
+# Aegis OS user-facing branding.
+#
+# Only the strings a human reads are rebranded (PRETTY_NAME, issue, motd…).
+# Machine-readable fields (ID=ubuntu, VERSION_ID, *_CODENAME) are kept so apt
+# pins, ubuntu-drivers, HWE metas and tooling that parses os-release keep
+# working untouched.
+
+OSRELEASE="$(readlink -f /etc/os-release 2>/dev/null || echo /etc/os-release)"
+if [ -f "$OSRELEASE" ]; then
+    sed -i \
+        -e 's/^NAME=.*/NAME="Aegis OS"/' \
+        -e 's/^PRETTY_NAME=.*/PRETTY_NAME="Aegis OS 0.2"/' \
+        -e 's|^HOME_URL=.*|HOME_URL="https://github.com/abdul-mateen-14/AEGIS-OS"|' \
+        -e 's|^SUPPORT_URL=.*|SUPPORT_URL="https://github.com/abdul-mateen-14/AEGIS-OS/issues"|' \
+        -e 's|^BUG_REPORT_URL=.*|BUG_REPORT_URL="https://github.com/abdul-mateen-14/AEGIS-OS/issues"|' \
+        -e 's|^PRIVACY_POLICY_URL=.*|PRIVACY_POLICY_URL="https://github.com/abdul-mateen-14/AEGIS-OS"|' \
+        "$OSRELEASE"
+fi
+
+# lsb_release -d output (shown in some About surfaces)
+if [ -f /etc/lsb-release ]; then
+    sed -i 's/^DISTRIB_DESCRIPTION=.*/DISTRIB_DESCRIPTION="Aegis OS 0.2"/' /etc/lsb-release
+fi
+
+# Console login banners
+printf 'Aegis OS 0.2 \\\\n \\\\l\n' > /etc/issue
+printf 'Aegis OS 0.2\n' > /etc/issue.net
+
+# Motd: drop the stock dynamic scripts (help text, news, upgrade ads) and
+# ship a quiet Aegis banner instead.
+rm -f /etc/update-motd.d/10-help-text \
+      /etc/update-motd.d/50-motd-news \
+      /etc/update-motd.d/88-easytag \
+      /etc/update-motd.d/90-updates-available \
+      /etc/update-motd.d/91-release-upgrade \
+      /etc/update-motd.d/95-hwe-eol
+printf '\n   Welcome to Aegis OS 0.2 — hardened by default. Calm. Fast.\n\n' > /etc/motd
+
+# Legal metadata packages carry stock distributor descriptions; blank the
+# visible description without touching the dpkg database.
+if [ -f /usr/share/doc/ubuntu-release-info/copyright ]; then
+    : # placeholder — no-op, kept for future doc rebranding
+fi

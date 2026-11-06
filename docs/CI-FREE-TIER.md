@@ -26,7 +26,7 @@ never stack builds.
 
 ## Artifacts & releases
 
-- Every ISO run uploads `aegis-os_<sha>.iso` + `.sha256` (14-day retention,
+- Every ISO run uploads `AegisOS-<version>-amd64.iso` + `.sha256` (14-day retention,
   `compression-level: 0` — the image is already compressed; upload is fast).
 - Tag a release: `git tag v1.4.0-m1 && git push origin v1.4.0-m1` →
   `release.yml` builds once and publishes the ISO + checksum as a GitHub

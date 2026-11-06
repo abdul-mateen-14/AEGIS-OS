@@ -11,7 +11,7 @@ cd AEGIS-OS
 bash scripts/ci/run-in-container.sh bash scripts/build-iso.sh
 ```
 
-Output: `aegis-os_*.iso` + `aegis-os_*.iso.sha256` in the repo root.
+Output: `AegisOS-*-amd64.iso` + `AegisOS-*-amd64.iso.sha256` in the repo root.
 Typical duration on a 4-core machine: **35–70 minutes** (most of it is
 squashfs compression), peak disk use ~15 GB.
 
@@ -51,7 +51,7 @@ sed -i 's/generic-hwe-26.04/generic/' debian-live/auto/config
 
 ```bash
 qemu-system-x86_64 -enable-kvm -m 4096 -smp 2 \
-    -bios /usr/share/ovmf/OVMF.fd -cdrom aegis-os_*.iso
+    -bios /usr/share/ovmf/OVMF.fd -cdrom AegisOS-*-amd64.iso
 ```
 
 BIOS boot works without `-bios`. First boot lands in the **Aegis** session:

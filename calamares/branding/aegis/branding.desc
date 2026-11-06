@@ -5,10 +5,10 @@ componentName: aegis
 strings:
     productName:         "Aegis OS"
     shortProductName:    "Aegis"
-    version:             "1.4 (M1)"
-    shortVersion:        "1.4"
-    versionedName:       "Aegis OS 1.4 (M1)"
-    shortVersionedName:  "Aegis 1.4"
+    version:             "0.2"
+    shortVersion:        "0.2"
+    versionedName:       "Aegis OS 0.2"
+    shortVersionedName:  "Aegis 0.2"
     bootloaderEntryName: "Aegis"
 
 images:

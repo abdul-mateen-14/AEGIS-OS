@@ -13,46 +13,72 @@ jobs:
     uses: ./.github/workflows/iso.yml
     with:
       artifact_retention_days: 1
+      iso_version: ${{ github.ref_name }}
 
   release:
     name: Publish GitHub Release
     needs: build
     runs-on: ubuntu-latest
     steps:
+      - name: Resolve release title
+        run: echo "RNAME=Aegis OS ${GITHUB_REF_NAME#v}" >> "$GITHUB_ENV"
+
       - name: Download ISO artifact
         uses: actions/download-artifact@v4
         with:
           name: aegis-os-${{ github.sha }}
           path: dist
 
-      # GitHub caps a single release asset at 2 GiB (2147483648 bytes) and the
-      # Aegis ISO is ~2.3 GiB, so ship it as numbered parts of at most 1900 MiB.
-      # Users reassemble with: cat aegis-os-*.iso.part-* > aegis-os.iso
-      - name: Split ISO under the 2 GiB release-asset cap
+      # GitHub caps a single release asset at 2 GiB (2147483648 bytes).
+      # Above that, ship numbered parts — and PROVE they reassemble
+      # bit-perfect before anything is published.
+      - name: Split + verify (bit-perfect reassembly gate)
         run: |
           cd dist
           ISO="$(ls -1 *.iso | head -1)"
-          sha256sum "$ISO" > SHA256SUMS
-          split -b 1900M -d --additional-suffix=.part "$ISO" "$ISO.part-"
-          rm "$ISO"
+          test -n "$ISO" || { echo "FATAL: no ISO in artifact"; exit 1; }
+          # Cross-check against the hash the build job computed on its side —
+          # an incomplete artifact extraction must fail here, not ship.
+          SHA_EXPECTED="$(cut -d' ' -f1 *.iso.sha256)"
+          SHA_ACTUAL="$(sha256sum "$ISO" | cut -d' ' -f1)"
+          [ "$SHA_EXPECTED" = "$SHA_ACTUAL" ] || { echo "FATAL: artifact ISO hash mismatch (build: $SHA_EXPECTED, downloaded: $SHA_ACTUAL)"; exit 1; }
+          ORIG="$SHA_ACTUAL"
+          rm -f "$ISO.sha256"
+          SIZE_MB=$(( $(stat -c%s "$ISO") / 1048576 ))
+          if [ "$SIZE_MB" -gt 2000 ]; then
+              split -b 1900M -d "$ISO" "$ISO.part-"
+              rm "$ISO"
+              REBUILT="$(cat "$ISO".part-* | sha256sum | cut -d' ' -f1)"
+              [ "$REBUILT" = "$ORIG" ] || { echo "FATAL: reassembled hash mismatch ($REBUILT != $ORIG) — refusing to publish"; exit 1; }
+              echo "Reassembly verified: $REBUILT"
+          else
+              mv "$ISO" AegisOS.iso
+          fi
+          # SHA256SUMS always names the reassembled target: AegisOS.iso
+          echo "$ORIG  AegisOS.iso" > SHA256SUMS
           ls -lh
 
-      - name: Publish release (ISO parts + SHA256SUMS)
+      - name: Publish release (ISO + SHA256SUMS)
         uses: softprops/action-gh-release@v2
         with:
+          name: ${{ env.RNAME }}
           files: dist/*
-          generate_release_notes: true
           fail_on_unmatched_files: true
           body: |
-            ### Download
-            The Aegis OS ISO is larger than GitHub's 2 GiB per-asset limit, so it ships as numbered parts.
+            **${{ env.RNAME }}** — the desktop, from first boot to installed.
 
-            Reassemble and verify:
-            ```bash
-            cat aegis-os-*.iso.part-* > aegis-os.iso
-            sha256sum -c SHA256SUMS
-            ```
-            Any corrupted or missing part shows up as a checksum mismatch.
+            > Hardened by default. Quiet chrome, colorful content. Calm. Fast.
+
+            ### Install
+            1. Download **every** `.part-*` file below, plus `SHA256SUMS`.
+            2. Reassemble and verify the image:
+               ```bash
+               cat *.iso.part-* > AegisOS.iso
+               sha256sum -c SHA256SUMS
+               ```
+            3. Flash `AegisOS.iso` to a USB drive (Rufus / balenaEtcher / `dd`), boot, and follow the on-screen installer — no terminal required.
+
+            The image ships in numbered parts to stay under the per-file upload cap; after reassembly, the checksum must match `SHA256SUMS`.
         # Uses the repository secret AEGIS_TOKEN when present (repo Settings →
         # Secrets and variables → Actions), otherwise falls back to the
         # ephemeral, auto-provisioned GITHUB_TOKEN — CI works out of the box.

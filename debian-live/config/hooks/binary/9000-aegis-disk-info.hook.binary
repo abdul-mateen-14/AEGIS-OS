@@ -1,0 +1,6 @@
+#!/bin/sh
+set -e
+# Disc title (.disk/info) — what file managers and live-boot report.
+# Runs late in the binary stage so it wins over live-build's generated copy.
+echo "Aegis OS 0.2" > .disk/info
+echo "Aegis OS 0.2" > .disk/metadata
