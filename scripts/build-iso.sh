@@ -66,4 +66,7 @@ fi
 ls -lh "$ISO"
 file "$ISO"
 sha256sum "$ISO" | tee "$ISO.sha256"
+# The container runs as root; the workflow's verify step re-writes the
+# checksum as the runner user, so the file must be writable by everyone.
+chmod 666 "$ISO.sha256" 2>/dev/null || true
 echo "OK: $ISO"
