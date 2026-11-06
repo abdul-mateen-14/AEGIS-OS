@@ -37,7 +37,7 @@ echo "=== 4/5 live-build: config + build ==="
 cd "$ROOT/debian-live"
 rm -f build.log
 bash auto/config
-lb build 2>&1 | tee build.log
+bash auto/build
 
 # live-build drops the image (binary.iso / binary-hybrid.iso) in the config
 # root — relocate it next to the workflow's verify step.

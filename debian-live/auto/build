@@ -1,4 +1,6 @@
 #!/bin/sh
 # live-build build entry (standard auto/build convention).
+# "noauto" is REQUIRED: lb build executes auto/build when present, so without
+# it this script would recurse into itself forever.
 set -e
-lb build 2>&1 | tee build.log
+lb build noauto "${@}" 2>&1 | tee build.log
