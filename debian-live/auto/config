@@ -20,14 +20,14 @@ lb config noauto \
     --linux-packages "linux-image" \
     --linux-flavours "generic-hwe-26.04" \
     --bootappend-live "boot=casper quiet splash hostname=aegis username=aegis autologin" \
-    --debian-installer none \
+    --bootstrap-flavour minimal \
+    --debian-installer false \
     --mirror-bootstrap "http://archive.ubuntu.com/ubuntu" \
     --mirror-chroot "http://archive.ubuntu.com/ubuntu" \
     --mirror-chroot-security "http://security.ubuntu.com/ubuntu" \
     --mirror-binary "http://archive.ubuntu.com/ubuntu" \
     --mirror-binary-security "http://security.ubuntu.com/ubuntu" \
     --mirror-debian-installer "http://archive.ubuntu.com/ubuntu" \
-    --debootstrap-options "--variant=minbase" \
     --firmware-binary false \
     --firmware-chroot false \
     --backports false \
