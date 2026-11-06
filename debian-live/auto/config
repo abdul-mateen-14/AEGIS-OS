@@ -15,6 +15,13 @@
 # Ubuntu (Ubuntu uses "${DIST}-security"). The -updates pocket is still
 # enabled and carries most fixes. Proper -security wiring is an M2 item
 # (custom sources.list hook or a maintained live-build).
+#
+# --apt-secure false: the local aegis-shell .deb repo that live-build builds
+# inside the chroot would otherwise be GPG-signed with `gpg`, which the
+# minimal bootstrap does not contain (E: GPG exited with error status 127).
+# The build chroot gets APT::Get::AllowUnauthenticated=true; the chroot hook
+# 0000-remove-apt-secure.hook.chroot strips that config before the image is
+# finalized so the shipped OS verifies its repositories normally.
 set -e
 
 lb config noauto \
@@ -29,6 +36,7 @@ lb config noauto \
     --bootstrap-flavour minimal \
     --debian-installer false \
     --security false \
+    --apt-secure false \
     --mirror-bootstrap "http://archive.ubuntu.com/ubuntu" \
     --mirror-chroot "http://archive.ubuntu.com/ubuntu" \
     --mirror-chroot-security "http://security.ubuntu.com/ubuntu" \

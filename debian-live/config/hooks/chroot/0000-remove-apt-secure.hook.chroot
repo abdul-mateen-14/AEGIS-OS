@@ -1,0 +1,8 @@
+#!/bin/sh
+set -e
+# --apt-secure false (see debian-live/auto/config) leaves
+# APT::Get::AllowUnauthenticated=true in /etc/apt/apt.conf.d/00secure so the
+# unsigned local package repo (aegis-shell .deb) can install inside the build
+# chroot. A shipped OS must verify its repositories — strip it before the
+# binary stage finalizes the image.
+rm -f /etc/apt/apt.conf.d/00secure
