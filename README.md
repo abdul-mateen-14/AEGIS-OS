@@ -30,7 +30,7 @@ shell/                           Aegis Shell (Qt Quick 6 + LayerShellQt) + Debia
 theme/                           wallpapers · Plymouth · color schemes · desktop entries
 calamares/                       installer settings, modules, Aegis branding
 scripts/                         build-iso.sh · build-shell.sh · ci/ helpers
-docs/                            BUILD · CI free tier · MILESTONES · DESIGN-TOKENS · APP-SLOTS
+docs/                            BUILD · CI free tier · MILESTONES · DESIGN-TOKENS · APP-SLOTS · SECRETS
 ```
 
 ## Quickstart — your first ISO (zero local setup)
