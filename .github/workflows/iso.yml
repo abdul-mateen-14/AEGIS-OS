@@ -51,7 +51,7 @@ jobs:
       - name: Verify image
         run: |
           ISO="$(ls -1 *.iso | head -1)"
-          test -n "$ISO" || { echo "ERROR: no ISO produced"; tail -n 200 build.log 2>/dev/null; exit 1; }
+          test -n "$ISO" || { echo "ERROR: no ISO produced"; tail -n 200 debian-live/build.log build.log 2>/dev/null; exit 1; }
           ls -lh "$ISO"
           file "$ISO"
           sha256sum "$ISO" | tee "$ISO.sha256"

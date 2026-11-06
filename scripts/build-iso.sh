@@ -33,15 +33,25 @@ else
 fi
 
 echo "=== 4/5 live-build: config + build ==="
+# live-build expects to run from the config root (auto/ lives there).
+cd "$ROOT/debian-live"
 rm -f build.log
 bash auto/config
 lb build 2>&1 | tee build.log
+
+# live-build drops the image (binary.iso / binary-hybrid.iso) in the config
+# root — relocate it next to the workflow's verify step.
+BUILT_ISO="$(ls -1 "$ROOT/debian-live"/*.iso 2>/dev/null | head -1 || true)"
+if [ -n "$BUILT_ISO" ]; then
+    mv "$BUILT_ISO" "$ROOT/"
+fi
+cd "$ROOT"
 
 echo "=== 5/5 Verify ==="
 ISO="$(ls -1 "$ROOT"/*.iso 2>/dev/null | head -1 || true)"
 if [ -z "$ISO" ]; then
     echo "ERROR: no ISO produced. Last 200 lines of the build log:"
-    tail -n 200 build.log || true
+    tail -n 200 "$ROOT/debian-live/build.log" 2>/dev/null || true
     exit 1
 fi
 ls -lh "$ISO"
