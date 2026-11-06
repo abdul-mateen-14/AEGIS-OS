@@ -62,6 +62,15 @@ The ISO reserves three `.deb` slots. Until the real links land, the dock shows s
 
 Per product decision, the Dynamic Island idles at the **iPhone Pro-class pill — 104×32 px** (proposal v1.3 had 148×30). One-line tunables: `Tokens.islandIdleWidth` / `Tokens.islandIdleHeight` in [`shell/src/qml/Tokens.qml`](shell/src/qml/Tokens.qml). Split and Charging states track the idle height; radius always tracks height.
 
+## Download a release ISO
+
+Grab the ISO from [Releases](https://github.com/abdul-mateen-14/AEGIS-OS/releases). It exceeds GitHub's 2 GiB per-asset cap, so it ships as numbered parts plus a checksum file — reassemble and verify:
+
+```bash
+cat aegis-os-*.iso.part-* > aegis-os.iso
+sha256sum -c SHA256SUMS
+```
+
 ## Boot it
 
 ```bash

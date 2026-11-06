@@ -25,12 +25,34 @@ jobs:
           name: aegis-os-${{ github.sha }}
           path: dist
 
-      - name: Publish release (ISO + sha256)
+      # GitHub caps a single release asset at 2 GiB (2147483648 bytes) and the
+      # Aegis ISO is ~2.3 GiB, so ship it as numbered parts of at most 1900 MiB.
+      # Users reassemble with: cat aegis-os-*.iso.part-* > aegis-os.iso
+      - name: Split ISO under the 2 GiB release-asset cap
+        run: |
+          cd dist
+          ISO="$(ls -1 *.iso | head -1)"
+          sha256sum "$ISO" > SHA256SUMS
+          split -b 1900M -d --additional-suffix=.part "$ISO" "$ISO.part-"
+          rm "$ISO"
+          ls -lh
+
+      - name: Publish release (ISO parts + SHA256SUMS)
         uses: softprops/action-gh-release@v2
         with:
           files: dist/*
           generate_release_notes: true
           fail_on_unmatched_files: true
+          body: |
+            ### Download
+            The Aegis OS ISO is larger than GitHub's 2 GiB per-asset limit, so it ships as numbered parts.
+
+            Reassemble and verify:
+            ```bash
+            cat aegis-os-*.iso.part-* > aegis-os.iso
+            sha256sum -c SHA256SUMS
+            ```
+            Any corrupted or missing part shows up as a checksum mismatch.
         # Uses the repository secret AEGIS_TOKEN when present (repo Settings →
         # Secrets and variables → Actions), otherwise falls back to the
         # ephemeral, auto-provisioned GITHUB_TOKEN — CI works out of the box.
