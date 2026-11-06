@@ -13,6 +13,11 @@ on:
         required: false
         default: ''
         type: string
+      release_tag:
+        description: 'When set (tag builds via release.yml): split + publish a GitHub Release from the same job'
+        required: false
+        default: ''
+        type: string
   workflow_dispatch:
   push:
     branches: [main]
@@ -78,3 +83,53 @@ jobs:
           retention-days: ${{ inputs.artifact_retention_days }}
           if-no-files-found: error
           compression-level: 0
+
+      # Tag builds publish the release FROM THIS JOB. The 2.4 GB ISO never
+      # crosses a download-artifact boundary: v0.1.0/v0.2.0 attempts proved
+      # that transfer silently truncates the file (caught by the hash gate),
+      # and the build job already holds the pristine image.
+      - name: Split + verify (bit-perfect reassembly gate)
+        if: inputs.release_tag != ''
+        run: |
+          ISO="$(ls -1 *.iso | head -1)"
+          ORIG="$(cut -d' ' -f1 "$ISO.sha256")"
+          SHA_ACTUAL="$(sha256sum "$ISO" | cut -d' ' -f1)"
+          [ "$ORIG" = "$SHA_ACTUAL" ] || { echo "FATAL: ISO hash drifted after verify"; exit 1; }
+          mkdir -p rel
+          SIZE_MB=$(( $(stat -c%s "$ISO") / 1048576 ))
+          if [ "$SIZE_MB" -gt 2000 ]; then
+              split -b 1900M -d "$ISO" "rel/$ISO.part-"
+              REBUILT="$(cat "rel/$ISO".part-* | sha256sum | cut -d' ' -f1)"
+              [ "$REBUILT" = "$ORIG" ] || { echo "FATAL: reassembled hash mismatch ($REBUILT != $ORIG) — refusing to publish"; exit 1; }
+              echo "Reassembly verified: $REBUILT"
+          else
+              mv "$ISO" rel/AegisOS.iso
+          fi
+          echo "$ORIG  AegisOS.iso" > rel/SHA256SUMS
+          ls -lh rel
+
+      - name: Publish GitHub Release
+        if: inputs.release_tag != ''
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ inputs.release_tag }}
+          name: Aegis OS ${{ inputs.release_tag }}
+          files: rel/*
+          fail_on_unmatched_files: true
+          body: |
+            **Aegis OS ${{ inputs.release_tag }}** — the desktop, from first boot to installed.
+
+            > Hardened by default. Quiet chrome, colorful content. Calm. Fast.
+
+            ### Install
+            1. Download **every** `.part-*` file below, plus `SHA256SUMS`.
+            2. Reassemble and verify the image:
+               ```bash
+               cat *.iso.part-* > AegisOS.iso
+               sha256sum -c SHA256SUMS
+               ```
+            3. Flash `AegisOS.iso` to a USB drive (Rufus / balenaEtcher / `dd`), boot, and follow the on-screen installer — no terminal required.
+
+            The image ships in numbered parts to stay under the per-file upload cap; after reassembly, the checksum must match `SHA256SUMS`.
+        env:
+          GITHUB_TOKEN: ${{ secrets.AEGIS_TOKEN || secrets.GITHUB_TOKEN }}
