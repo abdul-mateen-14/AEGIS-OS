@@ -1,0 +1,4 @@
+# ISO hybrid post-processing tools. live-build 3.0~a57 runs binary.sh inside
+# the chroot, where isohybrid must exist; in syslinux 6.x it ships in
+# syslinux-utils (the fork still checks the old syslinux package).
+syslinux-utils
