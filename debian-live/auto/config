@@ -6,6 +6,10 @@
 # Suite: Ubuntu 26.04 LTS "resolute" — ships KDE Plasma 6.6 LTS / Qt 6 natively
 # and is supported until April 2029.
 #
+# --initramfs live-boot (not casper): this live-build fork's casper mode is
+# inconsistent with its own syslinux templates (kernels staged to binary/casper
+# while templates read binary/live). live-boot 1:20250815 exists in resolute
+# and pairs with live-config, which the chroot installs anyway.
 # The kernel comes from --linux-packages/--linux-flavours, not a package list:
 # linux-image-generic-hwe-26.04 = "complete firmware + HWE kernel" per M1 scope.
 # If the HWE meta is ever unavailable, swap to "generic" and rebuild.
@@ -29,10 +33,10 @@ lb config noauto \
     --distribution resolute \
     --archive-areas "main restricted universe multiverse" \
     --binary-images iso-hybrid \
-    --initramfs casper \
+    --initramfs live-boot \
     --linux-packages "linux-image" \
     --linux-flavours "generic-hwe-26.04" \
-    --bootappend-live "boot=casper quiet splash hostname=aegis username=aegis autologin" \
+    --bootappend-live "boot=live quiet splash hostname=aegis username=aegis autologin" \
     --bootstrap-flavour minimal \
     --debian-installer false \
     --security false \
