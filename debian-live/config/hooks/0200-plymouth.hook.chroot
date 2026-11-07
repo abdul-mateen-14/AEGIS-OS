@@ -42,6 +42,18 @@ update-alternatives --install /usr/share/plymouth/themes/default.plymouth \
 update-alternatives --set default.plymouth \
     /usr/share/plymouth/themes/aegis/aegis.plymouth || true
 
+# Start the splash from the root filesystem only. The initramfs-phase
+# plymouthd grabs the display before KMS settles and renders nothing
+# (boot-tested on the CI ISOs: splash active, screen black), and its
+# pidfile then blocks the root-phase plymouth-start from taking over.
+# Without initramfs integration the first seconds are a quiet black
+# console (quiet + loglevel=3 show nothing), then plymouth-start paints
+# the splash - the exact flow the working fallback splash used.
+rm -f /usr/share/initramfs-tools/hooks/plymouth \
+      /usr/share/initramfs-tools/scripts/init-premount/plymouth \
+      /usr/share/initramfs-tools/scripts/init-bottom/plymouth \
+      /usr/share/initramfs-tools/scripts/panic/plymouth
+
 if [ -x /usr/sbin/update-initramfs ]; then
     update-initramfs -u
 fi
