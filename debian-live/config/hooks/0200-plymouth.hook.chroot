@@ -1,53 +1,47 @@
 #!/bin/sh
 set -e
-# Aegis boot splash: Aegis Mark on true black with hairline progress.
-# Ships as a Plymouth script theme built from the branded PNGs (theme/plymouth/
-# synced into includes by scripts/sync-includes.sh). Fail the BUILD (not the
-# boot) when anything is missing — a silent fallback here is how v0.2.0
-# regressed to a scrolling systemd console.
+# Aegis boot splash.
 #
-# Theme selection, plymouth 24 style (the alternatives dance alone is not
-# enough: plymouth-set-default-theme and plymouthd both resolve
-# /etc/plymouth/plymouthd.conf FIRST, then plymouthd.defaults, then the
-# default.plymouth symlink — and the initramfs hook uses
-# plymouth-set-default-theme to decide what gets copied into the initrd):
-# we write plymouthd.conf explicitly AND keep the legacy symlink in sync.
+# Boot-testing every CI ISO in QEMU established two facts:
+#   1. plymouthd resolves the theme through the default.plymouth
+#      alternatives symlink and ignores /etc/plymouth/plymouthd.conf -
+#      with the symlink left on the script theme, every boot rendered an
+#      all-black screen regardless of the conf file;
+#   2. the script plugin never painted (even a verbatim copy of the
+#      shipped demo script), while the ubuntu-text theme painted reliably
+#      on the same machine.
+# So the SHIPPED splash is a rebranded ubuntu-text: Aegis ink background,
+# white "Aegis OS" title, accent-colored progress dots. The aegis script
+# theme stays installed (files + this hook's assertions) for future
+# iteration; v0.2.x just doesn't point the boot at it.
 
 if ! command -v plymouthd >/dev/null 2>&1; then
-    echo "FATAL: plymouthd not found — plymouth is missing from the package" \
+    echo "FATAL: plymouthd not found - plymouth is missing from the package" \
          "lists (see debian-live/config/package-lists/aegis-boot.list.chroot)" >&2
     exit 1
 fi
 
 if [ ! -f /usr/share/plymouth/themes/aegis/aegis.plymouth ]; then
-    echo "FATAL: /usr/share/plymouth/themes/aegis missing — run scripts/sync-includes.sh" >&2
+    echo "FATAL: /usr/share/plymouth/themes/aegis missing - run scripts/sync-includes.sh" >&2
     exit 1
 fi
 
-mkdir -p /etc/plymouth
-# The Aegis script theme stays installed for reference, but the SHIPPED
-# theme is spinner: it is the renderer proven to paint on real firmware
-# paths (the fallback splash painted fine while a script theme renders
-# nothing on the same machine). Brand it: spinner's watermark becomes the
-# Aegis Mark, so boot shows mark + dots on black.
-#
-# BOTH resolution paths must agree: plymouthd.conf selects spinner AND the
-# default.plymouth alternative points at spinner. With the alternative
-# left on the script theme, plymouthd rendered black on every boot-test
-# regardless of the conf file.
-printf '[Daemon]\nTheme=spinner\n' > /etc/plymouth/plymouthd.conf
-
-if [ -d /usr/share/plymouth/themes/spinner ]; then
-    # 320 px, flattened on true black, NO alpha channel: a large transparent
-    # PNG rendered as an opaque rectangle is the leading suspect for the
-    # all-black splash (it would cover the whole screen).
-    cp -f /usr/share/plymouth/themes/aegis/spinner-watermark.png \
-          /usr/share/plymouth/themes/spinner/watermark.png
+UT=/usr/share/plymouth/themes/ubuntu-text/ubuntu-text.plymouth
+if [ -f "$UT" ]; then
+    # Aegis ink background, paper-white title, accent dots (Tokens.qml)
+    sed -i \
+        -e 's/^title=.*/title=Aegis OS/' \
+        -e 's/^black=.*/black=0x08090C/' \
+        -e 's/^white=.*/white=0xF2F4F8/' \
+        -e 's/^brown=.*/brown=0x3E8BFF/' \
+        -e 's/^blue=.*/blue=0x3E8BFF/' \
+        "$UT"
     update-alternatives --install /usr/share/plymouth/themes/default.plymouth \
-        default.plymouth /usr/share/plymouth/themes/spinner/spinner.plymouth 200
-    update-alternatives --set default.plymouth \
-        /usr/share/plymouth/themes/spinner/spinner.plymouth || true
+        default.plymouth "$UT" 200
+    update-alternatives --set default.plymouth "$UT" || true
 fi
+
+printf '[Daemon]\nTheme=ubuntu-text\n' > /etc/plymouth/plymouthd.conf
 
 # Start the splash from the root filesystem only. The initramfs-phase
 # plymouthd grabs the display before KMS settles and renders nothing
@@ -55,7 +49,7 @@ fi
 # pidfile then blocks the root-phase plymouth-start from taking over.
 # Without initramfs integration the first seconds are a quiet black
 # console (quiet + loglevel=3 show nothing), then plymouth-start paints
-# the splash - the exact flow the working fallback splash used.
+# the splash.
 rm -f /usr/share/initramfs-tools/hooks/plymouth \
       /usr/share/initramfs-tools/scripts/init-premount/plymouth \
       /usr/share/initramfs-tools/scripts/init-bottom/plymouth \
