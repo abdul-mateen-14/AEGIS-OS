@@ -30,17 +30,24 @@ mkdir -p /etc/plymouth
 # paths (the fallback splash painted fine while a script theme renders
 # nothing on the same machine). Brand it: spinner's watermark becomes the
 # Aegis Mark, so boot shows mark + dots on black.
+#
+# BOTH resolution paths must agree: plymouthd.conf selects spinner AND the
+# default.plymouth alternative points at spinner. With the alternative
+# left on the script theme, plymouthd rendered black on every boot-test
+# regardless of the conf file.
 printf '[Daemon]\nTheme=spinner\n' > /etc/plymouth/plymouthd.conf
 
 if [ -d /usr/share/plymouth/themes/spinner ]; then
-    cp -f /usr/share/plymouth/themes/aegis/aegis-mark.png \
+    # 320 px, flattened on true black, NO alpha channel: a large transparent
+    # PNG rendered as an opaque rectangle is the leading suspect for the
+    # all-black splash (it would cover the whole screen).
+    cp -f /usr/share/plymouth/themes/aegis/spinner-watermark.png \
           /usr/share/plymouth/themes/spinner/watermark.png
+    update-alternatives --install /usr/share/plymouth/themes/default.plymouth \
+        default.plymouth /usr/share/plymouth/themes/spinner/spinner.plymouth 200
+    update-alternatives --set default.plymouth \
+        /usr/share/plymouth/themes/spinner/spinner.plymouth || true
 fi
-
-update-alternatives --install /usr/share/plymouth/themes/default.plymouth \
-    default.plymouth /usr/share/plymouth/themes/aegis/aegis.plymouth 200 || true
-update-alternatives --set default.plymouth \
-    /usr/share/plymouth/themes/aegis/aegis.plymouth || true
 
 # Start the splash from the root filesystem only. The initramfs-phase
 # plymouthd grabs the display before KMS settles and renders nothing
