@@ -1,98 +1,58 @@
-# Aegis OS boot splash v2 (proposal, chapter 07).
-# True black, the Aegis Mark fading in dead center, a 240x2 hairline
-# progress bar 36 px below it. Real progress comes from systemd through
-# SetBootProgressFunction; until the first event arrives the bar creeps
-# gently (indeterminate head), and the fill eases toward the target so
-# the bar never jumps. v0.2.0 regressed to a scrolling console because
-# the plymouth package itself was missing — aegis-boot.list.chroot fixes
-# that; this script assumes plymouthd runs the script plugin (shipped in
-# the plymouth core package on Ubuntu).
+# Aegis OS boot splash (proposal, chapter 07).
+# True black, the Aegis Mark dead center, a 240x2 hairline progress bar
+# 36 px below it. Real progress comes from systemd through
+# SetBootProgressFunction; until the first event arrives the bar shows a
+# small indeterminate head, and the fill eases toward the target so the
+# bar never jumps. Written in the exact dialect of plymouth's shipped
+# script demo theme (plain globals, Sprite(image), SetPosition/SetZ,
+# one refresh callback), ASCII-only, no message hooks.
+#
+# v0.2.0 regressed to a scrolling console because the plymouth package
+# itself was missing (aegis-boot.list.chroot fixes that); this script is
+# deliberately boring so it can never regress the same way again.
 
 Window.SetBackgroundTopColor(0.0, 0.0, 0.0);
 Window.SetBackgroundBottomColor(0.0, 0.0, 0.0);
 
-// ── Aegis Mark, scaled to 96 px, dead center, slightly above middle ──
-mark.image = Image("aegis-mark.png");
-mark.h = 96;
-mark.w = 96 * mark.image.GetWidth() / mark.image.GetHeight();
-mark.x = Window.GetWidth() / 2 - mark.w / 2;
-mark.y = Window.GetHeight() / 2 - mark.h / 2 - 10;
-mark.sprite = Sprite(mark.image.Scale(mark.w, mark.h));
-mark.sprite.SetX(mark.x);
-mark.sprite.SetY(mark.y);
-// start dim but visible — if the animation tick is starved, the user
-// still sees the mark instead of a dead black screen
-mark.sprite.SetOpacity(0.35);
+logo.image = Image("aegis-mark.png");
+logo.sprite = Sprite(logo.image);
 
-// ── hairline progress ────────────────────────────────────────────────
 bar.width = 240;
 bar.height = 2;
-bar.x = Window.GetWidth() / 2 - bar.width / 2;
-bar.y = mark.y + mark.h + 36;
-
 track.image = Image("track.png");
-track.sprite = Sprite(track.image.Scale(bar.width, bar.height));
-track.sprite.SetX(bar.x);
-track.sprite.SetY(bar.y);
-track.sprite.SetOpacity(0.28);
-
+track.sprite = Sprite(track.image);
 fill.image = Image("fill.png");
-fill.sprite = Sprite(fill.image.Scale(1, bar.height));
-fill.sprite.SetX(bar.x);
-fill.sprite.SetY(bar.y);
-fill.sprite.SetOpacity(0.92);
+fill.sprite = Sprite(fill.image);
+fill.percent = 0.0;
 
-// ── state ────────────────────────────────────────────────────────────
-progress.target = 0.0;
-progress.shown = 0.0;
-progress.frames = 0;
+fun refresh_callback ()
+  {
+    logo.sprite.SetX (Window.GetX() + Window.GetWidth() / 2 - logo.image.GetWidth() / 2);
+    logo.sprite.SetY (Window.GetY() + Window.GetHeight() / 2 - logo.image.GetHeight() / 2);
+    logo.sprite.SetOpacity (1);
 
-fun display_message(text)
-{
-    // kernel/systemd chatter stays behind the splash — never printed
-}
+    track.sprite.SetX (Window.GetX() + Window.GetWidth() / 2 - bar.width / 2);
+    track.sprite.SetY (Window.GetY() + Window.GetHeight() / 2 + 96 / 2 + 36);
+    track.sprite.SetZ (10);
+    track.sprite.SetOpacity (0.28);
 
-fun boot_progress(duration, p)
-{
-    progress.target = p;
-}
+    fill.sprite.SetX (track.sprite.GetX());
+    fill.sprite.SetY (track.sprite.GetY());
+    fill.sprite.SetZ (11);
 
-fun refresh()
-{
-    progress.frames = progress.frames + 1;
+    w = bar.width * fill.percent;
+    if (w < 1)
+      w = 1;
+    if (w > bar.width)
+      w = bar.width;
+    fill.sprite.SetImage (fill.image.Scale (w, bar.height));
+  }
 
-    // fade the mark in over the first ~1.2 s
-    f = progress.frames / 24;
-    if (f > 1.0) f = 1.0;
-    mark.sprite.SetOpacity(0.35 + 0.65 * f);
+Plymouth.SetRefreshFunction (refresh_callback);
 
-    // real progress: ease toward the target; before the first event:
-    // gentle creep capped at 10 %
-    if (progress.target > progress.shown) {
-        progress.shown = progress.shown + (progress.target - progress.shown) * 0.14;
-    } else {
-        if (progress.shown < 0.10) progress.shown = progress.shown + 0.0012;
-    }
-    if (progress.shown > 1.0) progress.shown = 1.0;
+fun boot_progress_callback (duration, progress)
+  {
+    fill.percent = progress;
+  }
 
-    // keep geometry pinned (cheap, and survives a late mode change)
-    mark.x = Window.GetWidth() / 2 - mark.w / 2;
-    mark.y = Window.GetHeight() / 2 - mark.h / 2 - 10;
-    mark.sprite.SetX(mark.x);
-    mark.sprite.SetY(mark.y);
-    bar.x = Window.GetWidth() / 2 - bar.width / 2;
-    bar.y = mark.y + mark.h + 36;
-    track.sprite.SetX(bar.x);
-    track.sprite.SetY(bar.y);
-    fill.sprite.SetX(bar.x);
-    fill.sprite.SetY(bar.y);
-
-    w = bar.width * progress.shown;
-    if (w < 1) w = 1;
-    if (w > bar.width) w = bar.width;
-    fill.sprite.SetImage(fill.image.Scale(w, bar.height));
-}
-
-Plymouth.SetDisplayMessageFunction(display_message);
-Plymouth.SetBootProgressFunction(boot_progress);
-Plymouth.SetRefreshFunction(refresh);
+Plymouth.SetBootProgressFunction (boot_progress_callback);

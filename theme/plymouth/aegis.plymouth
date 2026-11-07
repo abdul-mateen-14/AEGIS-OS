@@ -1,6 +1,6 @@
 [Plymouth Theme]
 Name=Aegis
-Description=Aegis OS boot splash — Aegis Mark on true black with hairline progress
+Description=Aegis OS boot splash - Aegis Mark on true black with hairline progress
 ModuleName=script
 
 [script]
