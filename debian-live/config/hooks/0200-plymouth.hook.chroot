@@ -5,6 +5,13 @@ set -e
 # synced into includes by scripts/sync-includes.sh). Fail the BUILD (not the
 # boot) when anything is missing — a silent fallback here is how v0.2.0
 # regressed to a scrolling systemd console.
+#
+# Theme selection, plymouth 24 style (the alternatives dance alone is not
+# enough: plymouth-set-default-theme and plymouthd both resolve
+# /etc/plymouth/plymouthd.conf FIRST, then plymouthd.defaults, then the
+# default.plymouth symlink — and the initramfs hook uses
+# plymouth-set-default-theme to decide what gets copied into the initrd):
+# we write plymouthd.conf explicitly AND keep the legacy symlink in sync.
 
 if ! command -v plymouthd >/dev/null 2>&1; then
     echo "FATAL: plymouthd not found — plymouth is missing from the package" \
@@ -17,8 +24,11 @@ if [ ! -f /usr/share/plymouth/themes/aegis/aegis.plymouth ]; then
     exit 1
 fi
 
+mkdir -p /etc/plymouth
+printf '[Daemon]\nTheme=aegis\n' > /etc/plymouth/plymouthd.conf
+
 update-alternatives --install /usr/share/plymouth/themes/default.plymouth \
-    default.plymouth /usr/share/plymouth/themes/aegis/aegis.plymouth 200
+    default.plymouth /usr/share/plymouth/themes/aegis/aegis.plymouth 200 || true
 update-alternatives --set default.plymouth \
     /usr/share/plymouth/themes/aegis/aegis.plymouth || true
 
