@@ -25,7 +25,17 @@ if [ ! -f /usr/share/plymouth/themes/aegis/aegis.plymouth ]; then
 fi
 
 mkdir -p /etc/plymouth
-printf '[Daemon]\nTheme=aegis\n' > /etc/plymouth/plymouthd.conf
+# The Aegis script theme stays installed for reference, but the SHIPPED
+# theme is spinner: it is the renderer proven to paint on real firmware
+# paths (the fallback splash painted fine while a script theme renders
+# nothing on the same machine). Brand it: spinner's watermark becomes the
+# Aegis Mark, so boot shows mark + dots on black.
+printf '[Daemon]\nTheme=spinner\n' > /etc/plymouth/plymouthd.conf
+
+if [ -d /usr/share/plymouth/themes/spinner ]; then
+    cp -f /usr/share/plymouth/themes/aegis/aegis-mark.png \
+          /usr/share/plymouth/themes/spinner/watermark.png
+fi
 
 update-alternatives --install /usr/share/plymouth/themes/default.plymouth \
     default.plymouth /usr/share/plymouth/themes/aegis/aegis.plymouth 200 || true
