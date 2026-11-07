@@ -217,7 +217,7 @@ int main(int argc, char *argv[])
         // (aegis-lock CLI and keyboard wiring land here)
         bus.registerService(QStringLiteral("org.aegis.Shell"));
         bus.registerObject(QStringLiteral("/org/aegis/Shell"), &util,
-                           QDBusConnection::ExportInvokables);
+                           QDBusConnection::ExportAllInvokables);
 
         // Live Activity API + the standard notifications daemon name
         activity.start();

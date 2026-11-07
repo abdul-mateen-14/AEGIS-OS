@@ -257,14 +257,14 @@ void ActivityService::start()
 
     bus.registerService(QStringLiteral("org.aegis.Island"));
     bus.registerObject(QStringLiteral("/org/aegis/Island"), this,
-                       QDBusConnection::ExportInvokables);
+                       QDBusConnection::ExportAllInvokables);
 
     // Own the standard notifications name when nobody else does — in the
     // Aegis session no other notification daemon is started, so every
     // notify-send lands as an Aegis banner.
     if (bus.registerService(QStringLiteral("org.freedesktop.Notifications"))) {
         bus.registerObject(QStringLiteral("/org/freedesktop/Notifications"),
-                           this, QDBusConnection::ExportInvokables);
+                           this, QDBusConnection::ExportAllInvokables);
     }
 }
 

@@ -61,7 +61,7 @@ public:
                     const QStringList &actions = {}, int ttl = 5000);
 
     // org.freedesktop.Notifications — exported to DBus with
-    // ExportInvokables in start().
+    // ExportAllInvokables in start().
     Q_INVOKABLE uint Notify(const QString &app_name, uint replaces_id,
                             const QString &app_icon, const QString &summary,
                             const QString &body, const QStringList &actions,

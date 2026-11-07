@@ -64,7 +64,7 @@ void Governor::start()
     if (bus.isConnected()) {
         bus.registerService(QStringLiteral("org.aegis.Governor"));
         bus.registerObject(QStringLiteral("/org/aegis/Governor"), this,
-                           QDBusConnection::ExportInvokables);
+                           QDBusConnection::ExportAllInvokables);
     }
     m_evalTimer.start(500);
     publishState();
