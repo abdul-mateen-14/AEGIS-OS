@@ -25,6 +25,7 @@ on:
       - 'debian-live/**'
       - 'shell/**'
       - 'calamares/**'
+      - 'theme/**'
       - 'scripts/**'
       - '.github/workflows/iso.yml'
 

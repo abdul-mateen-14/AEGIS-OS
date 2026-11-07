@@ -47,7 +47,7 @@ lb config noauto \
     --initramfs live-boot \
     --linux-packages "linux-image" \
     --linux-flavours "generic-hwe-26.04" \
-    --bootappend-live "boot=live quiet splash hostname=aegis username=aegis autologin" \
+    --bootappend-live "boot=live quiet splash vt.global_cursor_default=0 loglevel=3 hostname=aegis username=aegis autologin" \
     --bootstrap-flavour minimal \
     --debian-installer false \
     --security false \

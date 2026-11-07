@@ -57,6 +57,44 @@ Table 9 tokens, tier-C rung swaps them for 80 ms); tier badge
 truth-checked against KWin (the governor measures the shell's own
 composited frames and publishes the tier the badge shows).
 
+## M2.5 · Consumer experience
+
+The v0.2.0 ISO booted into a scrolling systemd console and a bare default
+SDDM greeter — everything a simple user sees was "terminal lines and a
+blank login". M2.5 makes the path **power-on → install → updates** fully
+graphical, macOS-grade:
+
+- **Silent boot** — `aegis-boot.list.chroot` finally ships `plymouth` +
+  `plymouth-label` (v0.2.0 registered a theme for a package that was never
+  installed, so the boot fell back to text). Kernel args gain
+  `vt.global_cursor_default=0 loglevel=3`; GRUB/ISOLINUX menus drop to a
+  1 s flash. The splash script hardens to a fade-in mark, an
+  indeterminate creep before real progress, and re-pinned geometry — plus
+  the 0200 hook now fails the *build* (not the boot) if plymouth or the
+  theme files are missing.
+- **Glass login** — `theme/sddm/aegis/`: a self-contained QtQuick greeter
+  (big clock, glass card, Canvas-drawn circular avatar, password pill,
+  user strip, power glyphs) on the Aurora Ink wallpaper, wired through
+  `sddm.conf.d/zz-aegis-theme.conf` (`Current=aegis`,
+  `DefaultSession=aegis.desktop`). Live sessions keep autologin; installed
+  systems always see this greeter.
+- **GUI install** — the stock calamares entry is replaced by a rebranded
+  "Install Aegis OS" desktop entry; the launcher inventory now follows
+  XDG data precedence (~/.local → /usr/local/share → /usr/share) and
+  honors NoDisplay/Hidden overrides, so one clean installer icon exists.
+- **GUI updates** — `aegis-updates`: one window answers "is my system
+  current?" (pkexec apt-get behind it, live progress, restart prompt on
+  reboot-required), reachable from the Launcher, the Control Center
+  footer, and `aegis-software-update.desktop`. Unattended security
+  patches flow in the background via
+  `etc/apt/apt.conf.d/20auto-upgrades`.
+
+Done when: a fresh ISO boots power-off to desktop with **zero** visible
+systemd lines; the first thing after GRUB is the Aegis splash, and the
+first interactive surface after it is either the glass greeter or the
+desktop; the installer appears as one "Install Aegis OS" icon; Software
+Update reports and applies patches without a terminal ever appearing.
+
 ## M3 · Depth
 
 Mission Control, workspaces + gesture dictionary (Table 10), tiling, remaining

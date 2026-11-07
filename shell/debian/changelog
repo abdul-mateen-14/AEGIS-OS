@@ -1,3 +1,18 @@
+aegis-shell (1.4.1-m2) resolute; urgency=medium
+
+  * Software Update (aegis-updates): the GUI face of every patch on
+    Aegis OS — glass window, "N updates available — size", per-package
+    list, one Update Now button (pkexec apt-get, live progress), restart
+    prompt on /var/run/reboot-required. Launched from the Launcher, a
+    new Control Center tile link, or the aegis-software-update.desktop
+    entry.
+  * Launcher inventory now follows XDG data precedence (~/.local →
+    /usr/local/share → /usr/share) and honors NoDisplay/Hidden
+    overrides — the rebranded "Install Aegis OS" entry replaces the
+    stock calamares one.
+
+ -- Aegis OS Project <aegis@users.noreply.github.com>  Fri, 07 Nov 2026 11:30:00 +0000
+
 aegis-shell (1.4.0-m2) resolute; urgency=medium
 
   * M2 surfaces: Control Center (348 px sheet — Wi-Fi/Bluetooth/Calm/Dark

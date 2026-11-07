@@ -1,0 +1,6 @@
+# Aegis OS — daily update-list refresh + unattended security patches.
+# The GUI path is Software Update (aegis-updates); this keeps security
+# fixes flowing even when the user never opens it — the macOS model.
+APT::Periodic::Update-Package-Lists "1";
+APT::Periodic::Unattended-Upgrade "1";
+APT::Periodic::AutocleanInterval "7";

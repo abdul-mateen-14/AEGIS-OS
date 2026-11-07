@@ -54,6 +54,32 @@ target_link_libraries(aegis-shell PRIVATE
     ${AEGIS_LAYERSHELL_TARGET}
 )
 
+# ── aegis-updates: Software Update ─────────────────────────────────────
+# The consumer update face: apt via pkexec behind a glass window — the
+# GUI answer to "download process and patch updates". Plain (non-
+# layer-shell) app, launched like any other app.
+qt_add_executable(aegis-updates
+    src/updates/main.cpp
+    src/updates/updatemanager.h
+    src/updates/updatemanager.cpp
+)
+
+qt_add_resources(aegis-updates "updates"
+    PREFIX "/updates"
+    FILES
+        src/updates/Updates.qml
+        src/qml/aegis-mark.png
+)
+
+target_link_libraries(aegis-updates PRIVATE
+    Qt6::Core
+    Qt6::Gui
+    Qt6::Qml
+    Qt6::Quick
+)
+
+install(TARGETS aegis-updates RUNTIME DESTINATION bin)
+
 # ── aegis-auth: setuid PAM verifier for the lock screen ────────────────
 # Plain C, no Qt: reads the password on stdin, answers through
 # pam_unix (service "aegis-auth"). Swaylock's model, minimum size.

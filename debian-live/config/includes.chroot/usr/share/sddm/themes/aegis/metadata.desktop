@@ -1,0 +1,9 @@
+[SddmGreeterTheme]
+Name=Aegis
+Description=Liquid glass login screen for Aegis OS — clock, glass card, PAM password, power
+Author=Aegis OS Project
+License=GPL-3.0-or-later
+Type=sddm-theme
+Version=1.0
+Main=Main.qml
+ConfigFile=theme.conf

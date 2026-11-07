@@ -1,0 +1,6 @@
+# Graphical boot — the Aegis splash instead of a scrolling console.
+# The 0200-plymouth hook registers theme/aegis and rebuilds the initramfs;
+# without these packages that hook has nothing to configure and the boot
+# falls back to a wall of systemd [OK] lines (seen on the v0.2.0 ISO).
+plymouth
+plymouth-label

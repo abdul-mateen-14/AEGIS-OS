@@ -459,14 +459,18 @@ QVariantList Util::allApps() const
         });
     }
 
-    // 2. installed applications — .desktop scan, alphabetical
-    QStringList dirs{
-        QStringLiteral("/usr/share/applications"),
-        QStringLiteral("/usr/local/share/applications"),
-    };
+    // 2. installed applications — .desktop scan, alphabetical.
+    // XDG data-home precedence: the user's own entries win, then
+    // /usr/local/share (distro overrides — e.g. the rebranded "Install
+    // Aegis OS" calamares entry), then /usr/share. An entry hidden or
+    // removed in a higher-precedence dir also hides its lower-precedence
+    // twin (that's why hidden execs are recorded too).
     const QString home = qEnvironmentVariable("HOME");
+    QStringList dirs;
     if (!home.isEmpty())
         dirs << (home + QStringLiteral("/.local/share/applications"));
+    dirs << QStringLiteral("/usr/local/share/applications")
+         << QStringLiteral("/usr/share/applications");
 
     QList<QVariantMap> discovered;
     for (const QString &dirPath : dirs) {
@@ -479,14 +483,16 @@ QVariantList Util::allApps() const
                 continue;
             if (app.value(QStringLiteral("type")).toString() != QLatin1String("Application"))
                 continue;
-            if (app.value(QStringLiteral("nodisplay")).toBool()
-                || app.value(QStringLiteral("hidden")).toBool())
-                continue;
             const QString cmd = app.value(QStringLiteral("cmd")).toString();
             const QString head = cmd.section(QLatin1Char(' '), 0, 0);
             if (head.isEmpty() || seenExecs.contains(head))
                 continue;
+            // record the exec even for hidden entries so a NoDisplay
+            // override wins over the stock file (see dir order above)
             seenExecs << head;
+            if (app.value(QStringLiteral("nodisplay")).toBool()
+                || app.value(QStringLiteral("hidden")).toBool())
+                continue;
             discovered.append(QVariantMap{
                 {QStringLiteral("name"), app.value(QStringLiteral("name")).toString()},
                 {QStringLiteral("icon"), app.value(QStringLiteral("icon")).toString()},

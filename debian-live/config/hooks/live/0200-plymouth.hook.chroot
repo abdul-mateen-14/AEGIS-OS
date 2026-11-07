@@ -1,7 +1,22 @@
 #!/bin/sh
 set -e
 # Aegis boot splash: Aegis Mark on true black with hairline progress.
-# Ships as a Plymouth script theme built from the branded PNGs (theme/plymouth/).
+# Ships as a Plymouth script theme built from the branded PNGs (theme/plymouth/
+# synced into includes by scripts/sync-includes.sh). Fail the BUILD (not the
+# boot) when anything is missing — a silent fallback here is how v0.2.0
+# regressed to a scrolling systemd console.
+
+if ! command -v plymouthd >/dev/null 2>&1; then
+    echo "FATAL: plymouthd not found — plymouth is missing from the package" \
+         "lists (see debian-live/config/package-lists/aegis-boot.list.chroot)" >&2
+    exit 1
+fi
+
+if [ ! -f /usr/share/plymouth/themes/aegis/aegis.plymouth ]; then
+    echo "FATAL: /usr/share/plymouth/themes/aegis missing — run scripts/sync-includes.sh" >&2
+    exit 1
+fi
+
 update-alternatives --install /usr/share/plymouth/themes/default.plymouth \
     default.plymouth /usr/share/plymouth/themes/aegis/aegis.plymouth 200
 update-alternatives --set default.plymouth \

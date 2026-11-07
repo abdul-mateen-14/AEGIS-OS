@@ -402,6 +402,24 @@ Window {
                     }
 
                     Text {
+                        anchors.horizontalCenter: parent.horizontalCenter
+                        anchors.verticalCenter: parent.verticalCenter
+                        text: "Software Update"
+                        color: Tokens.accent
+                        font { family: "Montserrat"; pixelSize: 11 }
+
+                        MouseArea {
+                            anchors.fill: parent
+                            anchors.margins: -6
+                            cursorShape: Qt.PointingHandCursor
+                            onClicked: {
+                                Util.ccOpen = false
+                                Util.launch("aegis-updates")
+                            }
+                        }
+                    }
+
+                    Text {
                         anchors.right: parent.right
                         anchors.verticalCenter: parent.verticalCenter
                         text: "kwin · wayland · " + Governor.fps + " fps"

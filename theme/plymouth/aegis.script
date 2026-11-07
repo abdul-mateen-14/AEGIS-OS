@@ -1,49 +1,98 @@
-# Aegis OS boot splash (proposal, chapter 07):
-# the Aegis Mark centered on true black; a 240x2 hairline progress bar
-# 36 px below the mark fills with the accent color as the boot advances.
+# Aegis OS boot splash v2 (proposal, chapter 07).
+# True black, the Aegis Mark fading in dead center, a 240x2 hairline
+# progress bar 36 px below it. Real progress comes from systemd through
+# SetBootProgressFunction; until the first event arrives the bar creeps
+# gently (indeterminate head), and the fill eases toward the target so
+# the bar never jumps. v0.2.0 regressed to a scrolling console because
+# the plymouth package itself was missing — aegis-boot.list.chroot fixes
+# that; this script assumes plymouthd runs the script plugin (shipped in
+# the plymouth core package on Ubuntu).
 
 Window.SetBackgroundTopColor(0.0, 0.0, 0.0);
 Window.SetBackgroundBottomColor(0.0, 0.0, 0.0);
 
-// Aegis Mark, scaled to 96 px tall, dead center
+// ── Aegis Mark, scaled to 96 px, dead center, slightly above middle ──
 mark.image = Image("aegis-mark.png");
-mark.height = 96;
-mark.width = 96 * mark.image.GetWidth() / mark.image.GetHeight();
-mark.x = Window.GetWidth() / 2 - mark.width / 2;
-mark.y = Window.GetHeight() / 2 - mark.height / 2;
-mark.sprite = Sprite(mark.image.Scale(mark.width, mark.height));
+mark.h = 96;
+mark.w = 96 * mark.image.GetWidth() / mark.image.GetHeight();
+mark.x = Window.GetWidth() / 2 - mark.w / 2;
+mark.y = Window.GetHeight() / 2 - mark.h / 2 - 10;
+mark.sprite = Sprite(mark.image.Scale(mark.w, mark.h));
 mark.sprite.SetX(mark.x);
 mark.sprite.SetY(mark.y);
+// start dim but visible — if the animation tick is starved, the user
+// still sees the mark instead of a dead black screen
+mark.sprite.SetOpacity(0.35);
 
-// hairline progress
+// ── hairline progress ────────────────────────────────────────────────
 bar.width = 240;
 bar.height = 2;
 bar.x = Window.GetWidth() / 2 - bar.width / 2;
-bar.y = mark.y + mark.height + 36;
-bar.progress = 0;
+bar.y = mark.y + mark.h + 36;
 
 track.image = Image("track.png");
 track.sprite = Sprite(track.image.Scale(bar.width, bar.height));
 track.sprite.SetX(bar.x);
 track.sprite.SetY(bar.y);
+track.sprite.SetOpacity(0.28);
 
 fill.image = Image("fill.png");
-fill.sprite = Sprite();
+fill.sprite = Sprite(fill.image.Scale(1, bar.height));
 fill.sprite.SetX(bar.x);
 fill.sprite.SetY(bar.y);
+fill.sprite.SetOpacity(0.92);
 
-fun boot_progress(duration, progress)
+// ── state ────────────────────────────────────────────────────────────
+progress.target = 0.0;
+progress.shown = 0.0;
+progress.frames = 0;
+
+fun display_message(text)
 {
-    bar.progress = progress;
+    // kernel/systemd chatter stays behind the splash — never printed
+}
+
+fun boot_progress(duration, p)
+{
+    progress.target = p;
 }
 
 fun refresh()
 {
-    w = bar.width * bar.progress;
-    if (w < 0) w = 0;
+    progress.frames = progress.frames + 1;
+
+    // fade the mark in over the first ~1.2 s
+    f = progress.frames / 24;
+    if (f > 1.0) f = 1.0;
+    mark.sprite.SetOpacity(0.35 + 0.65 * f);
+
+    // real progress: ease toward the target; before the first event:
+    // gentle creep capped at 10 %
+    if (progress.target > progress.shown) {
+        progress.shown = progress.shown + (progress.target - progress.shown) * 0.14;
+    } else {
+        if (progress.shown < 0.10) progress.shown = progress.shown + 0.0012;
+    }
+    if (progress.shown > 1.0) progress.shown = 1.0;
+
+    // keep geometry pinned (cheap, and survives a late mode change)
+    mark.x = Window.GetWidth() / 2 - mark.w / 2;
+    mark.y = Window.GetHeight() / 2 - mark.h / 2 - 10;
+    mark.sprite.SetX(mark.x);
+    mark.sprite.SetY(mark.y);
+    bar.x = Window.GetWidth() / 2 - bar.width / 2;
+    bar.y = mark.y + mark.h + 36;
+    track.sprite.SetX(bar.x);
+    track.sprite.SetY(bar.y);
+    fill.sprite.SetX(bar.x);
+    fill.sprite.SetY(bar.y);
+
+    w = bar.width * progress.shown;
+    if (w < 1) w = 1;
     if (w > bar.width) w = bar.width;
     fill.sprite.SetImage(fill.image.Scale(w, bar.height));
 }
 
+Plymouth.SetDisplayMessageFunction(display_message);
 Plymouth.SetBootProgressFunction(boot_progress);
 Plymouth.SetRefreshFunction(refresh);

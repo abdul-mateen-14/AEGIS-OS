@@ -1,0 +1,11 @@
+[Desktop Entry]
+Type=Application
+Name=Software Update
+GenericName=System Updates
+Comment=Keep Aegis OS up to date — every patch, one glass window
+Exec=aegis-updates
+Icon=system-software-update
+Terminal=false
+Categories=Qt;System;
+StartupNotify=true
+X-Aegis-FirstParty=true
