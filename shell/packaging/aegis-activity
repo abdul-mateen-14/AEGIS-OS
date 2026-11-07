@@ -1,0 +1,73 @@
+#!/bin/sh
+# aegis-activity — the Live Activity API demo client (docs/LIVE-ACTIVITY-API.md).
+#
+# Publish an island activity from any shell script:
+#   aegis-activity publish <id> <kind> [key=value ...]
+#     kinds: media | call | timer | charging | aegisId | generic
+#   aegis-activity end <id>
+#
+# Examples:
+#   aegis-activity publish demo-media media \
+#       title="Aurora Drift" artist="Aegis Sound" artColor1="#5A9BFF" artColor2="#1E3E8C"
+#   aegis-activity publish demo-call call caller="Alex Mercer" initials=AM
+#   aegis-activity publish demo-timer timer label="Focus" remaining="12:34"
+#   aegis-activity end demo-media
+
+set -e
+
+usage() {
+    sed -n '2,20p' "$0" | sed 's/^# \{0,1\}//'
+    exit 2
+}
+
+[ $# -ge 1 ] || usage
+
+call() {
+    gdbus call --session \
+        --dest org.aegis.Island \
+        --object-path /org/aegis/Island \
+        --method org.aegis.Island."$1"
+}
+
+case "$1" in
+publish)
+    [ $# -ge 3 ] || usage
+    ID="$2"; KIND="$3"; shift 3
+    MAP="{"
+    first=1
+    for kv in "$@"; do
+        key=${kv%%=*}
+        value=${kv#*=}
+        [ "$first" = 1 ] || MAP="$MAP,"
+        MAP="$MAP'$key':'$value'"
+        first=0
+    done
+    MAP="$MAP}"
+    exec gdbus call --session \
+        --dest org.aegis.Island \
+        --object-path /org/aegis/Island \
+        --method org.aegis.Island.PublishActivity \
+        "$ID" "$KIND" "$MAP"
+    ;;
+end)
+    [ $# -ge 2 ] || usage
+    exec gdbus call --session \
+        --dest org.aegis.Island \
+        --object-path /org/aegis/Island \
+        --method org.aegis.Island.EndActivity "$2"
+    ;;
+notify)
+    # aegis-activity notify <summary> [body]
+    SUMMARY="$2"
+    BODY="${3:-}"
+    exec gdbus call --session \
+        --dest org.freedesktop.Notifications \
+        --object-path /org/freedesktop/Notifications \
+        --method org.freedesktop.Notifications.Notify \
+        "aegis-activity" 0 "dialog-information" "$SUMMARY" "$BODY" \
+        "[]" "{}" 5000
+    ;;
+*)
+    usage
+    ;;
+esac

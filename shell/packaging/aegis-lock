@@ -1,0 +1,6 @@
+#!/bin/sh
+# aegis-lock — lock the Aegis session from anywhere.
+#   Super+L wiring, loginctl lock-session, or just run this.
+# The shell listens on org.aegis.Shell (session bus).
+exec busctl --user call \
+    org.aegis.Shell /org/aegis/Shell org.aegis.Shell lock >/dev/null 2>&1

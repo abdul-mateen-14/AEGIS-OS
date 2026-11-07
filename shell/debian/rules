@@ -7,3 +7,8 @@ override_dh_auto_configure:
 
 override_dh_auto_test:
 	# no test suite yet
+
+# the lock screen's PAM verifier must keep its setuid bit
+override_dh_fixperms:
+	dh_fixperms
+	chmod 4755 debian/aegis-shell/usr/bin/aegis-auth

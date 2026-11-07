@@ -8,7 +8,8 @@ Build-Depends: debhelper-compat (= 13),
                qt6-base-dev,
                qt6-declarative-dev,
                liblayershellqtinterface-dev,
-               layer-shell-qt
+               layer-shell-qt,
+               libpam0g-dev
 Standards-Version: 4.6.2
 Rules-Requires-Root: no
 Homepage: https://github.com/abdul-mateen-14/AEGIS-OS
@@ -25,14 +26,33 @@ Depends: ${shlibs:Depends},
          qml6-module-qtquick-templates,
          qml6-module-qtqml-workerscript,
          layer-shell-qt,
-         fonts-montserrat
-Description: Liquid-glass shell of Aegis OS (panel, dock, Dynamic Island)
+         fonts-montserrat,
+         fonts-dejavu-core,
+         libpam-modules,
+         network-manager,
+         bluez,
+         wireplumber,
+         brightnessctl,
+         libglib2.0-bin
+Description: Liquid-glass shell of Aegis OS (panel, dock, Dynamic Island, Control Center, Launcher)
  Aegis Shell is the Qt Quick 6 shell of Aegis OS, running on KWin 6 Wayland
  through the layer-shell protocol. Surfaces: a 28 px glass top panel, the
  floating liquid-glass dock with macOS-grade magnification (clamped linear
  map, spring mass 0.1 / stiffness 170 / damping 13, two Euler substeps), the
  120x4 sliver, and the Dynamic Island live-activity capsule (idle 104x32,
  spring mass 1 / stiffness 420 / damping 28).
+ .
+ M2 surfaces: the 348 px Control Center sheet (Wi-Fi / Bluetooth / Calm /
+ Dark tiles, Do Not Disturb, Display + Sound sliders, the live tier badge
+ wired to the adaptive effects governor), the full-screen Launcher (8x3
+ glass grid, type-to-filter), notification banners (356x84, stack <= 3,
+ org.freedesktop.Notifications compatible), and the lock screen (118 px
+ thin clock, PAM unlock through the setuid aegis-auth helper).
+ .
+ The adaptive effects governor (proposal Listing 2) demotes the session
+ tier A->B->C on sustained frame times and battery, and exposes the live
+ tier on org.aegis.Governor; applications publish island activities via
+ org.aegis.Island (see docs/LIVE-ACTIVITY-API.md).
  .
  Design tokens are code: shell/src/qml/Tokens.qml mirrors the tables of the
  Aegis OS UI design proposal v1.3 (+ the v1.4 island override).

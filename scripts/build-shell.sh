@@ -11,7 +11,7 @@ apt-get update -qq
 apt-get install -y --no-install-recommends \
     build-essential cmake debhelper pkg-config \
     qt6-base-dev qt6-declarative-dev \
-    liblayershellqtinterface-dev layer-shell-qt \
+    liblayershellqtinterface-dev layer-shell-qt libpam0g-dev \
     file
 
 echo "=== Building aegis-shell ==="

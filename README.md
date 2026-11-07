@@ -4,19 +4,19 @@ Liquid-glass desktop OS — a **KWin 6 Wayland compositor with a Qt Quick 6 shel
 
 > Hardened by default. Quiet chrome, colorful content. Calm. Fast.
 
-This repository implements the [Aegis OS UI Design Proposal v1.3](docs/DESIGN-TOKENS.md) as a real, buildable OS: a live ISO with the Aegis Shell (28 px glass panel, floating dock with macOS-grade magnification, Dynamic Island), branded Plymouth boot splash, glass tokens as code, and a fully graphical installer.
+This repository implements the [Aegis OS UI Design Proposal v1.3](docs/DESIGN-TOKENS.md) as a real, buildable OS: a live ISO with the Aegis Shell (28 px glass panel, floating dock with macOS-grade magnification, Dynamic Island), the M2 surfaces (Control Center, Launcher, notification banners, lock screen, adaptive effects governor), branded Plymouth boot splash, glass tokens as code, and a fully graphical installer.
 
 For engineers: platform lineage, components and licenses live in [`docs/NOTICE.md`](docs/NOTICE.md).
 
 ---
 
-## Status — M1 · Shell core
+## Status — M2 · Surfaces
 
 | Delivers | Done when |
 | --- | --- |
-| Wayland session ISO (HWE kernel + complete linux-firmware), glass top panel, floating dock + sliver, desktop canvas, Dynamic Island, Files + Terminal, Plymouth splash, Calamares | ISO boots to the Aegis session; panel/dock/island render over the wallpaper |
+| M1 shell core (see [MILESTONES](docs/MILESTONES.md)) + **Control Center** (348 px sheet — tiles, sliders, live tier badge → governor popover), **Launcher** (8×3 glass grid, type-to-filter), **notification banners** (356×84, stack ≤ 3, `org.freedesktop.Notifications` compatible), **lock screen** (118 px thin clock, PAM unlock), **adaptive effects governor** (tier A↔B↔C, live badge), **Live Activity API** (`org.aegis.Island`) | All overlays open/dismiss under their motion budgets; tier badge truth-checked against KWin |
 
-Roadmap (M2–M4) and their repo touch-points: [`docs/MILESTONES.md`](docs/MILESTONES.md).
+M1 record and M3/M4 roadmap: [`docs/MILESTONES.md`](docs/MILESTONES.md). App-facing island docs: [`docs/LIVE-ACTIVITY-API.md`](docs/LIVE-ACTIVITY-API.md).
 
 ## Repository map
 
@@ -27,10 +27,13 @@ Roadmap (M2–M4) and their repo touch-points: [`docs/MILESTONES.md`](docs/MILES
 debian-live/                     live-build config: package lists, includes, chroot hooks
 shell/                           Aegis Shell (Qt Quick 6 + LayerShellQt) + Debian packaging
   └ src/qml/Tokens.qml           design tokens as code — every proposal table maps here
+  └ src/governor/                adaptive effects governor (tier A↔B↔C)
+  └ src/activity/                Live Activity API + notifications daemon
+  └ src/auth/                    setuid PAM verifier for the lock screen
 theme/                           wallpapers · Plymouth · color schemes · desktop entries
 calamares/                       installer settings, modules, Aegis branding
 scripts/                         build-iso.sh · build-shell.sh · ci/ helpers
-docs/                            BUILD · CI free tier · MILESTONES · DESIGN-TOKENS · APP-SLOTS · SECRETS
+docs/                            BUILD · CI free tier · MILESTONES · DESIGN-TOKENS · LIVE-ACTIVITY-API · APP-SLOTS · SECRETS
 ```
 
 ## Quickstart — your first ISO (zero local setup)
@@ -80,7 +83,16 @@ qemu-system-x86_64 -enable-kvm -m 4096 -bios /usr/share/ovmf/OVMF.fd \
     -cdrom AegisOS-*-amd64.iso
 ```
 
-Login (live session): user `aegis`, autologin on, empty password via sudo NOPASSWD. The **Aegis** session is the featured one; a stock compatibility session ships as fallback. Double-click the Dynamic Island to cycle its states; hover the dock to see the magnification field; fold it to the sliver by leaving it idle for 4 s and poke the bottom edge to spring it back.
+Login (live session): user `aegis`, autologin on, empty password via sudo NOPASSWD. The **Aegis** session is the featured one; a stock compatibility session ships as fallback.
+
+M2 quick tour: click the right half of the top panel (or the sliders glyph) for **Control Center** — flip tiles, drag Display/Sound, and tap the tier badge to drive the effects governor by hand. Open the **Launcher** from a shell surface or via DBus (`busctl --user call org.aegis.Shell /org/aegis/Shell org.aegis.Shell toggleLauncher`) and just type to filter. Lock with `aegis-lock`. Feed the island a live activity:
+
+```bash
+aegis-activity publish demo media title="Aurora Drift" artist="Aegis Sound"
+aegis-activity end demo
+```
+
+Hover the dock for the magnification field; fold it to the sliver by leaving it idle for 4 s and poke the bottom edge to spring it back.
 
 ## Third-party components
 

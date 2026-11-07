@@ -1,5 +1,6 @@
 pragma Singleton
 import QtQuick
+import Aegis.Util
 
 // Aegis OS design tokens — the proposal's tables as code (docs/DESIGN-TOKENS.md
 // maps every value back to its table). v1.3 defaults with one v1.4 override:
@@ -13,6 +14,12 @@ QtObject {
     readonly property color ink: "#101216"
     readonly property color inkDeep: "#08090C"
     readonly property color paper: "#F2F4F8"
+
+    // ── Foreground pair — dark rung default, light rung on request ─
+    // (M2 surfaces read these; the full light-theme audit is M4.)
+    readonly property color fg: Util.darkMode ? paper : ink
+    readonly property color fgMuted: Util.darkMode ? Qt.rgba(1, 1, 1, 0.55)
+                                                   : Qt.rgba(0, 0, 0, 0.55)
 
     // ── Top panel (§2.1, Table 3) ─────────────────────────────────
     readonly property int panelHeight: 28
@@ -54,6 +61,10 @@ QtObject {
     // iPhone Pro-class pill (~1.5 cm wide ≈ 104×32 px at 1× density).
     // Split and Charging track the idle height; radius tracks height (r = h/2,
     // capped at 32) so the capsule never pinches.
+    // M2: states are data rows — the Live Activity API maps an activity
+    // kind to one record here; timer and generic were added without
+    // touching the geometry engine (§2.4: "a new activity type is a data
+    // row, not new code").
     readonly property int islandIdleWidth: 104
     readonly property int islandIdleHeight: 32
     readonly property int islandTopMargin: panelHeight + 2
@@ -70,13 +81,18 @@ QtObject {
         split:      { w: 128 + 8 + 104,            h: islandIdleHeight,   r: islandIdleHeight / 2 },
         call:       { w: 300,                      h: 64,                 r: 32 },
         charging:   { w: 216,                      h: islandIdleHeight,   r: islandIdleHeight / 2 },
-        aegisId:    { w: 200,                      h: 56,                 r: 28 }
+        aegisId:    { w: 200,                      h: 56,                 r: 28 },
+        timer:      { w: 200,                      h: 56,                 r: 28 },
+        generic:    { w: 300,                      h: 56,                 r: 28 }
     })
 
     // ── Panel Glass (§3, Table 7 — dark rung; blur is KWin's job) ──
     readonly property color glassTint: Qt.rgba(16/255, 16/255, 18/255, 0.52)
     readonly property color glassBorder: Qt.rgba(1, 1, 1, 0.14)   // hairline, 1 px, never scales
     readonly property color glassHighlight: Qt.rgba(1, 1, 1, 0.10)
+    // light rung — used by M2 surfaces when Dark Mode is off (audit in M4)
+    readonly property color glassTintLight: Qt.rgba(244/255, 246/255, 250/255, 0.55)
+    readonly property color glassBorderLight: Qt.rgba(0, 0, 0, 0.10)
     readonly property int glassBlurPx: 28
     readonly property real glassSaturation: 1.6
     readonly property real glassBrightness: 1.06
@@ -93,3 +109,4 @@ QtObject {
         return Math.min(height / 2, islandMaxRadius)
     }
 }
+

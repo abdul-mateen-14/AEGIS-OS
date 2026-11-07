@@ -276,7 +276,7 @@ Window {
             Text {
                 id: nameText
                 anchors.centerIn: parent
-                color: Tokens.paper
+                color: Tokens.fg
                 font {
                     family: "Montserrat"
                     pixelSize: 11

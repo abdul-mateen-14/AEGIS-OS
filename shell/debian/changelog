@@ -1,3 +1,23 @@
+aegis-shell (1.4.0-m2) resolute; urgency=medium
+
+  * M2 surfaces: Control Center (348 px sheet — Wi-Fi/Bluetooth/Calm/Dark
+    tiles, Do Not Disturb, Display + Sound sliders, live tier badge wired
+    to the effects governor), full-screen Launcher (8x3 glass grid,
+    type-to-filter, page dots), notification banners (356x84, stack <= 3,
+    org.freedesktop.Notifications compatible), lock screen (118 px thin
+    clock, glass password pill, PAM unlock via setuid aegis-auth).
+  * Adaptive effects governor (Listing 2): frame-time + battery tier
+    machine A<->B<->C, live tier badge, org.aegis.Governor DBus + state
+    file for KWin subscribers.
+  * Live Activity API: org.aegis.Island (PublishActivity/EndActivity/
+    activityAction) with the Table 5b priority stack; island states are
+    data rows (timer + generic added); split lobes for two activities;
+    shell-owned charging pulse on AC transition.
+  * Panel: right half opens Control Center; status cluster (Wi-Fi,
+    volume, battery, clock). New CLIs: aegis-lock, aegis-activity.
+
+ -- Aegis OS Project <aegis@users.noreply.github.com>  Fri, 07 Nov 2026 09:00:00 +0000
+
 aegis-shell (1.4.0-m1) resolute; urgency=medium
 
   * M1 shell core: 28 px glass panel, floating dock with the §2.2

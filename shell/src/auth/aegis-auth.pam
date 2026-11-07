@@ -1,0 +1,4 @@
+#%PAM-1.0
+# Aegis lock screen authentication — same pam_unix path as the greeter.
+auth       required   pam_unix.so
+account    required   pam_unix.so
