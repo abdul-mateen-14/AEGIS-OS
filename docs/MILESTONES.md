@@ -68,10 +68,16 @@ graphical, macOS-grade:
   `plymouth-label` (v0.2.0 registered a theme for a package that was never
   installed, so the boot fell back to text). Kernel args gain
   `vt.global_cursor_default=0 loglevel=3`; GRUB/ISOLINUX menus drop to a
-  1 s flash. The splash script hardens to a fade-in mark, an
-  indeterminate creep before real progress, and re-pinned geometry — plus
-  the 0200 hook now fails the *build* (not the boot) if plymouth or the
-  theme files are missing.
+  1 s flash. Boot-testing every CI ISO in QEMU pinned down two hard facts:
+  plymouthd resolves its theme through the `default.plymouth` alternatives
+  symlink (ignoring `plymouthd.conf`), and the script plugin never paints
+  on this stack - so the shipped splash is a **rebranded `ubuntu-text`**:
+  Aegis ink background `0x08090C`, paper-white "Aegis OS" title, accent
+  dots (verified on the real ISO screenshot
+  `real-boot-aegis-splash.png`). The splash starts from the root
+  filesystem (the initramfs-phase plymouthd renders nothing and blocks
+  the working root-phase one), and the 0200 hook fails the *build* if
+  plymouth or the theme files go missing again.
 - **Glass login** — `theme/sddm/aegis/`: a self-contained QtQuick greeter
   (big clock, glass card, Canvas-drawn circular avatar, password pill,
   user strip, power glyphs) on the Aurora Ink wallpaper, wired through
