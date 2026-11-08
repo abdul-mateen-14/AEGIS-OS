@@ -11,7 +11,7 @@ ISO = sys.argv[1] if len(sys.argv) > 1 else "iso/AegisOS.iso"
 OUT = sys.argv[2] if len(sys.argv) > 2 else "screenshots"
 SOCK = "/tmp/aegis-qmp.sock"
 ABS_MAX = 0x7FFF          # QMP abs input range for absolute pointer devices
-DESKTOP_TIMEOUT = 1500    # seconds to wait for the desktop (TCG fallback needs it)
+DESKTOP_TIMEOUT = 2700    # TCG boots are slow; KVM is minutes
 
 def log(msg):
     print(f"[{time.strftime('%H:%M:%S')}] {msg}", flush=True)
@@ -124,7 +124,7 @@ def extract_kernel_initrd():
     return "vmlinuz", "initrd.img"
 
 def start_qemu(accel):
-    cmd = ["qemu-system-x86_64", *accel, "-m", "3072", "-smp", "2",
+    cmd = ["qemu-system-x86_64", *accel, "-m", "4096", "-smp", "4",
            "-vga", "std", "-display", "none",
            "-device", "qemu-xhci", "-device", "usb-tablet",
            "-nic", "none", "-cdrom", ISO, "-boot", "d", "-no-reboot",
@@ -201,7 +201,7 @@ def wait_desktop(q, proc, timeout=DESKTOP_TIMEOUT):
                         l.rstrip() for l in lines[-5:]))
             except OSError:
                 pass
-        n += 1; time.sleep(15)
+        n += 1; time.sleep(20)
     return -1
 
 def find_tiles(png):

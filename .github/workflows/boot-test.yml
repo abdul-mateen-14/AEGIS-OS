@@ -25,7 +25,7 @@ jobs:
   boot:
     name: Boot ISO and capture screenshots
     runs-on: ubuntu-latest
-    timeout-minutes: 50
+    timeout-minutes: 85
     steps:
       - uses: actions/checkout@v4
 
@@ -45,7 +45,11 @@ jobs:
           sudo apt-get update -qq
           sudo apt-get install -y -qq qemu-system-x86 >/dev/null
           qemu-system-x86_64 --version | head -1
-          if ls /dev/kvm >/dev/null 2>&1; then echo "KVM available"; else echo "no KVM — TCG fallback"; fi
+          # KVM exists on public-repo runners but is often root-only; make it
+          # usable so the boot runs in minutes instead of ~30. The capture
+          # script still falls back to TCG automatically if this fails.
+          sudo chmod 666 /dev/kvm 2>/dev/null || true
+          ls -la /dev/kvm || echo "no /dev/kvm — TCG fallback"
           pip install -q pillow pycdlib
 
       - name: Download, reassemble and verify ISO

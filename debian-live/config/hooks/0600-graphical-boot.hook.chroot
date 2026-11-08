@@ -1,0 +1,26 @@
+#!/bin/sh
+set -e
+# Boot to the graphical session.
+#
+# Runner boot-test (v0.3.1) serial log: the boot ends at getty.target with
+# an "aegis login:" prompt — no display-manager service is ever queued.
+# Cause: --bootstrap-flavour minimal keeps the stock multi-user.target as
+# the default; installing sddm does not switch the default target, and
+# graphical.target (which Wants=display-manager.service) is never entered.
+# The user session therefore never starts and the boot ends on a blank
+# text console behind the plymouth exit.
+#
+# Fix: point the default target at the graphical stack and make sure the
+# display-manager unit is enabled (the sddm postinst normally does this on
+# a full seed; the minimal seed cannot rely on it).
+
+# 1. default.target -> graphical.target
+mkdir -p /etc/systemd/system
+ln -sfn /lib/systemd/system/graphical.target /etc/systemd/system/default.target
+
+# 2. display-manager.service -> sddm.service (belt and braces)
+for UNIT in /lib/systemd/system/sddm.service /usr/lib/systemd/system/sddm.service; do
+    if [ -f "$UNIT" ] && [ ! -e /etc/systemd/system/display-manager.service ]; then
+        ln -sfn "$UNIT" /etc/systemd/system/display-manager.service
+    fi
+done
