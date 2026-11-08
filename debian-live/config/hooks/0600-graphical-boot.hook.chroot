@@ -24,3 +24,44 @@ for UNIT in /lib/systemd/system/sddm.service /usr/lib/systemd/system/sddm.servic
         ln -sfn "$UNIT" /etc/systemd/system/display-manager.service
     fi
 done
+
+# 3. casper's initramfs autologin (scripts/casper-bottom/15autologin) appends
+#    /etc/sddm.conf:
+#        [Autologin]
+#        User=aegis
+#        Session=<empty>          <- none of its hardcoded distro sessions
+#                                     exist under /root at the initramfs
+#                                     bottom phase, even though the shipped
+#                                     sessions are all there afterwards
+#    /etc/sddm.conf is SDDM's highest-priority file, so the empty Session=
+#    overrides zz-aegis-live.conf's Session=aegis.desktop and SDDM aborts
+#    every attempt with "Unable to find autologin session entry \"\"" —
+#    the display server never starts and the boot ends on the plymouth
+#    leftover. Drop the empty line before the display manager starts.
+mkdir -p /usr/lib/aegis
+cat > /usr/lib/aegis/fix-sddm-autologin.sh <<'SCRIPT'
+#!/bin/sh
+# Remove casper's empty autologin Session= line; zz-aegis-live.conf then
+# supplies the real session (aegis.desktop).
+sed -i '/^Session=[[:space:]]*$/d' /etc/sddm.conf 2>/dev/null || true
+SCRIPT
+chmod 755 /usr/lib/aegis/fix-sddm-autologin.sh
+
+cat > /etc/systemd/system/aegis-fix-sddm-autologin.service <<'UNIT'
+[Unit]
+Description=Drop casper's empty autologin Session from /etc/sddm.conf
+Before=display-manager.service
+ConditionPathExists=/etc/sddm.conf
+
+[Service]
+Type=oneshot
+ExecStart=/usr/lib/aegis/fix-sddm-autologin.sh
+RemainAfterExit=yes
+
+[Install]
+WantedBy=multi-user.target
+UNIT
+
+mkdir -p /etc/systemd/system/multi-user.target.wants
+ln -sfn ../aegis-fix-sddm-autologin.service \
+    /etc/systemd/system/multi-user.target.wants/aegis-fix-sddm-autologin.service

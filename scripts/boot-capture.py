@@ -259,9 +259,14 @@ def serial_diagnose(serial):
 
 def serial_recover(serial, q, W=1280, H=800):
     log("attempting live recovery over serial")
-    out = serial.run("sudo -n systemctl start display-manager 2>&1 || sudo -n systemctl start sddm 2>&1 || echo RECOVERY-SUDO-FAILED", settle=6)
+    # The known failure: casper writes an empty Session= into /etc/sddm.conf
+    # which overrides zz-aegis-live.conf and aborts SDDM autologin. Drop the
+    # empty line and restart the display manager.
+    out = serial.run(
+        "sudo sed -i '/^Session=[[:space:]]*$/d' /etc/sddm.conf 2>&1; "
+        "sudo systemctl restart sddm 2>&1; echo RECOVERY-DONE", settle=8)
     log("recovery: " + out.strip().replace("\n", " | ")[:300])
-    if "RECOVERY-SUDO-FAILED" in out:
+    if "RECOVERY-DONE" not in out:
         return False
     # give the greeter/shell up to 5 minutes to appear
     for i in range(15):
