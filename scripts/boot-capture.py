@@ -238,11 +238,13 @@ def serial_diagnose(serial):
     diag_cmds = [
         "echo ===TARGET===; systemctl get-default; systemctl is-active display-manager sddm",
         "echo ===SDDMCONF===; cat /etc/sddm.conf 2>&1; echo ---; ls -la /etc/sddm.conf.d/ 2>&1; cat /etc/sddm.conf.d/*.conf 2>&1",
-        "echo ===SDDMLOG===; journalctl -u sddm -b --no-pager 2>&1 | tail -50",
+        "echo ===SDDMLOG===; sudo journalctl -u sddm -b --no-pager 2>&1 | tail -40",
+        "echo ===SESSIONLOG===; sudo journalctl -b --no-pager 2>&1 | grep -Ei 'kwin|aegis-shell|dbus-run|sddm-helper|aegis-session' | tail -40",
+        "echo ===KWIN===; ls -la /usr/bin/kwin_wayland /usr/bin/aegis-shell 2>&1; sudo -u aegis XDG_RUNTIME_DIR=/run/user/1000 kwin_wayland --version 2>&1 | head -4",
+        "echo ===LDD===; ldd /usr/bin/kwin_wayland 2>&1 | grep -i 'not found'; ldd /usr/bin/aegis-shell 2>&1 | grep -i 'not found'; echo LDD-DONE",
+        "echo ===SDDMDOTLOG===; sudo tail -40 /var/log/sddm.log 2>&1; sudo ls -la /var/lib/sddm/ /home/aegis/.local/share/sddm/ 2>&1",
         "echo ===FAILED===; systemctl --failed --no-pager | head -12",
-        "echo ===JOURNAL-ERR===; journalctl -b -p 3 --no-pager 2>&1 | tail -30",
-        "echo ===SESS===; loginctl list-sessions --no-pager 2>&1; ls /usr/share/wayland-sessions/ /usr/share/xsessions/ 2>&1",
-        "echo ===WALLPAPER===; ls -la /usr/share/wallpapers/aegis/ 2>&1",
+        "echo ===SESS===; loginctl list-sessions --no-pager 2>&1; ls /usr/share/wayland-sessions/ 2>&1",
         "echo ===PROCS===; ps aux | grep -Ei 'sddm|kwin|aegis|Xorg|wayland' | grep -v grep",
     ]
     blob = []
