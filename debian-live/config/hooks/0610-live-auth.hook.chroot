@@ -1,0 +1,25 @@
+#!/bin/sh
+set -e
+# Serial-console + live-session diagnostics.
+#
+# casper's 25adduser keeps the live user's password blank (crypt hash
+# U6aMy0wojraho) but Ubuntu 26.04's stock common-auth no longer passes
+# nullok to pam_unix, so blank-password logins (serial getty included)
+# are always rejected with "Login incorrect". Allow blank passwords again
+# so the boot-test pipeline can open a shell on the serial console; the
+# GUI login path is unaffected (autologin uses SDDM's own helper).
+#
+# Idempotent: skip if pam_unix already carries nullok.
+if [ -f /usr/share/pam-configs/unix ]; then
+    :
+fi
+if [ -f /etc/pam.d/common-auth ] && ! grep -q "pam_unix.so.*nullok" /etc/pam.d/common-auth; then
+    sed -i 's/\(pam_unix\.so[[:space:]]*\)/\1nullok /' /etc/pam.d/common-auth
+fi
+
+# Live-session convenience: make sure sudo is passwordless for the live
+# user even if casper's own sudoers drop-in ever goes missing.
+if [ -d /etc/sudoers.d ] && [ ! -f /etc/sudoers.d/aegis-live ]; then
+    printf 'aegis ALL=(ALL) NOPASSWD: ALL\n' > /etc/sudoers.d/aegis-live
+    chmod 440 /etc/sudoers.d/aegis-live
+fi

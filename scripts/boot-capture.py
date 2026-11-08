@@ -205,20 +205,27 @@ class Serial:
     def send(self, text):
         self.s.send(text.encode())
 
-    def login(self, user="aegis", passwords=("", "aegis", "live", "root")):
-        for _ in range(3):
-            self.send("\n"); self._drain(2)
+    def login(self, user="aegis", passwords=("", "aegis", "live", "root", "ubuntu")):
+        """Open a shell on the serial console. Marker-2 trick: a real shell
+        evaluates $((1+1)); a login prompt echoes it literally and logs a
+        FAILED LOGIN, so a plain substring match cannot false-positive."""
+        self.buf = b""
+        for _ in range(4):
+            self.send("\n"); self._drain(1.5)
             if b"login:" in self.buf:
                 break
         if b"login:" not in self.buf:
             return False
-        self.send(user + "\n"); self._drain(2.5)
         for pw in passwords:
-            if b"Password" not in self.buf:
-                break
-            self.send(pw + "\n"); self._drain(3)
-        self.send("echo SHELL-OK $(id -un)\n"); self._drain(3)
-        return b"SHELL-OK" in self.buf
+            self.send(user + "\n"); self._drain(2.5)
+            if b"Password" in self.buf:
+                self.send(pw + "\n"); self._drain(3)
+            self.buf = b""
+            self.send("echo MARKER-$((1+1))\n"); self._drain(3)
+            if b"MARKER-2" in self.buf and b"FAILED LOGIN" not in self.buf:
+                return True
+            # back at the login prompt after a failed attempt — retry next pw
+        return False
 
     def run(self, cmd, settle=3.0):
         self.send(cmd + "\n"); self._drain(settle)
@@ -229,13 +236,13 @@ class Serial:
 
 def serial_diagnose(serial):
     diag_cmds = [
-        "echo ===TARGET===; systemctl get-default",
-        "echo ===FAILED===; systemctl --failed --no-pager | head -15",
-        "echo ===DM===; systemctl is-active display-manager sddm; systemctl status display-manager --no-pager 2>&1 | head -12",
-        "echo ===GRAPHICAL===; systemctl status graphical.target --no-pager 2>&1 | head -10",
-        "echo ===JOURNAL-ERR===; journalctl -b -p 3 --no-pager 2>&1 | tail -40",
-        "echo ===SESS===; loginctl list-sessions --no-pager 2>&1; ls /usr/share/wayland-sessions/ 2>&1",
-        "echo ===WALLPAPER===; ls -la /usr/share/wallpapers/aegis/ 2>&1; ls /usr/share/sddm/themes/ 2>&1",
+        "echo ===TARGET===; systemctl get-default; systemctl is-active display-manager sddm",
+        "echo ===SDDMCONF===; cat /etc/sddm.conf 2>&1; echo ---; ls -la /etc/sddm.conf.d/ 2>&1; cat /etc/sddm.conf.d/*.conf 2>&1",
+        "echo ===SDDMLOG===; journalctl -u sddm -b --no-pager 2>&1 | tail -50",
+        "echo ===FAILED===; systemctl --failed --no-pager | head -12",
+        "echo ===JOURNAL-ERR===; journalctl -b -p 3 --no-pager 2>&1 | tail -30",
+        "echo ===SESS===; loginctl list-sessions --no-pager 2>&1; ls /usr/share/wayland-sessions/ /usr/share/xsessions/ 2>&1",
+        "echo ===WALLPAPER===; ls -la /usr/share/wallpapers/aegis/ 2>&1",
         "echo ===PROCS===; ps aux | grep -Ei 'sddm|kwin|aegis|Xorg|wayland' | grep -v grep",
     ]
     blob = []
