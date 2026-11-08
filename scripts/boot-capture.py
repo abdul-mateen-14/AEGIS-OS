@@ -107,7 +107,7 @@ def diff_px(a, b):
 # ---------------- boot ----------------
 KERNEL_ARGS = ("boot=live components quiet splash vt.global_cursor_default=0 "
                "loglevel=3 hostname=aegis username=aegis autologin "
-               "console=ttyS0,115200n8 systemd.show_status=yes")
+               "console=ttyS0,115200n8 plymouth.ignore-serial-consoles systemd.show_status=yes")
 
 def extract_kernel_initrd():
     """Pull /live/vmlinuz + /live/initrd.img out of the ISO so we can boot
