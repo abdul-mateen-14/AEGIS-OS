@@ -95,7 +95,9 @@ void configureSurface(QQuickWindow *win)
             LayerShellQt::Window::AnchorLeft,
             LayerShellQt::Window::AnchorRight});
         layer->setExclusiveZone(28); // Table 3 — 28 px of global panel
-        layer->setDesiredSize(QSize(0, 28));
+#ifdef AEGIS_HAS_DESIRED_SIZE
+        layer->setDesiredSize(QSize(0, 28)); // older layer-shell-qt builds omit this API
+#endif
         layer->setKeyboardInteractivity(LayerShellQt::Window::KeyboardInteractivityOnDemand);
         layer->setScope(QStringLiteral("aegis-panel"));
     } else if (name == QStringLiteral("islandWindow")) {

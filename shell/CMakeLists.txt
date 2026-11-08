@@ -15,6 +15,17 @@ else()
     set(AEGIS_LAYERSHELL_TARGET ${LayerShellQt_LIBRARIES})
 endif()
 
+# layer-shell-qt gained Window::setDesiredSize in 6.4 — probe the linked
+# header so older distro builds (Debian trixie) still compile.
+include(CheckCXXSourceCompiles)
+set(CMAKE_REQUIRED_LIBRARIES ${AEGIS_LAYERSHELL_TARGET})
+check_cxx_source_compiles(
+    "#include <LayerShellQt/Window>
+    #include <QSize>
+    int main(){ auto *w = (LayerShellQt::Window*)nullptr; w->setDesiredSize(QSize()); return 0; }"
+    AEGIS_HAS_DESIRED_SIZE)
+unset(CMAKE_REQUIRED_LIBRARIES)
+
 qt_add_executable(aegis-shell
     src/main.cpp
     src/util.h
@@ -27,6 +38,7 @@ qt_add_executable(aegis-shell
 
 qt_add_resources(aegis-shell "shell"
     PREFIX "/qml"
+    BASE_DIR src/qml
     FILES
         src/qml/qmldir
         src/qml/Tokens.qml
@@ -54,6 +66,10 @@ target_link_libraries(aegis-shell PRIVATE
     ${AEGIS_LAYERSHELL_TARGET}
 )
 
+if(AEGIS_HAS_DESIRED_SIZE)
+    target_compile_definitions(aegis-shell PRIVATE AEGIS_HAS_DESIRED_SIZE)
+endif()
+
 # ── aegis-updates: Software Update ─────────────────────────────────────
 # The consumer update face: apt via pkexec behind a glass window — the
 # GUI answer to "download process and patch updates". Plain (non-
@@ -66,6 +82,7 @@ qt_add_executable(aegis-updates
 
 qt_add_resources(aegis-updates "updates"
     PREFIX "/updates"
+    BASE_DIR src/updates
     FILES
         src/updates/Updates.qml
         src/qml/aegis-mark.png
