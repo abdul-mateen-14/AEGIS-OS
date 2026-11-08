@@ -105,24 +105,52 @@ def diff_px(a, b):
     return t / n / 3
 
 # ---------------- boot ----------------
-def start_qemu():
-    accel = (["-enable-kvm", "-cpu", "host"] if os.path.exists("/dev/kvm")
-             else ["-accel", "tcg,thread=multi", "-cpu", "max"])
-    log(f"accelerator: {accel[0]}")
+def start_qemu(accel):
     cmd = ["qemu-system-x86_64", *accel, "-m", "3072", "-smp", "2",
            "-vga", "std", "-display", "none",
            "-device", "qemu-xhci", "-device", "usb-tablet",
            "-nic", "none", "-cdrom", ISO, "-boot", "d", "-no-reboot",
            "-qmp", f"unix:{SOCK},server,nowait",
-           "-serial", "file:/tmp/aegis-serial.log"]
+           "-serial", "file:serial.log"]
     log("qemu: " + " ".join(cmd))
-    return subprocess.Popen(cmd, stdout=open("/tmp/aegis-qemu.log", "w"),
-                            stderr=subprocess.STDOUT)
+    qf = open("qemu.log", "w")
+    proc = subprocess.Popen(cmd, stdout=qf, stderr=subprocess.STDOUT)
+    time.sleep(3)
+    if proc.poll() is not None:
+        log(f"qemu exited immediately (rc={proc.returncode}); qemu.log:")
+        try:
+            for line in open("qemu.log"):
+                log("  | " + line.rstrip())
+        except OSError:
+            pass
+        return None
+    return proc
+
+def start_qemu_with_fallback():
+    chains = (["-enable-kvm", "-cpu", "host"],
+              ["-accel", "tcg,thread=multi", "-cpu", "max"])
+    for accel in chains:
+        log(f"trying accelerator: {accel[0]}")
+        if os.path.exists(SOCK):
+            os.remove(SOCK)
+        proc = start_qemu(accel)
+        if proc:
+            log(f"accelerator in use: {accel[0]}")
+            return proc
+    raise RuntimeError("qemu failed to start under every accelerator — see qemu.log")
 
 # ---------------- choreography ----------------
-def wait_desktop(q, timeout=DESKTOP_TIMEOUT):
+def wait_desktop(q, proc, timeout=DESKTOP_TIMEOUT):
     n = 0; t0 = time.time()
     while time.time() - t0 < timeout:
+        if proc.poll() is not None:
+            log(f"qemu died mid-boot (rc={proc.returncode}); qemu.log tail:")
+            try:
+                for line in list(open("qemu.log"))[-25:]:
+                    log("  | " + line.rstrip())
+            except OSError:
+                pass
+            sys.exit(3)
         try:
             q.shot(f"boot-{n:02d}")
         except Exception as e:
@@ -162,21 +190,18 @@ def find_tiles(png):
 
 def main():
     os.makedirs(OUT, exist_ok=True)
-    if os.path.exists(SOCK):
-        os.remove(SOCK)
-    proc = start_qemu()
+    proc = start_qemu_with_fallback()
     q = QMP(SOCK)
     log("QMP connected")
-    n = wait_desktop(q)
+    n = wait_desktop(q, proc)
     if n < 0:
         log("DESKTOP NEVER APPEARED")
         q.shot("zz-final")
-        shutil.copy("/tmp/aegis-serial.log", "serial.log")
         sys.exit(1)
     log(f"desktop up at boot-{n:02d}")
     time.sleep(10)                       # settle desktop animations
+
     q.shot("01-home")
-    shutil.copy("/tmp/aegis-serial.log", "serial.log")
 
     home = thumb(f"{OUT}/01-home.png")
     tiles = find_tiles(f"{OUT}/01-home.png")
@@ -213,7 +238,6 @@ def main():
     q.shot("05-control-center")
 
     log("capture complete")
-    shutil.copy("/tmp/aegis-serial.log", "serial.log")
     q._cmd("quit")
 
 if __name__ == "__main__":

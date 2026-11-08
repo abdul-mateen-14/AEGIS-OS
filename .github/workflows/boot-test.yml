@@ -71,6 +71,7 @@ jobs:
           path: |
             screenshots/**
             serial.log
+            qemu.log
           retention-days: 90
           if-no-files-found: warn
 
