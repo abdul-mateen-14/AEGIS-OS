@@ -1,0 +1,102 @@
+name: Boot Test
+
+# Boots the published release ISO on the runner (KVM when available),
+# drives the shell over QMP and captures screenshots: silent boot timeline,
+# home desktop, Files, Terminal, Settings and Control Center.
+# Results are preserved three ways: workflow artifacts, a commit to
+# docs/screenshots/<tag>/ and a zip attached to the release itself.
+
+on:
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Release tag to boot-test (empty = latest)'
+        required: false
+        default: ''
+
+permissions:
+  contents: write
+
+concurrency:
+  group: boot-test
+  cancel-in-progress: true
+
+jobs:
+  boot:
+    name: Boot ISO and capture screenshots
+    runs-on: ubuntu-latest
+    timeout-minutes: 50
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Resolve release tag
+        id: tag
+        run: |
+          TAG="${{ github.event.inputs.tag }}"
+          if [ -z "$TAG" ]; then
+            TAG=$(curl -s "https://api.github.com/repos/${{ github.repository }}/releases/latest" \
+              | python3 -c "import json,sys;print(json.load(sys.stdin)['tag_name'])")
+          fi
+          echo "tag=$TAG" >> "$GITHUB_OUTPUT"
+          echo "Boot-testing: $TAG"
+
+      - name: Install QEMU + Pillow
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq qemu-system-x86 >/dev/null
+          qemu-system-x86_64 --version | head -1
+          if ls /dev/kvm >/dev/null 2>&1; then echo "KVM available"; else echo "no KVM — TCG fallback"; fi
+          pip install -q pillow
+
+      - name: Download, reassemble and verify ISO
+        run: |
+          TAG="${{ steps.tag.outputs.tag }}"; VER="${TAG#v}"
+          BASE="https://github.com/${{ github.repository }}/releases/download/$TAG"
+          mkdir -p iso && cd iso
+          curl -sL --retry 3 -o SHA256SUMS "$BASE/SHA256SUMS"
+          curl -sL --retry 3 -O "$BASE/AegisOS-$VER-amd64.iso.part-00"
+          curl -sL --retry 3 -O "$BASE/AegisOS-$VER-amd64.iso.part-01"
+          cat "AegisOS-$VER-amd64.iso.part-00" "AegisOS-$VER-amd64.iso.part-01" > AegisOS.iso
+          sha256sum -c SHA256SUMS
+
+      - name: Boot and capture
+        run: |
+          python3 scripts/boot-capture.py iso/AegisOS.iso screenshots
+
+      - name: Upload artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: boot-test-${{ steps.tag.outputs.tag }}
+          path: |
+            screenshots/**
+            serial.log
+          retention-days: 90
+          if-no-files-found: warn
+
+      - name: Commit screenshots to the repo
+        if: success()
+        run: |
+          TAG="${{ steps.tag.outputs.tag }}"
+          git config user.name "aegis-ci"
+          git config user.email "actions@users.noreply.github.com"
+          mkdir -p "docs/screenshots/$TAG"
+          cp screenshots/*.png "docs/screenshots/$TAG/" 2>/dev/null || true
+          git add docs/screenshots
+          if git diff --cached --quiet; then
+            echo "no new screenshots to commit"
+          else
+            git commit -m "docs(screenshots): boot-test captures for $TAG"
+            git push
+          fi
+
+      - name: Attach screenshots zip to the release
+        if: success()
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          TAG="${{ steps.tag.outputs.tag }}"
+          (cd screenshots && zip -q "../AegisOS-$TAG-screenshots.zip" *.png)
+          gh release upload "$TAG" "AegisOS-$TAG-screenshots.zip" \
+            --clobber --repo "${{ github.repository }}"
+          echo "screenshots zip attached to release $TAG"
