@@ -105,6 +105,24 @@ def diff_px(a, b):
     return t / n / 3
 
 # ---------------- boot ----------------
+KERNEL_ARGS = ("boot=live components quiet splash vt.global_cursor_default=0 "
+               "loglevel=3 hostname=aegis username=aegis autologin "
+               "console=ttyS0,115200n8 systemd.show_status=yes")
+
+def extract_kernel_initrd():
+    """Pull /live/vmlinuz + /live/initrd.img out of the ISO so we can boot
+    with console=ttyS0 and see the guest's boot log."""
+    import pycdlib
+    iso = pycdlib.PyCdlib()
+    iso.open(ISO)
+    for rr, local in (("/live/vmlinuz", "vmlinuz"),
+                      ("/live/initrd.img", "initrd.img")):
+        if not os.path.exists(local):
+            iso.get_file_from_iso(local, rr_path=rr)
+            log(f"extracted {rr} -> {local} ({os.path.getsize(local)} bytes)")
+    iso.close()
+    return "vmlinuz", "initrd.img"
+
 def start_qemu(accel):
     cmd = ["qemu-system-x86_64", *accel, "-m", "3072", "-smp", "2",
            "-vga", "std", "-display", "none",
@@ -112,6 +130,12 @@ def start_qemu(accel):
            "-nic", "none", "-cdrom", ISO, "-boot", "d", "-no-reboot",
            "-qmp", f"unix:{SOCK},server,nowait",
            "-serial", "file:serial.log"]
+    try:
+        kern, initrd = extract_kernel_initrd()
+        cmd += ["-kernel", kern, "-initrd", initrd, "-append", KERNEL_ARGS]
+        log("booting kernel directly with serial console")
+    except Exception as e:
+        log(f"kernel extraction failed ({e}) — booting via BIOS, no serial log")
     log("qemu: " + " ".join(cmd))
     qf = open("qemu.log", "w")
     proc = subprocess.Popen(cmd, stdout=qf, stderr=subprocess.STDOUT)
@@ -141,7 +165,10 @@ def start_qemu_with_fallback():
 
 # ---------------- choreography ----------------
 def wait_desktop(q, proc, timeout=DESKTOP_TIMEOUT):
-    n = 0; t0 = time.time()
+    """Desktop readiness = the dock is visible (>= 6 icon tiles found in the
+    bottom strip). Brightness heuristics are unreliable on the ink-dark
+    wallpaper. Also logs a serial-console tail when the boot stalls."""
+    n = 0; t0 = time.time(); last_serial_len = 0
     while time.time() - t0 < timeout:
         if proc.poll() is not None:
             log(f"qemu died mid-boot (rc={proc.returncode}); qemu.log tail:")
@@ -155,11 +182,25 @@ def wait_desktop(q, proc, timeout=DESKTOP_TIMEOUT):
             q.shot(f"boot-{n:02d}")
         except Exception as e:
             log(f"shot failed: {e}"); time.sleep(10); continue
-        sat, val = metrics(f"{OUT}/boot-{n:02d}.png")
-        log(f"boot-{n:02d}: sat={sat:.1f} val={val:.1f} t={time.time() - t0:.0f}s")
-        if sat > 25 and val > 30:
-            if n and metrics(f"{OUT}/boot-{n-1:02d}.png")[0] > 25:
-                return n
+        png = f"{OUT}/boot-{n:02d}.png"
+        sat, val = metrics(png)
+        tiles = 0
+        try:
+            tiles = len(find_tiles(png))
+        except Exception:
+            pass
+        log(f"boot-{n:02d}: sat={sat:.1f} val={val:.1f} tiles={tiles} t={time.time() - t0:.0f}s")
+        if tiles >= 6:
+            return n
+        if n % 8 == 7:  # every ~2 min: peek at the guest boot log
+            try:
+                lines = open("serial.log", errors="replace").readlines()
+                if len(lines) > last_serial_len:
+                    last_serial_len = len(lines)
+                    log("serial tail: " + " | ".join(
+                        l.rstrip() for l in lines[-5:]))
+            except OSError:
+                pass
         n += 1; time.sleep(15)
     return -1
 
@@ -195,7 +236,12 @@ def main():
     log("QMP connected")
     n = wait_desktop(q, proc)
     if n < 0:
-        log("DESKTOP NEVER APPEARED")
+        log("DESKTOP NEVER APPEARED — dumping last 60 serial-console lines")
+        try:
+            for line in open("serial.log", errors="replace").readlines()[-60:]:
+                log("  | " + line.rstrip())
+        except OSError:
+            log("  (serial.log empty or missing)")
         q.shot("zz-final")
         sys.exit(1)
     log(f"desktop up at boot-{n:02d}")

@@ -46,7 +46,7 @@ jobs:
           sudo apt-get install -y -qq qemu-system-x86 >/dev/null
           qemu-system-x86_64 --version | head -1
           if ls /dev/kvm >/dev/null 2>&1; then echo "KVM available"; else echo "no KVM — TCG fallback"; fi
-          pip install -q pillow
+          pip install -q pillow pycdlib
 
       - name: Download, reassemble and verify ISO
         run: |
