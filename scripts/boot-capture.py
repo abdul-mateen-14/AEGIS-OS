@@ -3,6 +3,10 @@
 captures screenshots: silent boot timeline, home desktop, Files, Terminal,
 Settings and Control Center. Designed for CI runners; also runs locally.
 
+If the desktop does not come up, the script logs into the guest over the
+serial console (interactive socket chardev), dumps diagnostics, and attempts
+live recovery (start SDDM / isolate graphical.target) before giving up.
+
 Usage: python3 boot-capture.py <iso> [screenshot-dir]
 """
 import json, os, shutil, socket, subprocess, sys, time
@@ -10,8 +14,9 @@ import json, os, shutil, socket, subprocess, sys, time
 ISO = sys.argv[1] if len(sys.argv) > 1 else "iso/AegisOS.iso"
 OUT = sys.argv[2] if len(sys.argv) > 2 else "screenshots"
 SOCK = "/tmp/aegis-qmp.sock"
+SERIAL_SOCK = "/tmp/aegis-serial.sock"
 ABS_MAX = 0x7FFF          # QMP abs input range for absolute pointer devices
-DESKTOP_TIMEOUT = 2700    # TCG boots are slow; KVM is minutes
+DESKTOP_TIMEOUT = 1200    # KVM boots in ~3 min; TCG needs more
 
 def log(msg):
     print(f"[{time.strftime('%H:%M:%S')}] {msg}", flush=True)
@@ -107,11 +112,12 @@ def diff_px(a, b):
 # ---------------- boot ----------------
 KERNEL_ARGS = ("boot=live components quiet splash vt.global_cursor_default=0 "
                "loglevel=3 hostname=aegis username=aegis autologin "
-               "console=ttyS0,115200n8 plymouth.ignore-serial-consoles systemd.show_status=yes")
+               "console=ttyS0,115200n8 plymouth.ignore-serial-consoles "
+               "systemd.show_status=yes")
 
 def extract_kernel_initrd():
     """Pull /live/vmlinuz + /live/initrd.img out of the ISO so we can boot
-    with console=ttyS0 and see the guest's boot log."""
+    with console=ttyS0 and interact with the guest over serial."""
     import pycdlib
     iso = pycdlib.PyCdlib()
     iso.open(ISO)
@@ -129,13 +135,14 @@ def start_qemu(accel):
            "-device", "qemu-xhci", "-device", "usb-tablet",
            "-nic", "none", "-cdrom", ISO, "-boot", "d", "-no-reboot",
            "-qmp", f"unix:{SOCK},server,nowait",
-           "-serial", "file:serial.log"]
+           "-chardev", f"socket,id=ser0,path={SERIAL_SOCK},server=on,wait=off,logfile=serial.log",
+           "-serial", "chardev:ser0"]
     try:
         kern, initrd = extract_kernel_initrd()
         cmd += ["-kernel", kern, "-initrd", initrd, "-append", KERNEL_ARGS]
-        log("booting kernel directly with serial console")
+        log("booting kernel directly with interactive serial console")
     except Exception as e:
-        log(f"kernel extraction failed ({e}) — booting via BIOS, no serial log")
+        log(f"kernel extraction failed ({e}) — booting via BIOS, serial log only")
     log("qemu: " + " ".join(cmd))
     qf = open("qemu.log", "w")
     proc = subprocess.Popen(cmd, stdout=qf, stderr=subprocess.STDOUT)
@@ -155,55 +162,115 @@ def start_qemu_with_fallback():
               ["-accel", "tcg,thread=multi", "-cpu", "max"])
     for accel in chains:
         log(f"trying accelerator: {accel[0]}")
-        if os.path.exists(SOCK):
-            os.remove(SOCK)
+        for p in (SOCK, SERIAL_SOCK):
+            if os.path.exists(p):
+                os.remove(p)
         proc = start_qemu(accel)
         if proc:
             log(f"accelerator in use: {accel[0]}")
             return proc
     raise RuntimeError("qemu failed to start under every accelerator — see qemu.log")
 
-# ---------------- choreography ----------------
-def wait_desktop(q, proc, timeout=DESKTOP_TIMEOUT):
-    """Desktop readiness = the dock is visible (>= 6 icon tiles found in the
-    bottom strip). Brightness heuristics are unreliable on the ink-dark
-    wallpaper. Also logs a serial-console tail when the boot stalls."""
-    n = 0; t0 = time.time(); last_serial_len = 0
-    while time.time() - t0 < timeout:
-        if proc.poll() is not None:
-            log(f"qemu died mid-boot (rc={proc.returncode}); qemu.log tail:")
-            try:
-                for line in list(open("qemu.log"))[-25:]:
-                    log("  | " + line.rstrip())
-            except OSError:
-                pass
-            sys.exit(3)
-        try:
-            q.shot(f"boot-{n:02d}")
-        except Exception as e:
-            log(f"shot failed: {e}"); time.sleep(10); continue
-        png = f"{OUT}/boot-{n:02d}.png"
-        sat, val = metrics(png)
-        tiles = 0
-        try:
-            tiles = len(find_tiles(png))
-        except Exception:
-            pass
-        log(f"boot-{n:02d}: sat={sat:.1f} val={val:.1f} tiles={tiles} t={time.time() - t0:.0f}s")
-        if tiles >= 6:
-            return n
-        if n % 8 == 7:  # every ~2 min: peek at the guest boot log
-            try:
-                lines = open("serial.log", errors="replace").readlines()
-                if len(lines) > last_serial_len:
-                    last_serial_len = len(lines)
-                    log("serial tail: " + " | ".join(
-                        l.rstrip() for l in lines[-5:]))
-            except OSError:
-                pass
-        n += 1; time.sleep(20)
-    return -1
+# ---------------- serial console ----------------
+class Serial:
+    """Interactive serial console over the chardev socket."""
 
+    def __init__(self, path, tries=20):
+        last = None
+        for _ in range(tries):
+            try:
+                self.s = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
+                self.s.connect(path)
+                break
+            except (FileNotFoundError, ConnectionRefusedError) as e:
+                last = e; time.sleep(1)
+        else:
+            raise RuntimeError(f"cannot connect serial socket: {last}")
+        self.s.settimeout(2)
+        self.buf = b""
+
+    def _drain(self, settle=1.5):
+        deadline = time.time() + settle
+        while time.time() < deadline:
+            try:
+                d = self.s.recv(4096)
+                if not d:
+                    break
+                self.buf += d
+                deadline = time.time() + 0.5
+            except socket.timeout:
+                pass
+        return self.buf
+
+    def send(self, text):
+        self.s.send(text.encode())
+
+    def login(self, user="aegis", passwords=("", "aegis", "live", "root")):
+        for _ in range(3):
+            self.send("\n"); self._drain(2)
+            if b"login:" in self.buf:
+                break
+        if b"login:" not in self.buf:
+            return False
+        self.send(user + "\n"); self._drain(2.5)
+        for pw in passwords:
+            if b"Password" not in self.buf:
+                break
+            self.send(pw + "\n"); self._drain(3)
+        self.send("echo SHELL-OK $(id -un)\n"); self._drain(3)
+        return b"SHELL-OK" in self.buf
+
+    def run(self, cmd, settle=3.0):
+        self.send(cmd + "\n"); self._drain(settle)
+        out = self.buf.decode(errors="replace")
+        # keep only the response after the echoed command
+        idx = out.rfind(cmd)
+        return out[idx + len(cmd):] if idx >= 0 else out
+
+def serial_diagnose(serial):
+    diag_cmds = [
+        "echo ===TARGET===; systemctl get-default",
+        "echo ===FAILED===; systemctl --failed --no-pager | head -15",
+        "echo ===DM===; systemctl is-active display-manager sddm; systemctl status display-manager --no-pager 2>&1 | head -12",
+        "echo ===GRAPHICAL===; systemctl status graphical.target --no-pager 2>&1 | head -10",
+        "echo ===JOURNAL-ERR===; journalctl -b -p 3 --no-pager 2>&1 | tail -40",
+        "echo ===SESS===; loginctl list-sessions --no-pager 2>&1; ls /usr/share/wayland-sessions/ 2>&1",
+        "echo ===WALLPAPER===; ls -la /usr/share/wallpapers/aegis/ 2>&1; ls /usr/share/sddm/themes/ 2>&1",
+        "echo ===PROCS===; ps aux | grep -Ei 'sddm|kwin|aegis|Xorg|wayland' | grep -v grep",
+    ]
+    blob = []
+    for c in diag_cmds:
+        out = serial.run(c, settle=4)
+        blob.append(out)
+        log("serial-diag: " + out.strip().replace("\n", " | ")[:400])
+    open("serial-diag.txt", "w").write("\n".join(blob))
+    joined = "\n".join(blob)
+    return {
+        "dm_active": ("active" in joined.split("===DM===")[-1].split("===GRAPHICAL===")[0]),
+        "journal": joined,
+    }
+
+def serial_recover(serial, q, W=1280, H=800):
+    log("attempting live recovery over serial")
+    out = serial.run("sudo -n systemctl start display-manager 2>&1 || sudo -n systemctl start sddm 2>&1 || echo RECOVERY-SUDO-FAILED", settle=6)
+    log("recovery: " + out.strip().replace("\n", " | ")[:300])
+    if "RECOVERY-SUDO-FAILED" in out:
+        return False
+    # give the greeter/shell up to 5 minutes to appear
+    for i in range(15):
+        time.sleep(20)
+        try:
+            q.shot("recover")
+            tiles = len(find_tiles(f"{OUT}/recover.png"))
+            sat, val = metrics(f"{OUT}/recover.png")
+            log(f"recover-{i}: sat={sat:.1f} val={val:.1f} tiles={tiles}")
+            if tiles >= 6:
+                return True
+        except Exception as e:
+            log(f"recovery probe failed: {e}")
+    return False
+
+# ---------------- choreography ----------------
 def find_tiles(png):
     """Dock tile centers: bright icon clusters in the bottom strip."""
     im = Image.open(png).convert("RGB"); W, H = im.size
@@ -229,24 +296,68 @@ def find_tiles(png):
             tiles.append(((s + e) // 2, sum(ys) // len(ys)))
     return tiles
 
+def wait_desktop(q, proc, timeout=DESKTOP_TIMEOUT):
+    """Desktop readiness = the dock is visible (>= 6 icon tiles)."""
+    n = 0; t0 = time.time()
+    while time.time() - t0 < timeout:
+        if proc.poll() is not None:
+            log(f"qemu died mid-boot (rc={proc.returncode}); qemu.log tail:")
+            try:
+                for line in list(open("qemu.log"))[-25:]:
+                    log("  | " + line.rstrip())
+            except OSError:
+                pass
+            sys.exit(3)
+        try:
+            q.shot(f"boot-{n:02d}")
+        except Exception as e:
+            log(f"shot failed: {e}"); time.sleep(10); continue
+        png = f"{OUT}/boot-{n:02d}.png"
+        sat, val = metrics(png)
+        tiles = 0
+        try:
+            tiles = len(find_tiles(png))
+        except Exception:
+            pass
+        log(f"boot-{n:02d}: sat={sat:.1f} val={val:.1f} tiles={tiles} t={time.time() - t0:.0f}s")
+        if tiles >= 6:
+            return n
+        n += 1; time.sleep(20)
+    return -1
+
 def main():
     os.makedirs(OUT, exist_ok=True)
     proc = start_qemu_with_fallback()
     q = QMP(SOCK)
     log("QMP connected")
     n = wait_desktop(q, proc)
+    serial = None
     if n < 0:
-        log("DESKTOP NEVER APPEARED — dumping last 60 serial-console lines")
+        log("desktop did not appear — opening the serial console")
+        try:
+            serial = Serial(SERIAL_SOCK)
+            if serial.login():
+                log("serial login OK")
+                info = serial_diagnose(serial)
+                if serial_recover(serial, q):
+                    log("recovery worked — desktop is up")
+                    n = 0
+            else:
+                log("serial login FAILED — dumping what we have")
+                log("serial buffer tail: " + serial.buf[-800:].decode(errors="replace"))
+        except Exception as e:
+            log(f"serial diagnostics failed: {e}")
+    if n < 0:
+        log("DESKTOP NEVER APPEARED — serial dump:")
         try:
             for line in open("serial.log", errors="replace").readlines()[-60:]:
-                log("  | " + line.rstrip())
+                log("  | " + line.rstrip()[:200])
         except OSError:
             log("  (serial.log empty or missing)")
         q.shot("zz-final")
         sys.exit(1)
-    log(f"desktop up at boot-{n:02d}")
-    time.sleep(10)                       # settle desktop animations
 
+    time.sleep(10)                       # settle desktop animations
     q.shot("01-home")
 
     home = thumb(f"{OUT}/01-home.png")
