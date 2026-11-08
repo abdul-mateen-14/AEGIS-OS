@@ -113,7 +113,7 @@ def diff_px(a, b):
 KERNEL_ARGS = ("boot=live components quiet splash vt.global_cursor_default=0 "
                "loglevel=3 hostname=aegis username=aegis autologin "
                "console=ttyS0,115200n8 plymouth.ignore-serial-consoles "
-               "systemd.show_status=yes")
+               "systemd.journald.forward_to_console=true systemd.show_status=yes")
 
 def extract_kernel_initrd():
     """Pull /live/vmlinuz + /live/initrd.img out of the ISO so we can boot
@@ -131,7 +131,7 @@ def extract_kernel_initrd():
 
 def start_qemu(accel):
     cmd = ["qemu-system-x86_64", *accel, "-m", "4096", "-smp", "4",
-           "-vga", "std", "-display", "none",
+           "-device", "virtio-vga", "-display", "none",
            "-device", "qemu-xhci", "-device", "usb-tablet",
            "-nic", "none", "-cdrom", ISO, "-boot", "d", "-no-reboot",
            "-qmp", f"unix:{SOCK},server,nowait",
