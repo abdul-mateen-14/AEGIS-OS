@@ -138,9 +138,9 @@ def extract_kernel_initrd():
     iso.close()
     return "vmlinuz", "initrd.img"
 
-def start_qemu(accel):
+def start_qemu(accel, gpu):
     cmd = ["qemu-system-x86_64", *accel, "-m", "4096", "-smp", "4",
-           "-device", "virtio-vga", "-display", "none",
+           "-device", gpu, "-display", "none",
            "-device", "qemu-xhci", "-device", "usb-tablet",
            "-nic", "none", "-cdrom", ISO, "-boot", "d", "-no-reboot",
            "-qmp", f"unix:{SOCK},server,nowait",
@@ -167,17 +167,23 @@ def start_qemu(accel):
     return proc
 
 def start_qemu_with_fallback():
+    # virgl (virtio-vga-gl) gives the guest real OpenGL — KWin then enables
+    # GL compositing and loads GL effects (KDE-Rounded-Corners needs
+    # effects->isOpenGLCompositing()). Plain virtio-vga has no guest GL:
+    # KWin drops to software compositing and GL effects never load.
+    devices = ("virtio-vga-gl", "virtio-vga")
     chains = (["-enable-kvm", "-cpu", "host"],
               ["-accel", "tcg,thread=multi", "-cpu", "max"])
-    for accel in chains:
-        log(f"trying accelerator: {accel[0]}")
-        for p in (SOCK, SERIAL_SOCK):
-            if os.path.exists(p):
-                os.remove(p)
-        proc = start_qemu(accel)
-        if proc:
-            log(f"accelerator in use: {accel[0]}")
-            return proc
+    for gpu in devices:
+        for accel in chains:
+            log(f"trying gpu={gpu} accelerator={accel[0]}")
+            for p in (SOCK, SERIAL_SOCK):
+                if os.path.exists(p):
+                    os.remove(p)
+            proc = start_qemu(accel, gpu)
+            if proc:
+                log(f"accelerator in use: {accel[0]}; gpu: {gpu}")
+                return proc
     raise RuntimeError("qemu failed to start under every accelerator — see qemu.log")
 
 # ---------------- serial console ----------------

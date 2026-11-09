@@ -1,3 +1,21 @@
+aegis-shell (1.6.2-m2) resolute; urgency=medium
+
+  * Places seed path corrected: KIO 6 stores places in
+    ~/.local/share/user-places.xbel (kfileplaces/bookmarks.xml is the old
+    KDE4 path — the v0.6.0 seed was silently ignored and first-run defaults
+    came back). Same XBEL content: spec rail Home/Documents/Downloads/
+    Pictures/Trash, kde_places_version=4, withRecentlyUsed/withBaloo
+    pinned, Remote/Recent/Search/Devices groups hidden.
+  * boot-capture: try virtio-vga-gl before virtio-vga — virgl gives the
+    guest real OpenGL, KWin enables GL compositing and the
+    KDE-Rounded-Corners effect actually loads (supported() requires
+    isOpenGLCompositing; plain virtio-vga had no guest GL, so the effect
+    was silently skipped and corners stayed Breeze-rounded at ~5 px).
+  * (v0.6.1) KWin window rules cannot force titles — rules removed;
+    Konsole LocalTabTitleFormat "Aegis Terminal" instead.
+
+ -- Aegis OS Project <aegis@users.noreply.github.com>  Sun, 09 Nov 2026 15:05:00 +0000
+
 aegis-shell (1.6.0-m2) resolute; urgency=medium
 
   * Review round 2 — icon language + rounded corners + app branding:
