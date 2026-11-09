@@ -9,7 +9,7 @@ live recovery (start SDDM / isolate graphical.target) before giving up.
 
 Usage: python3 boot-capture.py <iso> [screenshot-dir]
 """
-import json, os, shutil, socket, subprocess, sys, time
+import json, os, re, shutil, socket, subprocess, sys, time
 
 ISO = sys.argv[1] if len(sys.argv) > 1 else "iso/AegisOS.iso"
 OUT = sys.argv[2] if len(sys.argv) > 2 else "screenshots"
@@ -288,86 +288,70 @@ def serial_recover(serial, q, W=1280, H=800):
         time.sleep(20)
         try:
             q.shot("recover")
-            tiles = len(find_tiles(f"{OUT}/recover.png"))
+            _, present = dock_geometry(f"{OUT}/recover.png")
             sat, val = metrics(f"{OUT}/recover.png")
-            log(f"recover-{i}: sat={sat:.1f} val={val:.1f} tiles={tiles}")
-            if tiles >= 6:
+            log(f"recover-{i}: sat={sat:.1f} val={val:.1f} dock-slots={present}")
+            if present >= 8:
                 return True
         except Exception as e:
             log(f"recovery probe failed: {e}")
     return False
 
 # ---------------- choreography ----------------
-def find_tiles(png):
-    """Dock tile centers.
+def dock_geometry(png):
+    """Dock tile centers computed GEOMETRICALLY from Tokens.qml + config.
 
-    v0.4.0 dock: an always-expanded LIGHT glass tray (white 13% tint) with
-    64 px squircle icons — brightness-gap clustering cannot separate icons
-    from a light tray, so we detect the tray extent (a long run of columns
-    brighter than the wallpaper) and divide it evenly across the known tile
-    count from shell/packaging/config.json. The tray must be at REST for
-    this to hold — callers park the pointer away from the dock first.
-    """
+    The v0.4.x dock is an always-expanded light glass tray: brightness-gap
+    clustering cannot separate 64 px icons from the tray glass, and column
+    means sit right on any fixed threshold. But the dock is deterministic:
+    centered horizontally, fixed pitch (tileWidth + tileGap), fixed icon
+    row height — so we parse the tokens out of the repo and lay the tile
+    centers out arithmetically. A brightness/saturation sanity check per
+    slot tells whether the desktop is really up (returns n_present)."""
     im = Image.open(png).convert("RGB")
     W, H = im.size
-    band_top, band_bot = max(0, H - 100), H - 6
-    px = im.load()
-    means = []
-    for x in range(W):
-        vals = [sum(px[x, y]) / 3 for y in range(band_top, band_bot, 2)]
-        means.append(sum(vals) / len(vals))
 
-    def tray_run(thresh):
-        """longest run of columns above thresh, bridging gaps <= 3 px."""
-        best = (0, 0)
-        start = None; gap = 0
-        for x, m in enumerate(means):
-            if m > thresh:
-                if start is None:
-                    start = x
-                gap = 0
-                if x - start > best[1] - best[0]:
-                    best = (start, x)
-            elif start is not None:
-                gap += 1
-                if gap > 3:
-                    if x - gap - start > best[1] - best[0]:
-                        best = (start, x - gap)
-                    start = None; gap = 0
-        if start is not None and W - start > best[1] - best[0]:
-            best = (start, W)
-        return best
+    def token(name, default):
+        try:
+            for line in open("shell/src/qml/Tokens.qml"):
+                m = re.search(rf"readonly property int {name}:\s*(\d+)", line)
+                if m:
+                    return int(m.group(1))
+        except OSError:
+            pass
+        return default
 
+    B = token("tileWidth", 76)
+    gap = token("tileGap", 2)
+    pad = token("trayPadding", 12)
     n = expected_tiles()
-    # tray glass raises columns ~15-25 above the wallpaper band
-    x0, x1 = tray_run(48)
-    if x1 - x0 < 55 * n - 80:
-        # fallback: legacy bright-cluster scan (dark tray / sliver frames)
-        flags = []
-        for x in range(W):
-            vals = [sum(px[x, y]) / 3 for y in range(band_top, band_bot, 2)]
-            bright = sum(1 for v in vals if v > 130)
-            flags.append(means[x] > 44 or bright >= 2)
-        clusters = []; start = None
-        for x, f in enumerate(flags):
-            if f and start is None:
-                start = x
-            elif not f and start is not None:
-                if x - start >= 8:
-                    clusters.append((start, x))
-                start = None
-        if start is not None and W - start >= 8:
-            clusters.append((start, W))
-        return [((s + e) // 2, (band_top + band_bot) // 2) for s, e in clusters
-                if abs((s + e) // 2 - W // 2) < 620]
 
-    pad = Tokens_pad = 12
-    pitch = (x1 - x0 - 2 * pad) / n
-    y = (band_top + band_bot) // 2
-    return [(round(x0 + pad + pitch * (i + 0.5)), y) for i in range(n)]
+    row_w = n * B + (n - 1) * gap
+    tray_w = row_w + 2 * pad
+    x0 = W // 2 - tray_w // 2
+    y = H - 50                          # icon mid: tray bottom-anchored row
+    centers = [(x0 + pad + i * (B + gap) + B // 2, y) for i in range(n)]
+
+    # sanity: how many slots actually hold an icon? (white glyphs raise
+    # max brightness; colourful tiles raise saturation)
+    present = 0
+    for cx, cy in centers:
+        box = im.crop((max(0, cx - 32), max(0, cy - 40),
+                       min(W, cx + 32), min(H, cy + 40)))
+        hsv = box.convert("HSV")
+        vals = list(hsv.getdata())
+        if max(v[2] for v in vals) > 100 or sum(1 for v in vals if v[1] > 60) > 25:
+            present += 1
+    return centers, present
+
+
+def find_tiles(png):
+    """Stable tile center list (geometric) — used for clicking."""
+    centers, _ = dock_geometry(png)
+    return centers
 
 def wait_desktop(q, proc, timeout=DESKTOP_TIMEOUT):
-    """Desktop readiness = the dock tray is visible (>= 6 icon tiles)."""
+    """Desktop readiness = >= 8 of the geometric dock slots hold an icon."""
     n = 0; t0 = time.time()
     while time.time() - t0 < timeout:
         if proc.poll() is not None:
@@ -384,27 +368,13 @@ def wait_desktop(q, proc, timeout=DESKTOP_TIMEOUT):
             log(f"shot failed: {e}"); time.sleep(10); continue
         png = f"{OUT}/boot-{n:02d}.png"
         sat, val = metrics(png)
-        tiles = 0
+        present = 0
         try:
-            tiles = len(find_tiles(png))
+            _, present = dock_geometry(png)
         except Exception:
             pass
-        # The dock rests expanded and the pointer is parked high — no summon
-        # needed. If tiles are missing but the wallpaper is clearly up,
-        # probe once from the neutral parking spot.
-        if tiles < 6 and n >= 2 and sat > 25 and val > 25:
-            try:
-                W, H = Image.open(png).size
-                q.mouse_abs(W // 2, int(H * NEUTRAL_Y), W, H)
-                time.sleep(2.5)
-                q.shot(f"boot-{n:02d}-hover")
-                png = f"{OUT}/boot-{n:02d}-hover.png"
-                tiles = len(find_tiles(png))
-                sat, val = metrics(png)
-            except Exception as e:
-                log(f"probe failed: {e}")
-        log(f"boot-{n:02d}: sat={sat:.1f} val={val:.1f} tiles={tiles} t={time.time() - t0:.0f}s")
-        if tiles >= 6:
+        log(f"boot-{n:02d}: sat={sat:.1f} val={val:.1f} dock-slots={present} t={time.time() - t0:.0f}s")
+        if present >= 8:
             return n
         n += 1; time.sleep(20)
     return -1
@@ -451,11 +421,7 @@ def main():
     # springs settle, then capture the wave and the black label bubble.
     home = thumb(f"{OUT}/01-home.png")
     tiles = find_tiles(f"{OUT}/01-home.png")
-    log(f"resolution {W}x{H}; dock tiles: {len(tiles)} at {tiles[:4]}...")
-    if len(tiles) < 6:
-        log("ERROR: fewer than 6 dock tiles found")
-        q.shot("zz-dock")
-        sys.exit(2)
+    log(f"resolution {W}x{H}; dock slots: {len(tiles)} (geometric)")
     q.mouse_abs(*tiles[len(tiles) // 2], W, H)
     time.sleep(1.4)
     q.shot("01b-dock-magnify")
