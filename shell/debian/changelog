@@ -1,3 +1,21 @@
+aegis-shell (1.5.0-m2) resolute; urgency=medium
+
+  * The three first-party app slots are filled for real (docs/APP-SLOTS.md):
+    - AEGIS Browser (Chromium 156.0.8078.79 r24 deb, binary
+      chromium-browser-stable) is the default web browser — skel
+      mimeapps.list routes http/https/html and the dock's Gmail, YouTube,
+      GitHub, X, WhatsApp, ChatGPT web tiles into it.
+    - OS — private E2E messenger (os-private-chat 2.8.33) — dock tile now
+      launches the installed app instead of the web stopgap.
+    - CoreX trading terminal (corex-terminal 1.1.0) — same.
+  * Dock/default config (config.json + util.cpp fallback) updated to the
+    real binary names; "OS Cloud" tile renamed "OS"; stopgap
+    aegis-web-oscloud/aegis-web-corex desktop entries removed.
+  * debian-live/app-deb-urls.txt carries the three .deb URLs
+    (install-app-debs.sh supports "URL|name" for Google Drive links).
+
+ -- Aegis OS Project <aegis@users.noreply.github.com>  Sun, 09 Nov 2026 10:30:00 +0000
+
 aegis-shell (1.4.1-m2) resolute; urgency=medium
 
   * Software Update (aegis-updates): the GUI face of every patch on

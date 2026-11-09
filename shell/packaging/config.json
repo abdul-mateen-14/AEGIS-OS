@@ -3,15 +3,15 @@
   "apps": [
     { "name": "Files",         "icon": "system-file-manager",   "cmd": "dolphin" },
     { "name": "Terminal",      "icon": "utilities-terminal",    "cmd": "konsole" },
-    { "name": "AEGIS Browser", "icon": "web-browser",           "cmd": "aegis-browser" },
+    { "name": "AEGIS Browser", "icon": "web-browser",           "cmd": "chromium-browser-stable" },
     { "name": "Gmail",         "icon": "aegis-gmail",           "cmd": "xdg-open https://mail.google.com" },
     { "name": "YouTube",       "icon": "aegis-youtube",         "cmd": "xdg-open https://www.youtube.com" },
     { "name": "GitHub",        "icon": "aegis-github",          "cmd": "xdg-open https://github.com" },
     { "name": "X",             "icon": "aegis-x",               "cmd": "xdg-open https://x.com" },
     { "name": "WhatsApp",      "icon": "aegis-whatsapp",        "cmd": "xdg-open https://web.whatsapp.com" },
     { "name": "ChatGPT",       "icon": "aegis-chatgpt",         "cmd": "xdg-open https://chatgpt.com" },
-    { "name": "OS Cloud",      "icon": "aegis-cloud",           "cmd": "xdg-open https://os-cloudflare.pages.dev" },
-    { "name": "CoreX",         "icon": "aegis-corex",           "cmd": "xdg-open https://corex.site.je" },
+    { "name": "OS",            "icon": "aegis-cloud",           "cmd": "os-private-chat" },
+    { "name": "CoreX",         "icon": "aegis-corex",           "cmd": "corex-terminal" },
     { "type": "separator" },
     { "name": "Settings",      "icon": "preferences-system",    "cmd": "systemsettings" },
     { "name": "Trash",         "icon": "user-trash",            "cmd": "dolphin trash:/" }

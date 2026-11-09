@@ -7,7 +7,7 @@
 #
 # Files land in debian-live/config/packages.chroot/ which live-build installs
 # into the image automatically. See docs/APP-SLOTS.md for the three expected
-# apps: AEGIS Browser, OS Cloud, CoreX.
+# apps: AEGIS Browser, OS (messenger), CoreX.
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
@@ -16,11 +16,20 @@ mkdir -p "$DEST"
 
 count=0
 
+# Lines accept "URL" or "URL|target-name.deb" (Google Drive URLs have no
+# usable basename — strip everything after '?' first, then fall back).
 fetch() {
     local url="$1"
+    local forced="${1#*|}"
+    [ "$forced" = "$1" ] && forced=""
+    url="${1%%|*}"
     count=$((count + 1))
     local name
-    name="$(basename "${url%%\?*}")"
+    if [ -n "$forced" ]; then
+        name="$forced"
+    else
+        name="$(basename "${url%%\?*}")"
+    fi
     case "$name" in
         *.deb) ;;
         *) name="aegis-app-${count}.deb" ;;

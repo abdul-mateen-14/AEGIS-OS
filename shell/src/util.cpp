@@ -27,7 +27,7 @@ QVariantMap Util::defaultConfig() const
             QVariantMap{{"name", "Terminal"}, {"icon", "utilities-terminal"},
                         {"cmd", "konsole"}},
             QVariantMap{{"name", "AEGIS Browser"}, {"icon", "web-browser"},
-                        {"cmd", "aegis-browser"}},            // .deb slot — see docs/APP-SLOTS.md
+                        {"cmd", "chromium-browser-stable"}},    // AEGIS Browser .deb — see docs/APP-SLOTS.md
             QVariantMap{{"name", "Gmail"}, {"icon", "aegis-gmail"},
                         {"cmd", "xdg-open https://mail.google.com"}},
             QVariantMap{{"name", "YouTube"}, {"icon", "aegis-youtube"},
@@ -40,10 +40,10 @@ QVariantMap Util::defaultConfig() const
                         {"cmd", "xdg-open https://web.whatsapp.com"}},
             QVariantMap{{"name", "ChatGPT"}, {"icon", "aegis-chatgpt"},
                         {"cmd", "xdg-open https://chatgpt.com"}},
-            QVariantMap{{"name", "OS Cloud"}, {"icon", "aegis-cloud"},
-                        {"cmd", "xdg-open https://os-cloudflare.pages.dev"}},
+            QVariantMap{{"name", "OS"}, {"icon", "aegis-cloud"},
+                        {"cmd", "os-private-chat"}},            // OS messenger .deb (E2E)
             QVariantMap{{"name", "CoreX"}, {"icon", "aegis-corex"},
-                        {"cmd", "xdg-open https://corex.site.je"}},
+                        {"cmd", "corex-terminal"}},             // CoreX terminal .deb
             QVariantMap{{"type", "separator"}},
             QVariantMap{{"name", "Settings"}, {"icon", "preferences-system"},
                         {"cmd", "systemsettings"}},

@@ -41,7 +41,7 @@ cp "$ROOT"/theme/colors/*.colors "$INC/usr/share/color-schemes/"
 cp "$ROOT"/theme/desktop-entries/*.desktop "$INC/usr/share/applications/"
 
 # Shell config (wallpaper + default dock: Files, Terminal, AEGIS Browser,
-# OS Cloud, CoreX, Settings, | , Trash)
+# Gmail…ChatGPT web shortcuts, OS, CoreX, Settings, | , Trash)
 cp "$ROOT"/shell/packaging/config.json "$INC/usr/share/aegis/shell/config.json"
 
 # Account avatar (Aegis ID rail + lock screen, M2)
