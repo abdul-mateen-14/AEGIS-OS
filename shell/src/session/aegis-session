@@ -4,20 +4,37 @@
 export QT_QUICK_CONTROLS_STYLE=Basic
 export QT_WAYLAND_DISABLE_WINDOWDECORATION=1
 
+# Session diagnostics: when the graphical stack fails to come up, the boot
+# test pipeline reads this log over the serial console.
+LOG="${AEGIS_SESSION_LOG:-/tmp/aegis-session.log}"
+exec >> "$LOG" 2>&1
+echo "=== aegis-session start $(date) uid=$(id -u) seat=${XDG_SEAT:-UNSET} vt=${XDG_VTNR:-UNSET} XDG_RUNTIME_DIR=${XDG_RUNTIME_DIR:-UNSET} ==="
+
 kwin_wayland --xwayland &
 KWIN_PID=$!
+echo "kwin started pid=$KWIN_PID"
 
 cleanup() {
+    echo "=== aegis-session exit ==="
     [ -n "${KWIN_PID}" ] && kill "$KWIN_PID" 2>/dev/null || true
 }
 trap cleanup EXIT INT TERM
 
 # Wait for the Wayland socket kwin advertises (default wayland-0)
 WAYLAND_DISPLAY="${WAYLAND_DISPLAY:-wayland-0}"
+SOCKET_OK=""
 for _ in $(seq 1 50); do
-    [ -n "$XDG_RUNTIME_DIR" ] && [ -S "$XDG_RUNTIME_DIR/$WAYLAND_DISPLAY" ] && break
+    if [ -n "$XDG_RUNTIME_DIR" ] && [ -S "$XDG_RUNTIME_DIR/$WAYLAND_DISPLAY" ]; then
+        SOCKET_OK=1
+        break
+    fi
+    if ! kill -0 "$KWIN_PID" 2>/dev/null; then
+        echo "KWIN DIED EARLY"
+        break
+    fi
     sleep 0.1
 done
+echo "socket_ok=${SOCKET_OK:-NO}; runtime dir: $(ls "$XDG_RUNTIME_DIR" 2>/dev/null | tr '\n' ' ')"
 
 # Session services — deliberately minimal for M1
 command -v kded6 >/dev/null 2>&1 && kded6 >/dev/null 2>&1 &
@@ -30,4 +47,14 @@ done
 POLKIT_AGENT=/usr/lib/x86_64-linux-gnu/libexec/polkit-kde-authentication-agent-1
 [ -x "$POLKIT_AGENT" ] && "$POLKIT_AGENT" >/dev/null 2>&1 &
 
-exec /usr/bin/aegis-shell
+# If kwin never produced the socket, aegis-shell cannot connect — report why
+# instead of failing blind.
+if [ -z "$SOCKET_OK" ]; then
+    echo "FATAL: no Wayland socket after 5s; kwin output above."
+    wait "$KWIN_PID"
+    echo "kwin exit status: $?"
+    exit 1
+fi
+
+echo "handing off to aegis-shell"
+WAYLAND_DISPLAY="$WAYLAND_DISPLAY" exec /usr/bin/aegis-shell
