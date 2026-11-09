@@ -290,29 +290,38 @@ def serial_recover(serial, q, W=1280, H=800):
 
 # ---------------- choreography ----------------
 def find_tiles(png):
-    """Dock tile centers: bright icon clusters in the bottom strip."""
-    im = Image.open(png).convert("RGB"); W, H = im.size
-    top = max(0, H - 180); px = im.load()
-    cols = []
+    """Dock tile centers.
+
+    Calibrated on live v0.3.9 frames: icon glyphs raise a column's mean
+    brightness in the dock band to 45-111 (glass gaps ~21-26, wallpaper
+    25-37), and every icon also carries pixels above 130. A column flags
+    when either holds; clusters >= 8 px wide inside center±400 are tiles,
+    in config order (Files, Terminal, Browser, OS Cloud, CoreX, Settings,
+    Trash). The resting dock is a 4 px sliver with no glyphs, so a frame
+    without a summoned dock yields ~1 island cluster, never 6+.
+    """
+    im = Image.open(png).convert("RGB")
+    W, H = im.size
+    band_top, band_bot = max(0, H - 90), H - 8
+    px = im.load()
+    flags = []
     for x in range(W):
-        cols.append(sum(1 for y in range(top, H, 2) if sum(px[x, y]) / 3 > 170))
+        vals = [sum(px[x, y]) / 3 for y in range(band_top, band_bot, 2)]
+        mean = sum(vals) / len(vals)
+        bright = sum(1 for v in vals if v > 130)
+        flags.append(mean > 44 or bright >= 2)
     clusters = []; start = None
-    for x, c in enumerate(cols):
-        if c >= 4 and start is None:
+    for x, f in enumerate(flags):
+        if f and start is None:
             start = x
-        elif c < 4 and start is not None:
-            if x - start >= 20:
+        elif not f and start is not None:
+            if x - start >= 8:
                 clusters.append((start, x))
             start = None
-    if start is not None and W - start >= 20:
+    if start is not None and W - start >= 8:
         clusters.append((start, W))
-    tiles = []
-    for s, e in clusters:
-        ys = [y for x in range(s, e) for y in range(top, H, 2)
-              if sum(px[x, y]) / 3 > 170]
-        if ys:
-            tiles.append(((s + e) // 2, sum(ys) // len(ys)))
-    return tiles
+    return [((s + e) // 2, (band_top + band_bot) // 2) for s, e in clusters
+            if abs((s + e) // 2 - W // 2) < 400]
 
 def wait_desktop(q, proc, timeout=DESKTOP_TIMEOUT):
     """Desktop readiness = the dock is visible (>= 6 icon tiles)."""
