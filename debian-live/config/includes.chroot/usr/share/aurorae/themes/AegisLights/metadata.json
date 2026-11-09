@@ -1,0 +1,9 @@
+{
+    "KPlugin": {
+        "Name": "Aegis Lights",
+        "Description": "Aegis OS traffic-light window decoration (proposal Table 14)",
+        "Id": "aegis-lights",
+        "License": "GPL-2.0-or-later",
+        "ServiceTypes": ["KWin/WindowDecorator"]
+    }
+}

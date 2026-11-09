@@ -17,20 +17,22 @@ import Aegis.Util
 //   (5) Launch — two-hop bounce y [0, −0.32B, 0, −0.12B, 0] @ 0.65 s on a
 //                Translate transform so it never fights the icon scale.
 //
-// States: Expanded 549-class tray · Sliver 120×4 · Hidden. Auto-hide after
-// 4 s idle; pointer held in the bottom 8 px for 150 ms springs it back.
+// States: Expanded tray (always visible — the user's macOS dock) · Sliver
+// 120×4 · Hidden. Esc folds; pointer held in the bottom 8 px for 150 ms
+// springs it back. Auto-hide is disabled (Tokens.idleHideMs = 0).
 Window {
     objectName: "dockWindow"
     visible: false
     color: "transparent"
-    width: 760
-    height: 150
+    width: 1280
+    height: 340
     flags: Qt.FramelessWindowHint
 
     id: dockRoot
 
     property string stateName: "expanded"        // expanded | sliver | hidden
     property int hoverIndex: -1
+    property real livePeak: Tokens.iconSize      // tallest live icon (tray breathes)
 
     function targetFor(d) {
         var B = Tokens.tileWidth
@@ -52,7 +54,8 @@ Window {
     Timer {
         id: idleHideTimer
         interval: Tokens.idleHideMs
-        running: dockRoot.stateName === "expanded" && dockRoot.hoverIndex < 0
+        running: Tokens.idleHideMs > 0
+                 && dockRoot.stateName === "expanded" && dockRoot.hoverIndex < 0
         onTriggered: dockRoot.stateName = "sliver"
     }
 
@@ -101,9 +104,11 @@ Window {
         anchors {
             horizontalCenter: parent.horizontalCenter
             bottom: parent.bottom
+            bottomMargin: Tokens.dockMargin
         }
         width: row.implicitWidth + Tokens.trayPadding * 2
-        height: Tokens.tileHeight + 16
+        // macOS behaviour — the tray grows upward to house the magnifying icon
+        height: dockRoot.livePeak + Tokens.trayPadding * 2 + Tokens.dotGap
 
         opacity: dockRoot.stateName === "expanded" ? 1 : 0
         scale: dockRoot.stateName === "expanded" ? 1 : 0.55
@@ -121,12 +126,12 @@ Window {
             }
         }
 
-        // Tray capsule — 22 px Liquid Glass in both themes (Table 4)
+        // Tray capsule — light Liquid Glass (the user's macOS dock look)
         Rectangle {
             anchors.fill: parent
             radius: Tokens.trayRadius
-            color: Tokens.glassTint
-            border.color: Tokens.glassBorder
+            color: Tokens.dockGlassTint
+            border.color: Tokens.dockGlassBorder
             border.width: 1
 
             Rectangle {
@@ -139,7 +144,7 @@ Window {
                     rightMargin: Tokens.trayRadius
                 }
                 height: 1
-                color: Tokens.glassHighlight
+                color: Tokens.dockGlassHighlight
             }
         }
 
@@ -162,7 +167,11 @@ Window {
 
         Row {
             id: row
-            anchors.centerIn: parent
+            anchors {
+                bottom: parent.bottom
+                bottomMargin: Tokens.trayPadding
+                horizontalCenter: parent.horizontalCenter
+            }
             spacing: Tokens.tileGap
 
             Repeater {
@@ -256,15 +265,15 @@ Window {
             }
         }
 
-        // App-name label — glass chip riding above the pointer's tile,
-        // pinned 8 px above the magnifying icon's top edge, at every size
+        // App-name label — macOS dock tooltip: black bubble riding above the
+        // magnifying icon's top edge, at every size
         Rectangle {
             id: nameLabel
-            height: 20
-            width: nameText.implicitWidth + 18
-            radius: 10
-            color: Qt.rgba(0.06, 0.07, 0.09, 0.74)
-            border.color: Qt.rgba(1, 1, 1, 0.12)
+            height: 22
+            width: nameText.implicitWidth + 20
+            radius: 11
+            color: Qt.rgba(0.09, 0.09, 0.10, 0.94)
+            border.color: Qt.rgba(1, 1, 1, 0.10)
             opacity: 0
             Behavior on opacity {
                 NumberAnimation {
@@ -289,11 +298,17 @@ Window {
         FrameAnimation {
             running: dockRoot.stateName === "expanded"
             onTriggered: {
+                var peak = Tokens.iconSize
                 for (var i = 0; i < row.children.length; ++i) {
                     var t = row.children[i]
-                    if (t.spring)
+                    if (t.spring) {
                         t.spring.step(frameTime)
+                        var iconNow = Tokens.iconSize * (t.spring.value / Tokens.tileWidth)
+                        if (iconNow > peak)
+                            peak = iconNow
+                    }
                 }
+                dockRoot.livePeak = peak
                 updateLabel()
             }
 

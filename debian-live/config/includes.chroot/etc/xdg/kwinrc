@@ -1,0 +1,10 @@
+[org.kde.kdecoration2]
+library=org.kde.kwin.aurorae
+theme=__aurorae__svg__AegisLights
+ButtonsOnLeft=XIA
+ButtonsOnRight=
+BorderSizeAuto=false
+BorderSize=Normal
+
+[Effect-blur]
+BlurDecorations=true

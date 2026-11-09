@@ -24,18 +24,21 @@ QtObject {
     // ── Top panel (§2.1, Table 3) ─────────────────────────────────
     readonly property int panelHeight: 28
 
-    // ── Floating dock (§2.2, Table 4) ─────────────────────────────
-    readonly property int dockMargin: 10            // px above bottom edge
-    readonly property int tileWidth: 56             // B
-    readonly property int tileHeight: 64
+    // ── Floating dock (§2.2, Table 4 + v1.4 user override) ────────
+    // v1.4 (user): "This is the kind of dock i like" — real macOS dock
+    // geometry: 64 px icons, tight pitch, wide smooth magnification,
+    // always-visible light glass tray (no auto-hide), hugging the edge.
+    readonly property int dockMargin: 6             // px above bottom edge
+    readonly property int tileWidth: 76             // B
+    readonly property int tileHeight: 86
     readonly property int tileRadius: 15
     readonly property int tileGap: 2                // macOS-tight packing
-    readonly property int trayRadius: 22            // capsule radius
-    readonly property int trayPadding: 14           // capsule inner padding
-    readonly property int iconSize: 46
-    readonly property real magPeak: 1.85            // 1.85·B exactly at d = 0
-    readonly property real magFalloff: 2.4          // linear falloff over ±2.4 tiles
-    readonly property real magStrength: 0.85
+    readonly property int trayRadius: 28            // capsule radius
+    readonly property int trayPadding: 12           // capsule inner padding
+    readonly property int iconSize: 64
+    readonly property real magPeak: 1.9             // 1.9·B at d = 0
+    readonly property real magFalloff: 2.6          // falloff over ±2.6 tiles
+    readonly property real magStrength: 0.9
     // spring-mass solver, §2.2 step 3 (mass 0.1 · stiffness 170 · damping 13)
     readonly property real dockSpringMass: 0.1
     readonly property real dockSpringStiffness: 170
@@ -49,8 +52,9 @@ QtObject {
     readonly property int sliverProbeZone: 8
     readonly property int sliverProbeMs: 150
     readonly property int sliverSpringMs: 350
-    // auto-hide after 4 s idle (tiers B/C default, Table 4)
-    readonly property int idleHideMs: 4000
+    // auto-hide after idle — DISABLED (0): the user's macOS dock is always
+    // visible; Esc still folds to the sliver, bottom-edge probe reopens.
+    readonly property int idleHideMs: 0
     // launch bounce — y keyframes [0, −0.32B, 0, −0.12B, 0] over 0.65 s
     readonly property real bounceHopHigh: 0.32
     readonly property real bounceHopLow: 0.12
@@ -90,6 +94,10 @@ QtObject {
     readonly property color glassTint: Qt.rgba(16/255, 16/255, 18/255, 0.52)
     readonly property color glassBorder: Qt.rgba(1, 1, 1, 0.14)   // hairline, 1 px, never scales
     readonly property color glassHighlight: Qt.rgba(1, 1, 1, 0.10)
+    // dock tray — light glass over any wallpaper (macOS dark-mode dock look)
+    readonly property color dockGlassTint: Qt.rgba(1, 1, 1, 0.13)
+    readonly property color dockGlassBorder: Qt.rgba(1, 1, 1, 0.26)
+    readonly property color dockGlassHighlight: Qt.rgba(1, 1, 1, 0.30)
     // light rung — used by M2 surfaces when Dark Mode is off (audit in M4)
     readonly property color glassTintLight: Qt.rgba(244/255, 246/255, 250/255, 0.55)
     readonly property color glassBorderLight: Qt.rgba(0, 0, 0, 0.10)

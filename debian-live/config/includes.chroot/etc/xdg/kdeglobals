@@ -1,0 +1,12 @@
+[General]
+ColorScheme=AegisDark
+
+[KDE]
+widgetStyle=breeze
+
+[Icons]
+Theme=Aegis
+
+[Toolbar style]
+ToolButtonStyle=IconOnly
+ToolButtonStyleOtherToolbars=IconOnly

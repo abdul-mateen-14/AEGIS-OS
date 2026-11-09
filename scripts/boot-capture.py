@@ -17,6 +17,15 @@ SOCK = "/tmp/aegis-qmp.sock"
 SERIAL_SOCK = "/tmp/aegis-serial.sock"
 ABS_MAX = 0x7FFF          # QMP abs input range for absolute pointer devices
 DESKTOP_TIMEOUT = 1200    # KVM boots in ~3 min; TCG needs more
+NEUTRAL_Y = 0.30          # pointer parking spot (screen fraction) — away from the dock
+
+def expected_tiles():
+    """Dock tile count from the repo's own config (v0.4.0: 13 apps)."""
+    try:
+        cfg = json.load(open("shell/packaging/config.json"))
+        return sum(1 for a in cfg["apps"] if a.get("type") != "separator")
+    except Exception:
+        return 13
 
 def log(msg):
     print(f"[{time.strftime('%H:%M:%S')}] {msg}", flush=True)
@@ -292,39 +301,73 @@ def serial_recover(serial, q, W=1280, H=800):
 def find_tiles(png):
     """Dock tile centers.
 
-    Calibrated on live v0.3.9 frames: icon glyphs raise a column's mean
-    brightness in the dock band to 45-111 (glass gaps ~21-26, wallpaper
-    25-37), and every icon also carries pixels above 130. A column flags
-    when either holds; clusters >= 8 px wide inside center±400 are tiles,
-    in config order (Files, Terminal, Browser, OS Cloud, CoreX, Settings,
-    Trash). The resting dock is a 4 px sliver with no glyphs, so a frame
-    without a summoned dock yields ~1 island cluster, never 6+.
+    v0.4.0 dock: an always-expanded LIGHT glass tray (white 13% tint) with
+    64 px squircle icons — brightness-gap clustering cannot separate icons
+    from a light tray, so we detect the tray extent (a long run of columns
+    brighter than the wallpaper) and divide it evenly across the known tile
+    count from shell/packaging/config.json. The tray must be at REST for
+    this to hold — callers park the pointer away from the dock first.
     """
     im = Image.open(png).convert("RGB")
     W, H = im.size
-    band_top, band_bot = max(0, H - 90), H - 8
+    band_top, band_bot = max(0, H - 100), H - 6
     px = im.load()
-    flags = []
+    means = []
     for x in range(W):
         vals = [sum(px[x, y]) / 3 for y in range(band_top, band_bot, 2)]
-        mean = sum(vals) / len(vals)
-        bright = sum(1 for v in vals if v > 130)
-        flags.append(mean > 44 or bright >= 2)
-    clusters = []; start = None
-    for x, f in enumerate(flags):
-        if f and start is None:
-            start = x
-        elif not f and start is not None:
-            if x - start >= 8:
-                clusters.append((start, x))
-            start = None
-    if start is not None and W - start >= 8:
-        clusters.append((start, W))
-    return [((s + e) // 2, (band_top + band_bot) // 2) for s, e in clusters
-            if abs((s + e) // 2 - W // 2) < 400]
+        means.append(sum(vals) / len(vals))
+
+    def tray_run(thresh):
+        """longest run of columns above thresh, bridging gaps <= 3 px."""
+        best = (0, 0)
+        start = None; gap = 0
+        for x, m in enumerate(means):
+            if m > thresh:
+                if start is None:
+                    start = x
+                gap = 0
+                if x - start > best[1] - best[0]:
+                    best = (start, x)
+            elif start is not None:
+                gap += 1
+                if gap > 3:
+                    if x - gap - start > best[1] - best[0]:
+                        best = (start, x - gap)
+                    start = None; gap = 0
+        if start is not None and W - start > best[1] - best[0]:
+            best = (start, W)
+        return best
+
+    n = expected_tiles()
+    # tray glass raises columns ~15-25 above the wallpaper band
+    x0, x1 = tray_run(48)
+    if x1 - x0 < 55 * n - 80:
+        # fallback: legacy bright-cluster scan (dark tray / sliver frames)
+        flags = []
+        for x in range(W):
+            vals = [sum(px[x, y]) / 3 for y in range(band_top, band_bot, 2)]
+            bright = sum(1 for v in vals if v > 130)
+            flags.append(means[x] > 44 or bright >= 2)
+        clusters = []; start = None
+        for x, f in enumerate(flags):
+            if f and start is None:
+                start = x
+            elif not f and start is not None:
+                if x - start >= 8:
+                    clusters.append((start, x))
+                start = None
+        if start is not None and W - start >= 8:
+            clusters.append((start, W))
+        return [((s + e) // 2, (band_top + band_bot) // 2) for s, e in clusters
+                if abs((s + e) // 2 - W // 2) < 620]
+
+    pad = Tokens_pad = 12
+    pitch = (x1 - x0 - 2 * pad) / n
+    y = (band_top + band_bot) // 2
+    return [(round(x0 + pad + pitch * (i + 0.5)), y) for i in range(n)]
 
 def wait_desktop(q, proc, timeout=DESKTOP_TIMEOUT):
-    """Desktop readiness = the dock is visible (>= 6 icon tiles)."""
+    """Desktop readiness = the dock tray is visible (>= 6 icon tiles)."""
     n = 0; t0 = time.time()
     while time.time() - t0 < timeout:
         if proc.poll() is not None:
@@ -346,19 +389,20 @@ def wait_desktop(q, proc, timeout=DESKTOP_TIMEOUT):
             tiles = len(find_tiles(png))
         except Exception:
             pass
-        # The dock rests as a 4 px sliver — summon it with a bottom-edge
-        # hover before judging readiness (tiles stay invisible at rest).
+        # The dock rests expanded and the pointer is parked high — no summon
+        # needed. If tiles are missing but the wallpaper is clearly up,
+        # probe once from the neutral parking spot.
         if tiles < 6 and n >= 2 and sat > 25 and val > 25:
             try:
                 W, H = Image.open(png).size
-                q.mouse_abs(W // 2, H - 14, W, H)
+                q.mouse_abs(W // 2, int(H * NEUTRAL_Y), W, H)
                 time.sleep(2.5)
                 q.shot(f"boot-{n:02d}-hover")
                 png = f"{OUT}/boot-{n:02d}-hover.png"
                 tiles = len(find_tiles(png))
                 sat, val = metrics(png)
             except Exception as e:
-                log(f"hover reveal failed: {e}")
+                log(f"probe failed: {e}")
         log(f"boot-{n:02d}: sat={sat:.1f} val={val:.1f} tiles={tiles} t={time.time() - t0:.0f}s")
         if tiles >= 6:
             return n
@@ -398,29 +442,32 @@ def main():
         sys.exit(1)
 
     time.sleep(10)                       # settle desktop animations
-    last = f"{OUT}/boot-{n:02d}.png"
-    if os.path.exists(f"{OUT}/boot-{n:02d}-hover.png"):
-        last = f"{OUT}/boot-{n:02d}-hover.png"
-    W, H = Image.open(last).size
-    q.mouse_abs(W // 2, H - 14, W, H)    # summon the dock for the home shot
+    W, H = Image.open(f"{OUT}/boot-{n:02d}.png").size
+    q.mouse_abs(W // 2, int(H * NEUTRAL_Y), W, H)   # park pointer away from dock
     time.sleep(2.5)
     q.shot("01-home")
 
+    # macOS dock magnification + tooltip: hover a center tile, let the
+    # springs settle, then capture the wave and the black label bubble.
     home = thumb(f"{OUT}/01-home.png")
     tiles = find_tiles(f"{OUT}/01-home.png")
-    W, H = Image.open(f"{OUT}/01-home.png").size
-    log(f"resolution {W}x{H}; dock tiles: {tiles}")
+    log(f"resolution {W}x{H}; dock tiles: {len(tiles)} at {tiles[:4]}...")
     if len(tiles) < 6:
         log("ERROR: fewer than 6 dock tiles found")
         q.shot("zz-dock")
         sys.exit(2)
+    q.mouse_abs(*tiles[len(tiles) // 2], W, H)
+    time.sleep(1.4)
+    q.shot("01b-dock-magnify")
+    q.mouse_abs(W // 2, int(H * NEUTRAL_Y), W, H)
+    time.sleep(1.0)
 
     def open_app(idx, name, wait_s=25):
         for attempt in range(2):
-            # summon the dock first: expansion (~1s) outruns the click, and
-            # tile coordinates were measured against the expanded tray
-            q.mouse_abs(W // 2, H - 14, W, H)
-            time.sleep(1.5)
+            # dock is always expanded — park the pointer high so the tray is
+            # at rest, then click the tile (magnification starts on arrival)
+            q.mouse_abs(W // 2, int(H * NEUTRAL_Y), W, H)
+            time.sleep(0.8)
             q.click(*tiles[idx], W, H)
             time.sleep(wait_s)
             q.shot(name)
@@ -433,12 +480,12 @@ def main():
             time.sleep(2)
         return False
 
-    open_app(0, "02-files")
+    open_app(0, "02-files")           # Files
     q.key("alt", "f4"); time.sleep(5)
-    open_app(1, "03-terminal", wait_s=18)
+    open_app(1, "03-terminal", wait_s=18)   # Terminal
     q.key("alt", "f4"); time.sleep(5)
-    open_app(5, "04-settings", wait_s=30)
-    q.key("alt", "f4"); time.sleep(5)
+    open_app(11, "04-settings", wait_s=30)  # Settings (12 tiles before it,
+    q.key("alt", "f4"); time.sleep(5)       # separator yields no cluster)
 
     q.click(W - 60, 14, W, H)            # panel right cluster -> Control Center
     time.sleep(3)

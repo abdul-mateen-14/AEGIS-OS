@@ -1,0 +1,13 @@
+[Icon Theme]
+Name=Aegis
+Comment=Aegis OS squircle icon language (proposal plate 09)
+Inherits=breeze,hicolor
+Directories=apps/scalable
+
+[apps/scalable]
+Size=48
+Context=Applications
+Type=Scalable
+MinSize=8
+MaxSize=512
+

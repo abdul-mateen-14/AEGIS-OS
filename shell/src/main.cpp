@@ -187,9 +187,10 @@ int main(int argc, char *argv[])
     QQuickStyle::setStyle(QStringLiteral("Basic"));
 
     // Dock/panel icon lookups must be deterministic: the live image ships
-    // Breeze + hicolor, and QPA on a bare Wayland session picks neither,
-    // leaving every image://icons/<name> provider request empty.
-    QIcon::setThemeName(QStringLiteral("breeze"));
+    // the Aegis squircle theme (proposal plate 09) + Breeze + hicolor, and
+    // QPA on a bare Wayland session picks none by default, leaving every
+    // image://icons/<name> provider request empty.
+    QIcon::setThemeName(QStringLiteral("Aegis"));
     QIcon::setFallbackThemeName(QStringLiteral("hicolor"));
 
     // Singletons — Util first (Governor reads battery through it).
