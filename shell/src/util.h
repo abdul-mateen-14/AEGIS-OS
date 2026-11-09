@@ -61,6 +61,17 @@ public:
     // Runs a command detached ("dolphin", "xdg-open https://...").
     Q_INVOKABLE void launch(const QString &command);
 
+    // ── Running apps (dock running dots) ─────────────────────────────
+    // Session-level: launch() records every command it starts. M3 swaps the
+    // backing store for real KWin window tracking; the QML contract
+    // (isRunning / runningCmdsChanged) stays the same.
+    Q_PROPERTY(QStringList runningCmds READ runningCmds NOTIFY runningCmdsChanged)
+    QStringList runningCmds() const { return m_runningCmds; }
+    Q_INVOKABLE bool isRunning(const QString &cmd) const
+    {
+        return m_runningCmds.contains(cmd);
+    }
+
     // "suspend" | "reboot" | "shutdown" via logind.
     Q_INVOKABLE void powerAction(const QString &action);
 
@@ -100,6 +111,7 @@ signals:
     // main.cpp, which forwards this to ActivityService).
     void chargingEvent(bool charging, int percent, int minutesToFull);
     void unlockResult(bool ok);
+    void runningCmdsChanged();
 
 private slots:
     void refreshBattery();
@@ -128,4 +140,5 @@ private:
     QString m_userInitials;
     QTimer m_batteryTimer;
     QTimer m_linkTimer;
+    QStringList m_runningCmds;
 };

@@ -1,3 +1,29 @@
+aegis-shell (1.5.1-m2) resolute; urgency=medium
+
+  * v0.4.3 code-review fixes (external review, three real bugs):
+    - Dynamic Island hangs flush below the panel again — layershell margin
+      30 double-counted the panel's 28 px exclusive zone (y = 58); now 2 px
+      hairline gap. Idle mark PNG renders crisp via mipmap + sourceSize.
+    - Dock magnification wave no longer freezes mid-motion: the field is
+      refreshed every frame while hovered (pointer stationary but tiles
+      sliding), and recompute() translates tray→row coordinates once
+      (px -= row.x) so the wave is actually centered on the tiles.
+    - Dock running dots ship visible: Util tracks launched commands
+      (session-level; M3 swaps in real KWin window tracking) and the dot
+      binds to isRunning(cmd) with a quick fade.
+  * Small-macOS dock preset (user: "like macOS but in small size"):
+    iconSize 64→48, tileWidth 76→58, tileHeight 86→68, trayRadius 28→22,
+    trayPadding 12→10, magPeak 1.9→1.85, magFalloff 2.6→2.4,
+    magStrength 0.9→0.85 — tray ≈62% of a 1280 px screen (was ≈95%).
+  * Branding pass: KWin window rules retitle Dolphin→"Aegis Files",
+    Konsole→"Aegis Terminal", System Settings→"Aegis Settings";
+    Control Center footer drops the fps counter ("Aegis OS · KWin
+    Wayland"); tier badge "CACHED GLASS" → "BALANCED GLASS".
+  * scripts/capture-dock-demo.sh — deterministic dock-magnification
+    capture (parks pointer, glides, dwells 800 ms past spring settle).
+
+ -- Aegis OS Project <aegis@users.noreply.github.com>  Sun, 09 Nov 2026 12:10:00 +0000
+
 aegis-shell (1.5.0-m2) resolute; urgency=medium
 
   * The three first-party app slots are filled for real (docs/APP-SLOTS.md):

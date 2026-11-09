@@ -105,7 +105,11 @@ void configureSurface(QQuickWindow *win)
         auto *layer = attach(win);
         layer->setLayer(LayerShellQt::Window::LayerTop);
         layer->setAnchors(LayerShellQt::Window::AnchorTop);
-        layer->setMargins(QMargins(0, 30, 0, 0)); // hangs flush below the panel
+        // §2.4 — the capsule HANGS from the panel. This surface respects the
+        // panel's 28 px exclusive zone, so its y already starts below the panel;
+        // the margin here is only the 2 px hairline gap. Margin 30 double-counted
+        // the panel (y = 28 + 30 = 58) and left the island floating in mid-air.
+        layer->setMargins(QMargins(0, 2, 0, 0));
         layer->setExclusiveZone(0);
         layer->setKeyboardInteractivity(LayerShellQt::Window::KeyboardInteractivityOnDemand);
         layer->setScope(QStringLiteral("aegis-island"));

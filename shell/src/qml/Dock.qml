@@ -155,6 +155,7 @@ Window {
             onHoveredChanged: if (!hovered) dockRoot.resetField()
 
             function recompute(px) {
+                px -= row.x   // px is in tray coords, tile x is in row coords
                 for (var i = 0; i < row.children.length; ++i) {
                     var t = row.children[i]
                     if (!t.spring)
@@ -230,7 +231,13 @@ Window {
                                 bottomMargin: -Tokens.dotGap
                             }
                             color: "#E8ECF2"
-                            opacity: 0
+                            opacity: Util.isRunning(tile.modelData.cmd || "") ? 1 : 0
+                            Behavior on opacity {
+                                NumberAnimation {
+                                    duration: Tokens.durQuick
+                                    easing.type: Easing.OutCubic
+                                }
+                            }
                         }
                     }
 
@@ -309,6 +316,12 @@ Window {
                     }
                 }
                 dockRoot.livePeak = peak
+                // (1) Track, continued — point.position only fires when the
+                // pointer MOVES; when the tiles slide under a stationary pointer
+                // the field must be refreshed here, or the wave freezes
+                // mid-motion (this is what broke the asymmetric 01b capture).
+                if (trayPointer.hovered)
+                    trayPointer.recompute(trayPointer.point.position.x)
                 updateLabel()
             }
 

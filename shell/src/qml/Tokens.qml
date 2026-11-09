@@ -29,16 +29,19 @@ QtObject {
     // geometry: 64 px icons, tight pitch, wide smooth magnification,
     // always-visible light glass tray (no auto-hide), hugging the edge.
     readonly property int dockMargin: 6             // px above bottom edge
-    readonly property int tileWidth: 76             // B
-    readonly property int tileHeight: 86
-    readonly property int tileRadius: 15
+    // v1.5 (user): "like macOS but in small size" — 48 px icons. The tray
+    // reads as a dock again (≈62% of a 1280 px screen with the default 13
+    // apps, was ≈95%), and the §2.2 magnification numbers are restored.
+    readonly property int tileWidth: 58             // B
+    readonly property int tileHeight: 68
+    readonly property int tileRadius: 13
     readonly property int tileGap: 2                // macOS-tight packing
-    readonly property int trayRadius: 28            // capsule radius
-    readonly property int trayPadding: 12           // capsule inner padding
-    readonly property int iconSize: 64
-    readonly property real magPeak: 1.9             // 1.9·B at d = 0
-    readonly property real magFalloff: 2.6          // falloff over ±2.6 tiles
-    readonly property real magStrength: 0.9
+    readonly property int trayRadius: 22            // capsule radius
+    readonly property int trayPadding: 10           // capsule inner padding
+    readonly property int iconSize: 48
+    readonly property real magPeak: 1.85            // 1.85·B at d = 0 (§2.2)
+    readonly property real magFalloff: 2.4          // falloff over ±2.4 tiles
+    readonly property real magStrength: 0.85
     // spring-mass solver, §2.2 step 3 (mass 0.1 · stiffness 170 · damping 13)
     readonly property real dockSpringMass: 0.1
     readonly property real dockSpringStiffness: 170

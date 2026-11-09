@@ -157,6 +157,11 @@ void Util::launch(const QString &command)
 {
     if (command.isEmpty())
         return;
+    // running dots — session-level tracking (M3: real KWin window tracking)
+    if (!m_runningCmds.contains(command)) {
+        m_runningCmds.append(command);
+        emit runningCmdsChanged();
+    }
     QProcess::startDetached(QStringLiteral("/bin/sh"), {QStringLiteral("-c"), command});
 }
 

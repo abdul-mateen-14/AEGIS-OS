@@ -136,6 +136,9 @@ Window {
                 height: 14
                 fillMode: Image.PreserveAspectFit
                 anchors.verticalCenter: parent.verticalCenter
+                mipmap: true
+                smooth: true
+                sourceSize: Qt.size(32, 32)
             }
             Rectangle {
                 width: 3

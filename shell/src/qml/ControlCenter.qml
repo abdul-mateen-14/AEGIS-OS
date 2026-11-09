@@ -109,7 +109,7 @@ Window {
                             id: badgeText
                             anchors.centerIn: parent
                             text: Governor.tier === "A" ? "TIER A · FULL EFFECTS"
-                                  : Governor.tier === "B" ? "TIER B · CACHED GLASS"
+                                  : Governor.tier === "B" ? "TIER B · BALANCED GLASS"
                                   : "TIER C · CALM MODE"
                             color: Util.darkMode ? "#8FB8FF" : "#2B66C8"
                             font { family: "Montserrat"; pixelSize: 9; letterSpacing: 0.6; weight: Font.DemiBold }
@@ -422,7 +422,7 @@ Window {
                     Text {
                         anchors.right: parent.right
                         anchors.verticalCenter: parent.verticalCenter
-                        text: "kwin · wayland · " + Governor.fps + " fps"
+                        text: "Aegis OS · KWin Wayland"
                         color: Tokens.fgMuted
                         font { family: "DejaVu Sans Mono"; pixelSize: 9 }
                     }
