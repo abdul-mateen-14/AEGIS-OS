@@ -278,6 +278,28 @@ def serial_diagnose(serial):
         "journal": joined,
     }
 
+def app_diag(serial):
+    """Guest-side diagnostics AFTER the app-launch choreography. The desktop
+    being up says nothing about the first-party apps: if windows never mapped
+    (or the dock vanished mid-run), only the guest journal can say why.
+    Output goes to the workflow log and serial-diag.txt (an artifact)."""
+    diag_cmds = [
+        "echo ===PROCS===; ps aux | grep -Ei 'aegis|kwin|corex|dolphin|chromium' | grep -v grep | head -20",
+        "echo ===SESSLOG===; tail -n 80 /tmp/aegis-session.log 2>&1",
+        "echo ===JRN-SHELL===; sudo journalctl -b --no-pager 2>&1 | grep -aiE 'aegis-(shell|apps|session|files|settings)|QQml|qrc:' | tail -50",
+        "echo ===JRN-KWIN===; sudo journalctl -b --no-pager 2>&1 | grep -ai 'kwin' | grep -aivE 'information|Rendering|colorProfile|ColorManagement' | tail -40",
+        "echo ===JRN-CRASH===; sudo journalctl -b --no-pager 2>&1 | grep -aiE 'segfault|signal 11|coredump|abrt|general protection' | tail -20",
+        "echo ===COREDUMPCTL===; coredumpctl list --no-pager 2>&1 | tail -10",
+        "echo ===KWINRC===; cat /etc/xdg/kwinrc 2>&1",
+        "echo ===KWIN-PLUGINS===; ls /usr/lib/x86_64-linux-gnu/qt6/plugins/kwin/effects/plugins/ 2>&1; ls /usr/lib/qt6/plugins/kwin/effects/plugins/ 2>&1; echo PLUGINS-DONE",
+    ]
+    blob = []
+    for c in diag_cmds:
+        out = serial.run(c, settle=6)
+        blob.append(out)
+        log("app-diag: " + out.strip().replace("\n", " | ")[:400])
+    open("serial-diag.txt", "w").write("\n".join(blob))
+
 def serial_recover(serial, q, W=1280, H=800):
     log("attempting live recovery over serial")
     # The known failure: casper writes an empty Session= into /etc/sddm.conf
@@ -463,7 +485,11 @@ def main():
             time.sleep(wait_s)
             q.shot(name)
             d = diff_px(thumb(f"{OUT}/{name}.png"), home)
-            log(f"{name}: diff-vs-home={d:.1f}")
+            try:
+                slots = dock_geometry(f"{OUT}/{name}.png")[1]
+            except Exception:
+                slots = -1
+            log(f"{name}: diff-vs-home={d:.1f} dock-slots={slots}")
             if d > 6:
                 return True
             log(f"{name} attempt {attempt + 1}: screen looks unchanged, retrying")
@@ -481,6 +507,19 @@ def main():
     q.click(W - 60, 14, W, H)            # panel right cluster -> Control Center
     time.sleep(3)
     q.shot("05-control-center")
+
+    # Post-capture diagnostics over the serial console: if apps failed to
+    # open or the dock vanished during the choreography, the guest journal
+    # holds the reason (QML load failures, segfaults, KWin effect errors).
+    try:
+        serial = Serial(SERIAL_SOCK)
+        if serial.login():
+            log("serial login OK — app diagnostics follow")
+            app_diag(serial)
+        else:
+            log("serial login FAILED — no in-VM app diagnostics")
+    except Exception as e:
+        log(f"post-capture diagnostics failed: {e}")
 
     log("capture complete")
     q._cmd("quit")
