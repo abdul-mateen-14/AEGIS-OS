@@ -65,3 +65,9 @@ fonts-noto-color-emoji
 xdg-desktop-portal
 xdg-desktop-portal-kde
 xdg-desktop-portal-gtk
+
+# Icon themes — the shell's image://icons provider resolves dock/panel
+# glyphs through QIcon::fromTheme; with no theme installed every lookup
+# returned empty and the dock rendered without icons.
+breeze-icon-theme
+hicolor-icon-theme

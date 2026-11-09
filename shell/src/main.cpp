@@ -21,6 +21,7 @@
 // Activity API + org.freedesktop.Notifications).
 
 #include <QGuiApplication>
+#include <QIcon>
 #include <QDBusConnection>
 #include <QQuickImageProvider>
 #include <QQuickStyle>
@@ -184,6 +185,12 @@ int main(int argc, char *argv[])
     // app_id for the whole process — KWin window rules (kwinrulesrc) match it
     QGuiApplication::setDesktopFileName(QStringLiteral("aegis-shell"));
     QQuickStyle::setStyle(QStringLiteral("Basic"));
+
+    // Dock/panel icon lookups must be deterministic: the live image ships
+    // Breeze + hicolor, and QPA on a bare Wayland session picks neither,
+    // leaving every image://icons/<name> provider request empty.
+    QIcon::setThemeName(QStringLiteral("breeze"));
+    QIcon::setFallbackThemeName(QStringLiteral("hicolor"));
 
     // Singletons — Util first (Governor reads battery through it).
     static Util util;

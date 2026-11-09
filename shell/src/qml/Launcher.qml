@@ -168,7 +168,7 @@ Window {
                             height: 30
                             source: modelData.icon
                                     ? "image://icons/" + modelData.icon
-                                    : "qrc:/qml/aegis-mark.png"
+                                    : "aegis-mark.png"
                             fillMode: Image.PreserveAspectFit
                             smooth: true
                         }

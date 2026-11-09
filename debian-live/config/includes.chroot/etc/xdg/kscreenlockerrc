@@ -1,0 +1,11 @@
+# Aegis OS — no surprise locks.
+#
+# A live desktop that locks itself after five idle minutes reads as a
+# crash: the user comes back to a clock instead of their session (and the
+# CI boot-test ends up driving a greeter it cannot see). macOS parity:
+# idle never locks by itself — locking is explicit (aegis-lock, or the
+# Control Center), and an installed system can re-enable it in Settings.
+[Daemon]
+Autolock=false
+Timeout=0
+LockOnResume=false

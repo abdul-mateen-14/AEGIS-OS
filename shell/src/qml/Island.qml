@@ -39,6 +39,12 @@ Window {
     property var pd: primary ? primary.data : ({})
     property var sd: secondary ? secondary.data : ({})
 
+    // Null-safe kind accessors — the island is idle (no activities) at boot
+    // and after every session start; every kind binding must survive that
+    // without throwing TypeError into the session log.
+    readonly property string pk: primary ? String(primary.kind || "") : ""
+    readonly property string sk: secondary ? String(secondary.kind || "") : ""
+
     // one geometry record per kind — media renders as nowPlaying
     function stateFor(kind) {
         return kind === "media" ? "nowPlaying" : kind
@@ -47,7 +53,7 @@ Window {
     property string stateName: activities.length === 0
                                ? "idle"
                                : (activities.length === 1
-                                  ? stateFor(primary.kind) : "split")
+                                  ? stateFor(pk) : "split")
 
     // split lobes are data-driven too: width per kind, 8 px apart
     function lobeWidth(kind) {
@@ -61,7 +67,7 @@ Window {
     }
 
     property var geo: stateName === "split"
-        ? ({ w: lobeWidth(primary.kind) + 8 + lobeWidth(secondary.kind),
+        ? ({ w: lobeWidth(pk) + 8 + lobeWidth(sk),
              h: Tokens.islandIdleHeight,
              r: Tokens.islandIdleHeight / 2 })
         : (Tokens.islandStates[stateName] || Tokens.islandStates.idle)
@@ -125,7 +131,7 @@ Window {
             Behavior on opacity { CrossfadeAnim { } }
 
             Image {
-                source: "qrc:/qml/aegis-mark.png"
+                source: "aegis-mark.png"
                 width: 14
                 height: 14
                 fillMode: Image.PreserveAspectFit
@@ -163,7 +169,7 @@ Window {
                 }
                 Image {
                     visible: !islandRoot.pd.artColor1
-                    source: "qrc:/qml/aegis-mark.png"
+                    source: "aegis-mark.png"
                     anchors.centerIn: parent
                     width: 28
                     height: 28
@@ -222,7 +228,7 @@ Window {
 
             // lobe 1 — higher-priority activity
             Row {
-                width: islandRoot.lobeWidth(islandRoot.primary.kind)
+                width: islandRoot.lobeWidth(islandRoot.pk)
                 height: Tokens.islandIdleHeight
                 spacing: 6
 
@@ -232,17 +238,17 @@ Window {
                     anchors.verticalCenter: parent.verticalCenter
 
                     Image {
-                        visible: islandRoot.primary.kind !== "timer"
-                                 && islandRoot.primary.kind !== "charging"
-                                 && islandRoot.primary.kind !== "call"
-                        source: "qrc:/qml/aegis-mark.png"
+                        visible: islandRoot.pk !== "timer"
+                                 && islandRoot.pk !== "charging"
+                                 && islandRoot.pk !== "call"
+                        source: "aegis-mark.png"
                         width: 12
                         height: 12
                         fillMode: Image.PreserveAspectFit
                         anchors.verticalCenter: parent.verticalCenter
                     }
                     Rectangle {
-                        visible: islandRoot.primary.kind === "call"
+                        visible: islandRoot.pk === "call"
                         width: 6
                         height: 6
                         radius: 3
@@ -250,14 +256,14 @@ Window {
                         anchors.verticalCenter: parent.verticalCenter
                     }
                     Canvas {
-                        visible: islandRoot.primary.kind === "charging"
+                        visible: islandRoot.pk === "charging"
                         width: 8
                         height: 12
                         anchors.verticalCenter: parent.verticalCenter
                         onPaint: islandRoot.paintBolt(getContext("2d"), width, height)
                     }
                     Text {
-                        visible: islandRoot.primary.kind === "timer"
+                        visible: islandRoot.pk === "timer"
                         text: "⏱"
                         color: Tokens.accent
                         font.pixelSize: 10
@@ -266,7 +272,7 @@ Window {
                 }
 
                 Text {
-                    text: islandRoot.lobeText(islandRoot.primary)
+                    text: islandRoot.primary ? islandRoot.lobeText(islandRoot.primary) : ""
                     color: Tokens.paper
                     elide: Text.ElideRight
                     width: parent.width - 18
@@ -284,7 +290,7 @@ Window {
 
             // lobe 2 — second activity
             Row {
-                width: islandRoot.lobeWidth(islandRoot.secondary.kind)
+                width: islandRoot.lobeWidth(islandRoot.sk)
                 height: Tokens.islandIdleHeight
                 spacing: 6
 
@@ -294,17 +300,17 @@ Window {
                     anchors.verticalCenter: parent.verticalCenter
 
                     Image {
-                        visible: islandRoot.secondary.kind !== "timer"
-                                 && islandRoot.secondary.kind !== "charging"
-                                 && islandRoot.secondary.kind !== "call"
-                        source: "qrc:/qml/aegis-mark.png"
+                        visible: islandRoot.sk !== "timer"
+                                 && islandRoot.sk !== "charging"
+                                 && islandRoot.sk !== "call"
+                        source: "aegis-mark.png"
                         width: 12
                         height: 12
                         fillMode: Image.PreserveAspectFit
                         anchors.verticalCenter: parent.verticalCenter
                     }
                     Rectangle {
-                        visible: islandRoot.secondary.kind === "call"
+                        visible: islandRoot.sk === "call"
                         width: 6
                         height: 6
                         radius: 3
@@ -312,14 +318,14 @@ Window {
                         anchors.verticalCenter: parent.verticalCenter
                     }
                     Canvas {
-                        visible: islandRoot.secondary.kind === "charging"
+                        visible: islandRoot.sk === "charging"
                         width: 8
                         height: 12
                         anchors.verticalCenter: parent.verticalCenter
                         onPaint: islandRoot.paintBolt(getContext("2d"), width, height)
                     }
                     Text {
-                        visible: islandRoot.secondary.kind === "timer"
+                        visible: islandRoot.sk === "timer"
                         text: "⏱"
                         color: Tokens.accent
                         font.pixelSize: 10
@@ -328,7 +334,7 @@ Window {
                 }
 
                 Text {
-                    text: islandRoot.lobeText(islandRoot.secondary)
+                    text: islandRoot.secondary ? islandRoot.lobeText(islandRoot.secondary) : ""
                     color: Tokens.paper
                     elide: Text.ElideRight
                     width: parent.width - 18
@@ -461,7 +467,7 @@ Window {
             Behavior on opacity { CrossfadeAnim { } }
 
             Image {
-                source: "qrc:/qml/aegis-mark.png"
+                source: "aegis-mark.png"
                 width: 18
                 height: 18
                 fillMode: Image.PreserveAspectFit
@@ -483,7 +489,7 @@ Window {
             Behavior on opacity { CrossfadeAnim { } }
 
             Image {
-                source: "qrc:/qml/aegis-mark.png"
+                source: "aegis-mark.png"
                 width: 16
                 height: 16
                 fillMode: Image.PreserveAspectFit

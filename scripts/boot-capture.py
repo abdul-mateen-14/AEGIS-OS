@@ -337,6 +337,19 @@ def wait_desktop(q, proc, timeout=DESKTOP_TIMEOUT):
             tiles = len(find_tiles(png))
         except Exception:
             pass
+        # The dock rests as a 4 px sliver — summon it with a bottom-edge
+        # hover before judging readiness (tiles stay invisible at rest).
+        if tiles < 6 and n >= 2 and sat > 25 and val > 25:
+            try:
+                W, H = Image.open(png).size
+                q.mouse_abs(W // 2, H - 14, W, H)
+                time.sleep(2.5)
+                q.shot(f"boot-{n:02d}-hover")
+                png = f"{OUT}/boot-{n:02d}-hover.png"
+                tiles = len(find_tiles(png))
+                sat, val = metrics(png)
+            except Exception as e:
+                log(f"hover reveal failed: {e}")
         log(f"boot-{n:02d}: sat={sat:.1f} val={val:.1f} tiles={tiles} t={time.time() - t0:.0f}s")
         if tiles >= 6:
             return n
@@ -376,6 +389,12 @@ def main():
         sys.exit(1)
 
     time.sleep(10)                       # settle desktop animations
+    last = f"{OUT}/boot-{n:02d}.png"
+    if os.path.exists(f"{OUT}/boot-{n:02d}-hover.png"):
+        last = f"{OUT}/boot-{n:02d}-hover.png"
+    W, H = Image.open(last).size
+    q.mouse_abs(W // 2, H - 14, W, H)    # summon the dock for the home shot
+    time.sleep(2.5)
     q.shot("01-home")
 
     home = thumb(f"{OUT}/01-home.png")
@@ -389,6 +408,10 @@ def main():
 
     def open_app(idx, name, wait_s=25):
         for attempt in range(2):
+            # summon the dock first: expansion (~1s) outruns the click, and
+            # tile coordinates were measured against the expanded tray
+            q.mouse_abs(W // 2, H - 14, W, H)
+            time.sleep(1.5)
             q.click(*tiles[idx], W, H)
             time.sleep(wait_s)
             q.shot(name)

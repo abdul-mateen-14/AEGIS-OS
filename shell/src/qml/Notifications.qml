@@ -98,7 +98,7 @@ Window {
                             height: 26
                             source: banner.modelData.icon
                                     ? "image://icons/" + banner.modelData.icon
-                                    : "qrc:/qml/aegis-mark.png"
+                                    : "aegis-mark.png"
                             fillMode: Image.PreserveAspectFit
                             smooth: true
                         }

@@ -46,7 +46,9 @@ Window {
             spacing: 8
 
             Image {
-                source: "qrc:/qml/aegis-mark.png"
+                // Relative URL: resolves inside the installed tree AND the
+                // qrc fallback — the qrc: prefix 404s when QML loads from disk.
+                source: "aegis-mark.png"
                 width: 14
                 height: 14
                 fillMode: Image.PreserveAspectFit
