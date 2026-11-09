@@ -12,6 +12,10 @@ import Aegis.Governor
 // live in the Dynamic Island (§2.4) and everything else in Control
 // Center, keeping the bar under 28 px forever.
 Window {
+    // KWin's alt+F4 must never destroy a shell surface: with no app window
+    // focused, the focused layer surface receives the close and would die
+    // (dock -> island -> panel cascade, observed on the v0.6.5 boot test).
+    onClosing: (close) => { close.accepted = false }
     objectName: "panelWindow"
     visible: false
     color: "transparent"

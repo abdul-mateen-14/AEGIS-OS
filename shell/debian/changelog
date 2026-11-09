@@ -1,3 +1,18 @@
+aegis-shell (1.6.5-m1) resolute; urgency=medium
+
+  * aegis-apps: log the full QQmlComponent errorString (and the failed URL)
+    per load candidate — a bare "Component is not ready" made the FilesApp
+    load failure on the v0.6.5 boot test undiagnosable (no window, no
+    error, dead dock click).
+  * all eight shell surfaces: refuse compositor close requests. With no
+    app window focused, KWin's alt+F4 delivered close to the focused layer
+    surface and killed the shell UI surface by surface (dock -> island ->
+    panel cascade on the same boot test).
+  * boot-capture: press alt+F4 only when a window actually opened, so a
+    failed app-open can no longer destroy the shell under test.
+
+ -- aegis-ci <actions@users.noreply.github.com>  Mon, 09 Nov 2026 17:38:00 +0000
+
 aegis-shell (1.6.4-m2) resolute; urgency=medium
 
   * user-places.xbel: the ROOT metadata must live inside an <info> element

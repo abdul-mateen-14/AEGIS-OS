@@ -15,6 +15,10 @@ import Aegis.Util
 //
 // Entry/exit: smooth 240 ms both ways (Table 17).
 Window {
+    // KWin's alt+F4 must never destroy a shell surface: with no app window
+    // focused, the focused layer surface receives the close and would die
+    // (dock -> island -> panel cascade, observed on the v0.6.5 boot test).
+    onClosing: (close) => { close.accepted = false }
     objectName: "lockWindow"
     id: lockRoot
     visible: Util.locked

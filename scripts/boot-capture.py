@@ -497,12 +497,15 @@ def main():
             time.sleep(2)
         return False
 
-    open_app(0, "02-files")           # Files
-    q.key("alt", "f4"); time.sleep(5)
-    open_app(1, "03-terminal", wait_s=18)   # Terminal
-    q.key("alt", "f4"); time.sleep(5)
-    open_app(11, "04-settings", wait_s=30)  # Settings (12 tiles before it,
-    q.key("alt", "f4"); time.sleep(5)       # separator yields no cluster)
+    # alt+F4 only after a window really opened: with no app window focused,
+    # the close lands on the focused shell layer surface (the v0.6.5 boot
+    # test lost dock -> island -> panel to exactly this cascade).
+    if open_app(0, "02-files"):            # Files
+        q.key("alt", "f4"); time.sleep(5)
+    if open_app(1, "03-terminal", wait_s=18):   # Terminal
+        q.key("alt", "f4"); time.sleep(5)
+    if open_app(11, "04-settings", wait_s=30):  # Settings (12 tiles before
+        q.key("alt", "f4"); time.sleep(5)       # it, no separator cluster)
 
     q.click(W - 60, 14, W, H)            # panel right cluster -> Control Center
     time.sleep(3)

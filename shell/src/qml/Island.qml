@@ -23,6 +23,10 @@ import Aegis.Governor
 // the AC transition. The Now Playing visualizer is the only permanently
 // animating element and is switched off on tier C (Governor).
 Window {
+    // KWin's alt+F4 must never destroy a shell surface: with no app window
+    // focused, the focused layer surface receives the close and would die
+    // (dock -> island -> panel cascade, observed on the v0.6.5 boot test).
+    onClosing: (close) => { close.accepted = false }
     objectName: "islandWindow"
     visible: false
     color: "transparent"
