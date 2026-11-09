@@ -417,6 +417,20 @@ def main():
     time.sleep(2.5)
     q.shot("01-home")
 
+    # Guard: the wallpaper fade-in can leave the first frame black — a black
+    # 01-home shipped in the v0.4.1/v0.4.3/v0.5.1 docs folders. Re-shoot
+    # until the frame carries real content (mean HSV V above threshold).
+    def frame_mean(png):
+        im = Image.open(png).convert("HSV")
+        px = list(im.getdata())
+        return sum(v[2] for v in px) / max(1, len(px))
+
+    for _ in range(6):
+        if frame_mean(f"{OUT}/01-home.png") > 25:
+            break
+        time.sleep(1.5)
+        q.shot("01-home")
+
     # macOS dock magnification + tooltip: glide into a center tile (a
     # two-step entry reliably fires the Wayland enter/leave sequence; a
     # single teleport occasionally misses the hover — v0.4.1 frames), let

@@ -422,7 +422,7 @@ Window {
                     Text {
                         anchors.right: parent.right
                         anchors.verticalCenter: parent.verticalCenter
-                        text: "Aegis OS · KWin Wayland"
+                        text: "KWin Wayland"
                         color: Tokens.fgMuted
                         font { family: "DejaVu Sans Mono"; pixelSize: 9 }
                     }
