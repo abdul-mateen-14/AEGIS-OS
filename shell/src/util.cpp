@@ -27,7 +27,7 @@ QVariantMap Util::defaultConfig() const
             QVariantMap{{"name", "Terminal"}, {"icon", "utilities-terminal"},
                         {"cmd", "konsole"}},
             QVariantMap{{"name", "AEGIS Browser"}, {"icon", "web-browser"},
-                        {"cmd", "chromium-browser-stable"}},    // AEGIS Browser .deb — see docs/APP-SLOTS.md
+                        {"cmd", "aegis-browser-stable"}},       // AEGIS Browser .deb — see docs/APP-SLOTS.md
             QVariantMap{{"name", "Gmail"}, {"icon", "aegis-gmail"},
                         {"cmd", "xdg-open https://mail.google.com"}},
             QVariantMap{{"name", "YouTube"}, {"icon", "aegis-youtube"},

@@ -36,8 +36,11 @@ QtObject {
     readonly property int tileHeight: 68
     readonly property int tileRadius: 13
     readonly property int tileGap: 2                // macOS-tight packing
-    readonly property int trayRadius: 22            // capsule radius
-    readonly property int trayPadding: 10           // capsule inner padding
+    // v1.5 (user, pass 2): the tray HUGS the icons — tray = 48 + 2·6 + 4 =
+    // 64 px, so the icon fills 75% of it (v1.3 reference plate: 79%). Was
+    // 10 px padding → 72 px tray, icon at 67%: an airy box, not a shelf.
+    readonly property int trayRadius: 18            // capsule radius — retuned for the 64 px tray
+    readonly property int trayPadding: 6            // capsule inner padding
     readonly property int iconSize: 48
     readonly property real magPeak: 1.85            // 1.85·B at d = 0 (§2.2)
     readonly property real magFalloff: 2.4          // falloff over ±2.4 tiles

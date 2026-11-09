@@ -1,3 +1,20 @@
+aegis-shell (1.5.2-m2) resolute; urgency=medium
+
+  * Review fix #4 (second review pass): the dock tray is a FIXED SHELF —
+    its height no longer breathes with the magnified icon
+    (livePeak binding removed); the magnified icon overflows above the
+    tray's top edge, macOS-style. Tray hugs the icons: trayPadding
+    10→6, trayRadius 22→18 — 64 px tray, icon at 75% of tray height
+    (v1.3 plate target 79%).
+  * AEGIS Browser switched to the properly rebranded r31 prerelease deb
+    (116 MB, package aegis-browser-stable, binary
+    /usr/bin/aegis-browser-stable, WMClass aegis-browser): dock cmd,
+    skel mimeapps default browser (aegis-browser.desktop) and the
+    0700-app-icons pixmaps link all follow. Replaces the 614 MB r24
+    chromium-browser-stable repack.
+
+ -- Aegis OS Project <aegis@users.noreply.github.com>  Sun, 09 Nov 2026 13:05:00 +0000
+
 aegis-shell (1.5.1-m2) resolute; urgency=medium
 
   * v0.4.3 code-review fixes (external review, three real bugs):

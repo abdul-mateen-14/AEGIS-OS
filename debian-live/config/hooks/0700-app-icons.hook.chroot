@@ -1,14 +1,14 @@
 #!/bin/sh
-# AEGIS Browser (chromium-browser-stable .deb, see docs/APP-SLOTS.md) ships
-# its logos only under /opt/chromium.org/chromium/ — its stock desktop
-# entries use Icon=chromium-browser, which resolves through /usr/share/pixmaps.
+# AEGIS Browser (aegis-browser-stable .deb r31, see docs/APP-SLOTS.md) ships
+# its product logos only under /opt/aegis-browser/browser/ — its stock desktop
+# entries use Icon=aegis-browser, which resolves through /usr/share/pixmaps.
 # Expose the 256px logo there; the Aegis squircle dock tiles keep their own
 # theme icons (web-browser / aegis-cloud / aegis-corex).
 set -e
 
-OPT_LOGO=/opt/chromium.org/chromium/product_logo_256.png
+OPT_LOGO=/opt/aegis-browser/browser/product_logo_256.png
 if [ -f "$OPT_LOGO" ]; then
-    ln -sf "$OPT_LOGO" /usr/share/pixmaps/chromium-browser.png
+    ln -sf "$OPT_LOGO" /usr/share/pixmaps/aegis-browser.png
 fi
 
 exit 0

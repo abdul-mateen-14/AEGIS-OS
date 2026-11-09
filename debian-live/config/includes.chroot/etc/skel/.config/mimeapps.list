@@ -1,13 +1,13 @@
 [Default Applications]
-x-scheme-handler/http=chromium-browser.desktop
-x-scheme-handler/https=chromium-browser.desktop
-text/html=chromium-browser.desktop
-text/plain=chromium-browser.desktop
-application/xhtml+xml=chromium-browser.desktop
-x-scheme-handler/about=chromium-browser.desktop
-x-scheme-handler/unknown=chromium-browser.desktop
+x-scheme-handler/http=aegis-browser.desktop
+x-scheme-handler/https=aegis-browser.desktop
+text/html=aegis-browser.desktop
+text/plain=aegis-browser.desktop
+application/xhtml+xml=aegis-browser.desktop
+x-scheme-handler/about=aegis-browser.desktop
+x-scheme-handler/unknown=aegis-browser.desktop
 
 [Added Associations]
-x-scheme-handler/http=chromium-browser.desktop;org.chromium.Chromium.desktop;
-x-scheme-handler/https=chromium-browser.desktop;org.chromium.Chromium.desktop;
-text/html=chromium-browser.desktop;org.chromium.Chromium.desktop;
+x-scheme-handler/http=aegis-browser.desktop;org.aegisbrowser.Aegis.desktop;
+x-scheme-handler/https=aegis-browser.desktop;org.aegisbrowser.Aegis.desktop;
+text/html=aegis-browser.desktop;org.aegisbrowser.Aegis.desktop;

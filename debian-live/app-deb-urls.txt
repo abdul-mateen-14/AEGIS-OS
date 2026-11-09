@@ -3,9 +3,9 @@
 # '|' (needed for Google Drive links whose basename is just "download"):
 #   https://…download?id=…&export=download&confirm=t|os-private-chat.deb
 
-# AEGIS Browser — Chromium 156.0.8078.79 r24, linux x64
-# (the r-series build under deployment replaces this line when it ships)
-https://github.com/abdul-mateen-14/AEGIS-BROWSER/releases/download/linux-156.0.8078.79-r24/AegisBrowser_156.0.8078.79_linux_x64_r24.deb
+# AEGIS Browser — Chromium 156.0.8078.79 r31 prerelease, linux x64
+# (proper aegis-browser-stable rebrand, 116 MB; replaces the 614 MB r24 repack)
+https://github.com/abdul-mateen-14/AEGIS-BROWSER/releases/download/linux-156.0.8078.79-r31/AegisBrowser_156.0.8078.79_linux_x64_r31.deb
 
 # OS — private messenger, full E2E encryption (package os-private-chat 2.8.33)
 https://drive.usercontent.google.com/download?id=1aq0DVPlWZyAEXTaB1xIO3ymO0X9TXHwK&export=download&confirm=t|os-private-chat_2.8.33_amd64.deb

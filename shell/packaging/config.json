@@ -3,7 +3,7 @@
   "apps": [
     { "name": "Files",         "icon": "system-file-manager",   "cmd": "dolphin" },
     { "name": "Terminal",      "icon": "utilities-terminal",    "cmd": "konsole" },
-    { "name": "AEGIS Browser", "icon": "web-browser",           "cmd": "chromium-browser-stable" },
+    { "name": "AEGIS Browser", "icon": "web-browser",           "cmd": "aegis-browser-stable" },
     { "name": "Gmail",         "icon": "aegis-gmail",           "cmd": "xdg-open https://mail.google.com" },
     { "name": "YouTube",       "icon": "aegis-youtube",         "cmd": "xdg-open https://www.youtube.com" },
     { "name": "GitHub",        "icon": "aegis-github",          "cmd": "xdg-open https://github.com" },

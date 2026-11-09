@@ -32,7 +32,6 @@ Window {
 
     property string stateName: "expanded"        // expanded | sliver | hidden
     property int hoverIndex: -1
-    property real livePeak: Tokens.iconSize      // tallest live icon (tray breathes)
 
     function targetFor(d) {
         var B = Tokens.tileWidth
@@ -107,8 +106,12 @@ Window {
             bottomMargin: Tokens.dockMargin
         }
         width: row.implicitWidth + Tokens.trayPadding * 2
-        // macOS behaviour — the tray grows upward to house the magnifying icon
-        height: dockRoot.livePeak + Tokens.trayPadding * 2 + Tokens.dotGap
+        // macOS behaviour — the tray is a FIXED SHELF. Its height NEVER
+        // changes: the magnified icon OVERFLOWS above the tray's top edge and
+        // hangs over the desktop (v1.3 reference plate: the icon fills ~79%
+        // of the tray height at rest). Only the tray's WIDTH breathes — the
+        // animated tile widths already do that part correctly.
+        height: Tokens.iconSize + Tokens.trayPadding * 2 + Tokens.dotGap
 
         opacity: dockRoot.stateName === "expanded" ? 1 : 0
         scale: dockRoot.stateName === "expanded" ? 1 : 0.55
@@ -305,17 +308,11 @@ Window {
         FrameAnimation {
             running: dockRoot.stateName === "expanded"
             onTriggered: {
-                var peak = Tokens.iconSize
                 for (var i = 0; i < row.children.length; ++i) {
                     var t = row.children[i]
-                    if (t.spring) {
+                    if (t.spring)
                         t.spring.step(frameTime)
-                        var iconNow = Tokens.iconSize * (t.spring.value / Tokens.tileWidth)
-                        if (iconNow > peak)
-                            peak = iconNow
-                    }
                 }
-                dockRoot.livePeak = peak
                 // (1) Track, continued — point.position only fires when the
                 // pointer MOVES; when the tiles slide under a stationary pointer
                 // the field must be refreshed here, or the wave freezes
