@@ -16,18 +16,18 @@ Description=Aegis Files — Dolphin rebranded
 windowclass=dolphin
 windowclassmatch=2
 title=Aegis Files
-titlerule=3
+titlerule=2
 
 [3]
 Description=Aegis Terminal — Konsole rebranded
 windowclass=konsole
 windowclassmatch=2
 title=Aegis Terminal
-titlerule=3
+titlerule=2
 
 [4]
 Description=Aegis Settings — System Settings rebranded
 windowclass=systemsettings
 windowclassmatch=2
 title=Aegis Settings
-titlerule=3
+titlerule=2
