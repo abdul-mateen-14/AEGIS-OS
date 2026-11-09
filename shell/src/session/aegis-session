@@ -3,6 +3,10 @@
 # The session ends when the shell exits.
 export QT_QUICK_CONTROLS_STYLE=Basic
 export QT_WAYLAND_DISABLE_WINDOWDECORATION=1
+# Route Qt apps through the KDE platform theme: without this, Dolphin,
+# Konsole and systemsettings ignore kdeglobals entirely and render Breeze
+# Light chrome over the AegisDark scheme (observed on the v0.4.1 frames).
+export QT_QPA_PLATFORMTHEME=kde
 
 # Session diagnostics: when the graphical stack fails to come up, the boot
 # test pipeline reads this log over the serial console.

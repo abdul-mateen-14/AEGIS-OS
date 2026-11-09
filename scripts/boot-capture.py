@@ -417,13 +417,18 @@ def main():
     time.sleep(2.5)
     q.shot("01-home")
 
-    # macOS dock magnification + tooltip: hover a center tile, let the
-    # springs settle, then capture the wave and the black label bubble.
+    # macOS dock magnification + tooltip: glide into a center tile (a
+    # two-step entry reliably fires the Wayland enter/leave sequence; a
+    # single teleport occasionally misses the hover — v0.4.1 frames), let
+    # the springs settle, then capture the wave and the black label bubble.
     home = thumb(f"{OUT}/01-home.png")
     tiles = find_tiles(f"{OUT}/01-home.png")
     log(f"resolution {W}x{H}; dock slots: {len(tiles)} (geometric)")
-    q.mouse_abs(*tiles[len(tiles) // 2], W, H)
-    time.sleep(1.4)
+    hover = tiles[len(tiles) // 2]
+    q.mouse_abs(hover[0], hover[1] - 90, W, H)
+    time.sleep(0.6)
+    q.mouse_abs(*hover, W, H)
+    time.sleep(2.2)
     q.shot("01b-dock-magnify")
     q.mouse_abs(W // 2, int(H * NEUTRAL_Y), W, H)
     time.sleep(1.0)
