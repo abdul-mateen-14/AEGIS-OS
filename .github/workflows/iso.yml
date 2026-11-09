@@ -55,11 +55,16 @@ jobs:
         run: |
           mkdir -p debian-live/config/packages.chroot
           cp artifacts/aegis-shell_*.deb debian-live/config/packages.chroot/
-          # kwin4-effect-shape*.deb from KDE-Rounded-Corners cpack — name
-          # varies per version, stage whatever else landed in artifacts/
           for d in artifacts/*.deb; do
             case "$d" in */aegis-shell_*.deb) continue ;; esac
-            cp "$d" debian-live/config/packages.chroot/
+            # cpack names the KDE-Rounded-Corners deb kwin4_effect_shapecorners.deb
+            # (no _version_arch), but live-build's local repo only copies
+            # *_<arch>.deb / *_all.deb (chroot_archives) — anything else is
+            # silently skipped and never installed. Canonicalize on copy.
+            PKG="$(dpkg-deb -f "$d" Package)"
+            VER="$(dpkg-deb -f "$d" Version)"
+            ARCH="$(dpkg-deb -f "$d" Architecture)"
+            cp "$d" "debian-live/config/packages.chroot/${PKG}_${VER}_${ARCH}.deb"
           done
           bash scripts/ci/install-app-debs.sh
         env:

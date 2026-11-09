@@ -11,9 +11,13 @@
 # etc/xdg/kwinrc: [Plugins] kwin4_effect_shapecornersEnabled + Radius=18.
 set -e
 
-[ -e /usr/lib/x86_64-linux-gnu/qt6/plugins/kwin/effects/plugins/kwin4_effect_shapecorners.so ] \
- || [ -e /usr/lib/qt6/plugins/kwin/effects/plugins/kwin4_effect_shapecorners.so ] \
- || { echo "0800: kwin4_effect_shapecorners.so missing — is the KDE-Rounded-Corners deb staged in packages.chroot and installed?" >&2; exit 1; }
+# The .so lands wherever ECM's KDE_INSTALL_PLUGINDIR points on the build
+# distro (/usr/lib/x86_64-linux-gnu/qt6/plugins on resolute; older layouts
+# differ) — verify by name, not by one hardcoded path.
+if ! find /usr/lib /usr/local/lib -name "kwin4_effect_shapecorners.so" 2>/dev/null | grep -q . ; then
+    echo "0800: kwin4_effect_shapecorners.so missing — is the KDE-Rounded-Corners deb staged in packages.chroot (as *_<arch>.deb) and installed?" >&2
+    exit 1
+fi
 
 echo "0800: kwin4_effect_shapecorners present (radius 18 per etc/xdg/kwinrc)"
 exit 0
