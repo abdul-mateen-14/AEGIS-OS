@@ -10,6 +10,6 @@ qml6-module-qtqml-workerscript
 qml6-module-qtquick-window
 # First-party apps (aegis-files / aegis-settings): FolderListModel for the
 # Files views, QtQuick.Dialogs for the Wallpaper "Choose image…" picker.
-qml6-module-labs-folderlistmodel
+qml6-module-qt-labs-folderlistmodel
 qml6-module-qtquick-dialogs
 fonts-montserrat
