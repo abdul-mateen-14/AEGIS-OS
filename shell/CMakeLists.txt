@@ -56,6 +56,15 @@ qt_add_resources(aegis-shell "shell"
         src/qml/aegis-mark.png
 )
 
+# The installed QML tree is the primary load path (see main.cpp) — the
+# embedded resource is only the fallback.
+install(DIRECTORY src/qml/
+        DESTINATION share/aegis/shell/qml
+        FILES_MATCHING
+        PATTERN "*.qml"
+        PATTERN "qmldir"
+        PATTERN "*.png")
+
 target_link_libraries(aegis-shell PRIVATE
     Qt6::Core
     Qt6::Gui

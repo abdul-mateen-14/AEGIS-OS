@@ -196,7 +196,22 @@ int main(int argc, char *argv[])
 
     QQmlApplicationEngine engine;
     engine.addImageProvider(QStringLiteral("icons"), new IconProvider);
-    engine.load(QUrl(QStringLiteral("qrc:/qml/Main.qml")));
+
+    // Main.qml comes from the installed QML tree first, the embedded
+    // resource second. The resource was historically unreliable across
+    // toolchains (Qt 6.10 + LTO builds registered the qrc tree but the
+    // engine could not resolve qrc:/qml/Main.qml), so the filesystem is
+    // the primary source and the qrc is the fallback.
+    const QUrl qmlCandidates[] = {
+        QUrl::fromLocalFile(QStringLiteral("/usr/share/aegis/shell/qml/Main.qml")),
+        QUrl(QStringLiteral("qrc:/qml/Main.qml")),
+    };
+    for (const QUrl &src : qmlCandidates) {
+        engine.load(src);
+        if (!engine.rootObjects().isEmpty()) {
+            break;
+        }
+    }
 
     if (engine.rootObjects().isEmpty()) {
         qCritical("aegis-shell: failed to load Main.qml");
