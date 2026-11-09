@@ -20,6 +20,10 @@ import Aegis.Activity
 // fade skipped (the panel is already glass). Exit: instant (80 ms).
 // Tier C fallback rung: opaque 94% tint + 80 ms crossfades.
 Window {
+    // KWin's alt+F4 must never destroy a shell surface: with no app window
+    // focused, the focused layer surface receives the close and would die
+    // (dock -> island -> panel cascade, observed on the v0.6.5 boot test).
+    onClosing: (close) => { close.accepted = false }
     objectName: "ccWindow"
     id: ccRoot
     visible: Util.ccOpen

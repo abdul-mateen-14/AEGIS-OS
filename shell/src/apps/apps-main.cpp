@@ -89,6 +89,11 @@ int main(int argc, char *argv[])
             loaded = true;
             break;
         }
+        // "Component is not ready" alone is undiagnosable in a boot test —
+        // always log which URL failed and the full QML error list.
+        qCritical("aegis-apps: %s not ready: %s",
+                  src.toString().toUtf8().constData(),
+                  component.errorString().toUtf8().constData());
     }
     if (!loaded) {
         qCritical("aegis-apps: failed to load %s", qmlName.toUtf8().constData());

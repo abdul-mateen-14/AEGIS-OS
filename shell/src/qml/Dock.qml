@@ -21,6 +21,10 @@ import Aegis.Util
 // 120×4 · Hidden. Esc folds; pointer held in the bottom 8 px for 150 ms
 // springs it back. Auto-hide is disabled (Tokens.idleHideMs = 0).
 Window {
+    // KWin's alt+F4 must never destroy a shell surface: with no app window
+    // focused, the focused layer surface receives the close and would die
+    // (dock -> island -> panel cascade, observed on the v0.6.5 boot test).
+    onClosing: (close) => { close.accepted = false }
     objectName: "dockWindow"
     visible: false
     color: "transparent"
