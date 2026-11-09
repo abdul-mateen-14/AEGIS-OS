@@ -112,7 +112,7 @@ Window {
                                   : Governor.tier === "B" ? "TIER B · CACHED GLASS"
                                   : "TIER C · CALM MODE"
                             color: Util.darkMode ? "#8FB8FF" : "#2B66C8"
-                            font { family: "Montserrat"; pixelSize: 8.5; letterSpacing: 0.6; weight: Font.DemiBold }
+                            font { family: "Montserrat"; pixelSize: 9; letterSpacing: 0.6; weight: Font.DemiBold }
                         }
 
                         MouseArea {
@@ -298,12 +298,12 @@ Window {
                                             text: tierCard.modelData.k
                                                   + " · " + tierCard.modelData.name
                                             color: Tokens.fg
-                                            font { family: "Montserrat"; pixelSize: 11.5; weight: Font.DemiBold }
+                                            font { family: "Montserrat"; pixelSize: 12; weight: Font.DemiBold }
                                         }
                                         Text {
                                             text: tierCard.modelData.desc
                                             color: Tokens.fgMuted
-                                            font { family: "Montserrat"; pixelSize: 9.5 }
+                                            font { family: "Montserrat"; pixelSize: 10 }
                                         }
                                     }
                                 }
@@ -334,7 +334,7 @@ Window {
                                     anchors.centerIn: parent
                                     text: "Auto"
                                     color: Tokens.fg
-                                    font { family: "Montserrat"; pixelSize: 10.5; weight: Font.DemiBold }
+                                    font { family: "Montserrat"; pixelSize: 11; weight: Font.DemiBold }
                                 }
 
                                 MouseArea {
@@ -351,7 +351,7 @@ Window {
                                          + (Governor.onBattery ? "battery" : "AC"))
                                       : "AC power"
                                 color: Tokens.fgMuted
-                                font { family: "Montserrat"; pixelSize: 10.5 }
+                                font { family: "Montserrat"; pixelSize: 11 }
                             }
                         }
 
@@ -360,7 +360,7 @@ Window {
                             text: "Demotions apply instantly — the badge always shows the live tier. Calm Mode stays on until you turn it off."
                             color: Tokens.fgMuted
                             wrapMode: Text.WordWrap
-                            font { family: "Montserrat"; pixelSize: 9.5 }
+                            font { family: "Montserrat"; pixelSize: 10 }
                         }
 
                         Text {

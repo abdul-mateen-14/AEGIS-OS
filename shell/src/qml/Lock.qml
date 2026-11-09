@@ -201,7 +201,7 @@ Window {
                 visible: lockRoot.checking
                 text: "Verifying…"
                 color: Qt.rgba(1, 1, 1, 0.55)
-                font { family: "Montserrat"; pixelSize: 10.5; letterSpacing: 1 }
+                font { family: "Montserrat"; pixelSize: 11; letterSpacing: 1 }
             }
         }
     }
@@ -213,7 +213,7 @@ Window {
         anchors.margins: 20
         text: Util.userName + " · Aegis OS"
         color: Qt.rgba(1, 1, 1, 0.35)
-        font { family: "Montserrat"; pixelSize: 10.5; letterSpacing: 1 }
+        font { family: "Montserrat"; pixelSize: 11; letterSpacing: 1 }
     }
 
     property int unlockOk: 0

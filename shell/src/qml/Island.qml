@@ -187,7 +187,7 @@ Window {
                     elide: Text.ElideRight
                     width: Math.min(implicitWidth, 200)
                     visible: text !== ""
-                    font { family: "Montserrat"; pixelSize: 10.5 }
+                    font { family: "Montserrat"; pixelSize: 11 }
                 }
                 Row {
                     spacing: 3
@@ -362,7 +362,7 @@ Window {
             Text {
                 text: (islandRoot.pd.caller || "Aegis Meet") + "\nIncoming call"
                 color: Tokens.paper
-                font { family: "Montserrat"; pixelSize: 10.5 }
+                font { family: "Montserrat"; pixelSize: 11 }
                 anchors.verticalCenter: parent.verticalCenter
             }
             Rectangle {
@@ -498,7 +498,7 @@ Window {
                     elide: Text.ElideRight
                     width: Math.min(implicitWidth, 240)
                     visible: text !== ""
-                    font { family: "Montserrat"; pixelSize: 11.5; weight: Font.DemiBold }
+                    font { family: "Montserrat"; pixelSize: 12; weight: Font.DemiBold }
                 }
                 Text {
                     text: islandRoot.pd.subtitle || ""
