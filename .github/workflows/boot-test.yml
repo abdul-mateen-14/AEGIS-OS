@@ -57,9 +57,23 @@ jobs:
           TAG="${{ steps.tag.outputs.tag }}"; VER="${TAG#v}"
           BASE="https://github.com/${{ github.repository }}/releases/download/$TAG"
           mkdir -p iso && cd iso
-          curl -sL --retry 3 -o SHA256SUMS "$BASE/SHA256SUMS"
-          curl -sL --retry 3 -O "$BASE/AegisOS-$VER-amd64.iso.part-00"
-          curl -sL --retry 3 -O "$BASE/AegisOS-$VER-amd64.iso.part-01"
+          # asset downloads occasionally return a challenged/empty body —
+          # validate every file and retry before trusting it
+          for i in 1 2 3; do
+            curl -sL --retry 3 -o SHA256SUMS "$BASE/SHA256SUMS"
+            grep -qE '^[0-9a-f]{64} ' SHA256SUMS && break
+            echo "SHA256SUMS invalid (attempt $i):"; head -c 200 SHA256SUMS; echo; sleep 8
+          done
+          grep -qE '^[0-9a-f]{64} ' SHA256SUMS || { echo "::error::SHA256SUMS still invalid"; exit 1; }
+          for P in part-00 part-01; do
+            for i in 1 2 3; do
+              curl -sL --retry 3 -O "$BASE/AegisOS-$VER-amd64.iso.$P"
+              [ "$(stat -c%s "AegisOS-$VER-amd64.iso.$P" 2>/dev/null || echo 0)" -gt 100000000 ] && break
+              echo "part $P too small (attempt $i), retrying"; sleep 8
+            done
+            [ "$(stat -c%s "AegisOS-$VER-amd64.iso.$P" 2>/dev/null || echo 0)" -gt 100000000 ] \
+              || { echo "::error::part $P still incomplete"; exit 1; }
+          done
           cat "AegisOS-$VER-amd64.iso.part-00" "AegisOS-$VER-amd64.iso.part-01" > AegisOS.iso
           sha256sum -c SHA256SUMS
 
