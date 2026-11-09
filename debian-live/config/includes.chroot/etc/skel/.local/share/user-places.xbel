@@ -1,18 +1,20 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE xbel>
 <xbel xmlns:bookmark="http://www.freedesktop.org/standards/desktop-bookmarks" xmlns:mimetype="http://freedesktop.org/standards/shared-mime-info" xmlns:kde="http://www.kde.org">
- <metadata owner="http://www.kde.org">
-  <kde_places_version>4</kde_places_version>
-  <withRecentlyUsed>true</withRecentlyUsed>
-  <withBaloo>true</withBaloo>
-  <GroupState-Places-IsHidden>false</GroupState-Places-IsHidden>
-  <GroupState-Remote-IsHidden>true</GroupState-Remote-IsHidden>
-  <GroupState-RecentlySaved-IsHidden>true</GroupState-RecentlySaved-IsHidden>
-  <GroupState-SearchFor-IsHidden>true</GroupState-SearchFor-IsHidden>
-  <GroupState-Devices-IsHidden>true</GroupState-Devices-IsHidden>
-  <GroupState-RemovableDevices-IsHidden>true</GroupState-RemovableDevices-IsHidden>
-  <GroupState-Tags-IsHidden>true</GroupState-Tags-IsHidden>
- </metadata>
+ <info>
+  <metadata owner="http://www.kde.org">
+   <kde_places_version>4</kde_places_version>
+   <withRecentlyUsed>true</withRecentlyUsed>
+   <withBaloo>true</withBaloo>
+   <GroupState-Places-IsHidden>false</GroupState-Places-IsHidden>
+   <GroupState-Remote-IsHidden>true</GroupState-Remote-IsHidden>
+   <GroupState-RecentlySaved-IsHidden>true</GroupState-RecentlySaved-IsHidden>
+   <GroupState-SearchFor-IsHidden>true</GroupState-SearchFor-IsHidden>
+   <GroupState-Devices-IsHidden>true</GroupState-Devices-IsHidden>
+   <GroupState-RemovableDevices-IsHidden>true</GroupState-RemovableDevices-IsHidden>
+   <GroupState-Tags-IsHidden>true</GroupState-Tags-IsHidden>
+  </metadata>
+ </info>
  <bookmark href="file:///home/aegis">
   <title>Home</title>
   <info><metadata owner="http://www.kde.org">
