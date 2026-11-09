@@ -1,3 +1,29 @@
+aegis-shell (1.6.0-m2) resolute; urgency=medium
+
+  * Review round 2 — icon language + rounded corners + app branding:
+    - The Aegis squircle theme is now ONE silhouette family: every app icon
+      regenerated with identical squircle mask + sheen + hairline, white
+      glyph ~52%, tile-gradient cutouts (no more flat accent colors, no
+      white circle GitHub, no two-line X — official octocat / X marks);
+      official octocat + X paths embedded.
+    - places/ and devices/ contexts added: flat light-steel glyphs for the
+      Files/Settings sidebars (user-home, folder*, user-trash,
+      network-wireless, drive-*, media-flash, preferences-desktop).
+    - Dock config renamed to the family names: aegis-files, aegis-terminal,
+      aegis-settings, aegis-trash (aliases of the first-party icons).
+  * KDE-Rounded-Corners v0.11.0 (kwin4_effect_shapecorners) built in CI and
+    shipped in the ISO — all four corners rounded + hairline outline;
+    skel kwinrc pins Size/InactiveCornerRadius 14 (18 target later).
+  * Files branding interim pass: skel bookmarks.xml seeds the spec rail
+    (Home, Documents, Downloads, Pictures, Trash — kde_places_version 4,
+    Remote/Recent/Search/Devices groups hidden, withRecentlyUsed/
+    withBaloo pinned so they never auto-inject); Dolphin + Konsole
+    menubars disabled; Aegis Dark Konsole colorscheme + profile; Aegis
+    PS1 prompt via .bash_aliases; QEMU floppy drive blacklisted (no
+    "Floppy Disk" in Devices).
+
+ -- Aegis OS Project <aegis@users.noreply.github.com>  Sun, 09 Nov 2026 14:20:00 +0000
+
 aegis-shell (1.5.2-m2) resolute; urgency=medium
 
   * Review fix #4 (second review pass): the dock tray is a FIXED SHELF —

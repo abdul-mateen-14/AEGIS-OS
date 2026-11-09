@@ -95,13 +95,21 @@ bash scripts/sync-includes.sh
 echo "=== 2/5 Stage app .debs (app-deb-urls.txt) ==="
 bash scripts/ci/install-app-debs.sh || true
 
-echo "=== 3/5 Stage aegis-shell .deb ==="
+echo "=== 3/5 Stage aegis-shell .deb (+ rounded-corners effect) ==="
 if ls "$ROOT/artifacts"/aegis-shell_*.deb 1>/dev/null 2>&1; then
     mkdir -p debian-live/config/packages.chroot
     cp "$ROOT/artifacts"/aegis-shell_*.deb debian-live/config/packages.chroot/
 else
     echo "WARNING: no aegis-shell deb found in artifacts/ — ISO will boot without the shell"
 fi
+# KDE-Rounded-Corners (kwin4_effect_shapecorners) — any non-shell deb in
+# artifacts/ is a local build to stage
+for d in "$ROOT"/artifacts/*.deb; do
+    [ -e "$d" ] || continue
+    case "$d" in */aegis-shell_*.deb) continue ;; esac
+    cp "$d" debian-live/config/packages.chroot/
+    echo "staged extra deb: $(basename "$d")"
+done
 
 echo "=== 4/5 live-build: config + build ==="
 # live-build expects to run from the config root (auto/ lives there).

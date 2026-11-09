@@ -1,0 +1,6 @@
+[MainWindow]
+MenuBar=Disabled
+
+[PlacesPanel]
+# proposal plate 12 — the spec rail only: Home, Documents, Downloads,
+# Pictures, Trash (groups beyond Places are hidden in bookmarks.xml)

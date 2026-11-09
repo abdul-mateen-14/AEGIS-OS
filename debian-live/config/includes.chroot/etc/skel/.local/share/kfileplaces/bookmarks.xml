@@ -1,0 +1,46 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE xbel>
+<xbel xmlns:bookmark="http://www.freedesktop.org/standards/desktop-bookmarks" xmlns:mimetype="http://freedesktop.org/standards/shared-mime-info" xmlns:kde="http://www.kde.org">
+ <metadata owner="http://www.kde.org">
+  <item key="kde_places_version"><value>4</value></item>
+  <item key="withRecentlyUsed"><value>true</value></item>
+  <item key="withBaloo"><value>true</value></item>
+  <item key="GroupState-Places-IsHidden"><value>false</value></item>
+  <item key="GroupState-Remote-IsHidden"><value>true</value></item>
+  <item key="GroupState-RecentlySaved-IsHidden"><value>true</value></item>
+  <item key="GroupState-SearchFor-IsHidden"><value>true</value></item>
+  <item key="GroupState-Devices-IsHidden"><value>true</value></item>
+  <item key="GroupState-RemovableDevices-IsHidden"><value>true</value></item>
+  <item key="GroupState-Tags-IsHidden"><value>true</value></item>
+ </metadata>
+ <bookmark href="file:///home/aegis/">
+  <title>Home</title>
+  <info><metadata owner="http://www.kde.org">
+   <item key="IconName"><value>user-home</value></item>
+  </metadata></info>
+ </bookmark>
+ <bookmark href="file:///home/aegis/Documents/">
+  <title>Documents</title>
+  <info><metadata owner="http://www.kde.org">
+   <item key="IconName"><value>folder-documents</value></item>
+  </metadata></info>
+ </bookmark>
+ <bookmark href="file:///home/aegis/Downloads/">
+  <title>Downloads</title>
+  <info><metadata owner="http://www.kde.org">
+   <item key="IconName"><value>folder-download</value></item>
+  </metadata></info>
+ </bookmark>
+ <bookmark href="file:///home/aegis/Pictures/">
+  <title>Pictures</title>
+  <info><metadata owner="http://www.kde.org">
+   <item key="IconName"><value>folder-pictures</value></item>
+  </metadata></info>
+ </bookmark>
+ <bookmark href="trash:///">
+  <title>Trash</title>
+  <info><metadata owner="http://www.kde.org">
+   <item key="IconName"><value>user-trash</value></item>
+  </metadata></info>
+ </bookmark>
+</xbel>

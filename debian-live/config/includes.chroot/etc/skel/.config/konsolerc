@@ -1,0 +1,10 @@
+[Desktop Entry]
+DefaultProfile=Aegis.profile
+
+[MainWindow]
+# no stock menu bar in the shipped Terminal
+MenuBar=Disabled
+
+[UiSettings]
+ColorScheme=
+WindowColorScheme=

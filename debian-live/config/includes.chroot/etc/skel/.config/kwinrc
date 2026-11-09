@@ -1,0 +1,6 @@
+[Round-Corners]
+# proposal: 18 px target once first-party shells land; 14 px interim
+# (review round 2, item 1). Squircle shape is the effect default and
+# matches the Aegis icon language.
+Size=14
+InactiveCornerRadius=14

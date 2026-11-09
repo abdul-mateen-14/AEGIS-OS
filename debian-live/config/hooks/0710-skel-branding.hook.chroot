@@ -1,0 +1,31 @@
+#!/bin/sh
+# skel branding that can't ship as plain files: XDG user dirs + the Aegis
+# prompt (review round 2, item 4 interim pass).
+set -e
+
+# standard user dirs the Files rail links to
+for d in Documents Downloads Pictures Music Videos; do
+    mkdir -p "/etc/skel/$d"
+done
+
+# pin the XDG dirs so Dolphin/xdg resolve the same folders
+cat > /etc/skel/.config/user-dirs.dirs <<'EOF'
+XDG_DESKTOP_DIR="$HOME/Desktop"
+XDG_DOCUMENTS_DIR="$HOME/Documents"
+XDG_DOWNLOAD_DIR="$HOME/Downloads"
+XDG_MUSIC_DIR="$HOME/Music"
+XDG_PICTURES_DIR="$HOME/Pictures"
+XDG_PUBLICSHARE_DIR="$HOME/Public"
+XDG_TEMPLATES_DIR="$HOME/Templates"
+XDG_VIDEOS_DIR="$HOME/Videos"
+EOF
+printf 'en_US\n' > /etc/skel/.config/user-dirs.locale
+mkdir -p /etc/skel/Desktop /etc/skel/Public /etc/skel/Templates
+
+# Aegis prompt (default .bashrc sources .bash_aliases last — PS1 wins)
+cat > /etc/skel/.bash_aliases <<'EOF'
+# Aegis OS shell prompt — accent blue host, muted path
+PS1='\[\e[38;5;75m\]\u@aegis\[\e[0m\]:\[\e[38;5;110m\]\w\[\e[0m\]\$ '
+EOF
+
+exit 0

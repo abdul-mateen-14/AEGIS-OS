@@ -48,10 +48,19 @@ jobs:
       - name: Build aegis-shell .deb (inside ubuntu:resolute container)
         run: bash scripts/ci/run-in-container.sh bash scripts/build-shell.sh
 
-      - name: Stage shell .deb + Aegis app .debs into the image
+      - name: Build KDE-Rounded-Corners .deb (inside ubuntu:resolute container)
+        run: bash scripts/ci/run-in-container.sh bash scripts/build-rounded-corners.sh
+
+      - name: Stage shell + rounded-corners .debs + Aegis app .debs into the image
         run: |
           mkdir -p debian-live/config/packages.chroot
           cp artifacts/aegis-shell_*.deb debian-live/config/packages.chroot/
+          # kwin4-effect-shape*.deb from KDE-Rounded-Corners cpack — name
+          # varies per version, stage whatever else landed in artifacts/
+          for d in artifacts/*.deb; do
+            case "$d" in */aegis-shell_*.deb) continue ;; esac
+            cp "$d" debian-live/config/packages.chroot/
+          done
           bash scripts/ci/install-app-debs.sh
         env:
           AEGIS_APPS_DEB_URLS: ${{ vars.AEGIS_APPS_DEB_URLS }}
