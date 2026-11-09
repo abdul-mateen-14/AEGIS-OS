@@ -33,10 +33,22 @@
    <IconName>folder-download</IconName>
   </metadata></info>
  </bookmark>
+ <bookmark href="file:///home/aegis/Music">
+  <title>Music</title>
+  <info><metadata owner="http://www.kde.org">
+   <IconName>folder-music</IconName>
+  </metadata></info>
+ </bookmark>
  <bookmark href="file:///home/aegis/Pictures">
   <title>Pictures</title>
   <info><metadata owner="http://www.kde.org">
    <IconName>folder-pictures</IconName>
+  </metadata></info>
+ </bookmark>
+ <bookmark href="file:///home/aegis/Videos">
+  <title>Videos</title>
+  <info><metadata owner="http://www.kde.org">
+   <IconName>folder-videos</IconName>
   </metadata></info>
  </bookmark>
  <bookmark href="trash:///">

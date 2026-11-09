@@ -67,3 +67,42 @@ in the r31+ rebranded packages).
 The browser's own logos live under `/opt/aegis-browser/browser/`; the
 `0700-app-icons` hook links the 256px one into `/usr/share/pixmaps/` so
 the stock desktop entries resolve `Icon=aegis-browser`.
+
+## First-party Files & Settings — `aegis-apps` (v0.6.5)
+
+The dock's Files and Settings tiles no longer launch Dolphin / System
+Settings. They launch **first-party Qt Quick windows** from the
+`aegis-apps` binary, built with the shell:
+
+| Slot | Binary | QML surface | What it replaces |
+| --- | --- | --- | --- |
+| Files | `/usr/bin/aegis-files` → `aegis-apps files` | `shell/src/qml/FilesApp.qml` | `dolphin` |
+| Settings | `/usr/bin/aegis-settings` → `aegis-apps settings` | `shell/src/qml/SettingsApp.qml` | `systemsettings` |
+
+- **Window anatomy** (`AppWindow.qml`, proposal Table 18): 44 px glass
+  titlebar with traffic lights (`TrafficLights.qml`, Table 14 hues), 52 px
+  opaque toolbar with hairline, opaque radius-18 body, 8 × 6 px resize
+  zones via `startSystemResize`, min size 520 × 360.
+- **Files**: seven-place sidebar (Home/Documents/Downloads/Music/Pictures/
+  Videos/Trash — matches the preseeded `user-places.xbel`), breadcrumbs,
+  grid⇄list, live search, New Folder, rename, move-to-trash,
+  kind-tinted cards (folders blue · PDFs red · archives amber · images
+  purple), Devices section when removable media is present.
+- **Settings**: Aegis ID rail (38 px avatar, `Util.userInitials`/`userName`)
+  atop the §6 pane order — Wallpaper · Appearance (Dark/Light wired to
+  `Util.setDarkMode`) · Desktop Effects (tier control writes
+  `Governor.setTier`/`setAutoMode` **live**) · Drivers & Firmware
+  (six BUILT-IN domains) · Displays · Sound · Network · Users (M3 stubs).
+- **Titles are correct by construction**: `Window.title` is set in the
+  app's own QML, so no KWin title rules are needed (KWin `title` is a
+  match-only criterion — see commit `8a47eb4`).
+- **Folder opening**: `mimeapps.list` maps `inode/directory` to
+  `aegis-files.desktop`, so `xdg-open <dir>` never falls through to
+  Dolphin (no "— Dolphin" titlebars anywhere).
+- **Dolphin is not removed** — it remains available for power users; the
+  preseeded `dolphinrc` hides its menubar and opens on Home so even the
+  fallback is on-language. The dock Trash tile opens `aegis-files`
+  (sidebar → Trash) rather than a Dolphin window.
+
+Regenerating the tinted place/device glyphs: `scripts/gen-places-icons.py`
+(writes every `places/scalable` + `devices/scalable` SVG in the Aegis theme).

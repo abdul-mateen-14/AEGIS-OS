@@ -1,7 +1,7 @@
 {
   "wallpaper": "/usr/share/wallpapers/aegis/aurora-ink.jpg",
   "apps": [
-    { "name": "Files",         "icon": "aegis-files",          "cmd": "dolphin" },
+    { "name": "Files",         "icon": "aegis-files",          "cmd": "aegis-files" },
     { "name": "Terminal",      "icon": "aegis-terminal",       "cmd": "konsole" },
     { "name": "AEGIS Browser", "icon": "web-browser",           "cmd": "aegis-browser-stable" },
     { "name": "Gmail",         "icon": "aegis-gmail",           "cmd": "xdg-open https://mail.google.com" },
@@ -13,7 +13,7 @@
     { "name": "OS",            "icon": "aegis-cloud",           "cmd": "os-private-chat" },
     { "name": "CoreX",         "icon": "aegis-corex",           "cmd": "corex-terminal" },
     { "type": "separator" },
-    { "name": "Settings",      "icon": "aegis-settings",       "cmd": "systemsettings" },
-    { "name": "Trash",         "icon": "aegis-trash",           "cmd": "dolphin trash:/" }
+    { "name": "Settings",      "icon": "aegis-settings",       "cmd": "aegis-settings" },
+    { "name": "Trash",         "icon": "aegis-trash",           "cmd": "aegis-files" }
   ]
 }

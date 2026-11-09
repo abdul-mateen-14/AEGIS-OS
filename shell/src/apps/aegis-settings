@@ -1,0 +1,3 @@
+#!/bin/sh
+# Aegis Settings — first-party settings app (proposal §6, plates 10/11/13).
+exec aegis-apps settings

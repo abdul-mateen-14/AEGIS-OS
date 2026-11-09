@@ -8,3 +8,11 @@ BorderSize=Normal
 
 [Effect-blur]
 BlurDecorations=true
+
+[Plugins]
+# Table 18 — radius 18 on all four corners (0800 hook installs the effect).
+kwin4_effect_shapecornersEnabled=true
+
+[Effect-shapecorners]
+Radius=18
+

@@ -1,6 +1,10 @@
 [MainWindow]
 MenuBar=Disabled
 
+[General]
+# Open on Home, not "last visited" — first impression is the spec rail.
+RememberLocation=false
+
 [PlacesPanel]
-# proposal plate 12 — the spec rail only: Home, Documents, Downloads,
-# Pictures, Trash (groups beyond Places are hidden in bookmarks.xml)
+# proposal plate 12 — the spec rail only: Home, Documents, Downloads, Music,
+# Pictures, Videos, Trash (groups beyond Places are hidden in user-places.xbel)

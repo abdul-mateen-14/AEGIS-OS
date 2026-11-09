@@ -16,7 +16,7 @@ with sliver, desktop, Files + Terminal, Tier A effects, glass tokens as code.
 | Floating dock + sliver | `shell/src/qml/Dock.qml` (§2.2 recipe: map → spring → write) |
 | Dynamic Island | `shell/src/qml/Island.qml` (Table 5b states; v1.4 idle 104×32) |
 | Desktop canvas | `shell/src/qml/Desktop.qml` (wallpaper only until M2) |
-| Files + Terminal | Dolphin + Konsole, Aegis entries in `theme/desktop-entries/` |
+| Files + Terminal | **aegis-files (first-party Qt Quick)** + Konsole (Aegis profile, on-language) — Aegis entries in `theme/desktop-entries/` |
 | Plymouth splash | `theme/plymouth/` + `0200-plymouth.hook.chroot` |
 | Installer | `calamares/` (settings, modules, branding) |
 | First-party apps | `.deb` slots — `docs/APP-SLOTS.md` |
@@ -104,7 +104,9 @@ Update reports and applies patches without a terminal ever appearing.
 ## M3 · Depth
 
 Mission Control, workspaces + gesture dictionary (Table 10), tiling, remaining
-first-party apps, Tier C Calm Mode. Touchpoints: `Dock.qml` (sliver states),
+first-party apps (Music · Calculator · Editor · Monitor — the first two
+`aegis-files`/`aegis-settings` windows landed in v0.6.5), Tier C Calm Mode.
+Touchpoints: `Dock.qml` (sliver states),
 KWin effect configs, governor demotion to C.
 
 ## M4 · Parity & beta

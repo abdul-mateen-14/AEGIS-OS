@@ -6,6 +6,8 @@ text/plain=aegis-browser.desktop
 application/xhtml+xml=aegis-browser.desktop
 x-scheme-handler/about=aegis-browser.desktop
 x-scheme-handler/unknown=aegis-browser.desktop
+# folders open in the first-party Files app — never Dolphin
+inode/directory=aegis-files.desktop
 
 [Added Associations]
 x-scheme-handler/http=aegis-browser.desktop;org.aegisbrowser.Aegis.desktop;

@@ -1,0 +1,19 @@
+#!/bin/sh
+# Table 18: windows carry radius 18 on ALL FOUR corners. The effect itself is
+# NOT installed here — CI builds KDE-Rounded-Corners (matinlotfali) from source
+# (scripts/build-rounded-corners.sh, tag v0.11.0) and stages the .deb into
+# debian-live/config/packages.chroot/, which live-build installs before this
+# hook runs. A PPA add-apt-repository here would fight that staged deb with a
+# different version and ship a third-party apt source in the ISO.
+#
+# This hook only verifies the effect landed, and fails the build loudly if the
+# packages.chroot install ever regresses. Enabling config lives in
+# etc/xdg/kwinrc: [Plugins] kwin4_effect_shapecornersEnabled + Radius=18.
+set -e
+
+[ -e /usr/lib/x86_64-linux-gnu/qt6/plugins/kwin/effects/plugins/kwin4_effect_shapecorners.so ] \
+ || [ -e /usr/lib/qt6/plugins/kwin/effects/plugins/kwin4_effect_shapecorners.so ] \
+ || { echo "0800: kwin4_effect_shapecorners.so missing — is the KDE-Rounded-Corners deb staged in packages.chroot and installed?" >&2; exit 1; }
+
+echo "0800: kwin4_effect_shapecorners present (radius 18 per etc/xdg/kwinrc)"
+exit 0

@@ -396,7 +396,7 @@ Window {
                             cursorShape: Qt.PointingHandCursor
                             onClicked: {
                                 Util.ccOpen = false
-                                Util.launch("systemsettings")
+                                Util.launch("aegis-settings")   // first-party Settings (aegis-apps)
                             }
                         }
                     }

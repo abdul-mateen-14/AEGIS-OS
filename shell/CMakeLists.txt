@@ -53,6 +53,10 @@ qt_add_resources(aegis-shell "shell"
         src/qml/Launcher.qml
         src/qml/Notifications.qml
         src/qml/Lock.qml
+        src/qml/AppWindow.qml
+        src/qml/TrafficLights.qml
+        src/qml/FilesApp.qml
+        src/qml/SettingsApp.qml
         src/qml/aegis-mark.png
 )
 
@@ -74,6 +78,48 @@ target_link_libraries(aegis-shell PRIVATE
     Qt6::DBus
     ${AEGIS_LAYERSHELL_TARGET}
 )
+
+# ── First-party apps (proposal §8) ─────────────────────────────────────
+# One host binary, two wrappers: /usr/bin/aegis-files, /usr/bin/aegis-settings.
+# Regular Wayland windows — no layer shell. The app QML ships in the same
+# installed tree (share/aegis/shell/qml) so Tokens/GlassPanel stay shared.
+# Compiles Util + Governor here too — the app QML binds Util.darkMode/
+# setDarkMode/launch and Governor.tier/setTier/setAutoMode; Qt6::DBus covers
+# the QDBusConnection calls in both translation units.
+qt_add_executable(aegis-apps
+    src/apps/apps-main.cpp
+    src/apps/filemanager.h
+    src/util.h
+    src/util.cpp
+    src/governor/Governor.h
+    src/governor/Governor.cpp
+)
+
+qt_add_resources(aegis-apps "apps-qml"
+    PREFIX "/qml"
+    BASE_DIR src/qml
+    FILES
+        src/qml/qmldir
+        src/qml/Tokens.qml
+        src/qml/Spring.qml
+        src/qml/GlassPanel.qml
+        src/qml/AppWindow.qml
+        src/qml/TrafficLights.qml
+        src/qml/FilesApp.qml
+        src/qml/SettingsApp.qml
+)
+
+target_link_libraries(aegis-apps PRIVATE
+    Qt6::Core
+    Qt6::Gui
+    Qt6::Qml
+    Qt6::Quick
+    Qt6::QuickControls2
+    Qt6::DBus
+)
+
+install(TARGETS aegis-apps RUNTIME DESTINATION bin)
+install(PROGRAMS src/apps/aegis-files src/apps/aegis-settings DESTINATION bin)
 
 if(AEGIS_HAS_DESIRED_SIZE)
     target_compile_definitions(aegis-shell PRIVATE AEGIS_HAS_DESIRED_SIZE)

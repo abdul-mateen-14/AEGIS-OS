@@ -38,7 +38,10 @@ public:
     bool charging() const { return m_charging; }
 
     bool darkMode() const { return m_darkMode; }
-    void setDarkMode(bool dark);
+    // Q_INVOKABLE: QML calls this as a method (Appearance cards, Control
+    // Center dark toggle) — plain Q_PROPERTY WRITE accessors are not
+    // guaranteed to be method-callable from QML.
+    Q_INVOKABLE void setDarkMode(bool dark);
     bool locked() const { return m_locked; }
     bool ccOpen() const { return m_ccOpen; }
     void setCcOpen(bool open);

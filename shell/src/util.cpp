@@ -23,7 +23,7 @@ QVariantMap Util::defaultConfig() const
          QStringLiteral("/usr/share/wallpapers/aegis/aurora-ink.jpg")},
         {QStringLiteral("apps"), QVariantList{
             QVariantMap{{"name", "Files"}, {"icon", "aegis-files"},
-                        {"cmd", "dolphin"}},
+                        {"cmd", "aegis-files"}},               // first-party Files (aegis-apps)
             QVariantMap{{"name", "Terminal"}, {"icon", "aegis-terminal"},
                         {"cmd", "konsole"}},
             QVariantMap{{"name", "AEGIS Browser"}, {"icon", "web-browser"},
@@ -46,9 +46,9 @@ QVariantMap Util::defaultConfig() const
                         {"cmd", "corex-terminal"}},             // CoreX terminal .deb
             QVariantMap{{"type", "separator"}},
             QVariantMap{{"name", "Settings"}, {"icon", "aegis-settings"},
-                        {"cmd", "systemsettings"}},
+                        {"cmd", "aegis-settings"}},             // first-party Settings (aegis-apps)
             QVariantMap{{"name", "Trash"}, {"icon", "aegis-trash"},
-                        {"cmd", "dolphin trash:/"}},
+                        {"cmd", "aegis-files"}},               // Files sidebar → Trash (no "— Dolphin" title)
         }},
     };
 }
