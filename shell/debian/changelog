@@ -1,3 +1,16 @@
+aegis-shell (1.6.3-m2) resolute; urgency=medium
+
+  * user-places.xbel metadata format fixed — KBookmark::metaDataItem reads
+    the key as the TAG NAME (<kde_places_version>4</kde_places_version>),
+    not the freedesktop <item key=...> style. The v0.6.2 seed's root
+    metadata was unreadable, so KIO ran the v0→4 migration on first
+    launch: defaults got re-created next to the seeded rail (duplicate
+    Home/Documents/...), and the GroupState-* hidden flags were reset to
+    visible. Same fix for per-bookmark IconName tags. Trailing slashes
+    dropped from hrefs to match QUrl::fromLocalFile normalization.
+
+ -- Aegis OS Project <aegis@users.noreply.github.com>  Sun, 09 Nov 2026 16:20:00 +0000
+
 aegis-shell (1.6.2-m2) resolute; urgency=medium
 
   * Places seed path corrected: KIO 6 stores places in
