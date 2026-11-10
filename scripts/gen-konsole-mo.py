@@ -18,6 +18,11 @@ KCatalog lookup paths (KF6): $XDG_DATA_DIRS/locale/<lang>/LC_MESSAGES/
 konsole.mo with <lang> from kdeglobals [Locale] Language, falling back to
 the session locale. We install en_US, en and en_GB so any English rung
 resolves, and set the session LANGUAGE explicitly (see aegis-session).
+
+v0.6.14 lesson: POFile.save() writes PO TEXT even to a .mo filename, and
+gettext silently skips an invalid catalog ("Bad magic number"), so the
+suffix survived the whole v0.6.13 tag. save_as_mofile() is mandatory —
+verified with gettext.GNUTranslations loading the shipped file.
 """
 import os
 import polib
@@ -40,5 +45,12 @@ for lang in LOCALES:
     d = os.path.join(ROOT, "debian-live/config/includes.chroot/usr/share/"
                           f"locale/{lang}/LC_MESSAGES")
     os.makedirs(d, exist_ok=True)
-    PO.save(os.path.join(d, "konsole.mo"))
-    print("wrote", lang, "konsole.mo")
+    mo_path = os.path.join(d, "konsole.mo")
+    PO.save_as_mofile(mo_path)          # POFile.save() would write PO TEXT
+    # sanity: the result must load as a real MO catalog; the entry is
+    # contextual (i18nc), so verify through pgettext
+    import gettext
+    with open(mo_path, "rb") as f:
+        t = gettext.GNUTranslations(f)
+    assert t.pgettext("@title", "Konsole") == "Aegis Terminal", mo_path
+    print("wrote", lang, "konsole.mo (valid MO, override verified)")

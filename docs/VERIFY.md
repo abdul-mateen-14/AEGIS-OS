@@ -74,9 +74,16 @@ qmllint shell/src/qml/*.qml 2>&1 \
     ButtonWidth=12 + the 12x12 SVGs; shell inset x:14 → ButtonMarginLeft=14.)
 16. **Terminal chrome (W11)** — no toolbar, no scrollbar, JetBrains Mono 11,
     ink background, accent prompt; the window title reads "Aegis Terminal"
-    with NO " — Konsole" suffix (konsole.mo display-name override — if the
+    with NO " — Konsole" suffix. Two mechanisms carry this: the kxmlgui5
+    overrides (/usr/share/kxmlgui5/konsole/{konsoleui,sessionui}.rc with
+    hidden="true" — since Konsole 25.12 the built-in XML is compiled into
+    the binary, so a DEPLOYED file under kxmlgui5/ is the only hook that
+    reaches KToolBar::loadState), and the konsole.mo display-name override
+    (must be a REAL MO — PO text loads as "Bad magic number" and gettext
+    silently skips it, which is how the suffix survived v0.6.13; the
+    generator asserts pgettext("@title","Konsole") resolves). If the
     suffix returns, check LANGUAGE=en_US reached the session and the .mo
-    is installed for the session's locale).
+    passes `msgfmt -o /dev/null` as a catalog.
 17. **Top-bar glyphs (W12)** — Wi-Fi arc, volume, clock, CC glyph: same
     optical size, same 2 px weight, fg at 90%; muted/off states dim the
     glyph live (the Canvas repaints on tint changes now).

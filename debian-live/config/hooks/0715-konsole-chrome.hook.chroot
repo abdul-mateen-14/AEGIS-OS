@@ -3,18 +3,31 @@
 # already in konsolerc), no scrollbar (Aegis.profile ScrollBarPosition=2),
 # and a clean "Aegis Terminal" window title.
 #
-# Toolbar: KXmlGui builds it from konsoleui.rc; KToolBar::loadState honours
-# the XML attribute hidden="true" (kxmlgui ktoolbar.cpp: setVisible(!hidden)),
-# so hiding it in the shipped ui.rc is the durable, declarative equivalent of
-# "toggle it off once and keep the resulting key".
+# Toolbar: since Konsole 25.12 the GUI XML (konsoleui.rc, sessionui.rc) is
+# COMPILED INTO the binaries — no /usr/share/kxmlgui6/konsole/konsoleui.rc
+# exists to patch, and the v0.6.13 hook patched a file that was not there
+# (its warning echo went unseen in the build log), so both toolbars shipped
+# visible. KXmlGui resolves a client's XML through
+# KXMLGUIFactory::readConfigFile: a DEPLOYED file under
+# $XDG_DATA_DIRS/kxmlgui5/<component>/ takes precedence over the built-in
+# :/kxmlgui5/ resource, and KToolBar::loadState honours hidden="true"
+# (kxmlgui ktoolbar.cpp setVisible(!hidden)). So we ship
+# /usr/share/kxmlgui5/konsole/{konsoleui.rc,sessionui.rc} — verbatim from
+# the konsole v25.12.3 tag with hidden="true" on mainToolBar (new-tab +
+# split-view, the left cluster) and sessionToolbar (copy/paste/find +
+# hamburger, the right cluster). The legacy kxmlgui6 sed stays as a no-op
+# fallback for older konsoles that still deploy the file.
 #
 # Caption: Qt's Wayland QPA appends the application display name
 # (" — Konsole") to window titles unless the title already ends with it.
 # The konsole.mo caption override (scripts/gen-konsole-mo.py) makes the
 # display name read "Aegis Terminal", so the profile's tab title ends with
-# it and no suffix is composed. gettext skips translations in the C locale,
-# so a real en_US.UTF-8 locale is generated here and the session pins
-# LANG/LANGUAGE (see shell/src/session/aegis-session).
+# it and no suffix is composed. v0.6.14 lesson: POFile.save() writes PO
+# TEXT even to a .mo filename and gettext silently skips an invalid
+# catalog, so the suffix survived v0.6.13 — the generator now compiles a
+# real MO and asserts the override resolves. gettext skips translations in
+# the C locale, so a real en_US.UTF-8 locale is generated here and the
+# session pins LANG/LANGUAGE (see shell/src/session/aegis-session).
 set -e
 
 RC=""
@@ -28,13 +41,28 @@ done
 if [ -n "$RC" ] && ! grep -q 'hidden="true"' "$RC"; then
     sed -i 's/<ToolBar /<ToolBar hidden="true" /' "$RC"
 fi
-if [ -n "$RC" ] && grep -q 'hidden="true"' "$RC"; then
-    echo "0715: konsoleui.rc toolbar hidden (W11)"
+# the deployed overrides are the W11 mechanism on konsole >= 25.12
+if [ -f /usr/share/kxmlgui5/konsole/konsoleui.rc ] \
+   && grep -q '<ToolBar name="mainToolBar" hidden="true">' \
+        /usr/share/kxmlgui5/konsole/konsoleui.rc \
+   && grep -q '<ToolBar name="sessionToolbar" hidden="true">' \
+        /usr/share/kxmlgui5/konsole/sessionui.rc; then
+    echo "0715: kxmlgui5 overrides ship both konsole toolbars hidden (W11)"
 else
-    echo "0715: konsoleui.rc not patched - the toolbar survives (cosmetic only)" >&2
+    echo "0715: WARNING - kxmlgui5 overrides missing or unpatched; the" \
+         "toolbars will survive (cosmetic only)" >&2
 fi
 
 if [ -f /usr/share/locale/en_US/LC_MESSAGES/konsole.mo ]; then
+    # a real MO, not PO text (the v0.6.13 failure mode): check the magic
+    if od -An -tx1 -N4 /usr/share/locale/en_US/LC_MESSAGES/konsole.mo \
+            | grep -qi "de 12 04 95\|95 04 12 de"; then
+        echo "0715: konsole.mo is a valid MO catalog (W11 caption override)"
+    else
+        echo "0715: FATAL - konsole.mo is not a compiled MO catalog;" \
+             "run scripts/gen-konsole-mo.py" >&2
+        exit 1
+    fi
     command -v locale-gen >/dev/null 2>&1 && locale-gen en_US.UTF-8 || true
     printf 'LANG=en_US.UTF-8\n' > /etc/default/locale
     echo "0715: en_US.UTF-8 locale + konsole caption override in place (W11)"

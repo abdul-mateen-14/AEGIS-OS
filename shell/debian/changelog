@@ -1,3 +1,28 @@
+aegis-shell (1.7.0-m6) resolute; urgency=medium
+
+  * W11 terminal chrome actually shipped (the v0.6.13 boot capture showed
+    both toolbars and the Konsole title suffix live). Toolbar: since
+    Konsole 25.12 the GUI XML is compiled into the binaries — no
+    /usr/share/kxmlgui6/konsole/konsoleui.rc exists to patch — so the
+    chrome now ships DEPLOYED overrides at /usr/share/kxmlgui5/konsole/
+    (konsoleui.rc + sessionui.rc, verbatim from the konsole v25.12.3 tag
+    with hidden="true" on mainToolBar and sessionToolbar);
+    KXMLGUIFactory::readConfigFile prefers a deployed kxmlgui5 file over
+    the built-in resource and KToolBar::loadState honours hidden="true".
+    Caption: the konsole.mo override was PO TEXT saved as .mo — gettext
+    skipped the invalid catalog ("Bad magic number"), so " — Konsole"
+    survived the whole tag; gen-konsole-mo.py now compiles a real MO
+    (save_as_mofile) and asserts pgettext("@title","Konsole") resolves.
+    Hook 0715 verifies both mechanisms at build time (MO magic check).
+  * Boot capture: the release-gate QML probes now print verdict tokens
+    from the guest itself (PROBE-S/F-CLEAN/DIRTY, split-quoted so the
+    serial echo can never carry the literal) scanned in the RAW serial
+    buffer, timeout -k 2 bounds a hung app, DND tile click corrected to
+    the measured y=300 (KWin places the CC below the panel's 28 px
+    exclusive zone), and the serial login handles the already-autologged
+    shell state with a grace retry — the third v0.6.13 run lost the
+    review fixtures and the Aegis ID pane shot to that race.
+
 aegis-shell (1.7.0-m5) resolute; urgency=medium
 
   * W8 dock icon policy — two tiers. Tier A (Files/Terminal/Settings/Trash)

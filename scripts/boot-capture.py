@@ -223,12 +223,26 @@ class Serial:
     def login(self, user="aegis", passwords=("", "aegis", "live", "root", "ubuntu")):
         """Open a shell on the serial console. Marker-2 trick: a real shell
         evaluates $((1+1)); a login prompt echoes it literally and logs a
-        FAILED LOGIN, so a plain substring match cannot false-positive."""
+        FAILED LOGIN, so a plain substring match cannot false-positive.
+        Two console states are handled: a getty 'login:' prompt (the
+        password ladder below) and an ALREADY-AUTOLOGGED shell — the third
+        v0.6.13 boot test hit that state (autologin consumed the prompt
+        while the desktop was still coming up on a fast KVM boot), the
+        early login returned False, and the run lost the review fixtures
+        and the Aegis ID pane shot. For the shell state the MARKER test
+        runs directly; the echo can only contain MARKER-$((1+1)), never
+        the evaluated MARKER-2."""
         self.buf = b""
-        for _ in range(4):
+        for _ in range(5):
             self.send("\n"); self._drain(1.5)
             if b"login:" in self.buf:
                 break
+            # autologin may already own the console — probe for a live shell
+            self.buf = b""
+            self.send("echo MARKER-$((1+1))\n"); self._drain(2.5)
+            if (b"MARKER-2" in self.buf
+                    and b"FAILED LOGIN" not in self.buf):
+                return True
         if b"login:" not in self.buf:
             return False
         for pw in passwords:
@@ -644,7 +658,12 @@ def main():
     serial = None
     try:
         serial = Serial(SERIAL_SOCK)
-        if serial.login():
+        ok = serial.login()
+        if not ok:
+            # a fast KVM boot can beat the serial getty — one grace pass
+            time.sleep(20)
+            ok = serial.login()
+        if ok:
             log("serial login OK — seeding review fixtures")
             seed_review_files(serial)
         else:
@@ -693,17 +712,20 @@ def main():
     q.shot("05-control-center")
 
     # W13 acceptance — DND on AND off. The CC sheet is deterministic: 348 px
-    # anchored top-right (margins 40 top / 10 right), sheet margins 16,
-    # header 30, 12 px gaps, grid 64+12+64, then the 44 px DND wide tile —
-    # its 36x20 switch rides the right end (rightMargin 14). On the 1280x800
-    # capture the switch centre lands at (W-58, 272); the second click
-    # restores the off state.
+    # anchored top-right, BUT KWin places the layer surface below the
+    # panel's 28 px exclusive zone (measured on the v0.6.13 captures: sheet
+    # top border at y=68, not the margin-40 the QML math suggests). Sheet
+    # margins 16, header 30, 12 px gaps, grid 64+12+64, then the 44 px DND
+    # wide tile centered at y=300 with its 36x20 switch riding the right
+    # end. The WHOLE tile toggles (MouseArea fills it), so click the tile
+    # body — safer against small layout shifts than the switch itself. The
+    # second click restores the off state.
     try:
-        q.click(W - 58, 272, W, H)        # DND switch
+        q.click(W - 180, 300, W, H)       # DND tile body
         time.sleep(2)
         q.shot("05b-control-center-dnd")
         log("05b-control-center-dnd captured (DND on)")
-        q.click(W - 58, 272, W, H)        # restore off
+        q.click(W - 180, 300, W, H)       # restore off
         time.sleep(1.5)
     except Exception as e:
         log(f"dnd toggle capture failed: {e}")
