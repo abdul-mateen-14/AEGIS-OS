@@ -1,3 +1,23 @@
+aegis-shell (1.7.0-m3) resolute; urgency=medium
+
+  * SettingsApp: Text used a non-existent grouped sub-property (font.color)
+    in the Network pane — QFont has no color member, and Qt 6 compiles the
+    whole document including deferred panes, so a single unknown property
+    failed the entire Settings load (aegis-apps exit 1, no window ever
+    mapped; v0.6.10 boot test, diff-vs-home 3.0 on both attempts). The Text
+    color moves to the Text-level `color:` property.
+  * SettingsApp: add the missing `import Aegis.Files` — the wallpaper image
+    picker resolves Files.pathOf / Files.homeUrl().
+  * Wrappers: aegis-settings / aegis-files now forward "$@" so
+    `aegis-settings 8` really opens pane 8 (Aegis ID) — the argument was
+    silently dropped before.
+  * boot-capture: the pane-8 launch keeps stderr on the guest at
+    /tmp/aegis-settings.err and the post-capture diag prints it, plus a
+    foreground `timeout 6 aegis-apps settings 8` probe — a QML load failure
+    can no longer reach the release without its errorString in the log.
+
+ -- Aegis Developers <dev@aegis-os.org>  Tue, 10 Nov 2026 16:10:00 +0000
+
 aegis-shell (1.7.0-m2) resolute; urgency=medium
 
   * SettingsApp: 12 grouped `font { ... }` blocks sat on the same line as

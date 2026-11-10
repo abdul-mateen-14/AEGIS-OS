@@ -313,6 +313,10 @@ def app_diag(serial):
     diag_cmds = [
         "echo ===PROCS===; ps aux | grep -Ei 'aegis|kwin|corex|dolphin|chromium' | grep -v grep | head -20",
         "echo ===SESSLOG===; tail -n 80 /tmp/aegis-session.log 2>&1",
+        "echo ===SETTINGS-ERR===; tail -40 /tmp/aegis-settings.err 2>&1",
+        "echo ===QMLPROBE===; export XDG_RUNTIME_DIR=/run/user/$(id -u); "
+        "WAYLAND_DISPLAY=wayland-0 timeout 6 aegis-apps settings 8 "
+        ">/tmp/qml-probe.err 2>&1; head -30 /tmp/qml-probe.err 2>&1",
         "echo ===JRN-SHELL===; sudo journalctl -b --no-pager 2>&1 | grep -aiE 'aegis-(shell|apps|session|files|settings)|QQml|qrc:' | tail -50",
         "echo ===JRN-KWIN===; sudo journalctl -b --no-pager 2>&1 | grep -ai 'kwin' | grep -aivE 'information|Rendering|colorProfile|ColorManagement' | tail -40",
         "echo ===JRN-CRASH===; sudo journalctl -b --no-pager 2>&1 | grep -aiE 'segfault|signal 11|coredump|abrt|general protection' | tail -20",
@@ -552,10 +556,12 @@ def main():
     # serial shell ("aegis-settings 8") so no in-window clicking is needed.
     if serial:
         try:
+            # stderr is GOLD when the QML fails to compile — keep it in the
+            # guest FS so the app_diag section below can print it verbatim.
             out = serial.run(
                 "export XDG_RUNTIME_DIR=/run/user/$(id -u); "
                 "WAYLAND_DISPLAY=wayland-0 nohup aegis-settings 8 "
-                ">/dev/null 2>&1 & echo PANE8-LAUNCHED", settle=3)
+                ">/tmp/aegis-settings.err 2>&1 & echo PANE8-LAUNCHED", settle=3)
             log("pane8: " + out.strip().replace("\n", " | ")[-120:])
             time.sleep(18)
             q.shot("04b-aegis-id")

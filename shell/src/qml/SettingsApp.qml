@@ -4,6 +4,7 @@ import QtQuick.Layouts
 import Qt.labs.folderlistmodel
 import Aegis.Util
 import Aegis.Governor
+import Aegis.Files
 import Aegis.Display
 import Aegis.Sound
 import Aegis.Network
@@ -986,7 +987,7 @@ Window {
                             width: 44; height: 16; radius: 4
                             color: "transparent"
                             border.color: Tokens.glassBorder
-                            Text { anchors.centerIn: parent; text: "WPA"; font.pixelSize: 8; font.color: Tokens.fgMuted }
+                            Text { anchors.centerIn: parent; text: "WPA"; font.pixelSize: 8; color: Tokens.fgMuted }
                         }
                         Text { text: modelData.strength + "%"; font.pixelSize: 10; color: Tokens.fgMuted }
                         AbstractButton {

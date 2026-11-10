@@ -1,3 +1,3 @@
 #!/bin/sh
 # Aegis Files — first-party file manager (proposal §8, plate 7).
-exec aegis-apps files
+exec aegis-apps files "$@"
