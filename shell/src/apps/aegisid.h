@@ -1,6 +1,7 @@
 #pragma once
 #include <QJsonArray>
 #include <QJsonObject>
+#include <QNetworkAccessManager>
 #include <QObject>
 #include <QString>
 #include <QUrl>
@@ -135,7 +136,7 @@ private:
     QString m_deviceId;
     QString m_pendingEmail;
     QString m_pendingPassword;
-    QString m_pendingVerifier;
+    QByteArray m_pendingVerifier; // base64 of the derived verifier
     QJsonObject m_user;
 
     QNetworkAccessManager *m_net = nullptr;

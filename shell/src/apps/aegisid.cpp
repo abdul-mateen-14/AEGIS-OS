@@ -19,6 +19,7 @@
 #include <QtConcurrent/QtConcurrent>
 
 #include <utility>
+#include <vector>
 
 #include <openssl/evp.h>
 #include <openssl/hmac.h>
@@ -641,8 +642,9 @@ void AegisId::registerAccount(const QString &email, const QString &password)
         }
         m_masterKey = QByteArray::fromBase64(
             derived.value(QStringLiteral("masterKey_b64")).toString().toUtf8());
-        m_pendingVerifier = derived.value(QStringLiteral("verifier_b64"))
-                                .toString();
+        // raw verifier bytes — finishLogin() re-encodes for the login body
+        m_pendingVerifier = QByteArray::fromBase64(
+            derived.value(QStringLiteral("verifier_b64")).toString().toUtf8());
         m_recoveryKey = derived.value(QStringLiteral("recoveryKey")).toString();
         emit recoveryKeyChanged();
 
@@ -654,7 +656,8 @@ void AegisId::registerAccount(const QString &email, const QString &password)
              QJsonObject{{QStringLiteral("algo"),
                           QStringLiteral("PBKDF2-SHA256")},
                          {QStringLiteral("iterations"), 100000}}},
-            {QStringLiteral("verifier_b64"), m_pendingVerifier},
+            {QStringLiteral("verifier_b64"),
+             QString::fromUtf8(m_pendingVerifier.toBase64())},
             {QStringLiteral("wrapped_vault_key_b64"),
              derived.value(QStringLiteral("wrapped_b64")).toString()},
             {QStringLiteral("vault_nonce_b64"),
