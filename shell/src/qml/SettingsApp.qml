@@ -319,6 +319,8 @@ Window {
             id: idPane
             spacing: 12
 
+            property bool recoverySeen: false
+
             Text { text: "Aegis ID"; font.family: "Montserrat"; font.pixelSize: 20; font.weight: Font.DemiBold; color: Tokens.fg }
             Text {
                 text: AegisId.signedIn
@@ -505,7 +507,6 @@ Window {
 
             Item { Layout.fillHeight: true }
         }
-        property bool recoverySeen: false
     }
 
     // ── W4 — Wallpaper (Table 15) — LIVE apply through the shell ──────────

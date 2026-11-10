@@ -1,3 +1,22 @@
+aegis-shell (1.7.0-m4) resolute; urgency=medium
+
+  * SettingsApp: `property bool recoverySeen` was declared on the aegisIdPane
+    Component itself — "Component objects cannot declare new properties"
+    (SettingsApp.qml:316). This is the error that survived the v0.6.10 and
+    v0.6.11 rounds: Qt reports whole-document compile failures one at a time,
+    so each fix revealed the next (v0.6.9 grouped `font {};`, v0.6.10
+    font.color, v0.6.11 this one). The property moves into the idPane
+    ColumnLayout; the recovery-key card logic is unchanged.
+  * New guard: scripts/qml-guard.py runs the three known killer classes
+    (grouped-property-with-semicolon, invalid font sub-properties,
+    Component-scope properties) over every shell QML file, plus brace/
+    duplicate-id/stray-token checks — a pre-tag step in VERIFY.md.
+  * boot-capture: the app diag now also prints SETTINGS-ERR and runs a
+    foreground QML probe (landed in v0.6.11 but worth the reminder: the
+    v0.6.11 errorString was captured this way, straight from the guest).
+
+ -- Aegis Developers <dev@aegis-os.org>  Tue, 10 Nov 2026 16:35:00 +0000
+
 aegis-shell (1.7.0-m3) resolute; urgency=medium
 
   * SettingsApp: Text used a non-existent grouped sub-property (font.color)

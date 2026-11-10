@@ -47,7 +47,13 @@ them; the checklist only interprets them).
 ## Local pre-push sanity (no ISO needed)
 
 ```bash
-python3 scripts/check-qml.py                     # brace/id/junk scan
+python3 scripts/qml-guard.py                     # the three boot-test killers:
+                                                 # grouped `;`, font.color, Component
+                                                 # scope property — plus braces/ids
 grep -n dolphin shell/src/util.cpp               # check 7
 bash scripts/ci/run-in-container.sh bash scripts/build-shell.sh
+# if qmllint 6.x is installed, also:
+qmllint shell/src/qml/*.qml 2>&1 \
+  | grep -Ei "no property|non-existent|cannot assign|Syntax|duplicate|not a type|cannot declare|is not defined"
+# (expected empty — "unqualified access" noise from Aegis.* singletons is fine)
 ```
