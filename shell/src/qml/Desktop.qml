@@ -18,7 +18,10 @@ Window {
     Image {
         id: wallpaper
         anchors.fill: parent
-        source: Util.config["wallpaper"] || "/usr/share/wallpapers/aegis/aurora-ink.jpg"
+        // W4 — live apply: Util.wallpaper is a property with a NOTIFY, so a
+        // Settings-side change (pane or Aegis ID sync over DBus) repaints here.
+        source: Util.wallpaper || Util.config["wallpaper"]
+                || "/usr/share/wallpapers/aegis/aurora-ink.jpg"
         fillMode: Image.PreserveAspectCrop
         smooth: false
     }

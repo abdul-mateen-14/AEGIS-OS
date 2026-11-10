@@ -249,6 +249,33 @@ class Serial:
         idx = out.rfind(cmd)
         return out[idx + len(cmd):] if idx >= 0 else out
 
+def seed_review_files(serial):
+    """W2 review fixtures: one file of each kind tint directly in $HOME, so
+    the 02-files capture shows the §8.1 kind map live (folders blue · PDF red
+    · archive amber · image purple · audio pink · text blue)."""
+    fixtures = [
+        ("report.pdf",
+         "JVBERi0xLjQKMSAwIG9iajw8L1R5cGUvQ2F0YWxvZz4+ZW5kb2JqCnRyYWlsZXI8PC9Sb290IDEgMCBSPj4K"),
+        ("photo.png",
+         "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg=="),
+        ("archive.zip", "UEsDBAoAAAAAAA=="),
+        ("track.mp3", "SUQzBAAAAAAAIABRT1Y="),
+        ("notes.txt", "QWVnaXMgT1MgcmV2aWV3IGZpeHR1cmUu"),
+    ]
+    try:
+        serial.run("mkdir -p ~/Documents ~/Downloads ~/Music ~/Pictures ~/Videos",
+                   settle=2)
+        for name, b64 in fixtures:
+            out = serial.run(
+                f"echo {b64} | base64 -d > $HOME/{name}; echo SEEDED-{name}",
+                settle=2)
+            log(f"seed {name}: {'ok' if 'SEEDED-' + name in out else 'FAILED'}")
+        serial.run("sync", settle=2)
+        out = serial.run("ls $HOME", settle=3)
+        log("home: " + " ".join(out.strip().split())[:200])
+    except Exception as e:
+        log(f"seed failed: {e}")
+
 def serial_diagnose(serial):
     diag_cmds = [
         "echo ===TARGET===; systemctl get-default; systemctl is-active display-manager sddm",
@@ -497,6 +524,20 @@ def main():
             time.sleep(2)
         return False
 
+    # serial console up EARLY now: the W2 capture needs mixed file types in
+    # $HOME (kind tints) and the W6 review needs the Aegis ID pane shot.
+    serial = None
+    try:
+        serial = Serial(SERIAL_SOCK)
+        if serial.login():
+            log("serial login OK — seeding review fixtures")
+            seed_review_files(serial)
+        else:
+            serial = None
+            log("serial login FAILED — no fixtures, no Aegis ID pane shot")
+    except Exception as e:
+        log(f"early serial setup failed: {e}")
+
     # alt+F4 only after a window really opened: with no app window focused,
     # the close lands on the focused shell layer surface (the v0.6.5 boot
     # test lost dock -> island -> panel to exactly this cascade).
@@ -507,6 +548,22 @@ def main():
     if open_app(11, "04-settings", wait_s=30):  # Settings (12 tiles before
         q.key("alt", "f4"); time.sleep(5)       # it, no separator cluster)
 
+    # W6 review evidence — the Aegis ID pane, launched straight from the
+    # serial shell ("aegis-settings 8") so no in-window clicking is needed.
+    if serial:
+        try:
+            out = serial.run(
+                "export XDG_RUNTIME_DIR=/run/user/$(id -u); "
+                "WAYLAND_DISPLAY=wayland-0 nohup aegis-settings 8 "
+                ">/dev/null 2>&1 & echo PANE8-LAUNCHED", settle=3)
+            log("pane8: " + out.strip().replace("\n", " | ")[-120:])
+            time.sleep(18)
+            q.shot("04b-aegis-id")
+            log("04b-aegis-id captured")
+            q.key("alt", "f4"); time.sleep(5)
+        except Exception as e:
+            log(f"aegis-id pane capture failed: {e}")
+
     q.click(W - 60, 14, W, H)            # panel right cluster -> Control Center
     time.sleep(3)
     q.shot("05-control-center")
@@ -515,12 +572,12 @@ def main():
     # open or the dock vanished during the choreography, the guest journal
     # holds the reason (QML load failures, segfaults, KWin effect errors).
     try:
-        serial = Serial(SERIAL_SOCK)
-        if serial.login():
-            log("serial login OK — app diagnostics follow")
-            app_diag(serial)
-        else:
-            log("serial login FAILED — no in-VM app diagnostics")
+        if serial is None:
+            serial = Serial(SERIAL_SOCK)
+            if not serial.login():
+                raise RuntimeError("serial login failed")
+        log("serial OK — app diagnostics follow")
+        app_diag(serial)
     except Exception as e:
         log(f"post-capture diagnostics failed: {e}")
 

@@ -10,7 +10,10 @@ QtObject {
     objectName: "AegisTokens"
 
     // ── Accent & inks ──────────────────────────────────────────────
-    readonly property color accent: "#3E8BFF"
+    // W5 — the accent is THE settable token: it persists at
+    // $XDG_CONFIG_HOME/aegis/tokens.conf and every surface (shell + both
+    // apps) reads it from here. Six presets live in Settings → Appearance.
+    property color accent: Util.accent
     readonly property color ink: "#101216"
     readonly property color inkDeep: "#08090C"
     readonly property color paper: "#F2F4F8"

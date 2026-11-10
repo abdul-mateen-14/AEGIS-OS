@@ -1,3 +1,37 @@
+aegis-shell (1.7.0-m1) resolute; urgency=medium
+
+  * W5 — one-token accent: Tokens.accent is settable (six presets, default
+    #3E8BFF), persists at $XDG_CONFIG_HOME/aegis/tokens.conf, app writes
+    reach the running shell over org.aegis.Shell. Files' New Folder button
+    no longer hard-codes #5B8BFF.
+  * W1 — Files finish list: 28 px status footer (N items · N hidden ·
+    filtered), sort menu (name/date/kind/size + descending + show-hidden),
+    cut/copy/paste with the Replace prompt, Open With (MIME-matched
+    .desktop entries), and a properties sheet.
+  * W2 — kind tints picked by QMimeDatabase sniffing in filemanager.h
+    (folders blue · PDFs red · archives amber · images purple · audio pink)
+    and empty-Home quick tiles (Home · Documents · Downloads · Apps).
+  * W3 — Settings backends: Displays (kscreen-doctor modes/scale + night
+    light via kwinrc + KWin reconfigure), Sound (wpctl sinks/sources,
+    per-device volume/mute/default), Network (NetworkManager D-Bus: AP list,
+    strength, known/inUse, AddAndActivateConnection), Users (AccountsService:
+    real name, admin flag, person glyph).
+  * W4 — live wallpaper: Util.wallpaper property + setWallpaper persists and
+    DBus-forwards; Desktop.qml repaints; the pane gets a glass image picker
+    (FolderListModel, no portal dialogs).
+  * W6 — Aegis ID: zero-knowledge client for the audited aegis-sync worker.
+    Device UUID at ~/.config/aegis/device-id; PBKDF2→HKDF→verifier chain in
+    a QtConcurrent worker (never the UI thread); refresh token only in
+    secret-tool (session-only fallback, never plaintext on disk); Aegis ID
+    pane (sign in / create / recovery key shown once / devices with revoke /
+    sync now); vault-encrypted "setting" items for desktop.accent,
+    desktop.wallpaper and files.prefs.
+  * packaging: libssl-dev for the KDF; Qt6::Network + Qt6::Concurrent for
+    aegis-apps; runtime lists gain libqt6network6/libqt6concurrent6 and the
+    FolderListModel QML module joins the deb Depends.
+
+ -- Aegis OS Project <aegis@users.noreply.github.com>  Mon, 09 Nov 2026 20:00:00 +0000
+
 aegis-shell (1.6.5-m1) resolute; urgency=medium
 
   * aegis-apps: log the full QQmlComponent errorString (and the failed URL)

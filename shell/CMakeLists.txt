@@ -7,6 +7,7 @@ set(CMAKE_AUTOMOC ON)
 
 find_package(Qt6 REQUIRED COMPONENTS Core Gui Qml Quick QuickControls2 DBus)
 find_package(LayerShellQt REQUIRED)
+find_package(OpenSSL REQUIRED)
 find_library(PAM_LIBRARY pam)
 
 if(TARGET LayerShellQt::Interface)
@@ -89,6 +90,9 @@ target_link_libraries(aegis-shell PRIVATE
 qt_add_executable(aegis-apps
     src/apps/apps-main.cpp
     src/apps/filemanager.h
+    src/apps/systembackends.h
+    src/apps/aegisid.h
+    src/apps/aegisid.cpp
     src/util.h
     src/util.cpp
     src/governor/Governor.h
@@ -116,6 +120,9 @@ target_link_libraries(aegis-apps PRIVATE
     Qt6::Quick
     Qt6::QuickControls2
     Qt6::DBus
+    Qt6::Network
+    Qt6::Concurrent
+    OpenSSL::Crypto
 )
 
 install(TARGETS aegis-apps RUNTIME DESTINATION bin)

@@ -12,4 +12,7 @@ qml6-module-qtquick-window
 # Files views, QtQuick.Dialogs for the Wallpaper "Choose image…" picker.
 qml6-module-qt-labs-folderlistmodel
 qml6-module-qtquick-dialogs
+# W3/W6 backends: Qt Network + Concurrent run the Aegis ID HTTP/KDF stack
+libqt6network6
+libqt6concurrent6
 fonts-montserrat

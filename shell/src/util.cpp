@@ -1,5 +1,6 @@
 #include "util.h"
 
+#include <QColor>
 #include <QDBusConnection>
 #include <QDBusMessage>
 #include <QDir>
@@ -7,6 +8,7 @@
 #include <QJsonDocument>
 #include <QJsonObject>
 #include <QProcess>
+#include <QSettings>
 #include <QStandardPaths>
 #include <QTextStream>
 
@@ -58,6 +60,9 @@ Util::Util(QObject *parent)
 {
     m_config = readConfig(QStringLiteral("/usr/share/aegis/shell/config.json"));
     loadPrefs();
+    loadAccent();
+    if (m_wallpaper.isEmpty())
+        m_wallpaper = m_config.value(QStringLiteral("wallpaper")).toString();
 
     // identity for the lock screen avatar ring
     if (struct passwd *pw = getpwuid(geteuid())) {
@@ -95,6 +100,7 @@ void Util::loadPrefs()
     if (file.open(QIODevice::ReadOnly)) {
         const auto doc = QJsonDocument::fromJson(file.readAll());
         m_darkMode = doc.object().value(QStringLiteral("darkMode")).toBool(true);
+        m_wallpaper = doc.object().value(QStringLiteral("wallpaper")).toString();
     }
 }
 
@@ -105,9 +111,11 @@ void Util::savePrefs() const
     QDir(runtime).mkpath(QStringLiteral("aegis"));
     QFile file(runtime + QStringLiteral("/aegis/prefs.json"));
     if (file.open(QIODevice::WriteOnly | QIODevice::Truncate)) {
-        file.write(QJsonDocument(QJsonObject{
-            {QStringLiteral("darkMode"), m_darkMode}})
-                       .toJson(QJsonDocument::Compact));
+        QJsonObject prefs{
+            {QStringLiteral("darkMode"), m_darkMode}};
+        if (!m_wallpaper.isEmpty())
+            prefs.insert(QStringLiteral("wallpaper"), m_wallpaper);
+        file.write(QJsonDocument(prefs).toJson(QJsonDocument::Compact));
     }
 }
 
@@ -118,6 +126,86 @@ void Util::setDarkMode(bool dark)
     m_darkMode = dark;
     savePrefs();
     emit darkModeChanged();
+}
+
+// ── W5 — one-token accent ────────────────────────────────────────────────
+// Persisted at $XDG_CONFIG_HOME/aegis/tokens.conf (one key, per the
+// instructions). App processes also forward the write to org.aegis.Shell so
+// the running shell recolors live; the shell's own instance never forwards.
+
+void Util::loadAccent()
+{
+    const QString base = QStandardPaths::writableLocation(
+                             QStandardPaths::GenericConfigLocation);
+    if (base.isEmpty())
+        return;
+    const QSettings tokens(base + QStringLiteral("/aegis/tokens.conf"),
+                           QSettings::IniFormat);
+    const QString saved = tokens.value(QStringLiteral("accent")).toString();
+    if (!saved.isEmpty()) {
+        const QColor c(saved);
+        if (c.isValid())
+            m_accent = c.name(QColor::HexRgb);
+    }
+}
+
+void Util::saveAccent() const
+{
+    const QString base = QStandardPaths::writableLocation(
+                             QStandardPaths::GenericConfigLocation);
+    if (base.isEmpty())
+        return;
+    QDir(base).mkpath(QStringLiteral("aegis"));
+    QSettings tokens(base + QStringLiteral("/aegis/tokens.conf"),
+                     QSettings::IniFormat);
+    tokens.setValue(QStringLiteral("accent"), m_accent);
+    tokens.sync();
+}
+
+void Util::setAccent(const QString &accent)
+{
+    const QColor c(accent);
+    const QString hex = c.isValid()
+                            ? c.name(QColor::HexRgb)
+                            : QStringLiteral("#3E8BFF");
+    if (m_accent == hex)
+        return;
+    m_accent = hex;
+    saveAccent();
+    emit accentChanged();
+    forwardToShell(QStringLiteral("setAccent"), hex);
+}
+
+// ── W4 — live wallpaper ────────────────────────────────────────────────
+
+void Util::setWallpaper(const QString &path)
+{
+    if (path.isEmpty() || !QFile::exists(path))
+        return;
+    if (m_wallpaper == path)
+        return;
+    m_wallpaper = path;
+    savePrefs();
+    emit wallpaperChanged();
+    forwardToShell(QStringLiteral("setWallpaper"), path);
+}
+
+void Util::forwardToShell(const QString &method, const QString &value) const
+{
+    // Only app processes forward: the shell owns org.aegis.Shell and is
+    // already applying the change locally. Fire-and-forget — the shell may
+    // be gone (dev runs); the local write already persisted.
+    if (m_ownsDBus)
+        return;
+    const QDBusConnection bus = QDBusConnection::sessionBus();
+    if (!bus.isConnected())
+        return;
+    QDBusMessage msg = QDBusMessage::createMethodCall(
+        QStringLiteral("org.aegis.Shell"),
+        QStringLiteral("/org/aegis/Shell"),
+        QString(), method);
+    msg.setArguments({value});
+    bus.asyncCall(msg);
 }
 
 void Util::setCcOpen(bool open)

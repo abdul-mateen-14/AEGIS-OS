@@ -16,6 +16,14 @@ class Util : public QObject {
     Q_PROPERTY(bool charging READ charging NOTIFY batteryChanged)
     // preferences + session state
     Q_PROPERTY(bool darkMode READ darkMode WRITE setDarkMode NOTIFY darkModeChanged)
+    // W5 — the one-token accent (six presets, default #3E8BFF). Persisted at
+    // $XDG_CONFIG_HOME/aegis/tokens.conf; Tokens.qml binds it so every surface
+    // recolors together. App processes write it here AND forward over DBus
+    // (see setOwnsDBus) so the shell recolors live.
+    Q_PROPERTY(QString accent READ accent WRITE setAccent NOTIFY accentChanged)
+    // W4 — live wallpaper. Desktop.qml binds this; setWallpaper() persists to
+    // the session prefs and forwards to the shell process over DBus.
+    Q_PROPERTY(QString wallpaper READ wallpaper NOTIFY wallpaperChanged)
     Q_PROPERTY(bool locked READ locked NOTIFY lockedChanged)
     Q_PROPERTY(bool ccOpen READ ccOpen WRITE setCcOpen NOTIFY ccOpenChanged)
     Q_PROPERTY(bool launcherOpen READ launcherOpen WRITE setLauncherOpen NOTIFY launcherOpenChanged)
@@ -42,6 +50,16 @@ public:
     // Center dark toggle) — plain Q_PROPERTY WRITE accessors are not
     // guaranteed to be method-callable from QML.
     Q_INVOKABLE void setDarkMode(bool dark);
+    QString accent() const { return m_accent; }
+    Q_INVOKABLE void setAccent(const QString &accent);
+    QString wallpaper() const { return m_wallpaper; }
+    Q_INVOKABLE void setWallpaper(const QString &path);
+    // shell main.cpp marks the process that owns org.aegis.Shell on the
+    // session bus. App processes (aegis-apps) leave it false: their accent/
+    // wallpaper writes also go out as DBus calls to org.aegis.Shell so the
+    // running shell applies them; the shell's own copy must NOT re-forward
+    // (the DBus delivery would bounce back and loop).
+    void setOwnsDBus(bool owns) { m_ownsDBus = owns; }
     bool locked() const { return m_locked; }
     bool ccOpen() const { return m_ccOpen; }
     void setCcOpen(bool open);
@@ -106,6 +124,8 @@ public:
 signals:
     void batteryChanged();
     void darkModeChanged();
+    void accentChanged();
+    void wallpaperChanged();
     void lockedChanged();
     void ccOpenChanged();
     void launcherOpenChanged();
@@ -123,9 +143,15 @@ private:
     QVariantMap defaultConfig() const;
     void loadPrefs();
     void savePrefs() const;
+    void loadAccent();
+    void saveAccent() const;
+    void forwardToShell(const QString &method, const QString &value) const;
     QString backlightDevice() const;
 
     QVariantMap m_config;
+    QString m_accent = QStringLiteral("#3E8BFF");
+    QString m_wallpaper;
+    bool m_ownsDBus = false;
     int m_batteryPercent = -1;
     bool m_onBattery = false;
     bool m_charging = false;

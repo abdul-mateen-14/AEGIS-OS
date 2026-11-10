@@ -18,16 +18,23 @@
 
 #include <QGuiApplication>
 #include <QIcon>
+#include <QJsonDocument>
+#include <QJsonObject>
 #include <QQmlEngine>
 #include <QQmlComponent>
+#include <QQmlContext>
 #include <QQuickImageProvider>
 #include <QQuickStyle>
 #include <QQuickWindow>
+#include <QSettings>
+#include <QStandardPaths>
 #include <QUrl>
 
 #include "../util.h"
 #include "../governor/Governor.h"
 #include "filemanager.h"
+#include "systembackends.h"
+#include "aegisid.h"
 
 namespace {
 
@@ -64,16 +71,48 @@ int main(int argc, char *argv[])
     const QString qmlName = (which == QStringLiteral("settings"))
                                 ? QStringLiteral("SettingsApp.qml")
                                 : QStringLiteral("FilesApp.qml");
+    // optional initial pane for Settings ("aegis-settings 8" opens the Aegis
+    // ID pane directly — boot-capture uses this for the pane screenshots)
+    int initialPane = -1;
+    if (which == QStringLiteral("settings") && argc > 2)
+        initialPane = QString::fromLocal8Bit(argv[2]).toInt();
 
     Util util;
     Governor governor(&util, nullptr);
     FileManager files;
+    DisplaysBackend displays;
+    SoundBackend sound;
+    NetworkBackend network;
+    UsersBackend users;
+    AegisId aegisId;
+
+    // Aegis ID pulled a setting — route it: desktop.* through Util (persists
+    // AND reaches the running shell over DBus), files.prefs into Files.
+    QObject::connect(&aegisId, &AegisId::syncApplied, &util,
+                     [&util, &files](const QString &key, const QString &json) {
+        const QJsonObject obj = QJsonDocument::fromJson(json.toUtf8()).object();
+        if (key == QStringLiteral("desktop.accent"))
+            util.setAccent(obj.value(QStringLiteral("accent")).toString());
+        else if (key == QStringLiteral("desktop.wallpaper"))
+            util.setWallpaper(obj.value(QStringLiteral("wallpaper")).toString());
+        else if (key == QStringLiteral("files.prefs"))
+            files.saveViewPrefs(json);
+    });
 
     QQmlEngine engine;
     engine.addImageProvider(QStringLiteral("icons"), new IconProvider());
+    if (initialPane >= 0)
+        engine.rootContext()->setContextProperty(QStringLiteral("aegisInitialPane"),
+                                                 initialPane);
     qmlRegisterSingletonInstance("Aegis.Util", 1, 0, "Util", &util);
     qmlRegisterSingletonInstance("Aegis.Governor", 1, 0, "Governor", &governor);
     qmlRegisterSingletonInstance("Aegis.Files", 1, 0, "Files", &files);
+    // W3 backends + W6 account client
+    qmlRegisterSingletonInstance("Aegis.Display", 1, 0, "Displays", &displays);
+    qmlRegisterSingletonInstance("Aegis.Sound", 1, 0, "Sound", &sound);
+    qmlRegisterSingletonInstance("Aegis.Network", 1, 0, "Network", &network);
+    qmlRegisterSingletonInstance("Aegis.Users", 1, 0, "Users", &users);
+    qmlRegisterSingletonInstance("Aegis.Id", 1, 0, "AegisId", &aegisId);
 
     // Installed QML tree first (same contract as aegis-shell main.cpp),
     // embedded resource as fallback.

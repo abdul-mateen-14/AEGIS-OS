@@ -201,6 +201,9 @@ int main(int argc, char *argv[])
     static Util util;
     static ActivityService activity;
     static Governor governor(&util);
+    // this process owns org.aegis.Shell on the bus: its accent/wallpaper
+    // writes apply locally and must NOT be re-forwarded over DBus
+    util.setOwnsDBus(true);
 
     qmlRegisterSingletonInstance("Aegis.Util", 1, 0, "Util", &util);
     qmlRegisterSingletonInstance("Aegis.Activity", 1, 0, "Activity", &activity);
