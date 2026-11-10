@@ -760,6 +760,49 @@ def main():
     # the hard assert lands once a capture proves the theme.)
     splash_report(OUT, n)
 
+    # W14 experiment — CAN plymouthd render at all in this VM? The boot
+    # frames show casper's console text over the whole plymouth window
+    # (the journal says plymouthd ran and show-splash exited 0), so the
+    # renderer never took the display at boot. A fresh debug-enabled
+    # plymouthd + show-splash on the idle session separates a broken
+    # renderer (frame stays desktop, debug log says why) from a boot-time
+    # handoff race (frame shows the mark and the assert can land).
+    try:
+        if serial is None:
+            serial = Serial(SERIAL_SOCK)
+            if not serial.login():
+                raise RuntimeError("serial login failed for the splash probe")
+        serial.run("sudo plymouth quit 2>&1; pkill plymouthd 2>/dev/null; "
+                   "echo OLD-QUIT", settle=3)
+        serial.run("sudo plymouthd --mode=boot --debug "
+                   "--debug-file=/tmp/plymouthd-debug.log 2>&1; echo DAEMON-UP",
+                   settle=3)
+        out = serial.run("sudo plymouth show-splash 2>&1; echo SPLASH-SHOWN",
+                         settle=4)
+        log("splash probe: " + out.strip().replace("\n", " | ")[-120:])
+        time.sleep(2.5)
+        q.shot("07-plymouth-test")
+        log("07-plymouth-test captured (live show-splash)")
+        try:
+            im = Image.open(f"{OUT}/07-plymouth-test.png").convert("RGB")
+            Wp, Hp = im.size
+            box = im.crop((Wp // 2 - 250, max(0, Hp // 2 - 250),
+                           Wp // 2 + 250, min(Hp, Hp // 2 + 250)))
+            bright = sum(1 for p in box.getdata() if max(p) > 70)
+            total = box.width * box.height
+            log(f"plymouth-test centre brightness: {bright * 100 // total}%")
+        except Exception as e:
+            log(f"plymouth-test metric failed: {e}")
+        dbg = serial.run(
+            "grep -aiE 'renderer|drm|error|fail|head|plugin|two-step' "
+            "/tmp/plymouthd-debug.log 2>&1 | head -25; echo DEBUG-READ",
+            settle=4)
+        log("plymouthd debug: " + dbg.strip().replace("\n", " | ")[:600])
+        serial.run("sudo plymouth quit 2>&1; pkill plymouthd 2>/dev/null; "
+                   "echo CLEAN", settle=3)
+    except Exception as e:
+        log(f"plymouth live splash probe failed: {e}")
+
     # Post-capture diagnostics over the serial console: if apps failed to
     # open or the dock vanished during the choreography, the guest journal
     # holds the reason (QML load failures, segfaults, KWin effect errors).
