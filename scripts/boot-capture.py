@@ -316,24 +316,29 @@ def app_diag(serial):
         "echo ===PROCS===; ps aux | grep -Ei 'aegis|kwin|corex|dolphin|chromium' | grep -v grep | head -20",
         "echo ===SESSLOG===; tail -n 80 /tmp/aegis-session.log 2>&1",
         "echo ===SETTINGS-ERR===; tail -40 /tmp/aegis-settings.err 2>&1",
-        # §1 — foreground probes: a QML load failure prints its errorString
-        # between the START/END sentinels verbatim. A clean probe prints
-        # NOTHING between them. The sentinels are SPLIT inside the typed
-        # command (===QP''S=== — the shell strips the empty quotes) so the
-        # serial echo of the command line can never contain the literal
-        # marker: on a wrapped echo the v0.6.13 parse mistook the echo of
-        # the NEXT probe for files output, and every later diag section
-        # leaked in behind it (the benign 'ls: cannot access' in the
-        # KWIN-PLUGINS section tripped the gate). libEGL dri2 warnings are
-        # filtered at the source — every Qt app prints them on the runner.
-        "echo ===QP''S-START===; export XDG_RUNTIME_DIR=/run/user/$(id -u); "
-        "WAYLAND_DISPLAY=wayland-0 timeout 6 aegis-apps settings 8 "
-        ">/tmp/qml-probe.err 2>&1; grep -v 'libEGL warning' "
-        "/tmp/qml-probe.err | head -30; echo ===QP''S-END===",
-        "echo ===QP''F-START===; export XDG_RUNTIME_DIR=/run/user/$(id -u); "
-        "WAYLAND_DISPLAY=wayland-0 timeout 6 aegis-apps files "
-        ">/tmp/qml-probe-files.err 2>&1; grep -v 'libEGL warning' "
-        "/tmp/qml-probe-files.err | head -30; echo ===QP''F-END===",
+        # §1 — foreground probes. The guest CLASSIFIES its own stderr and
+        # prints a verdict token: PROBE-S-''CLEAN or PROBE-S-''DIRTY. The
+        # tokens are SPLIT inside the typed command (the shell strips the
+        # empty quotes) so the serial echo can never contain the literal.
+        # The verdicts are read from the RAW serial buffer — Serial.run's
+        # rfind strip removes everything before a LATER command's echo, and
+        # on the second v0.6.13 run it ate the files probe's closing
+        # sentinel outright (the files section stayed open and swallowed
+        # the benign 'ls: cannot access' from KWIN-PLUGINS). timeout -k 2
+        # bounds a hung app at ~8 s (the files probe once lingered past its
+        # 6 s settle and desynchronized the whole diag loop), and libEGL
+        # dri2 warnings are excluded from the verdict — every Qt app on the
+        # GPU-less runner prints them.
+        "echo ===QP''S===; export XDG_RUNTIME_DIR=/run/user/$(id -u); "
+        "WAYLAND_DISPLAY=wayland-0 timeout -k 2 6 aegis-apps settings 8 "
+        ">/tmp/qml-probe.err 2>&1; if grep -qvi 'libEGL warning' "
+        "/tmp/qml-probe.err; then echo PROBE-S-''DIRTY; else echo "
+        "PROBE-S-''CLEAN; fi",
+        "echo ===QP''F===; export XDG_RUNTIME_DIR=/run/user/$(id -u); "
+        "WAYLAND_DISPLAY=wayland-0 timeout -k 2 6 aegis-apps files "
+        ">/tmp/qml-probe-files.err 2>&1; if grep -qvi 'libEGL warning' "
+        "/tmp/qml-probe-files.err; then echo PROBE-F-''DIRTY; else echo "
+        "PROBE-F-''CLEAN; fi",
         "echo ===JRN-SHELL===; sudo journalctl -b --no-pager 2>&1 | grep -aiE 'aegis-(shell|apps|session|files|settings)|QQml|qrc:' | tail -50",
         "echo ===JRN-KWIN===; sudo journalctl -b --no-pager 2>&1 | grep -ai 'kwin' | grep -aivE 'information|Rendering|colorProfile|ColorManagement' | tail -40",
         "echo ===JRN-CRASH===; sudo journalctl -b --no-pager 2>&1 | grep -aiE 'segfault|signal 11|coredump|abrt|general protection' | tail -20",
@@ -341,38 +346,35 @@ def app_diag(serial):
         "echo ===KWINRC===; cat /etc/xdg/kwinrc 2>&1",
         "echo ===KWIN-PLUGINS===; ls /usr/lib/x86_64-linux-gnu/qt6/plugins/kwin/effects/plugins/ 2>&1; ls /usr/lib/qt6/plugins/kwin/effects/plugins/ 2>&1; echo PLUGINS-DONE",
     ]
-    # §1 — only text strictly BETWEEN a probe's START/END sentinels counts:
-    # no echoed commands, no later diag sections, no leakage across chunks
-    # (the v0.6.13 state leak — section stayed open forever — is dead).
-    sentinels = {
-        "settings": ("===QPS-START===", "===QPS-END==="),
-        "files": ("===QPF-START===", "===QPF-END==="),
-    }
     blob = []
-    acc = {"settings": [], "files": []}
-    inside = {"settings": False, "files": False}
     for c in diag_cmds:
-        out = serial.run(c, settle=6)
+        # probe commands get a 12 s settle: the timeout -k bound is 8 s, so
+        # the verdict always lands inside the drain window
+        out = serial.run(c, settle=12 if "timeout -k" in c else 6)
         blob.append(out)
         log("app-diag: " + out.strip().replace("\n", " | ")[:400])
-        for name, (s, e) in sentinels.items():
-            while True:
-                if not inside[name]:
-                    i = out.find(s)
-                    if i < 0:
-                        break
-                    out = out[i + len(s):]
-                    inside[name] = True
-                else:
-                    j = out.find(e)
-                    if j < 0:
-                        acc[name].append(out)
-                        break
-                    acc[name].append(out[:j])
-                    out = out[j + len(e):]
-                    inside[name] = False
     open("serial-diag.txt", "w").write("\n".join(blob))
-    return {k: "".join(v).strip() for k, v in acc.items()}
+    # §1 — verdicts are read from the RAW serial stream: echoes carry only
+    # the split forms (PROBE-F-''DIRTY), so a literal token can only be a
+    # printed verdict. The rfind strip cannot lose them here.
+    raw = serial.buf.decode(errors="replace")
+    probes = {}
+    for name, tok, path in (("settings", "PROBE-S", "/tmp/qml-probe.err"),
+                            ("files", "PROBE-F", "/tmp/qml-probe-files.err")):
+        if tok + "-DIRTY" in raw:
+            fetch = serial.run(
+                f"grep -vi 'libEGL warning' {path} | head -10", settle=3)
+            log(f"probe {name}: DIRTY — " + fetch.strip()[:300])
+            probes[name] = fetch
+        elif tok + "-CLEAN" in raw:
+            log(f"probe {name}: CLEAN")
+            probes[name] = ""
+        else:
+            log(f"probe {name}: VERDICT MISSING — probe chain never "
+                "completed; treating as a harness failure")
+            probes[name] = (f"QML probe ({name}) verdict missing — the "
+                            "probe chain failed to complete")
+    return probes
 
 def probe_failed(text):
     """True when a foreground QML probe printed a real error (the classes
