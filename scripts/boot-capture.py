@@ -309,14 +309,21 @@ def app_diag(serial):
     """Guest-side diagnostics AFTER the app-launch choreography. The desktop
     being up says nothing about the first-party apps: if windows never mapped
     (or the dock vanished mid-run), only the guest journal can say why.
-    Output goes to the workflow log and serial-diag.txt (an artifact)."""
+    Output goes to the workflow log and serial-diag.txt (an artifact).
+    Returns the two foreground QML-probe outputs so main() can ASSERT —
+    §1: an ISO whose apps do not open is a failed release, not a capture."""
     diag_cmds = [
         "echo ===PROCS===; ps aux | grep -Ei 'aegis|kwin|corex|dolphin|chromium' | grep -v grep | head -20",
         "echo ===SESSLOG===; tail -n 80 /tmp/aegis-session.log 2>&1",
         "echo ===SETTINGS-ERR===; tail -40 /tmp/aegis-settings.err 2>&1",
+        # §1 — foreground probes: a QML load failure prints its errorString
+        # here verbatim. A clean probe leaves the file EMPTY.
         "echo ===QMLPROBE===; export XDG_RUNTIME_DIR=/run/user/$(id -u); "
         "WAYLAND_DISPLAY=wayland-0 timeout 6 aegis-apps settings 8 "
         ">/tmp/qml-probe.err 2>&1; head -30 /tmp/qml-probe.err 2>&1",
+        "echo ===QMLPROBE-FILES===; export XDG_RUNTIME_DIR=/run/user/$(id -u); "
+        "WAYLAND_DISPLAY=wayland-0 timeout 6 aegis-apps files "
+        ">/tmp/qml-probe-files.err 2>&1; head -30 /tmp/qml-probe-files.err 2>&1",
         "echo ===JRN-SHELL===; sudo journalctl -b --no-pager 2>&1 | grep -aiE 'aegis-(shell|apps|session|files|settings)|QQml|qrc:' | tail -50",
         "echo ===JRN-KWIN===; sudo journalctl -b --no-pager 2>&1 | grep -ai 'kwin' | grep -aivE 'information|Rendering|colorProfile|ColorManagement' | tail -40",
         "echo ===JRN-CRASH===; sudo journalctl -b --no-pager 2>&1 | grep -aiE 'segfault|signal 11|coredump|abrt|general protection' | tail -20",
@@ -325,11 +332,63 @@ def app_diag(serial):
         "echo ===KWIN-PLUGINS===; ls /usr/lib/x86_64-linux-gnu/qt6/plugins/kwin/effects/plugins/ 2>&1; ls /usr/lib/qt6/plugins/kwin/effects/plugins/ 2>&1; echo PLUGINS-DONE",
     ]
     blob = []
+    probes = {"settings": "", "files": ""}
+    section = None
     for c in diag_cmds:
         out = serial.run(c, settle=6)
         blob.append(out)
         log("app-diag: " + out.strip().replace("\n", " | ")[:400])
+        if "===QMLPROBE-FILES===" in out:
+            section = "files"
+            probes["files"] = out.split("===QMLPROBE-FILES===", 1)[-1]
+        elif "===QMLPROBE===" in out:
+            section = "settings"
+            probes["settings"] = out.split("===QMLPROBE===", 1)[-1]
+            if "===QMLPROBE-FILES===" in probes["settings"]:
+                probes["settings"], _, _ = probes["settings"].partition(
+                    "===QMLPROBE-FILES===")
+        elif section in probes:
+            probes[section] += out
     open("serial-diag.txt", "w").write("\n".join(blob))
+    return probes
+
+def probe_failed(text):
+    """True when a foreground QML probe printed a real error (the classes
+    that shipped v0.6.9-v0.6.12 all say error/Cannot/Unexpected/Failed).
+    Benign Qt notices without those markers do not red a release."""
+    text = text.replace("===", "")
+    if not text.strip():
+        return False
+    low = text.lower()
+    return any(m in low for m in
+               ("error", "cannot", "unexpected", "failed", "invalid",
+                "not a type", "is not installed"))
+
+def splash_report(out_dir):
+    """W14 proof step — did the boot splash paint the mark? Scans the first
+    two boot frames' centre region for bright (non-ink) pixels. LOG-LEVEL
+    for this tag: the brief keeps ubuntu-text as fallback until boot-capture
+    PROVES the mark theme; the hard assert lands the tag after it shows."""
+    for name in ("boot-00", "boot-01"):
+        path = os.path.join(out_dir, name + ".png")
+        if not os.path.exists(path):
+            continue
+        try:
+            im = Image.open(path).convert("RGB")
+            W, H = im.size
+            box = im.crop((W // 2 - 250, max(0, H // 2 - 250),
+                           W // 2 + 250, min(H, H // 2 + 250)))
+            bright = sum(1 for p in box.getdata()
+                         if max(p) > 70)
+            total = (box.width * box.height)
+            log(f"splash {name}: centre bright pixels = {bright}/{total} "
+                f"({bright * 100 // total}%)")
+            if bright * 100 // total < 1:
+                log("splash: centre looks ink-black — the mark splash did "
+                    "NOT paint (ubuntu-text fallback or console); review "
+                    "boot-00/01.png before claiming W14")
+        except Exception as e:
+            log(f"splash {name}: unreadable ({e})")
 
 def serial_recover(serial, q, W=1280, H=800):
     log("attempting live recovery over serial")
@@ -350,7 +409,7 @@ def serial_recover(serial, q, W=1280, H=800):
             _, present = dock_geometry(f"{OUT}/recover.png")
             sat, val = metrics(f"{OUT}/recover.png")
             log(f"recover-{i}: sat={sat:.1f} val={val:.1f} dock-slots={present}")
-            if present >= 8:
+            if present >= desktop_ready_threshold():
                 return True
         except Exception as e:
             log(f"recovery probe failed: {e}")
@@ -409,8 +468,15 @@ def find_tiles(png):
     centers, _ = dock_geometry(png)
     return centers
 
+def desktop_ready_threshold():
+    """Readiness margin — the dock has 7 real tiles post-W9 (web tiles gone,
+    Tier B debs resolve), so a fixed '8 slots' check would never fire. The
+    threshold scales with the config: full model minus two for tolerance."""
+    return max(4, expected_tiles() - 2)
+
 def wait_desktop(q, proc, timeout=DESKTOP_TIMEOUT):
-    """Desktop readiness = >= 8 of the geometric dock slots hold an icon."""
+    """Desktop readiness = at least (tiles - 2) of the geometric dock slots
+    hold an icon."""
     n = 0; t0 = time.time()
     while time.time() - t0 < timeout:
         if proc.poll() is not None:
@@ -433,7 +499,7 @@ def wait_desktop(q, proc, timeout=DESKTOP_TIMEOUT):
         except Exception:
             pass
         log(f"boot-{n:02d}: sat={sat:.1f} val={val:.1f} dock-slots={present} t={time.time() - t0:.0f}s")
-        if present >= 8:
+        if present >= desktop_ready_threshold():
             return n
         n += 1; time.sleep(20)
     return -1
@@ -545,12 +611,19 @@ def main():
     # alt+F4 only after a window really opened: with no app window focused,
     # the close lands on the focused shell layer surface (the v0.6.5 boot
     # test lost dock -> island -> panel to exactly this cascade).
+    # §1 — every open is RECORDED; a miss is a failed release (asserted below).
+    opens = {}
     if open_app(0, "02-files"):            # Files
+        opens["files"] = True
         q.key("alt", "f4"); time.sleep(5)
     if open_app(1, "03-terminal", wait_s=18):   # Terminal
+        opens["terminal"] = True
         q.key("alt", "f4"); time.sleep(5)
-    if open_app(11, "04-settings", wait_s=30):  # Settings (12 tiles before
-        q.key("alt", "f4"); time.sleep(5)       # it, no separator cluster)
+    # W9 — the dock shrank to 7 tiles (web tiles gone): Settings sits at
+    # index 5, before only Files/Terminal/Browser/OS/CoreX.
+    if open_app(5, "04-settings", wait_s=30):   # Settings
+        opens["settings"] = True
+        q.key("alt", "f4"); time.sleep(5)
 
     # W6 review evidence — the Aegis ID pane, launched straight from the
     # serial shell ("aegis-settings 8") so no in-window clicking is needed.
@@ -574,18 +647,40 @@ def main():
     time.sleep(3)
     q.shot("05-control-center")
 
+    # W14 proof step — did the mark splash paint? (log-level this tag;
+    # the hard assert lands once a capture proves the theme.)
+    splash_report(OUT)
+
     # Post-capture diagnostics over the serial console: if apps failed to
     # open or the dock vanished during the choreography, the guest journal
     # holds the reason (QML load failures, segfaults, KWin effect errors).
+    probes = {"settings": "", "files": ""}
     try:
         if serial is None:
             serial = Serial(SERIAL_SOCK)
             if not serial.login():
                 raise RuntimeError("serial login failed")
         log("serial OK — app diagnostics follow")
-        app_diag(serial)
+        probes = app_diag(serial)
     except Exception as e:
         log(f"post-capture diagnostics failed: {e}")
+
+    # §1 — the release gate: every first-party app must really open, and the
+    # foreground QML probes must come back clean. "A release whose capture
+    # shows a wallpaper and a dock but no window is a FAILED release."
+    failures = []
+    for app in ("files", "terminal", "settings"):
+        if not opens.get(app):
+            failures.append(f"{app} window never opened (screen unchanged)")
+    for name, text in probes.items():
+        if probe_failed(text):
+            failures.append(f"QML probe ({name}) reported a load error")
+    if failures:
+        for f in failures:
+            log("ASSERT FAILED: " + f)
+        log("capture complete (FAILED release)")
+        q._cmd("quit")
+        sys.exit(1)
 
     log("capture complete")
     q._cmd("quit")

@@ -1,6 +1,7 @@
 [Appearance]
 ColorScheme=AegisDark
-Font=Noto Sans Mono,10,-1,5,50,0,0,0,0,0
+# W11 — JetBrains Mono 11 (fonts-jetbrains-mono ships in aegis-desktop.list)
+Font=JetBrains Mono,11,-1,5,50,0,0,0,0,0
 [General]
 Name=Aegis
 Parent=FALLBACK/
@@ -11,4 +12,5 @@ TerminalRow=24
 [Interaction Options]
 WordCharacters=:@-./_~?&=%+
 [Scrolling]
-ScrollBarPosition=1
+# W11 — no scrollbar chrome (0 = left, 1 = right, 2 = hidden)
+ScrollBarPosition=2

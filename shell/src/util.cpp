@@ -6,6 +6,7 @@
 #include <QDBusPendingCall>
 #include <QDir>
 #include <QFile>
+#include <QFileInfo>
 #include <QJsonDocument>
 #include <QJsonObject>
 #include <QProcess>
@@ -19,6 +20,17 @@
 #include <unistd.h>
 
 // Default session config — mirrors shell/packaging/config.json.
+//
+// W9 ruling: the dock carries INSTALLED APPS ONLY. The six web tiles
+// (Gmail/YouTube/GitHub/X/WhatsApp/ChatGPT — xdg-open shortcuts, not apps)
+// are gone; a Launcher "Web" folder may revisit them later.
+//
+// W8 ruling: Tier B slots (separate products installed from .debs) wear
+// their own marks. "resolve": true tells dockApps() to re-dress the slot
+// from the installed .desktop entry (Icon= and Name=) and to drop the tile
+// when the product is not installed — never a generic stand-in glyph.
+// Tier A first-party slots (Files/Terminal/Settings/Trash) keep the plate-9
+// squircles and are passed through untouched.
 QVariantMap Util::defaultConfig() const
 {
     return QVariantMap{
@@ -26,32 +38,23 @@ QVariantMap Util::defaultConfig() const
          QStringLiteral("/usr/share/wallpapers/aegis/aurora-ink.jpg")},
         {QStringLiteral("apps"), QVariantList{
             QVariantMap{{"name", "Files"}, {"icon", "aegis-files"},
-                        {"cmd", "aegis-files"}},               // first-party Files (aegis-apps)
+                        {"cmd", "aegis-files"}},               // Tier A — first-party Files (aegis-apps)
             QVariantMap{{"name", "Terminal"}, {"icon", "aegis-terminal"},
-                        {"cmd", "konsole"}},
-            QVariantMap{{"name", "AEGIS Browser"}, {"icon", "web-browser"},
-                        {"cmd", "aegis-browser-stable"}},       // AEGIS Browser .deb — see docs/APP-SLOTS.md
-            QVariantMap{{"name", "Gmail"}, {"icon", "aegis-gmail"},
-                        {"cmd", "xdg-open https://mail.google.com"}},
-            QVariantMap{{"name", "YouTube"}, {"icon", "aegis-youtube"},
-                        {"cmd", "xdg-open https://www.youtube.com"}},
-            QVariantMap{{"name", "GitHub"}, {"icon", "aegis-github"},
-                        {"cmd", "xdg-open https://github.com"}},
-            QVariantMap{{"name", "X"}, {"icon", "aegis-x"},
-                        {"cmd", "xdg-open https://x.com"}},
-            QVariantMap{{"name", "WhatsApp"}, {"icon", "aegis-whatsapp"},
-                        {"cmd", "xdg-open https://web.whatsapp.com"}},
-            QVariantMap{{"name", "ChatGPT"}, {"icon", "aegis-chatgpt"},
-                        {"cmd", "xdg-open https://chatgpt.com"}},
-            QVariantMap{{"name", "OS"}, {"icon", "aegis-cloud"},
-                        {"cmd", "os-private-chat"}},            // OS messenger .deb (E2E)
-            QVariantMap{{"name", "CoreX"}, {"icon", "aegis-corex"},
-                        {"cmd", "corex-terminal"}},             // CoreX terminal .deb
+                        {"cmd", "konsole"}},                    // Tier A
+            QVariantMap{{"name", "AEGIS Browser"}, {"icon", "aegis-browser"},
+                        {"cmd", "aegis-browser-stable"},
+                        {"resolve", true}},                     // Tier B — entry: aegis-browser / org.aegisbrowser.Aegis
+            QVariantMap{{"name", "OS"}, {"icon", "os-private-chat"},
+                        {"cmd", "os-private-chat"},
+                        {"resolve", true}},                     // Tier B — the messenger deb's own entry/mark
+            QVariantMap{{"name", "CoreX"}, {"icon", "corex-terminal"},
+                        {"cmd", "corex-terminal"},
+                        {"resolve", true}},                     // Tier B — the CoreX deb's own entry/mark
             QVariantMap{{"type", "separator"}},
             QVariantMap{{"name", "Settings"}, {"icon", "aegis-settings"},
-                        {"cmd", "aegis-settings"}},             // first-party Settings (aegis-apps)
+                        {"cmd", "aegis-settings"}},             // Tier A — first-party Settings (aegis-apps)
             QVariantMap{{"name", "Trash"}, {"icon", "aegis-trash"},
-                        {"cmd", "aegis-files"}},               // Files sidebar → Trash (no "— Dolphin" title)
+                        {"cmd", "aegis-files"}},               // Tier A — Files sidebar → Trash
         }},
     };
 }
@@ -500,6 +503,93 @@ void Util::setBrightness(qreal v)
 
 // ── Launcher inventory ────────────────────────────────────────────────
 
+static QVariantMap parseDesktopFile(const QString &path);
+
+// W8 — resolve a dock slot against the INSTALLED .desktop entries. Walks the
+// same XDG precedence as allApps() (user → local → system) and matches the
+// slot's command head against Exec's first token (basename — Exec may point
+// into /opt with a path, and wrappers like %f/%u follow later) and TryExec.
+// First non-hidden Application entry wins; {} when the product is absent.
+static QVariantMap findInstalledEntry(const QString &cmdHead)
+{
+    if (cmdHead.isEmpty())
+        return {};
+    const QString home = qEnvironmentVariable("HOME");
+    QStringList dirs;
+    if (!home.isEmpty())
+        dirs << (home + QStringLiteral("/.local/share/applications"));
+    dirs << QStringLiteral("/usr/local/share/applications")
+         << QStringLiteral("/usr/share/applications");
+
+    for (const QString &dirPath : dirs) {
+        const auto files = QDir(dirPath).entryList({QStringLiteral("*.desktop")},
+                                                   QDir::Files);
+        for (const QString &f : files) {
+            const QVariantMap entry = parseDesktopFile(dirPath + QLatin1Char('/') + f);
+            if (entry.isEmpty()
+                || entry.value(QStringLiteral("type")).toString()
+                       != QLatin1String("Application"))
+                continue;
+            if (entry.value(QStringLiteral("nodisplay")).toBool()
+                || entry.value(QStringLiteral("hidden")).toBool())
+                continue;
+            const QString execHead = QFileInfo(
+                entry.value(QStringLiteral("cmd")).toString()
+                    .section(QLatin1Char(' '), 0, 0)).fileName();
+            const QString tryExec = entry.value(QStringLiteral("tryExec")).toString();
+            if (execHead == cmdHead || tryExec == cmdHead)
+                return QVariantMap{
+                    {QStringLiteral("icon"),
+                     entry.value(QStringLiteral("icon")).toString()},
+                    {QStringLiteral("name"),
+                     entry.value(QStringLiteral("name")).toString()},
+                };
+        }
+    }
+    return {};
+}
+
+QVariantList Util::dockApps() const
+{
+    QVariantList out;
+    const auto pinned = m_config.value(QStringLiteral("apps")).toList();
+    for (const QVariant &v : pinned) {
+        QVariantMap slot = v.toMap();
+        if (slot.value(QStringLiteral("type")).toString()
+            == QLatin1String("separator")) {
+            out.append(v);
+            continue;
+        }
+        if (!slot.value(QStringLiteral("resolve")).toBool()) {
+            out.append(slot);                     // Tier A — untouched
+            continue;
+        }
+        // Tier B — the installed entry is the source of truth (W8): its
+        // Icon= and Name= dress the tile, same resolution the launcher and
+        // KWin's alt-tab use. The config values are only the designer's
+        // fallback when the deb's entry is missing or blank.
+        const QString cmd = slot.value(QStringLiteral("cmd")).toString();
+        const QString head = QFileInfo(cmd.section(QLatin1Char(' '), 0, 0))
+                                 .fileName();
+        const QVariantMap entry = findInstalledEntry(head);
+        if (!entry.isEmpty()) {
+            const QString icon = entry.value(QStringLiteral("icon")).toString();
+            const QString name = entry.value(QStringLiteral("name")).toString();
+            if (!icon.isEmpty())
+                slot.insert(QStringLiteral("icon"), icon);
+            if (!name.isEmpty())
+                slot.insert(QStringLiteral("name"), name);
+            out.append(slot);
+            continue;
+        }
+        // No entry — installed only if the binary is on PATH (W9: nothing on
+        // the shelf that isn't installed).
+        if (!QStandardPaths::findExecutable(head).isEmpty())
+            out.append(slot);
+    }
+    return out;
+}
+
 static QVariantMap parseDesktopFile(const QString &path)
 {
     QFile file(path);
@@ -536,6 +626,8 @@ static QVariantMap parseDesktopFile(const QString &path)
             app.insert(QStringLiteral("cmd"), value);
         else if (key == QLatin1String("Icon"))
             app.insert(QStringLiteral("icon"), value);
+        else if (key == QLatin1String("TryExec"))
+            app.insert(QStringLiteral("tryExec"), value);
         else if (key == QLatin1String("NoDisplay"))
             app.insert(QStringLiteral("nodisplay"), value == QLatin1String("true"));
         else if (key == QLatin1String("Hidden"))
@@ -549,8 +641,10 @@ QVariantList Util::allApps() const
     QVariantList out;
     QStringList seenExecs;
 
-    // 1. pinned config apps (dock order, first-party slots) — first
-    const auto pinned = m_config.value(QStringLiteral("apps")).toList();
+    // 1. pinned config apps (dock order, first-party slots) — first.
+    // dockApps() (not the raw config) so the Launcher wears the same W8
+    // entry-resolved marks as the dock.
+    const auto pinned = dockApps();
     for (const QVariant &v : pinned) {
         const QVariantMap m = v.toMap();
         if (m.value(QStringLiteral("type")).toString() == QLatin1String("separator"))

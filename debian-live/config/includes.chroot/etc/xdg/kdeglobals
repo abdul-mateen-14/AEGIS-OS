@@ -8,6 +8,12 @@ contrast=4
 [Icons]
 Theme=Aegis
 
+# W11 — the konsole.mo caption override loads for this language: the KAbout
+# display name becomes "Aegis Terminal", so the Wayland QPA never composes
+# the " — Konsole" suffix onto the Terminal window title.
+[Locale]
+Language=en_US
+
 [Toolbar style]
 ToolButtonStyle=IconOnly
 ToolButtonStyleOtherToolbars=IconOnly

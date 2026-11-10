@@ -1,0 +1,8 @@
+[Plymouth Theme]
+Name=Aegis Mark
+Description=Aegis OS boot splash - ink background, the Aegis mark as a centered watermark, a thin accent progress line
+ModuleName=script
+
+[script]
+ImageDir=/usr/share/plymouth/themes/aegis-mark
+ScriptFile=aegis-mark.script

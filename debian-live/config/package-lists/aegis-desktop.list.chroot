@@ -60,6 +60,10 @@ zram-tools
 fonts-montserrat
 fonts-noto-core
 fonts-noto-color-emoji
+# W11 — the Terminal profile font (Aegis.profile: JetBrains Mono 11)
+fonts-jetbrains-mono
+# W11 — locales for the en_US.UTF-8 caption override (konsole.mo)
+locales
 
 # Portals (file dialogs, screenshots, remote desktop)
 xdg-desktop-portal

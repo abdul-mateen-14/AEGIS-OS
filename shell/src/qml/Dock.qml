@@ -183,7 +183,9 @@ Window {
             spacing: Tokens.tileGap
 
             Repeater {
-                model: Util.config["apps"] || []
+                // W8/W9 — the resolved dock model: installed apps only, Tier B
+                // slots wearing their own .desktop marks.
+                model: Util.dockApps
 
                 delegate: Item {
                     id: tile

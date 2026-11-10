@@ -1,3 +1,60 @@
+aegis-shell (1.7.0-m5) resolute; urgency=medium
+
+  * W8 dock icon policy — two tiers. Tier A (Files/Terminal/Settings/Trash)
+    keep the plate-9 squircles untouched; Tier B slots (AEGIS Browser, OS
+    messenger, CoreX) now resolve Icon= and Name= from the INSTALLED
+    .desktop entry (Util::dockApps, XDG precedence walk, Exec-head/TryExec
+    match). Every deb the Store installs later wears its own mark
+    automatically; the Launcher inventory uses the same resolution.
+  * W9 dock = installed apps only. The six web tiles (Gmail, YouTube,
+    GitHub, X, WhatsApp, ChatGPT) are removed from config.json and the
+    embedded default; a Tier B slot with no entry AND no binary is dropped
+    from the dock model entirely. isRunning matching unchanged (same cmd
+    set).
+  * W10 one traffic-light geometry — AegisLightsrc: ButtonWidth/Height=12,
+    ButtonSpacing=8, ButtonMarginTop=16 (centers 12 px in the 44 px band),
+    ButtonMarginLeft=14 (matches the shell inset, AppWindow x:14). The
+    button SVGs are redrawn at a 12x12 optical (scripts/gen-aurorae-buttons,
+    same active/hover/pressed/inactive groups, 1 px border, light hover
+    glyphs like TrafficLights.qml) — the old 20x20 art scaled to 7.2 px
+    circles at ButtonWidth=12.
+  * W11 Terminal pass — toolbar hidden declaratively in konsoleui.rc
+    (KToolBar::loadState honours hidden="true"; hook 0715), scrollbar off
+    (ScrollBarPosition=2), JetBrains Mono 11 (fonts-jetbrains-mono),
+    colorscheme on Tokens ink/paper with the accent on Color4, accent PS1
+    via skel .bashrc. The " — Konsole" title suffix is killed at the
+    source: Qt's Wayland QPA appends QGuiApplication::applicationDisplayName
+    unless the title ends with it (qplatformwindow.cpp formatWindowTitle);
+    a konsole.mo override translates KAboutData's i18nc("@title","Konsole")
+    to "Aegis Terminal", so the profile title ends with the display name
+    and no suffix is composed (locales + en_US.UTF-8 + session LANG/
+    LANGUAGE pinned).
+  * W12 top-bar glyph set — one PanelGlyph component in Panel.qml: 16 px
+    optical, 2 px stroke, round caps, Tokens.fg at 90%, 18 px hit targets;
+    tint bindings repaint the Canvas (state changes no longer go stale).
+  * W13 Control Center spacing — 16 px margins, 12 px separations, 36 px
+    power row, snug 446 px sheet; the Do Not Disturb wide tile is now the
+    macOS wide-toggle (bell + label left, real switch right, glass tile);
+    both sliders are anchor-pinned to the same right margin; the
+    "KWin Wayland" debug label is repurposed to the live accent hex (W5).
+  * W14 boot splash — aegis-mark theme (script plugin; script.so IS in the
+    resolute plymouth package): ink background, the mark as a centered
+    watermark (white, keyed from the source art — scripts/gen-plymouth-
+    mark), 240x2 accent progress line 36 px below. The 0200 hook points
+    default.plymouth at it when script.so and all assets exist; the
+    rebranded ubuntu-text stays installed as fallback. boot-capture logs a
+    centre-brightness splash proof on boot-00/01 (hard assert next tag).
+  * W15 Files grid metrics — 20 px content margins, 16 px gutters
+    (cellWidth 100), one row-gap rhythm (cellHeight 121 = 84 card + 6 +
+    15 label + 16), 12 px Medium labels 6 px below the cards, empty-Home
+    tiles on the same rhythm, status footer still the bottom rail.
+  * boot-capture asserts the release (v0.6.10 brief §1): every first-party
+    open is recorded and a miss reds the job; the foreground QML probes
+    (settings AND files) must come back clean; the dock readiness
+    threshold scales with the config (7 tiles post-W9).
+
+ -- Aegis Developers <dev@aegis-os.org>  Tue, 10 Nov 2026 20:05:00 +0000
+
 aegis-shell (1.7.0-m4) resolute; urgency=medium
 
   * SettingsApp: `property bool recoverySeen` was declared on the aegisIdPane

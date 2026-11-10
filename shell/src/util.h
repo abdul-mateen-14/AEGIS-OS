@@ -11,6 +11,11 @@
 class Util : public QObject {
     Q_OBJECT
     Q_PROPERTY(QVariantMap config READ config CONSTANT)
+    // W8/W9 — the dock model: config.json slots with every Tier B slot
+    // ("resolve": true) re-marked from its installed .desktop entry (Icon=,
+    // Name=) and dropped entirely when the product is not installed. Tier A
+    // first-party slots pass through untouched.
+    Q_PROPERTY(QVariantList dockApps READ dockApps CONSTANT)
     Q_PROPERTY(int batteryPercent READ batteryPercent NOTIFY batteryChanged)
     Q_PROPERTY(bool onBattery READ onBattery NOTIFY batteryChanged)
     Q_PROPERTY(bool charging READ charging NOTIFY batteryChanged)
@@ -41,6 +46,7 @@ public:
     explicit Util(QObject *parent = nullptr);
 
     QVariantMap config() const { return m_config; }
+    QVariantList dockApps() const;
     int batteryPercent() const { return m_batteryPercent; }
     bool onBattery() const { return m_onBattery; }
     bool charging() const { return m_charging; }

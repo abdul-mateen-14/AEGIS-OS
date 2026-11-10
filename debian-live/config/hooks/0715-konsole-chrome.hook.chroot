@@ -1,0 +1,44 @@
+#!/bin/sh
+# W11 — Konsole ships chromeless: no toolbar, no menu bar (MenuBar=Disabled
+# already in konsolerc), no scrollbar (Aegis.profile ScrollBarPosition=2),
+# and a clean "Aegis Terminal" window title.
+#
+# Toolbar: KXmlGui builds it from konsoleui.rc; KToolBar::loadState honours
+# the XML attribute hidden="true" (kxmlgui ktoolbar.cpp: setVisible(!hidden)),
+# so hiding it in the shipped ui.rc is the durable, declarative equivalent of
+# "toggle it off once and keep the resulting key".
+#
+# Caption: Qt's Wayland QPA appends the application display name
+# (" — Konsole") to window titles unless the title already ends with it.
+# The konsole.mo caption override (scripts/gen-konsole-mo.py) makes the
+# display name read "Aegis Terminal", so the profile's tab title ends with
+# it and no suffix is composed. gettext skips translations in the C locale,
+# so a real en_US.UTF-8 locale is generated here and the session pins
+# LANG/LANGUAGE (see shell/src/session/aegis-session).
+set -e
+
+RC=""
+for d in /usr/share/kxmlgui6 /usr/share/kxmlgui5; do
+    if [ -f "$d/konsole/konsoleui.rc" ]; then
+        RC="$d/konsole/konsoleui.rc"
+        break
+    fi
+done
+
+if [ -n "$RC" ] && ! grep -q 'hidden="true"' "$RC"; then
+    sed -i 's/<ToolBar /<ToolBar hidden="true" /' "$RC"
+fi
+if [ -n "$RC" ] && grep -q 'hidden="true"' "$RC"; then
+    echo "0715: konsoleui.rc toolbar hidden (W11)"
+else
+    echo "0715: konsoleui.rc not patched - the toolbar survives (cosmetic only)" >&2
+fi
+
+if [ -f /usr/share/locale/en_US/LC_MESSAGES/konsole.mo ]; then
+    command -v locale-gen >/dev/null 2>&1 && locale-gen en_US.UTF-8 || true
+    printf 'LANG=en_US.UTF-8\n' > /etc/default/locale
+    echo "0715: en_US.UTF-8 locale + konsole caption override in place (W11)"
+else
+    echo "0715: konsole.mo missing - run scripts/gen-konsole-mo.py + sync-includes" >&2
+fi
+exit 0

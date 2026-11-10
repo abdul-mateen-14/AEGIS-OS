@@ -9,6 +9,7 @@ INC="$ROOT/debian-live/config/includes.chroot"
 mkdir -p \
     "$INC/usr/share/wallpapers/aegis" \
     "$INC/usr/share/plymouth/themes/aegis" \
+    "$INC/usr/share/plymouth/themes/aegis-mark" \
     "$INC/usr/share/sddm/themes/aegis" \
     "$INC/usr/share/color-schemes" \
     "$INC/usr/share/applications" \
@@ -22,6 +23,10 @@ cp "$ROOT"/theme/wallpapers/*.jpg "$INC/usr/share/wallpapers/aegis/"
 
 # Plymouth boot splash (Aegis Mark on true black, hairline progress)
 cp "$ROOT"/theme/plymouth/* "$INC/usr/share/plymouth/themes/aegis/"
+
+# W14 — the mark + progress-line splash (script plugin, preferred renderer
+# when script.so exists — see the 0200 hook's fallback ladder)
+cp "$ROOT"/theme/plymouth-mark/* "$INC/usr/share/plymouth/themes/aegis-mark/"
 
 # SDDM greeter theme — the glass login screen. The wallpaper doubles as
 # the greeter background (Aurora Ink) so boot → login → desktop reads as
@@ -41,7 +46,7 @@ cp "$ROOT"/theme/colors/*.colors "$INC/usr/share/color-schemes/"
 cp "$ROOT"/theme/desktop-entries/*.desktop "$INC/usr/share/applications/"
 
 # Shell config (wallpaper + default dock: Files, Terminal, AEGIS Browser,
-# Gmail…ChatGPT web shortcuts, OS, CoreX, Settings, | , Trash)
+# OS, CoreX, | , Settings, Trash — installed apps only, W8/W9)
 cp "$ROOT"/shell/packaging/config.json "$INC/usr/share/aegis/shell/config.json"
 
 # Account avatar (Aegis ID rail + lock screen, M2)

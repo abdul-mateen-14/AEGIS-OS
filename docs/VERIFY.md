@@ -57,3 +57,38 @@ qmllint shell/src/qml/*.qml 2>&1 \
   | grep -Ei "no property|non-existent|cannot assign|Syntax|duplicate|not a type|cannot declare|is not defined"
 # (expected empty — "unqualified access" noise from Aegis.* singletons is fine)
 ```
+
+## v0.6.13 additions (W8–W15)
+
+13. **Dock icons, two tiers (W8)** — dock close-up: Files/Terminal/
+    Settings/Trash keep the squircles; AEGIS Browser / messenger / CoreX
+    wear their own marks resolved from the installed .desktop entries
+    (`Util.dockApps`), and the alt-tab icon matches the dock tile (same
+    entry). No globe, no cloud, no hexagon.
+14. **Dock = installed apps only (W9)** — the six web tiles are gone; the
+    shelf reads Files · Terminal · AEGIS Browser · Messenger · CoreX · |
+    · Settings · Trash; magnification + running dots still work (the
+    boot-capture readiness threshold scales with the config now).
+15. **One traffic-light geometry (W10)** — Konsole and Files side by side:
+    12 px circles, 8 px gap, same inset. (KWin buttons: AegisLightsrc
+    ButtonWidth=12 + the 12x12 SVGs; shell inset x:14 → ButtonMarginLeft=14.)
+16. **Terminal chrome (W11)** — no toolbar, no scrollbar, JetBrains Mono 11,
+    ink background, accent prompt; the window title reads "Aegis Terminal"
+    with NO " — Konsole" suffix (konsole.mo display-name override — if the
+    suffix returns, check LANGUAGE=en_US reached the session and the .mo
+    is installed for the session's locale).
+17. **Top-bar glyphs (W12)** — Wi-Fi arc, volume, clock, CC glyph: same
+    optical size, same 2 px weight, fg at 90%; muted/off states dim the
+    glyph live (the Canvas repaints on tint changes now).
+18. **Control Center spacing (W13)** — DND wide tile is a real wide-toggle
+    (bell + label left, switch right, on AND off captures); both sliders
+    end at the same right margin; 36 px power row; the footer echo shows
+    the live accent hex, not "KWin Wayland".
+19. **Boot splash (W14)** — boot-00/01 show the mark centered over ink with
+    the accent progress line ("splash: centre bright pixels" in the log).
+    The hard assert lands the tag AFTER a capture proves the theme; if the
+    centre is black, the 0200 hook fell back to ubuntu-text — check
+    script.so and the aegis-mark assets first.
+20. **Files grid metrics (W15)** — 84 px cards, 16 px gutters, 12 px Medium
+    labels 6 px below the card, 20 px margins, one row rhythm; capture
+    shows folders AND mixed files; the status footer stays the bottom rail.

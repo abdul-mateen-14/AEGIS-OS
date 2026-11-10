@@ -1,19 +1,20 @@
 #!/bin/sh
 set -e
-# Aegis boot splash.
+# Aegis boot splash — the W14 fallback ladder.
 #
 # Boot-testing every CI ISO in QEMU established two facts:
 #   1. plymouthd resolves the theme through the default.plymouth
 #      alternatives symlink and ignores /etc/plymouth/plymouthd.conf -
-#      with the symlink left on the script theme, every boot rendered an
-#      all-black screen regardless of the conf file;
-#   2. the script plugin never painted (even a verbatim copy of the
-#      shipped demo script), while the ubuntu-text theme painted reliably
-#      on the same machine.
-# So the SHIPPED splash is a rebranded ubuntu-text: Aegis ink background,
-# white "Aegis OS" title, accent-colored progress dots. The aegis script
-# theme stays installed (files + this hook's assertions) for future
-# iteration; v0.2.x just doesn't point the boot at it.
+#      the symlink and the conf must agree, or every boot renders an
+#      all-black screen;
+#   2. the ubuntu-text theme (a C plugin) painted reliably on this
+#      machine, while a script theme once rendered black.
+#
+# So the ladder is: the W14 aegis-mark theme (script plugin — script.so IS
+# in the resolute plymouth package, verified against the archive file list)
+# when script.so AND all four theme assets exist; otherwise the rebranded
+# ubuntu-text stays the default. Both are always installed. The rebrand
+# below runs unconditionally so the fallback is ready at all times.
 
 if ! command -v plymouthd >/dev/null 2>&1; then
     echo "FATAL: plymouthd not found - plymouth is missing from the package" \
@@ -36,12 +37,43 @@ if [ -f "$UT" ]; then
         -e 's/^brown=.*/brown=0x3E8BFF/' \
         -e 's/^blue=.*/blue=0x3E8BFF/' \
         "$UT"
-    update-alternatives --install /usr/share/plymouth/themes/default.plymouth \
-        default.plymouth "$UT" 200
-    update-alternatives --set default.plymouth "$UT" || true
 fi
 
-printf '[Daemon]\nTheme=ubuntu-text\n' > /etc/plymouth/plymouthd.conf
+MARK=/usr/share/plymouth/themes/aegis-mark
+SCRIPT_SO=""
+for f in /usr/lib/*/plymouth/script.so; do
+    if [ -f "$f" ]; then
+        SCRIPT_SO="$f"
+        break
+    fi
+done
+
+if [ -n "$SCRIPT_SO" ] \
+   && [ -f "$MARK/aegis-mark.plymouth" ] \
+   && [ -f "$MARK/aegis-mark.script" ] \
+   && [ -f "$MARK/watermark.png" ] \
+   && [ -f "$MARK/track.png" ] \
+   && [ -f "$MARK/fill.png" ]; then
+    # W14 — the mark + accent progress line. The symlink and the conf MUST
+    # agree (fact 1 above).
+    update-alternatives --install /usr/share/plymouth/themes/default.plymouth \
+        default.plymouth "$MARK/aegis-mark.plymouth" 210
+    update-alternatives --set default.plymouth "$MARK/aegis-mark.plymouth" || true
+    printf '[Daemon]\nTheme=aegis-mark\n' > /etc/plymouth/plymouthd.conf
+    echo "0200: boot splash = aegis-mark (mark watermark + accent progress line; script.so: $SCRIPT_SO)"
+else
+    # The proven renderer stays the default until boot-capture proves the
+    # mark splash (W14: "keep ubuntu-text as fallback").
+    if [ -f "$UT" ]; then
+        update-alternatives --install /usr/share/plymouth/themes/default.plymouth \
+            default.plymouth "$UT" 200
+        update-alternatives --set default.plymouth "$UT" || true
+        printf '[Daemon]\nTheme=ubuntu-text\n' > /etc/plymouth/plymouthd.conf
+        echo "0200: boot splash = ubuntu-text fallback (script.so or aegis-mark assets missing)"
+    else
+        echo "0200: WARNING - neither aegis-mark nor ubuntu-text could be set" >&2
+    fi
+fi
 
 # Start the splash from the root filesystem only. The initramfs-phase
 # plymouthd grabs the display before KMS settles and renders nothing

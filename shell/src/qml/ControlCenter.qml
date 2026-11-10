@@ -29,7 +29,9 @@ Window {
     visible: Util.ccOpen
     color: "transparent"
     width: 348
-    height: 452
+    // W13 — Table 17 rhythm: 16 px margins, 12 px separations, snug height
+    // (the old 452 left a dead band under the footer).
+    height: 446
     flags: Qt.FramelessWindowHint
 
     property bool governorOpen: false
@@ -79,8 +81,8 @@ Window {
 
             Column {
                 anchors.fill: parent
-                anchors.margins: 14
-                spacing: 10
+                anchors.margins: 16
+                spacing: 12
 
                 // ── header: title + tier badge ────────────────────────
                 Item {
@@ -130,18 +132,18 @@ Window {
                 // ── main pane: tiles OR governor popover ─────────────
                 Column {
                     width: parent.width
-                    spacing: 10
+                    spacing: 12
 
                     // ============ tiles pane ============
                     Column {
                         visible: !ccRoot.governorOpen
                         width: parent.width
-                        spacing: 10
+                        spacing: 12
 
                         Grid {
                             columns: 2
-                            columnSpacing: 10
-                            rowSpacing: 10
+                            columnSpacing: 12
+                            rowSpacing: 12
                             width: parent.width
 
                             CcTile {
@@ -199,11 +201,11 @@ Window {
                             }
                         }
 
-                        // power row
+                        // power row — Table 17 row height, airy hit targets
                         Row {
                             width: parent.width
-                            height: 28
-                            spacing: 8
+                            height: 36
+                            spacing: 10
 
                             Repeater {
                                 model: [
@@ -214,9 +216,9 @@ Window {
 
                                 delegate: Rectangle {
                                     required property var modelData
-                                    width: (parent.width - 16) / 3
-                                    height: 28
-                                    radius: 9
+                                    width: (parent.width - 20) / 3
+                                    height: 36
+                                    radius: 10
                                     color: powerMa.containsMouse
                                            ? (Util.darkMode ? Qt.rgba(1,1,1,0.08) : Qt.rgba(0,0,0,0.06))
                                            : "transparent"
@@ -385,7 +387,7 @@ Window {
                 // ── footer: All Settings + session echo (mono) ────────
                 Item {
                     width: parent.width
-                    height: 22
+                    height: 26
 
                     Text {
                         anchors.left: parent.left
@@ -426,9 +428,12 @@ Window {
                     Text {
                         anchors.right: parent.right
                         anchors.verticalCenter: parent.verticalCenter
-                        text: "KWin Wayland"
+                        // W13 — repurposed: the mono echo is the LIVE accent
+                        // value (W5's one token, in plain sight), not a
+                        // platform debug label.
+                        text: Tokens.accent.toString().toUpperCase()
                         color: Tokens.fgMuted
-                        font { family: "DejaVu Sans Mono"; pixelSize: 9 }
+                        font { family: "DejaVu Sans Mono"; pixelSize: 10 }
                     }
                 }
             }
@@ -608,6 +613,10 @@ Window {
 
     // ── inline components ────────────────────────────────────────────
 
+    // W13 — the wide tile is the macOS wide-toggle pattern: bell + label
+    // left-aligned, a real switch at the right end. The tile stays glass;
+    // the switch carries the accent state. Narrow tiles keep the centered
+    // icon-above-label look and fill with the accent when checked.
     component CcTile: Rectangle {
         property string label
         property bool checked
@@ -616,21 +625,23 @@ Window {
         signal toggled()
 
         width: wide ? (parent ? parent.width : 320)
-                    : ((parent ? parent.width : 320) - 10) / 2
+                    : ((parent ? parent.width : 320) - 12) / 2
         height: wide ? 44 : 64
         radius: 16
-        color: checked ? Tokens.accent
-                       : (Util.darkMode ? Qt.rgba(1, 1, 1, 0.07)
-                                        : Qt.rgba(0, 0, 0, 0.05))
+        color: !wide && checked ? Tokens.accent
+                                : (Util.darkMode ? Qt.rgba(1, 1, 1, 0.07)
+                                                 : Qt.rgba(0, 0, 0, 0.05))
         border.width: 1
-        border.color: checked ? Qt.rgba(1, 1, 1, 0.25)
-                              : (Util.darkMode ? Qt.rgba(1, 1, 1, 0.10)
-                                               : Qt.rgba(0, 0, 0, 0.08))
+        border.color: (!wide && checked) ? Qt.rgba(1, 1, 1, 0.25)
+                                         : (Util.darkMode ? Qt.rgba(1, 1, 1, 0.10)
+                                                          : Qt.rgba(0, 0, 0, 0.08))
         Behavior on color {
             ColorAnimation { duration: ccRoot.dur(Tokens.durQuick) }
         }
 
+        // narrow tile — icon above label, centered
         Column {
+            visible: !wide
             anchors.centerIn: parent
             spacing: 5
 
@@ -653,14 +664,94 @@ Window {
             }
         }
 
+        // wide tile — content row: icon + label left, switch right
+        Item {
+            visible: wide
+            anchors.fill: parent
+            anchors.leftMargin: 14
+            anchors.rightMargin: 14
+
+            Canvas {
+                id: wideGlyph
+                width: 18
+                height: 18
+                anchors.left: parent.left
+                anchors.verticalCenter: parent.verticalCenter
+                onPaint: if (painter)
+                    painter(getContext("2d"), width, height,
+                            checked ? Tokens.accent
+                                    : (Util.darkMode ? Qt.rgba(1, 1, 1, 0.85)
+                                                     : Qt.rgba(0, 0, 0, 0.72)),
+                            checked)
+            }
+
+            Text {
+                text: label
+                color: Tokens.fg
+                elide: Text.ElideRight
+                font { family: "Montserrat"; pixelSize: 11; weight: Font.Medium }
+                anchors.left: wideGlyph.right
+                anchors.leftMargin: 10
+                anchors.right: dndSwitch.left
+                anchors.rightMargin: 10
+                anchors.verticalCenter: parent.verticalCenter
+            }
+
+            // 36×20 switch — knob rides the state with the standard easing
+            Item {
+                id: dndSwitch
+                width: 36
+                height: 20
+                anchors.right: parent.right
+                anchors.verticalCenter: parent.verticalCenter
+
+                Rectangle {
+                    anchors.fill: parent
+                    radius: 10
+                    color: checked ? Tokens.accent
+                                   : (Util.darkMode ? Qt.rgba(1, 1, 1, 0.14)
+                                                    : Qt.rgba(0, 0, 0, 0.12))
+                    border.width: 1
+                    border.color: Util.darkMode ? Qt.rgba(1, 1, 1, 0.10)
+                                                : Qt.rgba(0, 0, 0, 0.08)
+                    Behavior on color {
+                        ColorAnimation { duration: ccRoot.dur(Tokens.durQuick) }
+                    }
+                }
+
+                Rectangle {
+                    x: checked ? parent.width - 18 : 2
+                    anchors.verticalCenter: parent.verticalCenter
+                    width: 16
+                    height: 16
+                    radius: 8
+                    color: "#FFFFFF"
+                    Behavior on x {
+                        NumberAnimation {
+                            duration: ccRoot.dur(Tokens.durStandard)
+                            easing.type: Easing.OutCubic
+                        }
+                    }
+                }
+
+                MouseArea {
+                    anchors.fill: parent
+                    cursorShape: Qt.PointingHandCursor
+                    onClicked: toggled()
+                }
+            }
+        }
+
         MouseArea {
+            visible: !wide
             anchors.fill: parent
             cursorShape: Qt.PointingHandCursor
             onClicked: toggled()
         }
     }
 
-    component CcSlider: Row {
+    // W13 — anchor layout: both tracks end at the SAME right margin
+    component CcSlider: Item {
         property var painter
         property bool muted: false
         property alias value: slider.value
@@ -669,11 +760,12 @@ Window {
 
         width: parent ? parent.width : 320
         height: 32
-        spacing: 10
 
         Canvas {
+            id: sliderGlyph
             width: 18
             height: 18
+            anchors.left: parent.left
             anchors.verticalCenter: parent.verticalCenter
             onPaint: if (painter)
                 painter(getContext("2d"), width, height,
@@ -684,7 +776,9 @@ Window {
 
         Slider {
             id: slider
-            width: parent.width - 28
+            anchors.left: sliderGlyph.right
+            anchors.leftMargin: 10
+            anchors.right: parent.right
             anchors.verticalCenter: parent.verticalCenter
             from: 0
             to: 1

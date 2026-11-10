@@ -8,6 +8,15 @@ export QT_WAYLAND_DISABLE_WINDOWDECORATION=1
 # Light chrome over the AegisDark scheme (observed on the v0.4.1 frames).
 export QT_QPA_PLATFORMTHEME=kde
 
+# W11 — pin the session language so the konsole.mo caption override loads
+# deterministically: Qt's Wayland QPA appends the application display name
+# (" — Konsole") to window titles unless the title already ends with it.
+# With the override the display name IS "Aegis Terminal" and the Terminal
+# title stays clean. gettext skips translations in the C locale, so both
+# LANG and LANGUAGE are pinned here (LANGUAGE wins for catalog lookup).
+export LANG="${LANG:-en_US.UTF-8}"
+export LANGUAGE=en_US
+
 # Session diagnostics: when the graphical stack fails to come up, the boot
 # test pipeline reads this log over the serial console.
 LOG="${AEGIS_SESSION_LOG:-/tmp/aegis-session.log}"

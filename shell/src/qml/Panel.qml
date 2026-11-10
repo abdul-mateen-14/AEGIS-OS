@@ -92,43 +92,21 @@ Window {
                 }
                 spacing: 12
 
-                // Wi-Fi status glyph
-                Item {
-                    width: 14
-                    height: 14
-                    anchors.verticalCenter: parent.verticalCenter
+                // W12 — one shared glyph set: 16 px optical, 2 px stroke,
+                // round caps, Tokens.fg at 90%, 18 px hit targets.
+                PanelGlyph { painter: panelRoot.paintWifi
+                             tint: Util.wifiEnabled ? panelRoot.statusTint
+                                                    : panelRoot.dimTint }
 
-                    Canvas {
-                        anchors.fill: parent
-                        onPaint: panelRoot.paintWifi(
-                                     getContext("2d"), width, height,
-                                     Util.wifiEnabled
-                                         ? Qt.rgba(1, 1, 1, 0.82)
-                                         : Qt.rgba(1, 1, 1, 0.28))
-                    }
-                }
-
-                // volume status glyph
-                Item {
-                    width: 14
-                    height: 14
-                    anchors.verticalCenter: parent.verticalCenter
-
-                    Canvas {
-                        anchors.fill: parent
-                        onPaint: panelRoot.paintSpeaker(
-                                     getContext("2d"), width, height,
-                                     Util.muted
-                                         ? Qt.rgba(1, 1, 1, 0.28)
-                                         : Qt.rgba(1, 1, 1, 0.82),
-                                     Util.muted)
-                    }
-                }
+                PanelGlyph { painter: panelRoot.paintSpeaker
+                             muted: Util.muted
+                             tint: Util.muted ? panelRoot.dimTint
+                                              : panelRoot.statusTint }
 
                 Text {
                     visible: Util.batteryPercent >= 0
                     text: Util.batteryPercent + "%"
-                    color: Qt.rgba(1, 1, 1, 0.82)
+                    color: panelRoot.statusTint
                     font { family: "Montserrat"; pixelSize: 11 }
                     anchors.verticalCenter: parent.verticalCenter
                 }
@@ -153,40 +131,64 @@ Window {
                     }
                 }
 
-                // Control Center glyph — mini sliders, 14 px stroke
-                Item {
-                    width: 14
-                    height: 14
-                    anchors.verticalCenter: parent.verticalCenter
-
-                    Canvas {
-                        anchors.fill: parent
-                        onPaint: panelRoot.paintSliders(
-                                     getContext("2d"), width, height,
-                                     Util.ccOpen ? Tokens.accent
-                                                 : Qt.rgba(1, 1, 1, 0.55))
-                    }
-                }
+                // Control Center glyph — accent while the sheet is open
+                PanelGlyph { painter: panelRoot.paintSliders
+                             tint: Util.ccOpen ? Tokens.accent
+                                               : panelRoot.ccTint }
             }
         }
     }
 
-    // ── 14 px stroke glyphs (Canvas — no emoji, no theme dependency) ──
+    // ── W12 — the shared status-glyph set (Canvas — no emoji, no theme
+    //    dependency). 18 px hit target, 16 px optical box, repaints when
+    //    its tint binding moves (state changes no longer go stale). ──
+
+    // Tokens.fg at 90% (dark rung: paper at 0.9)
+    readonly property color statusTint: Qt.rgba(Tokens.fg.r, Tokens.fg.g,
+                                                Tokens.fg.b, 0.9)
+    readonly property color dimTint: Qt.rgba(Tokens.fg.r, Tokens.fg.g,
+                                             Tokens.fg.b, 0.28)
+    readonly property color ccTint: Qt.rgba(Tokens.fg.r, Tokens.fg.g,
+                                            Tokens.fg.b, 0.55)
+
+    component PanelGlyph: Item {
+        property var painter
+        property color tint: panelRoot.statusTint
+        property bool muted: false
+
+        width: 18
+        height: 18
+        anchors.verticalCenter: parent.verticalCenter
+
+        Canvas {
+            id: canvas
+            anchors.centerIn: parent
+            width: 16
+            height: 16
+            onPaint: if (painter)
+                painter(getContext("2d"), width, height, tint, muted)
+        }
+        onTintChanged: canvas.requestPaint()
+        onPainterChanged: canvas.requestPaint()
+        onMutedChanged: canvas.requestPaint()
+    }
+
+    // ── 16 px optical painters — 2 px stroke, round caps ──
 
     function paintWifi(ctx, w, h, color) {
         ctx.reset()
         ctx.strokeStyle = color
         ctx.fillStyle = color
-        ctx.lineWidth = 1.3
+        ctx.lineWidth = 2
         ctx.lineCap = "round"
-        const cx = w / 2, cy = h / 2 + 2.5
-        for (let i = 1; i <= 2; ++i) {
+        const cx = w / 2, cy = h / 2 + 3
+        for (let i = 1; i <= 3; ++i) {
             ctx.beginPath()
-            ctx.arc(cx, cy, i * 2.8, Math.PI * 1.25, Math.PI * 1.75, false)
+            ctx.arc(cx, cy, i * 2.6, Math.PI * 1.25, Math.PI * 1.75, false)
             ctx.stroke()
         }
         ctx.beginPath()
-        ctx.arc(cx, cy, 1.3, 0, Math.PI * 2)
+        ctx.arc(cx, cy, 1.5, 0, Math.PI * 2)
         ctx.fill()
     }
 
@@ -194,28 +196,29 @@ Window {
         ctx.reset()
         ctx.fillStyle = color
         ctx.strokeStyle = color
-        ctx.lineWidth = 1.2
+        ctx.lineWidth = 2
         ctx.lineCap = "round"
-        const cx = w / 2 - 1.5, cy = h / 2
+        ctx.lineJoin = "round"
+        const cx = w / 2 - 2, cy = h / 2
         ctx.beginPath()
-        ctx.moveTo(cx - 3.5, cy - 2)
-        ctx.lineTo(cx - 1.5, cy - 2)
-        ctx.lineTo(cx + 1.5, cy - 5)
-        ctx.lineTo(cx + 1.5, cy + 5)
-        ctx.lineTo(cx - 1.5, cy + 2)
-        ctx.lineTo(cx - 3.5, cy + 2)
+        ctx.moveTo(cx - 3.5, cy - 2.5)
+        ctx.lineTo(cx - 1, cy - 2.5)
+        ctx.lineTo(cx + 2.5, cy - 6)
+        ctx.lineTo(cx + 2.5, cy + 6)
+        ctx.lineTo(cx - 1, cy + 2.5)
+        ctx.lineTo(cx - 3.5, cy + 2.5)
         ctx.closePath()
         ctx.fill()
         if (muted) {
             ctx.beginPath()
-            ctx.moveTo(cx + 3, cy - 2.5)
-            ctx.lineTo(cx + 6, cy + 2.5)
-            ctx.moveTo(cx + 6, cy - 2.5)
-            ctx.lineTo(cx + 3, cy + 2.5)
+            ctx.moveTo(cx + 4.5, cy - 2.5)
+            ctx.lineTo(cx + 7.5, cy + 2.5)
+            ctx.moveTo(cx + 7.5, cy - 2.5)
+            ctx.lineTo(cx + 4.5, cy + 2.5)
             ctx.stroke()
         } else {
             ctx.beginPath()
-            ctx.arc(cx + 2.5, cy, 2.5, -Math.PI / 3, Math.PI / 3)
+            ctx.arc(cx + 3.5, cy, 3, -Math.PI / 3, Math.PI / 3)
             ctx.stroke()
         }
     }
@@ -224,17 +227,17 @@ Window {
         ctx.reset()
         ctx.strokeStyle = color
         ctx.fillStyle = color
-        ctx.lineWidth = 1.3
+        ctx.lineWidth = 2
         ctx.lineCap = "round"
         for (let i = 0; i < 3; ++i) {
-            const y = 2.5 + i * 4.5
+            const y = 3.5 + i * 4.5
             ctx.beginPath()
-            ctx.moveTo(1, y)
-            ctx.lineTo(w - 1, y)
+            ctx.moveTo(1.5, y)
+            ctx.lineTo(w - 1.5, y)
             ctx.stroke()
-            const knob = i === 0 ? 9.5 : i === 1 ? 4 : 11
+            const knob = i === 0 ? 9.5 : i === 1 ? 4.5 : 11
             ctx.beginPath()
-            ctx.arc(knob, y, 2, 0, Math.PI * 2)
+            ctx.arc(knob, y, 2.2, 0, Math.PI * 2)
             ctx.fill()
         }
     }

@@ -281,7 +281,7 @@ Window {
                 // of blank space, straight back into the places rail
                 Row {
                     anchors.centerIn: parent
-                    spacing: 14
+                    spacing: 16
                     visible: flm.count === 0 && search.text.length === 0
 
                     Repeater {
@@ -293,7 +293,7 @@ Window {
                         ]
                         delegate: Item {
                             id: emptyTile
-                            width: 84; height: 104
+                            width: 84; height: 105
                             Rectangle {
                                 width: 84; height: 84; radius: 18
                                 color: Util.darkMode ? "#20222A" : "#FFFFFF"
@@ -318,10 +318,10 @@ Window {
                                 }
                             }
                             Text {
-                                anchors { top: parent.top; topMargin: 88; left: parent.left; right: parent.right }
+                                anchors { top: parent.top; topMargin: 90; left: parent.left; right: parent.right }
                                 text: modelData.label
                                 horizontalAlignment: Text.AlignHCenter
-                                font.pixelSize: 11
+                                font { pixelSize: 12; weight: Font.Medium }
                                 color: Tokens.fgMuted
                             }
                         }
@@ -331,11 +331,14 @@ Window {
                 GridView {
                     id: grid
                     anchors.fill: parent
-                    anchors.margins: 14
-                    anchors.bottomMargin: 42
+                    // W15 — plate 7 metrics: 20 px content margins, 16 px
+                    // gutters (cellWidth = 84 card + 16), one consistent
+                    // row gap (cellHeight = 84 card + 6 + 15 label + 16).
+                    anchors.margins: 20
+                    anchors.bottomMargin: 48
                     visible: win.gridMode
                     model: flm
-                    cellWidth: 104; cellHeight: 104
+                    cellWidth: 100; cellHeight: 121
                     clip: true
 
                     delegate: Item {
@@ -360,11 +363,11 @@ Window {
                             }
                         }
                         Text {
-                            anchors { top: parent.top; topMargin: 88; left: parent.left; right: parent.right }
+                            anchors { top: parent.top; topMargin: 90; left: parent.left; right: parent.right }
                             text: fileName
                             elide: Text.ElideMiddle
                             horizontalAlignment: Text.AlignHCenter
-                            font.pixelSize: 11
+                            font { pixelSize: 12; weight: Font.Medium }
                             color: Tokens.fg
                         }
                         TapHandler {
@@ -391,8 +394,8 @@ Window {
                 ListView {
                     id: list
                     anchors.fill: parent
-                    anchors.margins: 14
-                    anchors.bottomMargin: 42
+                    anchors.margins: 20
+                    anchors.bottomMargin: 48
                     visible: !win.gridMode
                     model: flm
                     clip: true
