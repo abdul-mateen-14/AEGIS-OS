@@ -5,7 +5,8 @@ set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_AUTOMOC ON)
 
-find_package(Qt6 REQUIRED COMPONENTS Core Gui Qml Quick QuickControls2 DBus)
+find_package(Qt6 REQUIRED COMPONENTS
+    Core Gui Qml Quick QuickControls2 DBus Network Concurrent)
 find_package(LayerShellQt REQUIRED)
 find_package(OpenSSL REQUIRED)
 find_library(PAM_LIBRARY pam)
