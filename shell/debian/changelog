@@ -36,6 +36,8 @@ aegis-shell (1.7.0-m6) resolute; urgency=medium
     shell state with a grace retry — the third v0.6.13 run lost the
     review fixtures and the Aegis ID pane shot to that race.
 
+ -- Aegis Developers <dev@aegis-os.org>  Tue, 10 Nov 2026 21:10:00 +0000
+
 aegis-shell (1.7.0-m5) resolute; urgency=medium
 
   * W8 dock icon policy — two tiers. Tier A (Files/Terminal/Settings/Trash)
