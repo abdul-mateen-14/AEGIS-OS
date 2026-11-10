@@ -1,3 +1,19 @@
+aegis-shell (1.7.0-m2) resolute; urgency=medium
+
+  * SettingsApp: 12 grouped `font { ... }` blocks sat on the same line as
+    `;`-separated bindings — this Qt's parser rejects the semicolon next to
+    a grouped property ("Unexpected token ';'", four surfaces at a time).
+    All converted to the shipped dotted form (font.pixelSize / font.bold).
+  * FilesApp: FolderListModel has no showDotAndHidden in Qt 6 — the property
+    is showHidden (docs: showDotAndDotDot covers ./.. only). The Show-hidden
+    toggle bound a non-existent property and blocked the whole app load.
+  * SettingsApp: the §6 panes array moves to the Window (win.panes) — it was
+    declared on the inner AppWindow item, a lookup that the boot tests never
+    exposed because the QML errors above kept both apps from opening since
+    they landed.
+
+ -- Aegis OS Project <aegis@users.noreply.github.com>  Tue, 10 Nov 2026 22:10:00 +0000
+
 aegis-shell (1.7.0-m1) resolute; urgency=medium
 
   * W5 — one-token accent: Tokens.accent is settable (six presets, default

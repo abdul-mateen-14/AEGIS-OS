@@ -34,6 +34,20 @@ Window {
     property int pane: (typeof aegisInitialPane !== "undefined")
                        ? aegisInitialPane : 0
 
+    // the §6 pane order lives on the WINDOW: the sidebar Repeater and the
+    // pane loader both resolve it as win.panes (one lookup, no inner-item
+    // scoping surprises)
+    property var panes: [
+        { label: "Wallpaper",          tint: "#8B5CF6" },
+        { label: "Appearance",         tint: "#3E8BFF" },
+        { label: "Desktop Effects",    tint: "#28C840" },
+        { label: "Drivers & Firmware", tint: "#FF9F0A" },
+        { label: "Displays",           tint: "#5B8BFF" },
+        { label: "Sound",              tint: "#FA2D48" },
+        { label: "Network",            tint: "#4AC8C8" },
+        { label: "Users",              tint: "#6E7BFF" }
+    ]
+
     function saveWallpaper(path) {
         Util.setWallpaper(path)   // persists + DBus-forwards to the shell
     }
@@ -163,17 +177,6 @@ Window {
                 }
             }
         }
-
-        property var panes: [
-            { label: "Wallpaper",          tint: "#8B5CF6" },
-            { label: "Appearance",         tint: "#3E8BFF" },
-            { label: "Desktop Effects",    tint: "#28C840" },
-            { label: "Drivers & Firmware", tint: "#FF9F0A" },
-            { label: "Displays",           tint: "#5B8BFF" },
-            { label: "Sound",              tint: "#FA2D48" },
-            { label: "Network",            tint: "#4AC8C8" },
-            { label: "Users",              tint: "#6E7BFF" }
-        ]
     }
 
     // overlay host — sheets live OUTSIDE the RowLayout so anchors work
@@ -334,7 +337,7 @@ Window {
                 ColumnLayout {
                     anchors { fill: parent; margins: 12 }
                     spacing: 6
-                    Text { text: "Recovery key — shown once"; font { pixelSize: 12; bold: true }; color: "#FF9F0A" }
+                    Text { text: "Recovery key — shown once"; font.pixelSize: 12; font.bold: true; color: "#FF9F0A" }
                     Text {
                         text: "Write it down and keep it safe. There is no server-side password recovery — this is the only offline backup for the sync vault."
                         font.pixelSize: 11; color: Tokens.fg
@@ -412,7 +415,7 @@ Window {
                 visible: AegisId.signedIn
                 spacing: 8
 
-                Text { text: "Devices"; font { pixelSize: 12; bold: true }; color: Tokens.fg }
+                Text { text: "Devices"; font.pixelSize: 12; font.bold: true; color: Tokens.fg }
                 Repeater {
                     model: AegisId.devices
                     delegate: RowLayout {
@@ -439,7 +442,7 @@ Window {
                                     visible: modelData.isThis
                                     width: 64; height: 16; radius: 4
                                     color: Util.darkMode ? "#1B2B1F" : "#E4F5E8"
-                                    Text { anchors.centerIn: parent; text: "THIS DEVICE"; font { pixelSize: 8; bold: true }; color: "#28C840" }
+                                    Text { anchors.centerIn: parent; text: "THIS DEVICE"; font.pixelSize: 8; font.bold: true; color: "#28C840" }
                                 }
                             }
                             Text { text: "seen " + (modelData.lastSeen || "—"); font.pixelSize: 10; color: Tokens.fgMuted }
@@ -781,7 +784,7 @@ Window {
                     }
                     RowLayout {
                         Layout.fillWidth: true
-                        Text { text: outCard.modelData.name; font { pixelSize: 13; bold: true }; color: Tokens.fg }
+                        Text { text: outCard.modelData.name; font.pixelSize: 13; font.bold: true; color: Tokens.fg }
                         Text {
                             text: outCard.modelData.current
                             font.pixelSize: 11; color: Tokens.fgMuted
@@ -847,7 +850,7 @@ Window {
             spacing: 12
             Text { text: "Sound"; font.family: "Montserrat"; font.pixelSize: 20; font.weight: Font.DemiBold; color: Tokens.fg }
 
-            Text { text: "Output"; font { pixelSize: 12; bold: true }; color: Tokens.fg }
+            Text { text: "Output"; font.pixelSize: 12; font.bold: true; color: Tokens.fg }
             Repeater {
                 model: Sound.sinks
                 delegate: ColumnLayout {
@@ -860,7 +863,7 @@ Window {
                             visible: modelData.isDefault
                             width: 58; height: 16; radius: 4
                             color: Util.darkMode ? "#1B2B1F" : "#E4F5E8"
-                            Text { anchors.centerIn: parent; text: "DEFAULT"; font { pixelSize: 8; bold: true }; color: "#28C840" }
+                            Text { anchors.centerIn: parent; text: "DEFAULT"; font.pixelSize: 8; font.bold: true; color: "#28C840" }
                         }
                         AbstractButton {
                             visible: !modelData.isDefault
@@ -894,7 +897,7 @@ Window {
                 }
             }
 
-            Text { text: "Input"; font { pixelSize: 12; bold: true }; color: Tokens.fg }
+            Text { text: "Input"; font.pixelSize: 12; font.bold: true; color: Tokens.fg }
             Repeater {
                 model: Sound.sources
                 delegate: Text {
@@ -970,20 +973,20 @@ Window {
                             visible: modelData.inUse
                             width: 40; height: 16; radius: 4
                             color: Util.darkMode ? "#1B2B1F" : "#E4F5E8"
-                            Text { anchors.centerIn: parent; text: "NOW"; font { pixelSize: 8; bold: true }; color: "#28C840" }
+                            Text { anchors.centerIn: parent; text: "NOW"; font.pixelSize: 8; font.bold: true; color: "#28C840" }
                         }
                         Rectangle {
                             visible: modelData.known && !modelData.inUse
                             width: 52; height: 16; radius: 4
                             color: Util.darkMode ? "#23252B" : "#E8ECF4"
-                            Text { anchors.centerIn: parent; text: "KNOWN"; font { pixelSize: 8; bold: true }; color: Tokens.fgMuted }
+                            Text { anchors.centerIn: parent; text: "KNOWN"; font.pixelSize: 8; font.bold: true; color: Tokens.fgMuted }
                         }
                         Rectangle {
                             visible: modelData.secure
                             width: 44; height: 16; radius: 4
                             color: "transparent"
                             border.color: Tokens.glassBorder
-                            Text { anchors.centerIn: parent; text: "WPA"; font { pixelSize: 8; color: Tokens.fgMuted } }
+                            Text { anchors.centerIn: parent; text: "WPA"; font.pixelSize: 8; font.color: Tokens.fgMuted }
                         }
                         Text { text: modelData.strength + "%"; font.pixelSize: 10; color: Tokens.fgMuted }
                         AbstractButton {
@@ -1055,7 +1058,8 @@ Window {
                             spacing: 0
                             Text {
                                 text: modelData.realName || modelData.userName
-                                font { pixelSize: 12; bold: true }; color: Tokens.fg
+                                font { pixelSize: 12; bold: true }
+                                color: Tokens.fg
                             }
                             Text { text: modelData.userName; font.pixelSize: 10; color: Tokens.fgMuted }
                         }
@@ -1063,13 +1067,13 @@ Window {
                             visible: modelData.admin
                             width: 64; height: 16; radius: 4
                             color: Util.darkMode ? "#23252B" : "#E8ECF4"
-                            Text { anchors.centerIn: parent; text: "ADMIN"; font { pixelSize: 8; bold: true }; color: Tokens.fgMuted }
+                            Text { anchors.centerIn: parent; text: "ADMIN"; font.pixelSize: 8; font.bold: true; color: Tokens.fgMuted }
                         }
                         Rectangle {
                             visible: modelData.isYou
                             width: 40; height: 16; radius: 4
                             color: Util.darkMode ? "#1B2B1F" : "#E4F5E8"
-                            Text { anchors.centerIn: parent; text: "YOU"; font { pixelSize: 8; bold: true }; color: "#28C840" }
+                            Text { anchors.centerIn: parent; text: "YOU"; font.pixelSize: 8; font.bold: true; color: "#28C840" }
                         }
                         Item { Layout.fillWidth: true }
                         Switch {

@@ -249,7 +249,7 @@ Window {
                     folder: win.current
                     nameFilters: search.text.length ? ["*" + search.text + "*"] : ["*"]
                     showDirsFirst: true
-                    showDotAndHidden: win.showHidden
+                    showHidden: win.showHidden   // Qt 6 FolderListModel API
                     sortField: win.sortKey === "date" ? FolderListModel.Date
                              : win.sortKey === "size" ? FolderListModel.Size
                              : win.sortKey === "kind" ? FolderListModel.Type
