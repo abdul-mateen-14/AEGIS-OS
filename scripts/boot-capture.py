@@ -317,13 +317,23 @@ def app_diag(serial):
         "echo ===SESSLOG===; tail -n 80 /tmp/aegis-session.log 2>&1",
         "echo ===SETTINGS-ERR===; tail -40 /tmp/aegis-settings.err 2>&1",
         # §1 — foreground probes: a QML load failure prints its errorString
-        # here verbatim. A clean probe leaves the file EMPTY.
-        "echo ===QMLPROBE===; export XDG_RUNTIME_DIR=/run/user/$(id -u); "
+        # between the START/END sentinels verbatim. A clean probe prints
+        # NOTHING between them. The sentinels are SPLIT inside the typed
+        # command (===QP''S=== — the shell strips the empty quotes) so the
+        # serial echo of the command line can never contain the literal
+        # marker: on a wrapped echo the v0.6.13 parse mistook the echo of
+        # the NEXT probe for files output, and every later diag section
+        # leaked in behind it (the benign 'ls: cannot access' in the
+        # KWIN-PLUGINS section tripped the gate). libEGL dri2 warnings are
+        # filtered at the source — every Qt app prints them on the runner.
+        "echo ===QP''S-START===; export XDG_RUNTIME_DIR=/run/user/$(id -u); "
         "WAYLAND_DISPLAY=wayland-0 timeout 6 aegis-apps settings 8 "
-        ">/tmp/qml-probe.err 2>&1; head -30 /tmp/qml-probe.err 2>&1",
-        "echo ===QMLPROBE-FILES===; export XDG_RUNTIME_DIR=/run/user/$(id -u); "
+        ">/tmp/qml-probe.err 2>&1; grep -v 'libEGL warning' "
+        "/tmp/qml-probe.err | head -30; echo ===QP''S-END===",
+        "echo ===QP''F-START===; export XDG_RUNTIME_DIR=/run/user/$(id -u); "
         "WAYLAND_DISPLAY=wayland-0 timeout 6 aegis-apps files "
-        ">/tmp/qml-probe-files.err 2>&1; head -30 /tmp/qml-probe-files.err 2>&1",
+        ">/tmp/qml-probe-files.err 2>&1; grep -v 'libEGL warning' "
+        "/tmp/qml-probe-files.err | head -30; echo ===QP''F-END===",
         "echo ===JRN-SHELL===; sudo journalctl -b --no-pager 2>&1 | grep -aiE 'aegis-(shell|apps|session|files|settings)|QQml|qrc:' | tail -50",
         "echo ===JRN-KWIN===; sudo journalctl -b --no-pager 2>&1 | grep -ai 'kwin' | grep -aivE 'information|Rendering|colorProfile|ColorManagement' | tail -40",
         "echo ===JRN-CRASH===; sudo journalctl -b --no-pager 2>&1 | grep -aiE 'segfault|signal 11|coredump|abrt|general protection' | tail -20",
@@ -331,32 +341,49 @@ def app_diag(serial):
         "echo ===KWINRC===; cat /etc/xdg/kwinrc 2>&1",
         "echo ===KWIN-PLUGINS===; ls /usr/lib/x86_64-linux-gnu/qt6/plugins/kwin/effects/plugins/ 2>&1; ls /usr/lib/qt6/plugins/kwin/effects/plugins/ 2>&1; echo PLUGINS-DONE",
     ]
+    # §1 — only text strictly BETWEEN a probe's START/END sentinels counts:
+    # no echoed commands, no later diag sections, no leakage across chunks
+    # (the v0.6.13 state leak — section stayed open forever — is dead).
+    sentinels = {
+        "settings": ("===QPS-START===", "===QPS-END==="),
+        "files": ("===QPF-START===", "===QPF-END==="),
+    }
     blob = []
-    probes = {"settings": "", "files": ""}
-    section = None
+    acc = {"settings": [], "files": []}
+    inside = {"settings": False, "files": False}
     for c in diag_cmds:
         out = serial.run(c, settle=6)
         blob.append(out)
         log("app-diag: " + out.strip().replace("\n", " | ")[:400])
-        if "===QMLPROBE-FILES===" in out:
-            section = "files"
-            probes["files"] = out.split("===QMLPROBE-FILES===", 1)[-1]
-        elif "===QMLPROBE===" in out:
-            section = "settings"
-            probes["settings"] = out.split("===QMLPROBE===", 1)[-1]
-            if "===QMLPROBE-FILES===" in probes["settings"]:
-                probes["settings"], _, _ = probes["settings"].partition(
-                    "===QMLPROBE-FILES===")
-        elif section in probes:
-            probes[section] += out
+        for name, (s, e) in sentinels.items():
+            while True:
+                if not inside[name]:
+                    i = out.find(s)
+                    if i < 0:
+                        break
+                    out = out[i + len(s):]
+                    inside[name] = True
+                else:
+                    j = out.find(e)
+                    if j < 0:
+                        acc[name].append(out)
+                        break
+                    acc[name].append(out[:j])
+                    out = out[j + len(e):]
+                    inside[name] = False
     open("serial-diag.txt", "w").write("\n".join(blob))
-    return probes
+    return {k: "".join(v).strip() for k, v in acc.items()}
 
 def probe_failed(text):
     """True when a foreground QML probe printed a real error (the classes
     that shipped v0.6.9-v0.6.12 all say error/Cannot/Unexpected/Failed).
-    Benign Qt notices without those markers do not red a release."""
-    text = text.replace("===", "")
+    Benign Qt notices without those markers do not red a release. The
+    libEGL dri2 notice is belt-and-braces here too — the probe commands
+    already grep it out, and every Qt app on the GPU-less runner prints it."""
+    lines = [ln for ln in text.splitlines()
+             if "libegl warning" not in ln.lower()
+             and "egl: failed to create dri2" not in ln.lower()]
+    text = "\n".join(lines).replace("===", "")
     if not text.strip():
         return False
     low = text.lower()
@@ -364,15 +391,25 @@ def probe_failed(text):
                ("error", "cannot", "unexpected", "failed", "invalid",
                 "not a type", "is not installed"))
 
-def splash_report(out_dir):
-    """W14 proof step — did the boot splash paint the mark? Scans the first
-    two boot frames' centre region for bright (non-ink) pixels. LOG-LEVEL
-    for this tag: the brief keeps ubuntu-text as fallback until boot-capture
-    PROVES the mark theme; the hard assert lands the tag after it shows."""
-    for name in ("boot-00", "boot-01"):
+def splash_report(out_dir, last=-1):
+    """W14 proof step — did the boot splash paint the mark? Scans EVERY
+    pre-desktop boot frame's centre region for bright (non-ink) pixels and
+    logs the best frame. The v0.6.13 run only looked at boot-00/01 — both
+    were still SeaBIOS/console frames, so the plymouth window (which opens
+    between the last pre-desktop frame and the desktop frame) went unseen.
+    LOG-LEVEL for this tag: the brief keeps ubuntu-text as fallback until
+    boot-capture PROVES the mark theme; the hard assert lands the tag after
+    a capture shows it."""
+    best = None
+    n = 0
+    while True:
+        if 0 <= last <= n:
+            break
+        name = f"boot-{n:02d}"
         path = os.path.join(out_dir, name + ".png")
         if not os.path.exists(path):
-            continue
+            break
+        n += 1
         try:
             im = Image.open(path).convert("RGB")
             W, H = im.size
@@ -381,14 +418,20 @@ def splash_report(out_dir):
             bright = sum(1 for p in box.getdata()
                          if max(p) > 70)
             total = (box.width * box.height)
-            log(f"splash {name}: centre bright pixels = {bright}/{total} "
-                f"({bright * 100 // total}%)")
-            if bright * 100 // total < 1:
-                log("splash: centre looks ink-black — the mark splash did "
-                    "NOT paint (ubuntu-text fallback or console); review "
-                    "boot-00/01.png before claiming W14")
+            pct = bright * 100 // total
+            log(f"splash {name}: centre bright pixels = {bright}/{total} ({pct}%)")
+            if best is None or pct > best[1]:
+                best = (name, pct)
         except Exception as e:
             log(f"splash {name}: unreadable ({e})")
+    if best and best[1] >= 1:
+        log(f"splash: best frame {best[0]} at {best[1]}% centre brightness "
+            f"— consistent with the mark splash (assert lands next tag)")
+    else:
+        log("splash: every pre-desktop frame is ink-black in the centre — "
+            "the mark splash did NOT paint (ubuntu-text fallback, console, "
+            "or the window fell between frames); review the boot frames "
+            "before claiming W14")
 
 def serial_recover(serial, q, W=1280, H=800):
     log("attempting live recovery over serial")
@@ -501,7 +544,7 @@ def wait_desktop(q, proc, timeout=DESKTOP_TIMEOUT):
         log(f"boot-{n:02d}: sat={sat:.1f} val={val:.1f} dock-slots={present} t={time.time() - t0:.0f}s")
         if present >= desktop_ready_threshold():
             return n
-        n += 1; time.sleep(20)
+        n += 1; time.sleep(5 if n < 12 else 20)
     return -1
 
 def main():
@@ -647,9 +690,25 @@ def main():
     time.sleep(3)
     q.shot("05-control-center")
 
+    # W13 acceptance — DND on AND off. The CC sheet is deterministic: 348 px
+    # anchored top-right (margins 40 top / 10 right), sheet margins 16,
+    # header 30, 12 px gaps, grid 64+12+64, then the 44 px DND wide tile —
+    # its 36x20 switch rides the right end (rightMargin 14). On the 1280x800
+    # capture the switch centre lands at (W-58, 272); the second click
+    # restores the off state.
+    try:
+        q.click(W - 58, 272, W, H)        # DND switch
+        time.sleep(2)
+        q.shot("05b-control-center-dnd")
+        log("05b-control-center-dnd captured (DND on)")
+        q.click(W - 58, 272, W, H)        # restore off
+        time.sleep(1.5)
+    except Exception as e:
+        log(f"dnd toggle capture failed: {e}")
+
     # W14 proof step — did the mark splash paint? (log-level this tag;
     # the hard assert lands once a capture proves the theme.)
-    splash_report(OUT)
+    splash_report(OUT, n)
 
     # Post-capture diagnostics over the serial console: if apps failed to
     # open or the dock vanished during the choreography, the guest journal
