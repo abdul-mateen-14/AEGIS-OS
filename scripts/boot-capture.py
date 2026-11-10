@@ -586,7 +586,7 @@ def wait_desktop(q, proc, timeout=DESKTOP_TIMEOUT):
         log(f"boot-{n:02d}: sat={sat:.1f} val={val:.1f} dock-slots={present} t={time.time() - t0:.0f}s")
         if present >= desktop_ready_threshold():
             return n
-        n += 1; time.sleep(2 if n < 8 else (5 if n < 20 else 20))
+        n += 1; time.sleep(1 if n < 12 else (5 if n < 20 else 20))
     return -1
 
 def main():
