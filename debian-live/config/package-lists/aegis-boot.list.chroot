@@ -4,3 +4,7 @@
 # falls back to a wall of systemd [OK] lines (seen on the v0.2.0 ISO).
 plymouth
 plymouth-label
+# W14 — two-step.so (the mark splash renderer) ships in the spinner theme
+# package, not in plymouth itself; the C renderer family paints on the
+# boot-test machine, the script plugin never did.
+plymouth-theme-spinner

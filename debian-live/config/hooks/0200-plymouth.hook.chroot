@@ -2,19 +2,26 @@
 set -e
 # Aegis boot splash — the W14 fallback ladder.
 #
-# Boot-testing every CI ISO in QEMU established two facts:
+# Boot-testing every CI ISO in QEMU established three facts:
 #   1. plymouthd resolves the theme through the default.plymouth
 #      alternatives symlink and ignores /etc/plymouth/plymouthd.conf -
 #      the symlink and the conf must agree, or every boot renders an
 #      all-black screen;
-#   2. the ubuntu-text theme (a C plugin) painted reliably on this
-#      machine, while a script theme once rendered black.
+#   2. C-plugin themes (ubuntu-text) painted reliably on this machine,
+#      while a script theme rendered black — and four more boot tests
+#      (v0.6.13, three runs) confirmed it: the aegis-mark SCRIPT theme
+#      never painted a single frame on the runner;
+#   3. the ruling asked for the mark on a renderer that already paints:
+#      the spinner/two-step family. two-step.so ships in
+#      plymouth-theme-spinner (not plymouth itself) — the package list
+#      now carries it.
 #
-# So the ladder is: the W14 aegis-mark theme (script plugin — script.so IS
-# in the resolute plymouth package, verified against the archive file list)
-# when script.so AND all four theme assets exist; otherwise the rebranded
-# ubuntu-text stays the default. Both are always installed. The rebrand
-# below runs unconditionally so the fallback is ready at all times.
+# So the ladder is: the W14 aegis-mark theme (two-step plugin — ink
+# background, the mark as a centered watermark.png, a 240x2 accent
+# progress line via UseProgressBar) when two-step.so AND the theme assets
+# exist; otherwise the rebranded ubuntu-text stays the default. Both are
+# always installed. The rebrand below runs unconditionally so the fallback
+# is ready at all times.
 
 if ! command -v plymouthd >/dev/null 2>&1; then
     echo "FATAL: plymouthd not found - plymouth is missing from the package" \
@@ -40,21 +47,19 @@ if [ -f "$UT" ]; then
 fi
 
 MARK=/usr/share/plymouth/themes/aegis-mark
-SCRIPT_SO=""
-for f in /usr/lib/*/plymouth/script.so; do
+TWO_STEP_SO=""
+for f in /usr/lib/*/plymouth/two-step.so; do
     if [ -f "$f" ]; then
-        SCRIPT_SO="$f"
+        TWO_STEP_SO="$f"
         break
     fi
 done
 
-if [ -n "$SCRIPT_SO" ] \
+if [ -n "$TWO_STEP_SO" ] \
    && [ -f "$MARK/aegis-mark.plymouth" ] \
-   && [ -f "$MARK/aegis-mark.script" ] \
-   && [ -f "$MARK/watermark.png" ] \
-   && [ -f "$MARK/track.png" ] \
-   && [ -f "$MARK/fill.png" ]; then
-    # W14 — the mark + accent progress line. The symlink and the conf MUST
+   && [ -f "$MARK/watermark.png" ]; then
+    # W14 — the mark + accent progress line, on the two-step C plugin. The
+    # symlink and the conf MUST
     # agree (fact 1 above).
     update-alternatives --install /usr/share/plymouth/themes/default.plymouth \
         default.plymouth "$MARK/aegis-mark.plymouth" 210
@@ -69,7 +74,7 @@ else
             default.plymouth "$UT" 200
         update-alternatives --set default.plymouth "$UT" || true
         printf '[Daemon]\nTheme=ubuntu-text\n' > /etc/plymouth/plymouthd.conf
-        echo "0200: boot splash = ubuntu-text fallback (script.so or aegis-mark assets missing)"
+        echo "0200: boot splash = ubuntu-text fallback (two-step.so or aegis-mark assets missing)"
     else
         echo "0200: WARNING - neither aegis-mark nor ubuntu-text could be set" >&2
     fi

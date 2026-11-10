@@ -14,6 +14,19 @@ aegis-shell (1.7.0-m6) resolute; urgency=medium
     survived the whole tag; gen-konsole-mo.py now compiles a real MO
     (save_as_mofile) and asserts pgettext("@title","Konsole") resolves.
     Hook 0715 verifies both mechanisms at build time (MO magic check).
+  * W14 splash reworked onto the two-step C plugin — the brief's ruling:
+    build the mark on a renderer that already paints (the spinner/two-step
+    family). The script theme never painted a single frame in four boot
+    tests (three v0.6.13 runs + the v0.6.9 lineage), so aegis-mark is now
+    ModuleName=two-step: ink background, the 165x160 mark watermark
+    centered at .46, a 240x2 accent progress line at .61 (ProgressBar
+    Foreground 3E8BFF on a subtle track, UseProgressBar=true which also
+    gates the spinner off), UseEndAnimation=false on all modes.
+    plymouth-theme-spinner joins the boot package list (two-step.so ships
+    there, not in plymouth); the 0200 ladder now requires two-step.so +
+    watermark.png; the script theme's assets (aegis-mark.script, fill.png,
+    track.png) are gone and sync-includes wipes stale files from the
+    includes dir. ubuntu-text stays the fallback.
   * Boot capture: the release-gate QML probes now print verdict tokens
     from the guest itself (PROBE-S/F-CLEAN/DIRTY, split-quoted so the
     serial echo can never carry the literal) scanned in the RAW serial

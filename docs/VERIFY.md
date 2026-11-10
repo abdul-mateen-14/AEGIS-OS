@@ -91,11 +91,15 @@ qmllint shell/src/qml/*.qml 2>&1 \
     (bell + label left, switch right, on AND off captures); both sliders
     end at the same right margin; 36 px power row; the footer echo shows
     the live accent hex, not "KWin Wayland".
-19. **Boot splash (W14)** — boot-00/01 show the mark centered over ink with
+19. **Boot splash (W14)** — boot frames show the mark centered over ink with
     the accent progress line ("splash: centre bright pixels" in the log).
-    The hard assert lands the tag AFTER a capture proves the theme; if the
-    centre is black, the 0200 hook fell back to ubuntu-text — check
-    script.so and the aegis-mark assets first.
+    The renderer is the two-step C plugin (plymouth-theme-spinner — the
+    script plugin never painted a frame in four boot tests); the 0200 hook
+    picks aegis-mark when two-step.so + watermark.png exist, else the
+    rebranded ubuntu-text falls back. If the centre is black, check which
+    theme the alternatives symlink resolved (`plymouth-set-default-theme`)
+    and whether two-step.so is installed. The hard assert lands the tag
+    AFTER a capture proves the theme.
 20. **Files grid metrics (W15)** — 84 px cards, 16 px gutters, 12 px Medium
     labels 6 px below the card, 20 px margins, one row rhythm; capture
     shows folders AND mixed files; the status footer stays the bottom rail.

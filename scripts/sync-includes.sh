@@ -24,8 +24,12 @@ cp "$ROOT"/theme/wallpapers/*.jpg "$INC/usr/share/wallpapers/aegis/"
 # Plymouth boot splash (Aegis Mark on true black, hairline progress)
 cp "$ROOT"/theme/plymouth/* "$INC/usr/share/plymouth/themes/aegis/"
 
-# W14 — the mark + progress-line splash (script plugin, preferred renderer
-# when script.so exists — see the 0200 hook's fallback ladder)
+# W14 — the mark + progress-line splash on the two-step C plugin (a C
+# renderer that paints on this machine; the script theme rendered black in
+# every boot test). Stale files are wiped first — the v0.6.13 script
+# plugin's assets (aegis-mark.script, fill.png, track.png) must not
+# survive into the ISO when the theme stops referencing them.
+rm -f "$INC/usr/share/plymouth/themes/aegis-mark/"*
 cp "$ROOT"/theme/plymouth-mark/* "$INC/usr/share/plymouth/themes/aegis-mark/"
 
 # SDDM greeter theme — the glass login screen. The wallpaper doubles as
