@@ -149,7 +149,7 @@ Window {
         id: wallpaperPane
         ColumnLayout {
             spacing: 14
-            Text { text: "Wallpaper"; font { family: "Montserrat"; pixelSize: 20; weight: Font.DemiBold }; color: Tokens.fg }
+            Text { text: "Wallpaper"; font.family: "Montserrat"; font.pixelSize: 20; font.weight: Font.DemiBold; color: Tokens.fg }
             RowLayout {
                 spacing: 12
                 Repeater {
@@ -209,7 +209,7 @@ Window {
         id: appearancePane
         ColumnLayout {
             spacing: 14
-            Text { text: "Appearance"; font { family: "Montserrat"; pixelSize: 20; weight: Font.DemiBold }; color: Tokens.fg }
+            Text { text: "Appearance"; font.family: "Montserrat"; font.pixelSize: 20; font.weight: Font.DemiBold; color: Tokens.fg }
             RowLayout {
                 spacing: 12
                 Repeater {
@@ -256,7 +256,7 @@ Window {
         id: effectsPane
         ColumnLayout {
             spacing: 14
-            Text { text: "Desktop Effects"; font { family: "Montserrat"; pixelSize: 20; weight: Font.DemiBold }; color: Tokens.fg }
+            Text { text: "Desktop Effects"; font.family: "Montserrat"; font.pixelSize: 20; font.weight: Font.DemiBold; color: Tokens.fg }
 
             RowLayout {
                 spacing: 0
@@ -305,7 +305,7 @@ Window {
                     Rectangle {
                         Layout.preferredWidth: 52; Layout.preferredHeight: 20; radius: 10
                         color: Util.darkMode ? "#23252B" : "#E8ECF4"
-                        Text { anchors.centerIn: parent; text: modelData.chip; font { pixelSize: 10; family: "Monospace" }; color: Tokens.fgMuted }
+                        Text { anchors.centerIn: parent; text: modelData.chip; font.pixelSize: 10; font.family: "Monospace"; color: Tokens.fgMuted }
                     }
                     Switch {
                         enabled: modelData.key === "motionSpring" || modelData.key === "blurLive"
@@ -328,7 +328,7 @@ Window {
         id: driversPane
         ColumnLayout {
             spacing: 12
-            Text { text: "Drivers & Firmware"; font { family: "Montserrat"; pixelSize: 20; weight: Font.DemiBold }; color: Tokens.fg }
+            Text { text: "Drivers & Firmware"; font.family: "Montserrat"; font.pixelSize: 20; font.weight: Font.DemiBold; color: Tokens.fg }
             Rectangle {
                 Layout.fillWidth: true; Layout.preferredHeight: 30; radius: 8
                 color: Util.darkMode ? "#1B2B1F" : "#E4F5E8"
@@ -350,7 +350,7 @@ Window {
                     Rectangle {
                         Layout.preferredWidth: 64; Layout.preferredHeight: 20; radius: 6
                         color: Util.darkMode ? "#1B2B1F" : "#E4F5E8"
-                        Text { anchors.centerIn: parent; text: "BUILT-IN"; font { pixelSize: 9; bold: true }; color: "#28C840" }
+                        Text { anchors.centerIn: parent; text: "BUILT-IN"; font.pixelSize: 9; font.bold: true; color: "#28C840" }
                     }
                 }
             }
@@ -362,7 +362,7 @@ Window {
         id: stubPane
         ColumnLayout {
             spacing: 8
-            Text { text: win.panes[win.pane].label; font { family: "Montserrat"; pixelSize: 20; weight: Font.DemiBold }; color: Tokens.fg }
+            Text { text: win.panes[win.pane].label; font.family: "Montserrat"; font.pixelSize: 20; font.weight: Font.DemiBold; color: Tokens.fg }
             Text {
                 text: "Backend wiring lands with the M3 milestone:\n· Displays — kscreen D-Bus (resolution · scale · night light)\n· Sound — PipeWire (output · input · devices)\n· Network — NetworkManager D-Bus (Wi-Fi list · known networks)\n· Users — AccountsService (person glyph, §6)"
                 font.pixelSize: 12

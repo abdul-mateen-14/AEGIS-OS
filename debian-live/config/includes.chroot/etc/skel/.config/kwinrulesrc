@@ -10,3 +10,24 @@ skippager=true
 skippagerrule=2
 skiptaskbar=true
 skiptaskbarrule=2
+
+[2]
+Description=Aegis Files — Dolphin rebranded (stock fallback; dock uses aegis-apps)
+windowclass=dolphin
+windowclassmatch=2
+title=Aegis Files
+titlerule=3
+
+[3]
+Description=Aegis Terminal — Konsole rebranded (Terminal is still Konsole under the hood)
+windowclass=konsole
+windowclassmatch=2
+title=Aegis Terminal
+titlerule=3
+
+[4]
+Description=Aegis Settings — System Settings rebranded (stock fallback; dock uses aegis-apps)
+windowclass=systemsettings
+windowclassmatch=2
+title=Aegis Settings
+titlerule=3

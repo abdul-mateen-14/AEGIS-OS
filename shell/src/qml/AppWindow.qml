@@ -53,10 +53,11 @@ Item {
             focused: root.window ? root.window.activeFocusItem !== null : true
             onCloseClicked: if (root.window) root.window.close()
             onMinClicked: if (root.window) root.window.showMinimized()
-            onMaxClicked: if (!root.window) return
-                          root.window.visibility === Window.Maximized
-                              ? root.window.showNormal()
-                              : root.window.showMaximized()
+            onMaxClicked: {
+                if (!root.window) return
+                if (root.window.visibility === Window.Maximized) root.window.showNormal()
+                else root.window.showMaximized()
+            }
         }
 
         Text {
