@@ -220,40 +220,58 @@ class Serial:
     def send(self, text):
         self.s.send(text.encode())
 
-    def login(self, user="aegis", passwords=("", "aegis", "live", "root", "ubuntu")):
+    def login(self, user="aegis", passwords=("aegis", "", "live", "root", "ubuntu")):
         """Open a shell on the serial console. Marker-2 trick: a real shell
         evaluates $((1+1)); a login prompt echoes it literally and logs a
         FAILED LOGIN, so a plain substring match cannot false-positive.
-        Two console states are handled: a getty 'login:' prompt (the
-        password ladder below) and an ALREADY-AUTOLOGGED shell — the third
-        v0.6.13 boot test hit that state (autologin consumed the prompt
-        while the desktop was still coming up on a fast KVM boot), the
-        early login returned False, and the run lost the review fixtures
-        and the Aegis ID pane shot. For the shell state the MARKER test
-        runs directly; the echo can only contain MARKER-$((1+1)), never
-        the evaluated MARKER-2."""
+
+        Three console states are handled: a getty 'login:' prompt, an
+        ALREADY-AUTOLOGGED shell (autologin consumed the prompt), and the
+        boot-spam phase where neither exists yet. The v0.6.14 capture
+        exposed the desync trap: the marker probe must ONLY be typed when
+        a shell prompt is actually on screen — typed at the getty prompt it
+        becomes the next USERNAME ('aegis login: echo MARKER-...') and
+        every later credential lands in the wrong field until getty times
+        out 60 s later. 'aegis' is the working live password (empty fails:
+        'FAILED LOGIN 1 FOR aegis, Authentication failure' on the v0.6.14
+        run); Ctrl-U (\x15) resyncs a half-typed line before each try."""
         self.buf = b""
+        shell_rx = re.compile(rb"[$#] ?\r?$")
         for _ in range(5):
+            self.buf = b""                       # fresh window per probe
             self.send("\n"); self._drain(1.5)
             if b"login:" in self.buf:
                 break
-            # autologin may already own the console — probe for a live shell
-            self.buf = b""
+            if shell_rx.search(self.buf):
+                # an autologin shell owns the console — the marker is safe now
+                self.send("echo MARKER-$((1+1))\n"); self._drain(2.5)
+                if (b"MARKER-2" in self.buf
+                        and b"FAILED LOGIN" not in self.buf):
+                    return True
+                break
+        if b"login:" not in self.buf and not shell_rx.search(self.buf):
+            return False
+        for pw in passwords:
+            self.buf = b""                       # stale text must not match
+            self.send("\x15"); self._drain(0.4)   # Ctrl-U: kill stale input
+            self.send(user + "\n"); self._drain(2.5)
+            if b"Password" not in self.buf:
+                # no password prompt: either the shell just opened or the
+                # prompt is mid-resync — only probe with a shell prompt up
+                if shell_rx.search(self.buf):
+                    self.send("echo MARKER-$((1+1))\n"); self._drain(2.5)
+                    if (b"MARKER-2" in self.buf
+                            and b"FAILED LOGIN" not in self.buf):
+                        return True
+                continue
+            self.send(pw + "\n"); self._drain(3)
+            if (b"Login incorrect" in self.buf
+                    or b"FAILED LOGIN" in self.buf):
+                continue
             self.send("echo MARKER-$((1+1))\n"); self._drain(2.5)
             if (b"MARKER-2" in self.buf
                     and b"FAILED LOGIN" not in self.buf):
                 return True
-        if b"login:" not in self.buf:
-            return False
-        for pw in passwords:
-            self.send(user + "\n"); self._drain(2.5)
-            if b"Password" in self.buf:
-                self.send(pw + "\n"); self._drain(3)
-            self.buf = b""
-            self.send("echo MARKER-$((1+1))\n"); self._drain(3)
-            if b"MARKER-2" in self.buf and b"FAILED LOGIN" not in self.buf:
-                return True
-            # back at the login prompt after a failed attempt — retry next pw
         return False
 
     def run(self, cmd, settle=3.0):
@@ -359,6 +377,14 @@ def app_diag(serial):
         "echo ===COREDUMPCTL===; coredumpctl list --no-pager 2>&1 | tail -10",
         "echo ===KWINRC===; cat /etc/xdg/kwinrc 2>&1",
         "echo ===KWIN-PLUGINS===; ls /usr/lib/x86_64-linux-gnu/qt6/plugins/kwin/effects/plugins/ 2>&1; ls /usr/lib/qt6/plugins/kwin/effects/plugins/ 2>&1; echo PLUGINS-DONE",
+        # W14 — did the splash renderer really run? The boot frames keep
+        # missing the (short) plymouth window on the ~10 s KVM boot, so the
+        # journal is the evidence: theme selected, service state, plugin.
+        "echo ===PLYMOUTH===; plymouth-set-default-theme 2>&1; "
+        "systemctl status plymouth-start.service --no-pager 2>&1 | head -8; "
+        "ls /usr/lib/*/plymouth/two-step.so 2>&1; "
+        "ls /usr/share/plymouth/themes/aegis-mark/ 2>&1; "
+        "sudo journalctl -b --no-pager 2>&1 | grep -ai plymouth | tail -15",
     ]
     blob = []
     for c in diag_cmds:
@@ -560,7 +586,7 @@ def wait_desktop(q, proc, timeout=DESKTOP_TIMEOUT):
         log(f"boot-{n:02d}: sat={sat:.1f} val={val:.1f} dock-slots={present} t={time.time() - t0:.0f}s")
         if present >= desktop_ready_threshold():
             return n
-        n += 1; time.sleep(5 if n < 12 else 20)
+        n += 1; time.sleep(2 if n < 8 else (5 if n < 20 else 20))
     return -1
 
 def main():
