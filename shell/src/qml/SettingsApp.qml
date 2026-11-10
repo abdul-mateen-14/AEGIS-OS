@@ -95,10 +95,10 @@ Window {
                             }
                             contentItem: RowLayout {
                                 spacing: 10
-                                leftPadding: 10
                                 Rectangle {
                                     width: 18; height: 18; radius: 9
                                     Layout.alignment: Qt.AlignVCenter
+                                    Layout.leftMargin: 10
                                     color: modelData.tint
                                     opacity: 0.9
                                 }
