@@ -671,13 +671,25 @@ def main():
             try:
                 if serial is not None:
                     out = serial.run(
+                        # the shell's bus is the dbus-run-session private
+                        # session, NOT the systemd --user bus at
+                        # $XDG_RUNTIME_DIR/bus ("The name org.aegis.Shell
+                        # was not provided by any .service files" on the
+                        # v0.6.19 run) — read the real address from the
+                        # shell's own environment
                         "export XDG_RUNTIME_DIR=/run/user/$(id -u); "
+                        "SHELLPID=$(pgrep -f '/usr/bin/aegis-shell' | head -1); "
+                        "export DBUS_SESSION_BUS_ADDRESS=$(tr '\\0' '\\n' "
+                        "< /proc/$SHELLPID/environ "
+                        "| grep '^DBUS_SESSION_BUS_ADDRESS=' | head -1 "
+                        "| cut -d= -f2-); "
                         "busctl --user call org.aegis.Shell /org/aegis/Shell "
                         f"org.aegis.Shell launch s \"{cmd}\" 2>&1; "
                         f"echo LAUNCH-{name}-OK", settle=3)
-                    launched = f"LAUNCH-{name}-OK" in out
+                    launched = (f"LAUNCH-{name}-OK" in out
+                                and "Call failed" not in out)
                     log(f"{name}: dbus launch -> " +
-                        out.strip().replace("\n", " | ")[-120:])
+                        out.strip().replace("\n", " | ")[-160:])
             except Exception as e:
                 log(f"{name}: dbus launch failed ({e})")
             if launched:
