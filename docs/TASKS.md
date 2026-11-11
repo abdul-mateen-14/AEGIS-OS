@@ -117,6 +117,14 @@ from docs/MILESTONES.md.
 - Release: qml-guard -> commit -> pull --rebase -> push -> tag v0.6.27 ->
   Release CI builds ISO -> Boot Test (workflow_dispatch, inputs.tag
   v0.6.27) -> verify captures in docs/screenshots/v0.6.27/.
+- Release status: first tag push (0abd799) failed twice on runner-side DNS
+  (docker bridge lost archive.ubuntu.com — "Could not resolve", exit 100
+  in the aegis-shell deb step; Shell CI itself passed, the code compiles).
+  Fix shipped 24866bd: run-in-container.sh uses --network host and
+  build-shell.sh retries apt-get update 3x; tag force-moved to 24866bd and
+  the Release re-ran. LESSON: when a CI step dies on "Could not resolve"
+  for ALL hosts in one pass, it is the runner/container resolver, not the
+  code — rerun once, then switch the container to host networking.
 
 ### RESUME NOTES (for any fresh session)
 
