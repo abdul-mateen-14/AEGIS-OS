@@ -55,14 +55,55 @@ capture, no proof the apps open on the runner.
   while a real QML load failure still says error/Cannot and stays DIRTY.
   The probe verdicts join the release gate automatically through the
   probes dict loop.
+- D5 — boot-test failure investigation (v0.6.28 Boot Test run 43064774243,
+  FAILED after 13 min) and fix batch. The dock itself SHIPPED CORRECT: the
+  home capture shows all four M3 squircles. Four independent defects made
+  the choreography red:
+  1. AEGIS Browser deb 404 (the pinned r31 release asset was removed
+     upstream; r45 is current) — the ISO staged only OS + CoreX, the dock
+     dropped the Browser slot per W8 and showed 10 tiles while the
+     geometric click map assumed the config's 11 — every click after the
+     separator landed half a pitch off (usually dead centre of the 2 px
+     gap between tiles). The tooltips in the four app captures prove the
+     pointer sat one tile right of the intent (Calculator/Editor/Monitor/
+     Settings). Fix: app-deb-urls.txt r31 -> r45 AND the harness now asks
+     the guest for its REAL tile list (resolved_tile_cmds: Tier A always
+     present, Tier B iff command -v finds the binary — the W8 rule) and
+     rebuilds the click map from that answer (open_app picks the click
+     index from tile_index; hardcoded indices are only the fallback).
+  2. EVERY busctl call in the run failed with "No such interface
+     'org.aegis.Shell'" — a REAL product bug: Util never declared
+     Q_CLASSINFO("D-Bus Interface", "org.aegis.Shell"), so Qt exported
+     the invokables under the generated local.aegis.Util interface. The
+     DBus launch path never worked since v0.6.19; the click fallback
+     silently did the work (the old config count matched the dock, so
+     nothing bit until the four M3 clicks). Fix: Q_CLASSINFO added to
+     Util (util.h). forwardToShell was never affected (it passes an
+     empty interface, which DBus resolves against any export). The
+     launch ladder is now busctl -> nohup (the proven 04b mechanism,
+     independent of bus and geometry) -> geometric click.
+  3. Two probe verdicts (music, monitor) were lost to serial-buffer
+     desync ("VERDICT MISSING" = harness failure). Fix: probes now write
+     their verdict to /tmp/pv-<s|f|m|c|e|n> guest-side and ONE short
+     read command returns all six; parsing is regex on that reply.
+     Honest failure preserved: a missing verdict file still fails.
+  4. The four M3 wrappers were never guest-verified. The diag now dumps
+     ls -la of all six /usr/bin/aegis-* wrappers (===WRAPPERS===).
+  Simulated the guest-side parsing offline (10-tile, 11-tile, garbled,
+  verdict regex — all pass). Files: shell/src/util.h,
+  debian-live/app-deb-urls.txt, scripts/boot-capture.py.
 - D4 — release: qml-guard -> commit -> pull --rebase -> push -> tag
-  v0.6.28 -> Release CI builds the ISO -> Boot Test (workflow_dispatch,
-  inputs.tag v0.6.28) -> verify 04c..04f captures exist and the asserts
+  (v0.6.28 was burned by the D5 defects; the fix batch re-releases as
+  v0.6.29) -> Release CI builds the ISO -> Boot Test (workflow_dispatch,
+  inputs.tag v0.6.29) -> verify 04c..04f captures exist and the asserts
   stay green -> mark T11 SHIPPED here with the run numbers.
 
 ### Status
 
-- D1-D3 DONE in tree (commit 22fda7c): four Tier A slots in config.json +
+- D1-D3 DONE in tree (commit 22fda7c); D5 fixes DONE in tree (this
+  commit); D4 release pending on the tag.
+
+- D1-D3 detail: four Tier A slots in config.json +
   the util.cpp mirror; boot-capture.py grew the four open_app captures
   (04c-music / 04d-calculator / 04e-editor / 04f-monitor, click_idx 5-8),
   Settings click_idx moved to 9, the opens release gate covers all seven

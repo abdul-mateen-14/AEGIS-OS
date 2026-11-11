@@ -571,13 +571,13 @@ def app_diag(serial):
         "echo ===QP''S===; export XDG_RUNTIME_DIR=/run/user/$(id -u); "
         "WAYLAND_DISPLAY=wayland-0 timeout -k 2 6 aegis-apps settings 8 "
         ">/tmp/qml-probe.err 2>&1; if grep -qvi 'libEGL warning' "
-        "/tmp/qml-probe.err; then echo PROBE-S-''DIRTY; else echo "
-        "PROBE-S-''CLEAN; fi",
+        "/tmp/qml-probe.err; then echo DIRTY > /tmp/pv-s; else echo CLEAN "
+        "> /tmp/pv-s; fi",
         "echo ===QP''F===; export XDG_RUNTIME_DIR=/run/user/$(id -u); "
         "WAYLAND_DISPLAY=wayland-0 timeout -k 2 6 aegis-apps files "
         ">/tmp/qml-probe-files.err 2>&1; if grep -qvi 'libEGL warning' "
-        "/tmp/qml-probe-files.err; then echo PROBE-F-''DIRTY; else echo "
-        "PROBE-F-''CLEAN; fi",
+        "/tmp/qml-probe-files.err; then echo DIRTY > /tmp/pv-f; else echo "
+        "CLEAN > /tmp/pv-f; fi",
         # T11 — the four M3 apps join the foreground probes. Music's DIRTY
         # verdict additionally ignores audio-subsystem chatter (pipewire /
         # pulse / gstreamer / alsa): MediaPlayer is constructed at startup
@@ -587,23 +587,35 @@ def app_diag(serial):
         "WAYLAND_DISPLAY=wayland-0 timeout -k 2 6 aegis-apps music "
         ">/tmp/qml-probe-music.err 2>&1; if grep -qvi -e 'libEGL warning' "
         "-e 'pipewire' -e 'pulse' -e 'gstreamer' -e 'alsa' "
-        "/tmp/qml-probe-music.err; then echo PROBE-M-''DIRTY; else echo "
-        "PROBE-M-''CLEAN; fi",
+        "/tmp/qml-probe-music.err; then echo DIRTY > /tmp/pv-m; else echo "
+        "CLEAN > /tmp/pv-m; fi",
         "echo ===QP''C===; export XDG_RUNTIME_DIR=/run/user/$(id -u); "
         "WAYLAND_DISPLAY=wayland-0 timeout -k 2 6 aegis-apps calculator "
         ">/tmp/qml-probe-calculator.err 2>&1; if grep -qvi 'libEGL warning' "
-        "/tmp/qml-probe-calculator.err; then echo PROBE-C-''DIRTY; else echo "
-        "PROBE-C-''CLEAN; fi",
+        "/tmp/qml-probe-calculator.err; then echo DIRTY > /tmp/pv-c; else "
+        "echo CLEAN > /tmp/pv-c; fi",
         "echo ===QP''E===; export XDG_RUNTIME_DIR=/run/user/$(id -u); "
         "WAYLAND_DISPLAY=wayland-0 timeout -k 2 6 aegis-apps editor "
         ">/tmp/qml-probe-editor.err 2>&1; if grep -qvi 'libEGL warning' "
-        "/tmp/qml-probe-editor.err; then echo PROBE-E-''DIRTY; else echo "
-        "PROBE-E-''CLEAN; fi",
+        "/tmp/qml-probe-editor.err; then echo DIRTY > /tmp/pv-e; else echo "
+        "CLEAN > /tmp/pv-e; fi",
         "echo ===QP''N===; export XDG_RUNTIME_DIR=/run/user/$(id -u); "
         "WAYLAND_DISPLAY=wayland-0 timeout -k 2 6 aegis-apps monitor "
         ">/tmp/qml-probe-monitor.err 2>&1; if grep -qvi 'libEGL warning' "
-        "/tmp/qml-probe-monitor.err; then echo PROBE-N-''DIRTY; else echo "
-        "PROBE-N-''CLEAN; fi",
+        "/tmp/qml-probe-monitor.err; then echo DIRTY > /tmp/pv-n; else echo "
+        "CLEAN > /tmp/pv-n; fi",
+        # T11-D5 — one short read returns all six verdicts from the guest's
+        # verdict FILES: the v0.6.28 run lost two in-band verdict tokens
+        # (music, monitor) to serial-buffer desync when a probe chain ran
+        # long and a later echo swallowed the token. File-based verdicts
+        # cannot desync.
+        "echo ===VERDICTS===; for f in s f m c e n; do echo PV-$f=$(cat "
+        "/tmp/pv-$f 2>/dev/null || echo MISSING); done",
+        # T11-D5 — the four M3 wrappers were never verified in the guest:
+        # prove they exist, are executable, and are what the dock execs.
+        "echo ===WRAPPERS===; ls -la /usr/bin/aegis-files /usr/bin/aegis-settings "
+        "/usr/bin/aegis-music /usr/bin/aegis-calculator /usr/bin/aegis-editor "
+        "/usr/bin/aegis-monitor 2>&1; echo WRAPPERS-DONE",
         "echo ===JRN-SHELL===; sudo journalctl -b --no-pager 2>&1 | grep -aiE 'aegis-(shell|apps|session|files|settings)|QQml|qrc:' | tail -50",
         "echo ===JRN-KWIN===; sudo journalctl -b --no-pager 2>&1 | grep -ai 'kwin' | grep -aivE 'information|Rendering|colorProfile|ColorManagement' | tail -40",
         "echo ===JRN-CRASH===; sudo journalctl -b --no-pager 2>&1 | grep -aiE 'segfault|signal 11|coredump|abrt|general protection' | tail -20",
@@ -620,37 +632,38 @@ def app_diag(serial):
         "sudo journalctl -b --no-pager 2>&1 | grep -ai plymouth | tail -15",
     ]
     blob = []
+    verdict_out = ""
     for c in diag_cmds:
         # probe commands get a 12 s settle: the timeout -k bound is 8 s, so
         # the verdict always lands inside the drain window
         out = serial.run(c, settle=12 if "timeout -k" in c else 6)
         blob.append(out)
+        if "===VERDICTS===" in c:
+            verdict_out = out
         log("app-diag: " + out.strip().replace("\n", " | ")[:400])
     open("serial-diag.txt", "w").write("\n".join(blob))
-    # §1 — verdicts are read from the RAW serial stream: echoes carry only
-    # the split forms (PROBE-F-''DIRTY), so a literal token can only be a
-    # printed verdict. The rfind strip cannot lose them here.
-    raw = serial.buf.decode(errors="replace")
+    # §1 — verdicts come from the guest's /tmp/pv-* files (see the
+    # VERDICTS diag command): in-band tokens desynced twice on v0.6.28.
     probes = {}
-    # extra = extra guest-side grep -e terms that must stay OUT of the
-    # verdict/fetch text (music: benign audio-subsystem chatter)
-    for name, tok, path, extra in (
-            ("settings", "PROBE-S", "/tmp/qml-probe.err", ""),
-            ("files", "PROBE-F", "/tmp/qml-probe-files.err", ""),
-            ("music", "PROBE-M", "/tmp/qml-probe-music.err",
+    for name, path, extra in (
+            ("settings", "/tmp/qml-probe.err", ""),
+            ("files", "/tmp/qml-probe-files.err", ""),
+            ("music", "/tmp/qml-probe-music.err",
              "-e pipewire -e pulse -e gstreamer -e alsa"),
-            ("calculator", "PROBE-C", "/tmp/qml-probe-calculator.err", ""),
-            ("editor", "PROBE-E", "/tmp/qml-probe-editor.err", ""),
-            ("monitor", "PROBE-N", "/tmp/qml-probe-monitor.err", "")):
-        if tok + "-DIRTY" in raw:
+            ("calculator", "/tmp/qml-probe-calculator.err", ""),
+            ("editor", "/tmp/qml-probe-editor.err", ""),
+            ("monitor", "/tmp/qml-probe-monitor.err", "")):
+        m = re.search(rf"PV-{name[0]}=(\w+)", verdict_out)
+        verdict = m.group(1) if m else "MISSING"
+        if verdict == "CLEAN":
+            log(f"probe {name}: CLEAN")
+            probes[name] = ""
+        elif verdict == "DIRTY":
             fetch = serial.run(
                 f"grep -vi 'libEGL warning' {extra} {path} | head -10",
                 settle=3)
             log(f"probe {name}: DIRTY — " + fetch.strip()[:300])
             probes[name] = fetch
-        elif tok + "-CLEAN" in raw:
-            log(f"probe {name}: CLEAN")
-            probes[name] = ""
         else:
             log(f"probe {name}: VERDICT MISSING — probe chain never "
                 "completed; treating as a harness failure")
@@ -764,7 +777,7 @@ def serial_recover(serial, q, W=1280, H=800):
     return False
 
 # ---------------- choreography ----------------
-def dock_geometry(png):
+def dock_geometry(png, n_override=None):
     """Dock tile centers computed GEOMETRICALLY from Tokens.qml + config.
 
     The v0.4.x dock is an always-expanded light glass tray: brightness-gap
@@ -773,7 +786,12 @@ def dock_geometry(png):
     centered horizontally, fixed pitch (tileWidth + tileGap), fixed icon
     row height — so we parse the tokens out of the repo and lay the tile
     centers out arithmetically. A brightness/saturation sanity check per
-    slot tells whether the desktop is really up (returns n_present)."""
+    slot tells whether the desktop is really up (returns n_present).
+    T11-D5: n_override lets the caller lay out the map for the tile count
+    the GUEST actually shows (Tier B slots drop when their deb is missing
+    — the v0.6.28 build lost the Browser deb to a 404, the dock showed 10
+    tiles while the config said 11, and every click after the separator
+    landed half a pitch off, usually in the 2 px gap between tiles)."""
     im = Image.open(png).convert("RGB")
     W, H = im.size
 
@@ -790,7 +808,7 @@ def dock_geometry(png):
     B = token("tileWidth", 76)
     gap = token("tileGap", 2)
     pad = token("trayPadding", 12)
-    n = expected_tiles()
+    n = n_override if n_override else expected_tiles()
 
     row_w = n * B + (n - 1) * gap
     tray_w = row_w + 2 * pad
@@ -821,6 +839,50 @@ def desktop_ready_threshold():
     Tier B debs resolve), so a fixed '8 slots' check would never fire. The
     threshold scales with the config: full model minus two for tolerance."""
     return max(4, expected_tiles() - 2)
+
+
+def resolved_tile_cmds(serial):
+    """T11-D5 — the tile list the GUEST actually shows, in dock order.
+
+    The dock drops Tier B slots whose product is not installed (W8) and
+    re-lays-out the survivors, so the config count can disagree with the
+    real dock — the v0.6.28 ISO lost the Browser deb (404) and every
+    geometric click after the separator missed. Ask the guest directly:
+    for each config slot in order, Tier A is always present, Tier B is
+    present iff its binary is on PATH (the W8 rule approximated by
+    command -v; the three Tier B products always ship binaries).
+    Returns the present cmds in dock order, or None when serial is
+    unavailable or the reply is garbled — the caller then keeps the
+    config-derived map."""
+    if serial is None:
+        return None
+    try:
+        cfg = json.load(open("shell/packaging/config.json"))
+        slots = [(bool(a.get("resolve")), a.get("cmd", ""))
+                 for a in cfg.get("apps", [])
+                 if a.get("type") != "separator"]
+    except Exception as e:
+        log(f"resolved_tile_cmds: config unreadable ({e})")
+        return None
+    tests = []
+    for resolve, cmd in slots:
+        head = cmd.split(" ")[0]
+        if resolve:
+            tests.append(f"command -v {head} >/dev/null 2>&1 && echo TILE {head}")
+        else:
+            tests.append(f"echo TILE {head}")
+    try:
+        out = serial.run("; ".join(tests) + "; echo TILE-ORDER-END", settle=5)
+    except Exception as e:
+        log(f"resolved_tile_cmds: serial probe failed ({e})")
+        return None
+    if "TILE-ORDER-END" not in out:
+        log("resolved_tile_cmds: reply garbled — keeping the config map")
+        return None
+    cmds = re.findall(r"TILE (\S+)", out)
+    if not cmds:
+        return None
+    return cmds
 
 def wait_desktop(q, proc, timeout=DESKTOP_TIMEOUT):
     """Desktop readiness = at least (tiles - 2) of the geometric dock slots
@@ -915,6 +977,7 @@ def main():
     # the springs settle, then capture the wave and the black label bubble.
     home = thumb(f"{OUT}/01-home.png")
     tiles = find_tiles(f"{OUT}/01-home.png")
+    tile_index = {}                       # cmd -> dock position (guest-resolved)
     log(f"resolution {W}x{H}; dock slots: {len(tiles)} (geometric)")
     hover = tiles[len(tiles) // 2]
     q.mouse_abs(hover[0], hover[1] - 90, W, H)
@@ -926,25 +989,32 @@ def main():
     time.sleep(1.0)
 
     def open_app(name, cmd, wait_s=25, click_idx=None):
-        """Launch via the shell's DBus surface (Util.launch is exported by
-        ExportAllInvokables on org.aegis.Shell) — deterministic, no pixel
-        geometry. The old dock-tile click raced the magnification
-        animation: the geometric layout assumes the 7-slot config, the W9
-        dock shows 6 tiles, and every center sits half a pitch left of the
-        real tile (the v0.6.18 run lost that race and konsole never
-        opened). Falls back to the geometric click when the serial console
-        is unavailable."""
+        """Launch an app and capture it. Ladder (T11-D5):
+        1. the session API over DBus — Util.launch on org.aegis.Shell (the
+           Q_CLASSINFO D-Bus Interface fix; before it, Qt exported the
+           invokables as the generated local.aegis.Util interface and
+           EVERY busctl call failed with "No such interface" while the
+           geometric click fallback silently did the work),
+        2. nohup from the serial shell — the same binary the dock execs,
+           independent of the bus AND of the dock geometry (the proven
+           04b-aegis-id pane mechanism),
+        3. geometric dock click — built from the guest's real tile list
+           when the serial answer arrived, the config count otherwise."""
+        # dynamic lookup wins (guest-resolved order); the passed index is
+        # only the serial-less / rebuild-failed fallback against the config
+        # count
+        idx = tile_index.get(cmd, click_idx)
         for attempt in range(2):
             launched = False
             try:
                 if serial is not None:
+                    # (1) the shell's bus is the dbus-run-session private
+                    # session, NOT the systemd --user bus at
+                    # $XDG_RUNTIME_DIR/bus ("The name org.aegis.Shell was
+                    # not provided by any .service files" on the v0.6.19
+                    # run) — read the real address from the shell's own
+                    # environment
                     out = serial.run(
-                        # the shell's bus is the dbus-run-session private
-                        # session, NOT the systemd --user bus at
-                        # $XDG_RUNTIME_DIR/bus ("The name org.aegis.Shell
-                        # was not provided by any .service files" on the
-                        # v0.6.19 run) — read the real address from the
-                        # shell's own environment
                         "export XDG_RUNTIME_DIR=/run/user/$(id -u); "
                         "SHELLPID=$(pgrep -f '/usr/bin/aegis-shell' | head -1); "
                         "export DBUS_SESSION_BUS_ADDRESS=$(tr '\\0' '\\n' "
@@ -958,17 +1028,29 @@ def main():
                                 and "Call failed" not in out)
                     log(f"{name}: dbus launch -> " +
                         out.strip().replace("\n", " | ")[-160:])
+                    # (2) nohup fallback — the launch ladder must not
+                    # depend on one mechanism (the v0.6.28 run red on
+                    # exactly this single point of failure)
+                    if not launched:
+                        out = serial.run(
+                            "export XDG_RUNTIME_DIR=/run/user/$(id -u); "
+                            "WAYLAND_DISPLAY=wayland-0 nohup "
+                            f"{cmd} >/tmp/aegis-launch-{name}.err 2>&1 & "
+                            f"echo LAUNCH-{name}-OK", settle=3)
+                        launched = f"LAUNCH-{name}-OK" in out
+                        log(f"{name}: nohup launch -> " +
+                            out.strip().replace("\n", " | ")[-120:])
             except Exception as e:
-                log(f"{name}: dbus launch failed ({e})")
+                log(f"{name}: serial launch failed ({e})")
             if launched:
                 time.sleep(wait_s)
-            elif click_idx is not None:
+            elif idx is not None:
                 # dock is always expanded — park the pointer high so the
                 # tray is at rest, then click the tile (magnification
                 # starts on arrival)
                 q.mouse_abs(W // 2, int(H * NEUTRAL_Y), W, H)
                 time.sleep(0.8)
-                q.click(*tiles[click_idx], W, H)
+                q.click(*tiles[idx], W, H)
                 time.sleep(wait_s)
             else:
                 continue
@@ -999,6 +1081,22 @@ def main():
         if ok:
             log("serial login OK — seeding review fixtures")
             seed_review_files(serial)
+            # T11-D5 — rebuild the click map from what the guest really
+            # shows: Tier B slots drop when their deb is missing (the
+            # v0.6.28 ISO lost the Browser deb and the map ran half a
+            # pitch off for every tile after the separator)
+            real_cmds = resolved_tile_cmds(serial)
+            if real_cmds:
+                try:
+                    tiles = dock_geometry(f"{OUT}/01-home.png",
+                                          n_override=len(real_cmds))[0]
+                    tile_index.clear()
+                    for i, c in enumerate(real_cmds):
+                        tile_index.setdefault(c, i)
+                    log(f"click map rebuilt from the guest: "
+                        f"{len(real_cmds)} tiles ({', '.join(real_cmds)})")
+                except Exception as e:
+                    log(f"click map rebuild failed ({e}) — keeping config map")
             # W14 diagnostic — the boot-phase plymouthd debug log survives
             # switch-root in /run. Dump it FIRST so a later gate failing
             # still leaves the renderer decision in the workflow log.
@@ -1031,7 +1129,10 @@ def main():
         q.key("alt", "f4"); time.sleep(5)
     # T11 — the dock grew to 11 tiles (M3 apps joined after the separator):
     # Files 0, Terminal 1, Browser 2, OS 3, CoreX 4, Music 5, Calculator 6,
-    # Editor 7, Monitor 8, Settings 9, Trash 10. Settings sits at index 9.
+    # Editor 7, Monitor 8, Settings 9, Trash 10 — config order. The click
+    # fallback uses the GUEST-resolved order via tile_index (a missing
+    # Tier B deb drops the slot and shifts everything); the hardcoded 9
+    # below is only the fallback for a full install.
     if open_app("04-settings", "aegis-settings", wait_s=30, click_idx=9):   # Settings
         opens["settings"] = True
         q.key("alt", "f4"); time.sleep(5)

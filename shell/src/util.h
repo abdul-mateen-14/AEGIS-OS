@@ -10,6 +10,14 @@
 // for the lock screen. Deliberately pragmatic — shell C++ stays light.
 class Util : public QObject {
     Q_OBJECT
+    // T11-D5 — the session API's bus name. Without this Q_CLASSINFO Qt
+    // exports the invokables under the generated local.aegis.Util
+    // interface, so every busctl --user call org.aegis.Shell ... launch
+    // failed with "No such interface" (observed on every boot test since
+    // the automation surface was added; the geometric click fallback hid
+    // it until the four M3 app captures arrived). With it, Qt publishes
+    // the invokables under org.aegis.Shell as the callers expect.
+    Q_CLASSINFO("D-Bus Interface", "org.aegis.Shell")
     Q_PROPERTY(QVariantMap config READ config CONSTANT)
     // W8/W9 — the dock model: config.json slots with every Tier B slot
     // ("resolve": true) re-marked from its installed .desktop entry (Icon=,
