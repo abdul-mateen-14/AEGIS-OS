@@ -124,6 +124,20 @@ for d in "$ROOT"/artifacts/*.deb; do
     echo "staged extra deb: $(basename "$d")"
 done
 
+# T11-D5e — the packages.chroot apt repo is UNRELIABLE for the biggest
+# deb: live-build rescans the Packages index between apt passes and the
+# INSTALL pass kept seeing the 4-deb index (the 115 MB AegisBrowser entry
+# only appears in the later 5-deb index), so v0.6.29-v0.6.32 never
+# unpacked the browser and the dock dropped its Tier B slot. Deterministic
+# path instead: copy every staged deb into includes.chroot (lands in the
+# chroot), let hook 0900 dpkg -i whatever apt missed, and let the hook
+# delete the directory before the squashfs is packed — zero ISO bloat.
+# The directory is build-time only and gitignored.
+mkdir -p debian-live/config/includes.chroot/opt/aegis-debs
+cp -f debian-live/config/packages.chroot/*.deb \
+      debian-live/config/includes.chroot/opt/aegis-debs/ 2>/dev/null || true
+echo "staged $(ls debian-live/config/includes.chroot/opt/aegis-debs/ | wc -l) deb(s) for the hook fallback"
+
 echo "=== 4/5 live-build: config + build ==="
 # live-build expects to run from the config root (auto/ lives there).
 cd "$ROOT/debian-live"

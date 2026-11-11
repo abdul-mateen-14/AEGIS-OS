@@ -1,16 +1,19 @@
 #!/bin/sh
-# T11-D5c — live-build's local packages.chroot apt repo (file:/root/packages)
-# intermittently lost the big AegisBrowser deb (115 MB): the v0.6.29 and
-# v0.6.30 builds unpacked aegis-shell / corex-terminal / os-private-chat but
-# never the browser (zero "Preparing to unpack" lines for it in the build
-# log), and the dock then dropped its Tier B slot per W8 — nothing on the
-# shelf that is not installed. Any of OUR debs that apt missed is installed
-# here directly. Already-installed packages are untouched: a re-run is a
-# no-op, and this can never regress a version apt already configured.
+# T11-D5e — deterministic app-deb install. live-build's local
+# packages.chroot apt repo (file:/root/packages) intermittently drops the
+# biggest deb (the 115 MB AegisBrowser): its Packages index is rescanned
+# between apt passes and the INSTALL pass kept seeing the 4-deb index, so
+# v0.6.29-v0.6.32 never unpacked the browser and the dock dropped its
+# Tier B slot (W8: nothing on the shelf that is not installed).
+#
+# build-iso.sh copies every staged deb into /opt/aegis-debs via
+# includes.chroot; this hook installs any of OUR packages apt missed,
+# then deletes the directory so the squashfs carries no payload.
+# Already-installed packages are untouched: a re-run is a no-op.
 set -e
 
 installed_any=0
-for d in /root/packages/*.deb /root/packages.chroot/*.deb; do
+for d in /opt/aegis-debs/*.deb /root/packages/*.deb /root/packages.chroot/*.deb; do
     [ -f "$d" ] || continue
     pkg=$(dpkg-deb -f "$d" Package 2>/dev/null) || continue
     case "$pkg" in
@@ -31,3 +34,6 @@ done
 if [ "$installed_any" = 1 ]; then
     apt-get install -y -f -qq >/dev/null 2>&1 || true
 fi
+
+# the payload must not reach the squashfs
+rm -rf /opt/aegis-debs

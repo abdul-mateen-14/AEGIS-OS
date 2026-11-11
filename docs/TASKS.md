@@ -158,9 +158,24 @@ capture, no proof the apps open on the runner.
   hooks silently; also the numbered unpack lines (0245-shell, 0494-corex,
   0902-shapecorners, 1106-os) prove live-build's local repo again skipped
   the browser deb itself. Fix: git update-index --chmod=+x on the hook.
-  The browser slot stays cosmetic-only for now (the dock is correct per
-  W8; T11's scope — the four M3 apps on the dock and in the captures —
-  is fully shipped). Browser slot follow-up moves to T12.
+- D5e — v0.6.32 Boot Test: SUCCESS again (all six probes CLEAN, the four
+  app captures green, header assert PASS) but the browser is STILL absent
+  (10 tiles) and the 0900 hook printed nothing even with the executable
+  bit fixed. Build-log archaeology found the real mechanism: live-build
+  rescans its local apt repo's Packages index between passes — the index
+  grows 2868 B (4 debs) -> 5782 B (5 debs) and the INSTALL pass always
+  ran against the 4-deb index (the browser's entry is ~2 KB of Depends),
+  so the browser NEVER unpacked in v0.6.29-v0.6.32; the numbered unpack
+  lines (0245-shell, 0494-corex, 0902-shapecorners, 1106-os) repeat
+  without the browser every time. Fix: bypass the local repo for the app
+  debs entirely — build-iso.sh now copies every staged deb into
+  config/includes.chroot/opt/aegis-debs (lands in the chroot), the
+  rewritten 0900 hook dpkg -i's any of OUR five packages apt missed from
+  there (/opt/aegis-debs, /root/packages, /root/packages.chroot —
+  idempotent, already-installed skipped), runs apt-get -f for deps, and
+  rm -rf's /opt/aegis-debs so the squashfs carries no payload (zero ISO
+  bloat). The includes dir is build-time only and gitignored. Release as
+  v0.6.33.
 - D4 — release: qml-guard -> commit -> pull --rebase -> push -> tag
   (v0.6.28 burned by D5, v0.6.29 by D5b, v0.6.30 by D5c; re-releases as
   v0.6.31) -> Release CI builds the ISO -> Boot Test (workflow_dispatch,
