@@ -1,3 +1,24 @@
+aegis-shell (1.7.0-m9) resolute; urgency=medium
+
+  * The splash painted nothing because plymouthd never had a renderer:
+    the DRM renderer is picked once, at daemon startup, and the initramfs
+    shipped no GPU driver (MODULES=most excludes GPU drivers and the
+    FRAMEBUFFER hook detects no hardware in a bare build chroot), so
+    /dev/dri/card0 did not exist when plymouthd started — v0.6.21 kept
+    the daemon alive from ~6 s to plymouth-quit at 26.8 s with zero
+    pixels on screen. A new initramfs hook force-loads virtio_gpu (and
+    bochs_drm when present) so the card exists BEFORE plymouthd starts at
+    init-premount.
+  * The boot test failed on its own gates, which is what they are for:
+    the DND assert bar sat at 1.0 while a real toggle measures ~0.35 —
+    the retry then clicked the switch back off and shipped the identical
+    frame again. Bar recalibrated to 0.15 with the panel clock excluded
+    from the diff, the retry now uses the tile body, and the splash gate
+    fires after the gpu/plymouth diagnostics probe so a failure log
+    always carries /dev/dri, lsmod and journal evidence.
+
+ -- Aegis Developers <dev@aegis-os.org>  Wed, 11 Nov 2026 04:30:00 +0000
+
 aegis-shell (1.7.0-m8) resolute; urgency=medium
 
   * The v0.6.20 captures called out four regressions; all four fixed.

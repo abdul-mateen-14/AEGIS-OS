@@ -824,41 +824,46 @@ def main():
         home = Image.open(f"{OUT}/05-control-center.png").convert("RGB")
 
         def frame_diff(a, b):
-            # diff only inside the CC sheet (x > W-380, y < 540): the switch
-            # move + bell fill live there; sampling every 4 px. Whole-frame
-            # diff would dilute the ~1000 changed pixels to < 1.0 and the
-            # assert would false-fail on a working toggle.
+            # diff only inside the CC sheet (x > W-380, y 40..540): the
+            # switch move + bell fill live there; sampling every 4 px. The
+            # panel clock is EXCLUDED (y < 40) — a minute rollover between
+            # the two shots would otherwise fake a pass. Calibrated on the
+            # v0.6.21 run: a real toggle moves diff to ≈ 0.35, no toggle
+            # measures exactly 0.00 — the old 1.0 bar failed a working
+            # toggle and the retry then clicked it back off.
             pa, pb = a.load(), b.load()
             Wd, Hd = a.size
             x0 = max(0, Wd - 380)
-            y1 = min(Hd, 540)
             t = n = 0
-            for y in range(0, y1, 4):
+            for y in range(40, min(Hd, 540), 4):
                 for x in range(x0, Wd, 4):
                     t += sum(abs(pa[x, y][c] - pb[x, y][c]) for c in range(3))
                     n += 1
             return t / n / 3
 
-        def dnd_click_and_capture(name):
-            q.click(W - 64, 300, W, H)    # the 36x20 switch, right end
+        def dnd_capture(pos, name):
+            q.click(pos[0], pos[1], W, H)
             time.sleep(2)
             q.shot(name)
             return Image.open(f"{OUT}/{name}.png").convert("RGB")
 
-        dnd_on = dnd_click_and_capture("05b-control-center-dnd")
+        SWITCH = (W - 64, 300)            # the 36x20 switch, right end
+        BODY = (W - 180, 300)             # tile body (the new tile-wide
+                                          # MouseArea makes it live)
+        dnd_on = dnd_capture(SWITCH, "05b-control-center-dnd")
         moved = frame_diff(home, dnd_on)
-        if moved < 1.0:
-            log(f"dnd assert: frame barely moved (diff={moved:.2f}) — "
+        if moved < 0.15:
+            log(f"dnd assert: frame did not move (diff={moved:.2f}) — "
                 "retrying on the tile body")
-            dnd_on = dnd_click_and_capture("05b-control-center-dnd")
+            dnd_on = dnd_capture(BODY, "05b-control-center-dnd")
             moved = frame_diff(home, dnd_on)
-        if moved < 1.0:
-            raise RuntimeError(
-                f"DND toggle produced no frame change (diff={moved:.2f}) — "
-                "the switch did not respond; failing the capture gate")
+        if moved < 0.15:
+            log(f"RELEASE GATE: DND toggle produced no frame change "
+                "(diff=%.2f) — the tile does not respond; failing" % moved)
+            sys.exit(1)
         log(f"05b-control-center-dnd captured (DND on, diff={moved:.1f})")
         # restore off and confirm the sheet settled back
-        q.click(W - 64, 300, W, H)
+        q.click(SWITCH[0], SWITCH[1], W, H)
         time.sleep(1.5)
     except SystemExit:
         raise
@@ -870,11 +875,10 @@ def main():
     # fallback until boot-capture proves the new theme". The signature
     # check (ink background + accent progress line / watermark pixels)
     # passed on this tag means the mark splash is REAL; a miss fails the
-    # release instead of shipping console text as "boot splash".
-    if not splash_report(OUT, n):
-        log("RELEASE GATE: the boot splash never painted the mark — "
-            "failing the capture run (W14)")
-        sys.exit(1)
+    # release instead of shipping console text as "boot splash". The exit
+    # fires AFTER the gpu/plymouth probe below so the failure log always
+    # carries the /dev/dri + journal diagnostics that explain the miss.
+    splash_ok = splash_report(OUT, n)
 
     # W14 experiment — CAN plymouthd render at all in this VM? The boot
     # frames show casper's console text over the whole plymouth window
@@ -888,6 +892,11 @@ def main():
             serial = Serial(SERIAL_SOCK)
             if not serial.login():
                 raise RuntimeError("serial login failed for the splash probe")
+        out = serial.run(
+            "ls -la /dev/dri 2>&1; lsmod | grep -E 'virtio_gpu|bochs' 2>&1; "
+            "journalctl -b --no-pager 2>/dev/null | grep -aiE 'plymouth|renderer' "
+            "| head -12; echo GPU-PROBE", settle=6)
+        log("gpu/plymouth probe: " + out.strip().replace("\n", " | ")[-700:])
         serial.run("sudo plymouth quit 2>&1; pkill plymouthd 2>/dev/null; "
                    "echo OLD-QUIT", settle=3)
         serial.run("sudo plymouthd --mode=boot --debug "
@@ -918,6 +927,11 @@ def main():
                    "echo CLEAN", settle=3)
     except Exception as e:
         log(f"plymouth live splash probe failed: {e}")
+
+    if not splash_ok:
+        log("RELEASE GATE: the boot splash never painted the mark — "
+            "failing the capture run (W14)")
+        sys.exit(1)
 
     # Post-capture diagnostics over the serial console: if apps failed to
     # open or the dock vanished during the choreography, the guest journal

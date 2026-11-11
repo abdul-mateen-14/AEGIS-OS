@@ -92,6 +92,33 @@ fi
 # machine, so the integration goes back: plymouthd takes the DRM master
 # in init-premount, paints ink + mark + progress line, and casper text
 # renders underneath until plymouth-quit hands over to SDDM.
+# The renderer is chosen ONCE, at plymouthd startup: if /dev/dri/card0
+# does not exist yet the DRM renderer fails and plymouthd runs headless
+# for the whole boot (v0.6.21: pidfile alive from ~6 s to plymouth-quit at
+# 26.8 s, zero pixels painted). MODULES=most does not ship GPU drivers and
+# the FRAMEBUFFER=y hook detects no hardware in a bare build chroot, so
+# the VM graphics stack must be forced into the initramfs — then card0
+# exists BEFORE plymouthd starts at init-premount and the splash owns the
+# display from the first second. bochs_drm covers plain -vga std QEMU.
+cat > /usr/share/initramfs-tools/hooks/aegis-vm-gpu <<'EOF'
+#!/bin/sh
+PREREQ=""
+prereqs()
+{
+        echo "$PREREQ"
+}
+case "$1" in
+        prereqs) prereqs; exit 0 ;;
+esac
+. /usr/share/initramfs-tools/hook-functions
+for M in virtio_gpu bochs_drm; do
+    if modinfo -q -n "$M" >/dev/null 2>&1; then
+        force_load "$M"
+    fi
+done
+EOF
+chmod +x /usr/share/initramfs-tools/hooks/aegis-vm-gpu
+
 if [ -x /usr/sbin/update-initramfs ]; then
     update-initramfs -u
 fi
