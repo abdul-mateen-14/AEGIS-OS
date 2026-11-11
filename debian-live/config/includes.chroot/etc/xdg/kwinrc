@@ -4,7 +4,13 @@ theme=__aurorae__svg__AegisLights
 ButtonsOnLeft=XIA
 ButtonsOnRight=
 BorderSizeAuto=false
-BorderSize=Normal
+# W11 — None = borders 0/44/0/0: the client is flush with the window edge
+# below the 44 px glass band (the AppWindow.qml anatomy). The aurorae v2
+# engine clamps theme Border* to this size (Normal would clamp 12 → 6 and
+# leave the client inside a body-coloured strip with the band arc floating
+# inset — "the header is smaller than the body"). Resizing still works
+# through KWin's resize-only borders; corners round via ShapeCorners below.
+BorderSize=None
 
 [Effect-blur]
 BlurDecorations=true
@@ -15,4 +21,12 @@ kwin4_effect_shapecornersEnabled=true
 
 [Effect-shapecorners]
 Radius=18
+
+# M3 — Depth: four workspaces (Meta+Ctrl arrows / three-finger swipe),
+# Overview mission control (Meta+W, stock effect), custom tiling (Meta+T,
+# stock). The shell exposes them as-is; the gesture dictionary lives in
+# docs/DESIGN-TOKENS.md Table 10.
+[Desktops]
+Number=4
+Rows=1
 

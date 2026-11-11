@@ -17,9 +17,24 @@ Painting the aurorae band with the SAME tint over the SAME wallpaper makes
 02-files and 03-terminal band pixels agree, which the T7 capture assert
 checks numerically.
 
-Geometry (corner radius 12, band 44, borders 12) is preserved verbatim from
-the hand-drawn v0.6.20 SVGs; only fills/strokes change. FrameSvg part ids
-(decoration-<part>, mask-<part>) follow the aurorae convention.
+v0.6.27 geometry — ONE rounded window anatomy (user report: "the header is
+smaller than body — they should be at the same place"):
+
+  The Plasma 6.6 v2 engine CLAMPS the theme's Border* to the user's border
+  size (decorationtheme.cpp borders(): BorderSize=Normal → clamp 4..6), so
+  the declared 12 px side borders were really 6 px while the SVG still drew
+  a 12 px frame with a radius-12 arc — the client sat 6 px inside a
+  body-coloured strip and the band's arc floated inset from it.
+  Fix: kwinrc BorderSize=None (borders 0/44/0/0 — the client is flush with
+  the window edge, exactly the AppWindow.qml anatomy), the side/bottom
+  frame parts now hide under the client, and the frame is regenerated with
+  radius-18 top corners matching the ShapeCorners effect (kwinrc Radius=18)
+  so its dark outline hugs the glass arc. FrameSvg part margins come from
+  the SVG ELEMENT sizes (KSvg::FrameSvg), so topleft/topright elements are
+  18 px wide; the rc Border* values only feed the (now zeroing) clamp.
+
+FrameSvg part ids (decoration-<part>, mask-<part>) follow the aurorae
+convention.
 
 Run from the repo root; writes into the includes tree and gzips in place.
 """
@@ -40,10 +55,13 @@ EDGE_ACTIVE = "#ffffff24"      # white @ 0.14 = Tokens.glassBorder
 EDGE_INACTIVE = "#ffffff0f"    # white @ ~0.06
 EDGE_INNER = "#ffffff0d"       # inner corner strokes (kept from v0.6.20)
 
-TOPLEFT_PATH = "M0 12 A12 12 0 0 1 12 0 L12 44 L0 44 Z"
-TOPLEFT_ARC = "M0.7 12 A11.3 11.3 0 0 1 12 0.7"
-INNER_ARC = "M0.7 12.3 A10.7 10.7 0 0 0 12 42"
-BOTTOM_PATH = "M0 0 L12 0 L12 12 A12 12 0 0 1 0 0 Z"
+TOPLEFT_PATH = "M0 18 A18 18 0 0 1 18 0 L18 44 L0 44 Z"
+TOPLEFT_ARC = "M0.7 18 A17.3 17.3 0 0 1 18 0.7"
+INNER_ARC = "M0.7 18.3 A17.0 17.0 0 0 0 18 42"
+BOTTOM_PATH = "M0 0 L18 0 L18 18 A18 18 0 0 1 0 0 Z"
+PARTW = 18   # corner-part width = ShapeCorners Radius; also the FrameSvg
+             # side margin (hidden under the flush client, but keeps the
+             # arc unsquished when FrameSvg derives margins from elements)
 
 
 def frame_svg(prefix: str, edge: str, band_bottom: str) -> str:
@@ -53,21 +71,21 @@ def frame_svg(prefix: str, edge: str, band_bottom: str) -> str:
   <g id="decoration-{p}topleft">
     <path d="{TOPLEFT_PATH}" fill="{GLASS}" fill-opacity="{GLASS_OP}"/>
 <path d="{TOPLEFT_ARC}" fill="none" stroke="{edge}" stroke-width="1"/>
-<path d="M0 43 L12 43" stroke="{band_bottom}" stroke-width="1"/>
+<path d="M0 43 L18 43" stroke="{band_bottom}" stroke-width="1"/>
 <path d="{INNER_ARC}" fill="none" stroke="{EDGE_INNER}" stroke-width="0.8" opacity="0.5"/>
   </g>
 
   <g id="decoration-{p}top">
-    <rect x="0" y="0" width="12" height="44" fill="{GLASS}" fill-opacity="{GLASS_OP}"/>
-    <rect x="0" y="0" width="12" height="1" fill="{edge}"/>
-    <rect x="0" y="43" width="12" height="1" fill="{band_bottom}"/>
+    <rect x="0" y="0" width="18" height="44" fill="{GLASS}" fill-opacity="{GLASS_OP}"/>
+    <rect x="0" y="0" width="18" height="1" fill="{edge}"/>
+    <rect x="0" y="43" width="18" height="1" fill="{band_bottom}"/>
   </g>
 
   <g id="decoration-{p}topright">
-    <g transform="translate(12,0) scale(-1,1)">
+    <g transform="translate(18,0) scale(-1,1)">
       <path d="{TOPLEFT_PATH}" fill="{GLASS}" fill-opacity="{GLASS_OP}"/>
 <path d="{TOPLEFT_ARC}" fill="none" stroke="{edge}" stroke-width="1"/>
-<path d="M0 43 L12 43" stroke="{band_bottom}" stroke-width="1"/>
+<path d="M0 43 L18 43" stroke="{band_bottom}" stroke-width="1"/>
 <path d="{INNER_ARC}" fill="none" stroke="{EDGE_INNER}" stroke-width="0.8" opacity="0.5"/>
     </g>
   </g>
@@ -89,7 +107,7 @@ def frame_svg(prefix: str, edge: str, band_bottom: str) -> str:
     <rect x="0" y="11" width="12" height="1" fill="{EDGE_INNER}"/>
   </g>
   <g id="decoration-{p}bottomright">
-    <g transform="translate(12,0) scale(-1,1)">
+    <g transform="translate(18,0) scale(-1,1)">
       <path d="{BOTTOM_PATH}" fill="{BODY}"/>
     </g>
     <path d="M11.2 0 A11.2 11.2 0 0 1 0 11.2" fill="none" stroke="{EDGE_INNER}" stroke-width="0.8"/>
@@ -99,8 +117,8 @@ def frame_svg(prefix: str, edge: str, band_bottom: str) -> str:
   </g>
 
   <g id="mask-{p}topleft"><path d="{TOPLEFT_PATH}" fill="#000"/></g>
-  <g id="mask-{p}top"><rect width="12" height="44" fill="#000"/></g>
-  <g id="mask-{p}topright"><g transform="translate(12,0) scale(-1,1)"><path d="{TOPLEFT_PATH}" fill="#000"/></g></g>
+  <g id="mask-{p}top"><rect width="18" height="44" fill="#000"/></g>
+  <g id="mask-{p}topright"><g transform="translate(18,0) scale(-1,1)"><path d="{TOPLEFT_PATH}" fill="#000"/></g></g>
   <g id="mask-{p}left"><rect width="12" height="12" fill="#000"/></g>
   <g id="mask-{p}right"><rect width="12" height="12" fill="#000"/></g>
   <g id="mask-{p}bottomleft"><path d="{BOTTOM_PATH}" fill="#000"/></g>
