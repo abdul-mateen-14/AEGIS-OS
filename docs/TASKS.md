@@ -92,16 +92,43 @@ capture, no proof the apps open on the runner.
   Simulated the guest-side parsing offline (10-tile, 11-tile, garbled,
   verdict regex — all pass). Files: shell/src/util.h,
   debian-live/app-deb-urls.txt, scripts/boot-capture.py.
+- D5b — v0.6.29 Boot Test (run 43074736973, FAILED) postmortem. HUGE
+  progress first: NO "window never opened" failures — the launch ladder
+  (busctl via the Q_CLASSINFO fix) worked and the four M3 app captures
+  04c..04f show Music/Calculator/Editor/Monitor fully rendered (Music
+  with the seeded fixture track, Calculator with tape header). The dock
+  shipped correct. The run went red on harness losses only:
+  1. _drain reset its deadline to now+0.5 s on EVERY received chunk, so
+     a command whose output trails (the QML probes run a silent ~8 s
+     timeout chain) drained ~0.6 s in and the runner typed the next
+     commands while the guest's foreground was still busy — the queued
+     lines were never echoed or executed. v0.6.29 lost VERDICTS,
+     WRAPPERS and the five JRN/KWINRC diagnostics between the monitor
+     probe and KWIN-PLUGINS (the buffer jumps straight from ===QPN=== to
+     ===KWIN-PLUGINS===); all six probes then read VERDICT MISSING and
+     the honest gate correctly failed the release. Fix: the settle is a
+     HARD MINIMUM — the drain never shortens below the requested wait.
+  2. resolved_tile_cmds used command -v as the Tier B presence check —
+     NOT the W8 rule. The Aegis Browser deb ships a desktop entry whose
+     Exec points into /opt (no PATH binary), so the v0.6.29 harness read
+     10 tiles while the dock showed 11. Fix: the harness now runs the
+     faithful W8 probe guest-side (entryhit(): /usr/share/applications
+     *.desktop, Exec basename with quotes stripped or TryExec matches,
+     command -v as the fallback) — verified offline against all three
+     real entry shapes. The r45 Browser deb itself staged fine (115.9 MB
+     in the v0.6.29 ISO build log).
+  Files: scripts/boot-capture.py. Release as v0.6.30.
 - D4 — release: qml-guard -> commit -> pull --rebase -> push -> tag
-  (v0.6.28 was burned by the D5 defects; the fix batch re-releases as
-  v0.6.29) -> Release CI builds the ISO -> Boot Test (workflow_dispatch,
-  inputs.tag v0.6.29) -> verify 04c..04f captures exist and the asserts
+  (v0.6.28 burned by D5 defects, v0.6.29 by D5b; re-releases as v0.6.30)
+  -> Release CI builds the ISO -> Boot Test (workflow_dispatch,
+  inputs.tag v0.6.30) -> verify 04c..04f captures exist and the asserts
   stay green -> mark T11 SHIPPED here with the run numbers.
 
 ### Status
 
-- D1-D3 DONE in tree (commit 22fda7c); D5 fixes DONE in tree (this
-  commit); D4 release pending on the tag.
+- D1-D3 DONE (22fda7c); D5 fixes DONE (43d78e3); D5b fixes DONE (this
+  commit); D4 release pending on the v0.6.30 tag. Shell CI green on
+  43d78e3; the four M3 apps verified visually in the v0.6.29 captures.
 
 - D1-D3 detail: four Tier A slots in config.json +
   the util.cpp mirror; boot-capture.py grew the four open_app captures
@@ -111,7 +138,7 @@ capture, no proof the apps open on the runner.
   filters pipewire/pulse/gstreamer/alsa chatter out of its DIRTY verdict
   and its fetch). qml-guard PASS (21), py_compile PASS, config parses
   11 tiles. Shell CI compiles this push; tag v0.6.28 after green.
-- D4 — release: pending (tag v0.6.28 once Shell CI is green on 22fda7c).
+- D4 — release: pending (tag v0.6.30 once Shell CI is green).
 
 ---
 

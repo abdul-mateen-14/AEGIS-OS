@@ -412,6 +412,15 @@ class Serial:
         self.buf = b""
 
     def _drain(self, settle=1.5):
+        # T11-D5b — the settle is a HARD MINIMUM: the old version reset the
+        # deadline to now+0.5 s on every received chunk, so a command whose
+        # output trails (the QML probes run a silent ~8 s timeout chain)
+        # drained ~0.6 s in and the runner typed the NEXT commands while the
+        # guest's foreground was still busy — the queued lines were never
+        # echoed or executed (v0.6.29 lost VERDICTS, WRAPPERS and the five
+        # JRN/KWINRC diagnostics between the monitor probe and KWIN-PLUGINS;
+        # the whole run went red on verdicts that were harness losses, not
+        # product errors).
         deadline = time.time() + settle
         while time.time() < deadline:
             try:
@@ -419,7 +428,6 @@ class Serial:
                 if not d:
                     break
                 self.buf += d
-                deadline = time.time() + 0.5
             except socket.timeout:
                 pass
         return self.buf
@@ -865,14 +873,29 @@ def resolved_tile_cmds(serial):
         log(f"resolved_tile_cmds: config unreadable ({e})")
         return None
     tests = []
+    # faithful W8 entry probe — the dock shows a Tier B slot iff a
+    # non-hidden Application entry's Exec basename (quotes stripped, may
+    # point into /opt) or TryExec matches the cmd head, else iff the binary
+    # is on PATH. command -v alone is NOT the W8 rule: the Aegis Browser
+    # deb ships the entry with an /opt Exec and no PATH binary, so the
+    # v0.6.29 harness read 10 tiles while the dock showed 11.
+    prelude = (
+        "entryhit() { c=$1; for d in /usr/share/applications/*.desktop; do "
+        "ex=$(sed -n 's/^Exec=//p' \"$d\" 2>/dev/null | head -1 | "
+        "tr -d '\"' | awk '{print $1}'); ex=${ex##*/}; "
+        "te=$(sed -n 's/^TryExec=//p' \"$d\" 2>/dev/null | head -1); "
+        "[ \"$ex\" = \"$c\" ] && return 0; "
+        "[ \"$te\" = \"$c\" ] && return 0; done; "
+        "command -v \"$c\" >/dev/null 2>&1; }")
     for resolve, cmd in slots:
         head = cmd.split(" ")[0]
         if resolve:
-            tests.append(f"command -v {head} >/dev/null 2>&1 && echo TILE {head}")
+            tests.append(f"if entryhit {head}; then echo TILE {head}; fi")
         else:
             tests.append(f"echo TILE {head}")
     try:
-        out = serial.run("; ".join(tests) + "; echo TILE-ORDER-END", settle=5)
+        out = serial.run(prelude + "; " + "; ".join(tests)
+                         + "; echo TILE-ORDER-END", settle=14)
     except Exception as e:
         log(f"resolved_tile_cmds: serial probe failed ({e})")
         return None
