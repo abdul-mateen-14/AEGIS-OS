@@ -100,6 +100,12 @@ fi
 # the VM graphics stack must be forced into the initramfs — then card0
 # exists BEFORE plymouthd starts at init-premount and the splash owns the
 # display from the first second. bochs_drm covers plain -vga std QEMU.
+# v0.6.22 post-mortem: the shipped initrd already carries virtio-gpu.ko
+# (MODULES=most DOES include the drm stack) — but this hook's modinfo
+# guard resolved against the RUNNING kernel (uname) instead of the chroot
+# kernel, so every force_load silently skipped. Resolve per installed
+# kernel version; force_load copies the module AND its deps and adds it
+# to conf/modules so it loads before udev even runs.
 cat > /usr/share/initramfs-tools/hooks/aegis-vm-gpu <<'EOF'
 #!/bin/sh
 PREREQ=""
@@ -111,10 +117,16 @@ case "$1" in
         prereqs) prereqs; exit 0 ;;
 esac
 . /usr/share/initramfs-tools/hook-functions
-for M in virtio_gpu bochs_drm; do
-    if modinfo -q -n "$M" >/dev/null 2>&1; then
-        force_load "$M"
-    fi
+# Resolve per installed kernel version — plain `modinfo` reads uname and
+# silently skips everything inside a bare build chroot (v0.6.22 lesson).
+for KDIR in /lib/modules/*; do
+    [ -d "$KDIR" ] || continue
+    KVER="${KDIR##*/}"
+    for M in virtio_gpu bochs_drm bochs; do
+        if modinfo -k "$KVER" -q -n "$M" >/dev/null 2>&1; then
+            force_load "$M"
+        fi
+    done
 done
 EOF
 chmod +x /usr/share/initramfs-tools/hooks/aegis-vm-gpu

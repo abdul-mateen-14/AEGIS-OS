@@ -124,10 +124,15 @@ def diff_px(a, b):
 # /dev/console — where systemd status and casper diagnostics land — keeps
 # feeding the harness serial log. This mirrors the Ubuntu live-ISO pattern
 # (console=tty1 console=ttyS0...).
+# plymouth.debug=file: — plymouthd's own switch (libply reads it from
+# /proc/cmdline): boot-phase renderer decisions land in a file that
+# survives switch-root, so the probe can read WHY the splash did or did
+# not paint. Remove once W14 is proven and the gate is green.
 KERNEL_ARGS = ("boot=live components quiet splash vt.global_cursor_default=0 "
                "loglevel=3 hostname=aegis username=aegis autologin "
                "console=tty1 console=ttyS0,115200n8 "
                "plymouth.ignore-serial-consoles "
+               "plymouth.debug=file:/run/plymouth-boot-debug.log "
                "systemd.journald.forward_to_console=true systemd.show_status=yes")
 
 def extract_kernel_initrd():
@@ -763,6 +768,19 @@ def main():
         if ok:
             log("serial login OK — seeding review fixtures")
             seed_review_files(serial)
+            # W14 diagnostic — the boot-phase plymouthd debug log survives
+            # switch-root in /run. Dump it FIRST so a later gate failing
+            # still leaves the renderer decision in the workflow log.
+            try:
+                dbg = serial.run(
+                    "ls -la /run/plymouth-boot-debug.log 2>&1; "
+                    "grep -aiE 'renderer|drm|device|error|fail|splash|plugin|"
+                    "two-step|console|master' /run/plymouth-boot-debug.log "
+                    "2>&1 | head -40; echo BOOT-DEBUG-READ", settle=8)
+                log("plymouth boot debug: "
+                    + dbg.strip().replace("\n", " | ")[-1500:])
+            except Exception as e:
+                log(f"plymouth boot debug dump failed: {e}")
         else:
             serial = None
             log("serial login FAILED — no fixtures, no Aegis ID pane shot")

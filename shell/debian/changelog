@@ -1,3 +1,18 @@
+aegis-shell (1.7.0-m10) resolute; urgency=medium
+
+  * Boot-phase plymouthd decisions become visible: plymouth.debug=file:
+    on the kernel command line (harness and ISO grub) sends the
+    renderer/device scan into /run/plymouth-boot-debug.log, which
+    survives switch-root; the capture reads it right after serial login
+    so even a failing run ships the why. The v0.6.22 post-mortem: the
+    initrd already carried virtio-gpu.ko — the aegis initramfs hook's
+    modinfo guard had resolved against the RUNNING kernel (uname) and
+    silently skipped every force_load; the guard now resolves per
+    installed kernel version, and virtio_gpu/bochs land in conf/modules
+    so they load before udev even runs.
+
+ -- Aegis Developers <dev@aegis-os.org>  Wed, 11 Nov 2026 05:05:00 +0000
+
 aegis-shell (1.7.0-m9) resolute; urgency=medium
 
   * The splash painted nothing because plymouthd never had a renderer:
