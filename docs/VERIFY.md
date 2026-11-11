@@ -81,9 +81,13 @@ qmllint shell/src/qml/*.qml 2>&1 \
     reaches KToolBar::loadState), and the konsole.mo display-name override
     (must be a REAL MO — PO text loads as "Bad magic number" and gettext
     silently skips it, which is how the suffix survived v0.6.13; the
-    generator asserts pgettext("@title","Konsole") resolves). If the
-    suffix returns, check LANGUAGE=en_US reached the session and the .mo
-    passes `msgfmt -o /dev/null` as a catalog.
+    generator asserts pgettext("@title","Konsole") resolves). The catalog
+    lives under the SYNTHETIC en_AEGIS tag: KI18n hardcodes en_US as the
+    code language (klocalizedstring.cpp) and breaks the translate loop at
+    it — an en_US catalog is never consulted, and the konsole deb
+    overwrites en_GB with its own 94 locales. If the suffix returns, check
+    that the session still pins LANGUAGE=en_AEGIS and that the .mo passes
+    `msgfmt -o /dev/null` as a catalog.
 17. **Top-bar glyphs (W12)** — Wi-Fi arc, volume, clock, CC glyph: same
     optical size, same 2 px weight, fg at 90%; muted/off states dim the
     glyph live (the Canvas repaints on tint changes now).

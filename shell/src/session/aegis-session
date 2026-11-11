@@ -14,8 +14,13 @@ export QT_QPA_PLATFORMTHEME=kde
 # With the override the display name IS "Aegis Terminal" and the Terminal
 # title stays clean. gettext skips translations in the C locale, so both
 # LANG and LANGUAGE are pinned here (LANGUAGE wins for catalog lookup).
+# LANGUAGE must NOT be en_US: KI18n hardcodes en_US as the code language
+# (klocalizedstring.cpp codeLanguage) and the translate loop breaks at it
+# without consulting any catalog — the override therefore lives under the
+# synthetic en_AEGIS tag (scripts/gen-konsole-mo.py). LANG stays en_US.UTF-8
+# so date and number formats are untouched.
 export LANG="${LANG:-en_US.UTF-8}"
-export LANGUAGE=en_US
+export LANGUAGE=en_AEGIS
 
 # Session diagnostics: when the graphical stack fails to come up, the boot
 # test pipeline reads this log over the serial console.

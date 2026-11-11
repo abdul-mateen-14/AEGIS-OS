@@ -53,9 +53,9 @@ else
          "toolbars will survive (cosmetic only)" >&2
 fi
 
-if [ -f /usr/share/locale/en_US/LC_MESSAGES/konsole.mo ]; then
+if [ -f /usr/share/locale/en_AEGIS/LC_MESSAGES/konsole.mo ]; then
     # a real MO, not PO text (the v0.6.13 failure mode): check the magic
-    if od -An -tx1 -N4 /usr/share/locale/en_US/LC_MESSAGES/konsole.mo \
+    if od -An -tx1 -N4 /usr/share/locale/en_AEGIS/LC_MESSAGES/konsole.mo \
             | grep -qi "de 12 04 95\|95 04 12 de"; then
         echo "0715: konsole.mo is a valid MO catalog (W11 caption override)"
     else
@@ -63,10 +63,20 @@ if [ -f /usr/share/locale/en_US/LC_MESSAGES/konsole.mo ]; then
              "run scripts/gen-konsole-mo.py" >&2
         exit 1
     fi
+    # the override is reachable only if the session asks KI18n for a
+    # language that is not the hardcoded code language (en_US)
+    if grep -q "LANGUAGE=en_AEGIS" /usr/bin/aegis-session 2>/dev/null; then
+        echo "0715: session pins LANGUAGE=en_AEGIS - override reachable (W11)"
+    else
+        echo "0715: FATAL - session does not pin LANGUAGE=en_AEGIS;" \
+             "KI18n breaks at the en_US code language and the catalog is" \
+             "dead" >&2
+        exit 1
+    fi
     command -v locale-gen >/dev/null 2>&1 && locale-gen en_US.UTF-8 || true
     printf 'LANG=en_US.UTF-8\n' > /etc/default/locale
     echo "0715: en_US.UTF-8 locale + konsole caption override in place (W11)"
 else
-    echo "0715: konsole.mo missing - run scripts/gen-konsole-mo.py + sync-includes" >&2
+    echo "0715: konsole.mo missing at en_AEGIS - run scripts/gen-konsole-mo.py" >&2
 fi
 exit 0

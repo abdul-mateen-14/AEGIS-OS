@@ -1,3 +1,17 @@
+aegis-shell (1.7.0-m7) resolute; urgency=medium
+
+  * W11 caption override finally reachable: KI18n hardcodes en_US as the
+    code language (klocalizedstring.cpp codeLanguage) and the translate
+    loop breaks at it — an en_US catalog is NEVER consulted, the msgids
+    are their own translation. The en_US konsole.mo shipped since
+    1.7.0-m6 was therefore dead (the toolbar half of the fix worked: the
+    deployed kxmlgui5 overrides hide both Konsole toolbars). The catalog
+    now lives under the synthetic en_AEGIS tag (the konsole deb overwrites
+    en_GB with its own 94 locales, so no English rung works), and the
+    session pins LANGUAGE=en_AEGIS while LANG stays en_US.UTF-8 so date
+    and number formats are untouched. Hook 0715 additionally verifies the
+    session pins the tag and FATALs otherwise.
+
 aegis-shell (1.7.0-m6) resolute; urgency=medium
 
   * W11 terminal chrome actually shipped (the v0.6.13 boot capture showed

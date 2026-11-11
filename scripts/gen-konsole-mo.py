@@ -16,13 +16,21 @@ read the rebranded name.
 
 KCatalog lookup paths (KF6): $XDG_DATA_DIRS/locale/<lang>/LC_MESSAGES/
 konsole.mo with <lang> from kdeglobals [Locale] Language, falling back to
-the session locale. We install en_US, en and en_GB so any English rung
-resolves, and set the session LANGUAGE explicitly (see aegis-session).
+the session locale.
 
 v0.6.14 lesson: POFile.save() writes PO TEXT even to a .mo filename, and
 gettext silently skips an invalid catalog ("Bad magic number"), so the
 suffix survived the whole v0.6.13 tag. save_as_mofile() is mandatory —
 verified with gettext.GNUTranslations loading the shipped file.
+
+v0.6.18 lesson: KI18n hardcodes codeLanguage = "en_US" (klocalizedstring.cpp)
+and the translate loop BREAKS at the code language — an en_US catalog is
+NEVER consulted, the msgids are their own translation. So en_US overrides
+are dead, and en_GB is overwritten by the konsole deb (94 locales ship in
+it). The override therefore lives under a synthetic language tag,
+"en_AEGIS", which the deb does not ship and KI18n consults before falling
+back to the msgids; the session pins LANGUAGE=en_AEGIS while LANG stays
+en_US.UTF-8 so date/number formats are untouched.
 """
 import os
 import polib
@@ -40,7 +48,7 @@ PO.append(polib.POEntry(
 PO.append(polib.POEntry(
     msgctxt="@title", msgid="Terminal emulator", msgstr="Aegis OS Terminal"))
 
-LOCALES = ("en_US", "en", "en_GB")
+LOCALES = ("en_AEGIS",)
 for lang in LOCALES:
     d = os.path.join(ROOT, "debian-live/config/includes.chroot/usr/share/"
                           f"locale/{lang}/LC_MESSAGES")
