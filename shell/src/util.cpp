@@ -129,6 +129,18 @@ void Util::setDarkMode(bool dark)
         return;
     m_darkMode = dark;
     savePrefs();
+    // M4 — light theme parity: the KDE-facing surfaces (Konsole, the
+    // installer's widget dialogs) read the scheme from kdeglobals, so the
+    // rung swap lands there too. AegisDark / AegisLight ship in
+    // /usr/share/color-schemes; GTK follows via aegis-gtk-sync.
+    const QString kg = QStandardPaths::writableLocation(
+                           QStandardPaths::HomeLocation)
+                       + QStringLiteral("/.config/kdeglobals");
+    QSettings scheme(kg, QSettings::IniFormat);
+    scheme.setValue(QStringLiteral("General/ColorScheme"),
+                    dark ? QStringLiteral("AegisDark")
+                         : QStringLiteral("AegisLight"));
+    scheme.sync();
     emit darkModeChanged();
 }
 

@@ -1,0 +1,88 @@
+#!/bin/sh
+# M4 — GTK interop layer (MILESTONES.md "GTK interop (adw-gtk3 + icon
+# normalization + GTK4 CSS)"). Without plasmashell nothing writes GTK's
+# settings.ini, so CoreX-style GTK dialogs would render stock Adwaita in
+# the wrong scheme with no accent. This hook:
+#   1. installs adw-gtk3-theme (the accent-carrying GTK3/4 theme)
+#   2. seeds /etc/skel gtk-3.0 + gtk-4.0 settings.ini (dark default,
+#      Aegis icon theme, Breeze cursor, Montserrat font)
+#   3. seeds the accent gtk.css for both toolkits
+#   4. ships aegis-gtk-sync (reads prefs.json darkMode + tokens.conf accent
+#      and rewrites the two trees) with an autostart entry so the session
+#      applies the user's live values on every boot.
+set -e
+export DEBIAN_FRONTEND=noninteractive
+apt-get install -y --no-install-recommends adw-gtk3-theme
+
+mkdir -p /etc/skel/.config/gtk-3.0 /etc/skel/.config/gtk-4.0 \
+         /usr/bin /etc/xdg/autostart
+
+for ver in 3.0 4.0; do
+  cat > "/etc/skel/.config/gtk-$ver/settings.ini" <<'EOF'
+[Settings]
+gtk-theme-name=adw-gtk3-dark
+gtk-icon-theme-name=Aegis
+gtk-fallback-icon-theme=breeze
+gtk-font-name=Montserrat 10
+gtk-cursor-theme-name=Breeze
+gtk-cursor-theme-size=24
+gtk-application-prefer-dark-theme=true
+EOF
+  cat > "/etc/skel/.config/gtk-$ver/gtk.css" <<'EOF'
+/* aegis-gtk-sync — the one accent token, mirrored into GTK (W5) */
+@define-color accent_color #3E8BFF;
+@define-color accent_bg_color #3E8BFF;
+@define-color accent_fg_color #ffffff;
+EOF
+done
+
+cat > /usr/bin/aegis-gtk-sync <<'EOF'
+#!/bin/sh
+# M4 — GTK interop: apply the shell's darkMode + accent to GTK3/4.
+# Accent changes made mid-session reach the shell and the Aegis apps over
+# DBus immediately; GTK apps read the token on their next launch.
+CONF="${XDG_CONFIG_HOME:-$HOME/.config}"
+RUNTIME="${XDG_RUNTIME_DIR:-/tmp}"
+PREFS="$RUNTIME/aegis/prefs.json"
+TOKENS="$CONF/aegis/tokens.conf"
+
+ACCENT=$(sed -n 's/^accent=\([^ ]*\).*/\1/p' "$TOKENS" 2>/dev/null)
+[ -n "$ACCENT" ] || ACCENT="#3E8BFF"
+
+DARK=$(grep -o '"darkMode":[a-z]*' "$PREFS" 2>/dev/null | cut -d: -f2)
+[ "$DARK" = "false" ] || DARK=true
+
+THEME=adw-gtk3-dark
+[ "$DARK" = "true" ] || THEME=adw-gtk3
+
+for ver in 3.0 4.0; do
+  mkdir -p "$CONF/gtk-$ver"
+  cat > "$CONF/gtk-$ver/settings.ini" <<EOF
+[Settings]
+gtk-theme-name=$THEME
+gtk-icon-theme-name=Aegis
+gtk-fallback-icon-theme=breeze
+gtk-font-name=Montserrat 10
+gtk-cursor-theme-name=Breeze
+gtk-cursor-theme-size=24
+gtk-application-prefer-dark-theme=$DARK
+EOF
+  cat > "$CONF/gtk-$ver/gtk.css" <<EOF
+/* aegis-gtk-sync — the one accent token, mirrored into GTK (W5) */
+@define-color accent_color $ACCENT;
+@define-color accent_bg_color $ACCENT;
+@define-color accent_fg_color #ffffff;
+EOF
+done
+EOF
+chmod 755 /usr/bin/aegis-gtk-sync
+
+cat > /etc/xdg/autostart/aegis-gtk-sync.desktop <<'EOF'
+[Desktop Entry]
+Type=Application
+Name=Aegis GTK Sync
+Comment=Apply the Aegis dark-mode and accent token to GTK apps
+Exec=/usr/bin/aegis-gtk-sync
+NoDisplay=true
+X-Aegis-FirstParty=true
+EOF

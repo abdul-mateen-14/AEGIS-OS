@@ -74,4 +74,5 @@ xdg-desktop-portal-gtk
 # glyphs through QIcon::fromTheme; with no theme installed every lookup
 # returned empty and the dock rendered without icons.
 breeze-icon-theme
+breeze-cursor-theme
 hicolor-icon-theme
