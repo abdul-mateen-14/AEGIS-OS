@@ -25,6 +25,26 @@ product override. The single source of truth is
 | Wallpapers (Aurora Ink · Graphite Dune · Neon Coast · Emerald Ridge) | Table 15 | `theme/wallpapers/` |
 | Boot splash: mark on true black, hairline progress | chapter 07 | `theme/plymouth/` |
 
+## Table 10 — gesture & shortcut dictionary (M3 · Depth)
+
+The M3 depth surfaces are KWin stock effects pointed at the Aegis anatomy.
+They are declared (not assumed) in `etc/xdg/kwinrc` — `[Desktops] Number=4`,
+`[Plugins] overviewEnabled=true` — and the dictionary lives here:
+
+| Action | Input | Source |
+| --- | --- | --- |
+| Mission Control — all windows, workspaces as pages | `Meta+W` | KWin Overview (`overviewEnabled`) |
+| Switch workspace | `Meta+Ctrl+←` / `Meta+Ctrl+→` | KWin default |
+| Move window to workspace | `Meta+Shift+←` / `Meta+Shift+→` | KWin default |
+| Workspace switch, wrap around | 3- or 4-finger horizontal swipe | KWin Wayland touchpad defaults |
+| Mission Control | 4-finger swipe up | KWin Wayland touchpad defaults |
+| Tiling editor (drag windows onto zones) | `Meta+T`, hold `Shift` while dragging to snap | KWin built-in tiling |
+| Calm Mode (DND + Tier C + panel collapse) | Control Center tile | `ControlCenter.qml` → `Activity.calm` |
+
+Shell-side global shortcuts (launcher, control center, lock) keep the M2
+contract: they answer while a shell surface holds focus, and via
+`org.aegis.Shell` on the session bus for everything else.
+
 ## Changelog
 
 ### v1.4 (this repo, product decision)

@@ -94,6 +94,7 @@ qt_add_executable(aegis-apps
     src/apps/systembackends.h
     src/apps/aegisid.h
     src/apps/aegisid.cpp
+    src/apps/monitorbackend.h
     src/util.h
     src/util.cpp
     src/governor/Governor.h
@@ -112,6 +113,10 @@ qt_add_resources(aegis-apps "apps-qml"
         src/qml/TrafficLights.qml
         src/qml/FilesApp.qml
         src/qml/SettingsApp.qml
+        src/qml/MusicApp.qml
+        src/qml/CalculatorApp.qml
+        src/qml/EditorApp.qml
+        src/qml/MonitorApp.qml
 )
 
 target_link_libraries(aegis-apps PRIVATE
@@ -127,7 +132,10 @@ target_link_libraries(aegis-apps PRIVATE
 )
 
 install(TARGETS aegis-apps RUNTIME DESTINATION bin)
-install(PROGRAMS src/apps/aegis-files src/apps/aegis-settings DESTINATION bin)
+install(PROGRAMS src/apps/aegis-files src/apps/aegis-settings
+                 src/apps/aegis-music src/apps/aegis-calculator
+                 src/apps/aegis-editor src/apps/aegis-monitor
+        DESTINATION bin)
 
 if(AEGIS_HAS_DESIRED_SIZE)
     target_compile_definitions(aegis-shell PRIVATE AEGIS_HAS_DESIRED_SIZE)

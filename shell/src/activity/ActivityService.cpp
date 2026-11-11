@@ -69,6 +69,23 @@ void ActivityService::setDnd(bool dnd)
     emit bannersChanged();
 }
 
+// M3 — Calm Mode. Banners quiet through dnd (one flag, one behavior — the
+// panel reads calm for the chrome collapse, the governor tile reads calm to
+// pin Tier C). Turning calm off restores the tier machine to auto mode;
+// the Control Center tile owns that wiring, the service only carries state.
+void ActivityService::setCalm(bool calm)
+{
+    if (m_calm == calm)
+        return;
+    m_calm = calm;
+    if (calm && !m_dnd) {
+        m_dnd = true;
+        emit dndChanged();
+        emit bannersChanged();
+    }
+    emit calmChanged();
+}
+
 int ActivityService::indexOfActivity(const QString &id) const
 {
     for (int i = 0; i < m_activities.size(); ++i)

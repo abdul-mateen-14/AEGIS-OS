@@ -35,6 +35,7 @@
 #include "filemanager.h"
 #include "systembackends.h"
 #include "aegisid.h"
+#include "monitorbackend.h"
 
 namespace {
 
@@ -68,9 +69,16 @@ int main(int argc, char *argv[])
 
     const QString which = argc > 1 ? QString::fromLocal8Bit(argv[1])
                                    : QStringLiteral("files");
-    const QString qmlName = (which == QStringLiteral("settings"))
-                                ? QStringLiteral("SettingsApp.qml")
-                                : QStringLiteral("FilesApp.qml");
+    // M3 — the four new first-party apps ride the same host: one binary,
+    // thin wrapper scripts (aegis-music / aegis-calculator / aegis-editor /
+    // aegis-monitor), each QML file in the shared installed tree.
+    QString qmlName;
+    if (which == QStringLiteral("settings")) qmlName = QStringLiteral("SettingsApp.qml");
+    else if (which == QStringLiteral("music")) qmlName = QStringLiteral("MusicApp.qml");
+    else if (which == QStringLiteral("calculator")) qmlName = QStringLiteral("CalculatorApp.qml");
+    else if (which == QStringLiteral("editor")) qmlName = QStringLiteral("EditorApp.qml");
+    else if (which == QStringLiteral("monitor")) qmlName = QStringLiteral("MonitorApp.qml");
+    else qmlName = QStringLiteral("FilesApp.qml");
     // optional initial pane for Settings ("aegis-settings 8" opens the Aegis
     // ID pane directly — boot-capture uses this for the pane screenshots)
     int initialPane = -1;
@@ -85,6 +93,9 @@ int main(int argc, char *argv[])
     NetworkBackend network;
     UsersBackend users;
     AegisId aegisId;
+    // M3 — Monitor + Editor backends
+    MonitorBackend monitor;
+    TextFileBackend textFile;
 
     // Aegis ID pulled a setting — route it: desktop.* through Util (persists
     // AND reaches the running shell over DBus), files.prefs into Files.
@@ -113,6 +124,9 @@ int main(int argc, char *argv[])
     qmlRegisterSingletonInstance("Aegis.Network", 1, 0, "Network", &network);
     qmlRegisterSingletonInstance("Aegis.Users", 1, 0, "Users", &users);
     qmlRegisterSingletonInstance("Aegis.Id", 1, 0, "AegisId", &aegisId);
+    // M3 — Monitor + Editor
+    qmlRegisterSingletonInstance("Aegis.Monitor", 1, 0, "Monitor", &monitor);
+    qmlRegisterSingletonInstance("Aegis.TextFile", 1, 0, "TextFile", &textFile);
 
     // Installed QML tree first (same contract as aegis-shell main.cpp),
     // embedded resource as fallback.

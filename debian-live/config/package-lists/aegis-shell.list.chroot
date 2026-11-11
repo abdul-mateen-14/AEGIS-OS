@@ -12,6 +12,14 @@ qml6-module-qtquick-window
 # Files views, QtQuick.Dialogs for the Wallpaper "Choose image…" picker.
 qml6-module-qt-labs-folderlistmodel
 qml6-module-qtquick-dialogs
+# M3 — aegis-music: Qt Multimedia over PipeWire (the Qt FFmpeg backend
+# decodes mp3/flac/ogg/wav/m4a/opus; gst good/base cover the residual
+# container/rtp edges and pipewire sink handoff).
+qml6-module-qtmultimedia
+libqt6multimedia6
+gstreamer1.0-plugins-base
+gstreamer1.0-plugins-good
+gstreamer1.0-pipewire
 # W3/W6 backends: Qt Network + Concurrent run the Aegis ID HTTP/KDF stack
 libqt6network6
 libqt6concurrent6

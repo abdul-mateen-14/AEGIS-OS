@@ -18,6 +18,10 @@ BlurDecorations=true
 [Plugins]
 # Table 18 — radius 18 on all four corners (0800 hook installs the effect).
 kwin4_effect_shapecornersEnabled=true
+# M3 — Mission Control: the stock Overview grid on Meta+W (all windows +
+# workspaces as pages) is declared explicitly so the shortcut dictionary in
+# docs/DESIGN-TOKENS.md Table 10 is guaranteed, not assumed.
+overviewEnabled=true
 
 [Effect-shapecorners]
 Radius=18

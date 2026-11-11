@@ -121,13 +121,25 @@ Window {
                                 painter: ccRoot.paintBluetooth
                                 onToggled: Util.setBluetoothEnabled(!Util.bluetoothEnabled)
                             }
+                            // M3 — Calm Mode is now the full contract: the tile
+                            // pins the governor to Tier C (80 ms rung swaps) AND
+                            // sets Activity.calm, which quiets banners (dnd comes
+                            // with calm in the service) and collapses the panel
+                            // chrome. Off: tier machine back to auto; dnd keeps
+                            // the user's own switch.
                             CcTile {
                                 label: "Calm Mode"
-                                checked: Governor.tier === "C"
+                                checked: Activity.calm
                                 painter: ccRoot.paintMoon
-                                onToggled: Governor.tier === "C"
-                                           ? Governor.setAutoMode(true)
-                                           : Governor.setTier("C")
+                                onToggled: {
+                                    if (Activity.calm) {
+                                        Activity.calm = false
+                                        Governor.setAutoMode(true)
+                                    } else {
+                                        Activity.calm = true
+                                        Governor.setTier("C")
+                                    }
+                                }
                             }
                             CcTile {
                                 label: "Dark Mode"

@@ -27,6 +27,10 @@ class ActivityService : public QObject {
     Q_PROPERTY(QVariantList banners READ banners NOTIFY bannersChanged)
     Q_PROPERTY(bool bannersVisible READ bannersVisible NOTIFY bannersChanged)
     Q_PROPERTY(bool dnd READ dnd WRITE setDnd NOTIFY dndChanged)
+    // M3 — Calm Mode: focus chrome. On: notifications pause (banners quiet
+    // through dnd), the governor is pinned to Tier C (80 ms rung swaps), and
+    // the top panel collapses its content (hover peeks it back). Session
+    // state only — calm is a mood, not a config.
 
 public:
     explicit ActivityService(QObject *parent = nullptr);
@@ -36,6 +40,8 @@ public:
     bool bannersVisible() const { return !m_banners.isEmpty() && !m_dnd; }
     bool dnd() const { return m_dnd; }
     void setDnd(bool dnd);
+    bool calm() const { return m_calm; }
+    void setCalm(bool calm);
 
     // ── Live Activity API (org.aegis.Island) ─────────────────────────
     // kind: "media" | "call" | "timer" | "charging" | "aegisId" | "generic"
@@ -79,6 +85,7 @@ signals:
     void activitiesChanged();
     void bannersChanged();
     void dndChanged();
+    void calmChanged();
 
 private:
     struct Activity {
@@ -109,5 +116,6 @@ private:
     QList<Banner> m_banners;
     uint m_nextBannerId = 1;
     bool m_dnd = false;
+    bool m_calm = false;
     QTimer m_chargingTimer;
 };

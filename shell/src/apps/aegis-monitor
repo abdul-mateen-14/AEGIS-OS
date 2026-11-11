@@ -1,0 +1,3 @@
+#!/bin/sh
+# Aegis Monitor — M3 first-party app (proposal §8, plate 12).
+exec aegis-apps monitor "$@"

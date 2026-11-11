@@ -24,6 +24,10 @@ from pathlib import Path
 FILES = [
     "shell/src/qml/FilesApp.qml",
     "shell/src/qml/SettingsApp.qml",
+    "shell/src/qml/MusicApp.qml",
+    "shell/src/qml/CalculatorApp.qml",
+    "shell/src/qml/EditorApp.qml",
+    "shell/src/qml/MonitorApp.qml",
     "shell/src/qml/Tokens.qml",
     "shell/src/qml/Desktop.qml",
     "shell/src/qml/AppWindow.qml",

@@ -1,6 +1,7 @@
 import QtQuick
 import Aegis.Util
 import Aegis.Governor
+import Aegis.Activity
 
 // Top panel — 28 px of global status (§2.1, Table 3).
 //
@@ -25,8 +26,43 @@ Window {
 
     id: panelRoot
 
-    Item {
+    // ── M3 — Calm Mode: the panel's chrome collapses to fully clear glass
+    // (opacity 0) while Activity.calm holds. The exclusive zone stays 28 px
+    // (no maximized-window relayout — calm is quiet, not disruptive) and the
+    // surface stays mapped, so hovering the top strip peeks the chrome back;
+    // leaving re-collapses after 1.5 s. The probe is the topmost item but
+    // accepts no buttons — clicks fall through to the right-cluster zone —
+    // and only arms during calm so the normal hand cursor survives. ──
+    property bool calmPeek: false
+    readonly property bool calmActive: Activity.calm
+    readonly property bool chromeHidden: calmActive && !calmPeek
+    readonly property real chromeOpacity: chromeHidden ? 0 : 1
+
+    function peek() { calmPeek = true; peekTimer.stop() }
+    function collapseSoon() { if (calmActive) peekTimer.restart() }
+
+    Timer {
+        id: peekTimer
+        interval: 1500
+        onTriggered: panelRoot.calmPeek = false
+    }
+
+    MouseArea {
+        id: calmProbe
         anchors.fill: parent
+        enabled: panelRoot.calmActive
+        hoverEnabled: true
+        acceptedButtons: Qt.NoButton
+        z: 50
+        onContainsMouseChanged: containsMouse ? panelRoot.peek()
+                                              : panelRoot.collapseSoon()
+    }
+
+    Item {
+        id: chrome
+        anchors.fill: parent
+        opacity: panelRoot.chromeOpacity
+        Behavior on opacity { NumberAnimation { duration: 180 } }
 
         GlassPanel {
             anchors.fill: parent

@@ -59,16 +59,38 @@ from docs/MILESTONES.md.
   (avatar with initial, live dot, zero-knowledge chip), sync card (Sync
   now / Sign out, encrypted note, sync status), devices card with
   separators, empty state, THIS DEVICE chip, Remove. qml-guard PASS.
-- M3 — Depth (docs/MILESTONES.md):
+- M3 — Depth: DONE in tree (commit after this edit) —
   - [x] workspaces seed: kwinrc [Desktops] Number=4 Rows=1
-  - [ ] Overview / Mission Control on Meta+W (verify stock overview
-        effect enabled, glass-styled window titles)
-  - [ ] custom tiling on Meta+T (stock KWin tiling, document shortcuts)
-  - [ ] four apps: Music, Calculator, Editor, Monitor — AppWindow-based,
-        registered per docs/APP-SLOTS.md, dock + launcher entries
-  - [ ] Calm Mode: dim desktop, pause notifications — Control Center tile
-  - [ ] gestures: Meta+Ctrl+arrows for workspace switch, three-finger
-        swipe; dictionary in docs/DESIGN-TOKENS.md Table 10
+  - [x] Overview / Mission Control: [Plugins] overviewEnabled=true declared
+        in kwinrc (Meta+W); gesture + shortcut dictionary added to
+        docs/DESIGN-TOKENS.md as Table 10 (swipes, Meta+Ctrl arrows,
+        Meta+T tiling, Calm tile)
+  - [x] tiling: stock KWin tiling editor on Meta+T, documented in Table 10
+  - [x] four apps on the aegis-apps host: MusicApp.qml (Qt Multimedia over
+        PipeWire, FolderListModel library of ~/Music, transport + seek +
+        volume + shuffle/repeat), CalculatorApp.qml (tape history, keyboard,
+        repeated-equals contract), EditorApp.qml (TextFile backend load/save
+        with 4 MB cap, FileDialog open/save, wrap toggle, dirty-dot title,
+        Ctrl+N/O/S), MonitorApp.qml (MonitorBackend /proc walk every 2 s:
+        cpu %, per-core strip, memory, uptime, net rates, top-40 processes
+        with top-style normalization). Backends in
+        shell/src/apps/monitorbackend.h (MonitorBackend + TextFileBackend),
+        registered as Aegis.Monitor/Monitor + Aegis.TextFile/TextFile.
+        Wrappers aegis-music/calculator/editor/monitor installed via
+        CMake install(PROGRAMS); desktop entries in
+        includes.chroot/usr/share/applications (Launcher picks them up
+        through Util.allApps); qmldir-independent QML added to the
+        apps-qml resource; qml6-module-qtmultimedia + libqt6multimedia6 +
+        gst base/good/pipewire added to aegis-shell.list.chroot; the four
+        squircle icons already exist in the Aegis theme. qml-guard PASS
+        (guard FILES extended with the four apps).
+  - [x] Calm Mode: ActivityService grew Activity.calm (setCalm turns dnd on
+        with it); the Control Center tile now drives the full contract —
+        Tier C via Governor.setTier, dnd + panel collapse via calm; off
+        restores Governor.setAutoMode. Panel.qml collapses its chrome to
+        clear glass while calm (180 ms), the exclusive zone stays 28 px, a
+        NoButton hover probe peeks the panel back (1.5 s re-collapse).
+  - [x] gestures: Table 10 in docs/DESIGN-TOKENS.md (see above)
 - M4 — Parity (docs/MILESTONES.md):
   - [ ] GTK interop: gtk3/gtk4 settings.ini (theme, cursor, icons),
         xdg-desktop-portal wiring so GTK apps follow the accent
