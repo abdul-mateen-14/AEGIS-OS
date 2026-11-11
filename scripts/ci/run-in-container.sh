@@ -17,7 +17,14 @@ fi
 
 # --privileged: live-build bind-mounts /dev, /proc and /sys into the chroot,
 # which needs mount capabilities the default docker capset does not include.
-exec docker run --rm --privileged \
+# --network host: the 2026-11-11 v0.6.27 runs lost archive.ubuntu.com DNS
+# inside the default bridge (docker's embedded resolver forwards to the
+# host resolver; when the host's resolver stops answering the bridge, apt
+# gets "Could not resolve" and the build dies before any package can be
+# located). The host network namespace hands the container the runner's
+# working resolver directly. The VM is disposable — the isolation trade is
+# nil, and live-build's archive fetches take the same path.
+exec docker run --rm --privileged --network host \
     -v "${GITHUB_WORKSPACE:-$(pwd)}:/work" \
     -w /work \
     "$IMG" "$@"

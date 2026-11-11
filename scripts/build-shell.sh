@@ -7,7 +7,16 @@ set -euo pipefail
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 
 export DEBIAN_FRONTEND=noninteractive
-apt-get update -qq
+# DNS blips on the runner fleet are real (v0.6.27 attempt 1 lost all four
+# archive hosts in one pass) — retry the index refresh before giving up.
+for attempt in 1 2 3; do
+    if apt-get update -qq; then
+        break
+    fi
+    echo "apt-get update attempt $attempt failed, retrying in 10 s"
+    sleep 10
+    [ "$attempt" = 3 ] && exit 1
+done
 apt-get install -y --no-install-recommends \
     build-essential cmake debhelper pkg-config \
     qt6-base-dev qt6-declarative-dev \
