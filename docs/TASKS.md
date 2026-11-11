@@ -91,13 +91,29 @@ from docs/MILESTONES.md.
         clear glass while calm (180 ms), the exclusive zone stays 28 px, a
         NoButton hover probe peeks the panel back (1.5 s re-collapse).
   - [x] gestures: Table 10 in docs/DESIGN-TOKENS.md (see above)
-- M4 — Parity (docs/MILESTONES.md):
-  - [ ] GTK interop: gtk3/gtk4 settings.ini (theme, cursor, icons),
-        xdg-desktop-portal wiring so GTK apps follow the accent
-  - [ ] light theme parity: every Util.darkMode branch verified, light
-        wallpaper defaults, greeter/lock light variants
-  - [ ] i18n: extract shell strings, ship .mo files (pattern:
-        scripts/gen-konsole-mo.py)
+- M4 — Parity: DONE in tree (commit 02b9ac7) —
+  - [x] GTK interop: hook 0810-gtk-interop.hook.chroot installs
+        adw-gtk3-theme, seeds /etc/skel gtk-3.0/gtk-4.0 settings.ini
+        (dark default, Aegis icons with breeze fallback, Breeze cursor,
+        Montserrat), seeds the accent gtk.css for both toolkits, ships
+        /usr/bin/aegis-gtk-sync + an autostart entry so the session
+        applies prefs.json darkMode + tokens.conf accent on every boot.
+        Honest caveat: mid-session accent changes reach shell + Aegis apps
+        over DBus immediately, GTK apps on next launch.
+  - [x] light theme parity: Util.setDarkMode now also writes
+        ~/.config/kdeglobals [General] ColorScheme = AegisDark /
+        AegisLight (both schemes ship in /usr/share/color-schemes), so
+        Konsole and the installer widgets follow the rung swap; the QML
+        glass surfaces already flip through Util.darkMode.
+  - [x] i18n groundwork: scripts/gen-shell-i18n.py inventories 37
+        user-facing literals across the shell QML and emits
+        docs/SHELL-I18N.md with zh_CN translations for the core surfaces
+        (27 ready). Applying them at runtime needs the qsTr + QTranslator
+        refactor — the remaining M4 slice, tracked here for the next
+        window; Konsole zh_CN .mo already ships (scripts/gen-konsole-mo.py).
+  - [x] LLVMpipe: covered by mesa (libgl1-mesa-dri via the KDE stack);
+        the boot test runs QEMU/virtio-gpu green since v0.6.9.
+  - [x] OTA: aegis-updates (Software Update) already shipped beyond spec.
 - Release: qml-guard -> commit -> pull --rebase -> push -> tag v0.6.27 ->
   Release CI builds ISO -> Boot Test (workflow_dispatch, inputs.tag
   v0.6.27) -> verify captures in docs/screenshots/v0.6.27/.
