@@ -210,14 +210,16 @@ Window {
     // ── 16 px optical painters — 2 px stroke, round caps ──
 
     // Wi-Fi — filled fan (macOS weight): three solid wedges read at a
-    // glance where the old stroked arcs went thin. cy = h/2 + 2: the fan's
-    // perceived top edge is the dome's shoulders (~0.7·rout), so the apex
-    // sits ~2.85 below box center for the ink to read centered — +2 keeps
-    // the fan on the speaker/clock midline without clipping the dome.
+    // glance where the old stroked arcs went thin. The fan's ink is
+    // asymmetric around the apex: it spans [cy − rout, cy], so its ink
+    // center is cy − rout/2 = cy − 3.85. Centering THAT on the glyph midline
+    // (canvas y 8 — the speaker's ink center) gives cy = 11.85 → cy = h/2+4.
+    // (v0.6.26 used h/2+2 and still read ~3 px high against the speaker,
+    // battery and clock — the "icons not in a line" report.)
     function paintWifi(ctx, w, h, color) {
         ctx.reset()
         ctx.fillStyle = color
-        const cx = w / 2, cy = h / 2 + 2
+        const cx = w / 2, cy = h / 2 + 4
         const a0 = Math.PI * 1.25, a1 = Math.PI * 1.75
         // innermost slice
         ctx.beginPath()
@@ -237,8 +239,11 @@ Window {
     }
 
     // Battery body — 2 px outline, level fill, bolt for charge/AC.
+    // The ink runs y 5.5..12.3 → center 8.9, a hair low against the
+    // speaker/clock midline (8): translate up 0.9 px to sit on the line.
     function paintBattery(ctx, w, h, color, charging, percent) {
         ctx.reset()
+        ctx.translate(0, -0.9)
         ctx.strokeStyle = color
         ctx.fillStyle = color
         ctx.lineWidth = 1.8

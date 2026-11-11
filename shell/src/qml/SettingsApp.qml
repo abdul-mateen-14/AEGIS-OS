@@ -49,6 +49,55 @@ Window {
         { label: "Users",              tint: "#6E7BFF" }
     ]
 
+    // W12 — the glass switch: the Control Center tile toggle's anatomy
+    // (accent track when on, white knob on the standard easing) as a real
+    // control. The stock Qt switch (dark pill, near-invisible knob) read
+    // broken next to the rest of the system — "the toggles look bad".
+    component GlassSwitch: Switch {
+        id: gs
+        spacing: 10
+        indicator: Rectangle {
+            implicitWidth: 40
+            implicitHeight: 24
+            radius: 12
+            color: gs.checked ? Tokens.accent
+                              : (Util.darkMode ? Qt.rgba(1, 1, 1, 0.14)
+                                               : Qt.rgba(0, 0, 0, 0.12))
+            border.width: 1
+            border.color: gs.checked ? Tokens.accent
+                                     : (Util.darkMode ? Qt.rgba(1, 1, 1, 0.10)
+                                                      : Qt.rgba(0, 0, 0, 0.08))
+            Behavior on color { ColorAnimation { duration: 160 } }
+            Rectangle {
+                x: gs.checked ? parent.width - width - 2 : 2
+                anchors.verticalCenter: parent.verticalCenter
+                width: 20
+                height: 20
+                radius: 10
+                color: "#FFFFFF"
+                Behavior on x {
+                    NumberAnimation { duration: 160; easing.type: Easing.OutCubic }
+                }
+            }
+        }
+        contentItem: Text {
+            text: gs.text
+            font: gs.font
+            color: Tokens.fg
+            verticalAlignment: Text.AlignVCenter
+            leftPadding: gs.indicator.width + gs.spacing
+        }
+    }
+
+    // Aegis ID field background — glass well, accent border on focus.
+    component IdField: Rectangle {
+        radius: 12
+        color: Util.darkMode ? "#15161B" : "#F4F6FA"
+        border.width: 1
+        border.color: parent.activeFocus ? Tokens.accent : Tokens.glassBorder
+        Behavior on border.color { ColorAnimation { duration: 160 } }
+    }
+
     function saveWallpaper(path) {
         Util.setWallpaper(path)   // persists + DBus-forwards to the shell
     }
@@ -527,7 +576,7 @@ Window {
                     delegate: ColumnLayout {
                         spacing: 6
                         Rectangle {
-                            Layout.preferredWidth: 132; Layout.preferredHeight: 82
+                            Layout.preferredWidth: 118; Layout.preferredHeight: 74
                             radius: 12
                             border.color: Util.wallpaper.indexOf(modelData.file) >= 0
                                           ? Tokens.accent : Tokens.glassBorder
@@ -553,26 +602,34 @@ Window {
                         Text { text: modelData.note; font.pixelSize: 10; color: Tokens.fgMuted; Layout.alignment: Qt.AlignHCenter }
                     }
                 }
-                // dashed Choose image… tile — glass picker, no portal dialogs
-                Rectangle {
-                    Layout.preferredWidth: 132; Layout.preferredHeight: 82
-                    radius: 12
-                    color: "transparent"
-                    border.color: Tokens.fgMuted
-                    border.width: 1.5
-                    Text { anchors.centerIn: parent; text: "Choose image\u2026"; font.pixelSize: 12; color: Tokens.fgMuted }
-                    TapHandler { onTapped: imagePickerHost.active = true }
+                // dashed Choose image… tile — the SAME column anatomy as the
+                // four wallpaper tiles (thumbnail band + name + note rows) so
+                // it sits on the thumbnail line instead of floating mid-row;
+                // 118 px keeps five tiles inside the 658 px pane width (the
+                // old 132 px row overflowed and the button clipped at the
+                // window edge).
+                ColumnLayout {
+                    spacing: 6
+                    Rectangle {
+                        Layout.preferredWidth: 118; Layout.preferredHeight: 74
+                        radius: 12
+                        color: "transparent"
+                        border.color: Tokens.fgMuted
+                        border.width: 1.5
+                        Text { anchors.centerIn: parent; text: "Choose image\u2026"; font.pixelSize: 12; color: Tokens.fgMuted }
+                        TapHandler { onTapped: imagePickerHost.active = true }
+                    }
+                    Text { text: "Custom"; font.pixelSize: 12; color: Tokens.fg; Layout.alignment: Qt.AlignHCenter }
+                    Text { text: "Your pictures"; font.pixelSize: 10; color: Tokens.fgMuted; Layout.alignment: Qt.AlignHCenter }
                 }
             }
-            Switch {
+            GlassSwitch {
                 text: "Rotate wallpapers daily"
                 font.pixelSize: 13
-                palette.windowText: Tokens.fg
             }
-            Switch {
+            GlassSwitch {
                 text: "Focus-dim wallpaper"
                 font.pixelSize: 13
-                palette.windowText: Tokens.fg
             }
             Text {
                 text: Util.wallpaper
@@ -692,10 +749,9 @@ Window {
                         color: Util.darkMode ? "#23252B" : "#E8ECF4"
                         Text { anchors.centerIn: parent; text: modelData.chip; font.pixelSize: 10; font.family: "Monospace"; color: Tokens.fgMuted }
                     }
-                    Switch {
+                    GlassSwitch {
                         enabled: modelData.key === "motionSpring" || modelData.key === "blurLive"
                         checked: modelData.on
-                        palette.highlight: Tokens.accent
                     }
                 }
             }
@@ -766,11 +822,9 @@ Window {
                 }
             }
 
-            Switch {
+            GlassSwitch {
                 text: "Night light (evening 20:00 – 06:00, warm)"
                 font.pixelSize: 13
-                palette.windowText: Tokens.fg
-                palette.highlight: Tokens.accent
                 checked: Displays.nightLight
                 onToggled: Displays.setNightLight(checked)
             }
@@ -877,10 +931,9 @@ Window {
                     }
                     RowLayout {
                         Layout.fillWidth: true
-                        Switch {
+                        GlassSwitch {
                             text: "Mute"
                             font.pixelSize: 11
-                            palette.highlight: Tokens.accent
                             checked: modelData.muted
                             onToggled: Sound.setMuted(modelData.id, checked)
                         }
@@ -933,10 +986,9 @@ Window {
             Text { text: "Network"; font.family: "Montserrat"; font.pixelSize: 20; font.weight: Font.DemiBold; color: Tokens.fg }
 
             RowLayout {
-                Switch {
+                GlassSwitch {
                     text: "Wi-Fi"
                     font.pixelSize: 13
-                    palette.highlight: Tokens.accent
                     checked: Network.wifiEnabled
                     onToggled: Network.setWifiEnabled(checked)
                 }
@@ -1078,11 +1130,10 @@ Window {
                             Text { anchors.centerIn: parent; text: "YOU"; font.pixelSize: 8; font.bold: true; color: "#28C840" }
                         }
                         Item { Layout.fillWidth: true }
-                        Switch {
+                        GlassSwitch {
                             visible: modelData.isYou
                             text: "Administrator"
                             font.pixelSize: 11
-                            palette.highlight: Tokens.accent
                             checked: modelData.admin
                             onToggled: Users.setAdmin(modelData.path, checked)
                         }
