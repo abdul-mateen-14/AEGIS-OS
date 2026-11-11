@@ -538,24 +538,43 @@ Window {
         ctx.stroke()
     }
 
-    function paintBell(ctx, w, h, color) {
+    // Bell — the W13 wide-tile glyph, redrawn: a true bell silhouette
+    // (nub, flaring dome, straight lip, clapper) on the 2 px stroke
+    // family. DND on fills the dome solid in the accent; off is outline.
+    function paintBell(ctx, w, h, color, checked) {
         ctx.reset()
         ctx.strokeStyle = color
         ctx.fillStyle = color
-        ctx.lineWidth = 1.5
+        ctx.lineWidth = 2
         ctx.lineCap = "round"
+        ctx.lineJoin = "round"
         const cx = w / 2
+        // top nub — sits on the dome crown
         ctx.beginPath()
-        ctx.moveTo(cx - 5, 11)
-        ctx.bezierCurveTo(cx - 5, 4, cx + 5, 4, cx + 5, 11)
-        ctx.stroke()
-        ctx.beginPath()
-        ctx.moveTo(cx - 6.5, 12.5)
-        ctx.lineTo(cx + 6.5, 12.5)
-        ctx.stroke()
-        ctx.beginPath()
-        ctx.arc(cx, 14.5, 1.3, 0, Math.PI * 2)
+        ctx.arc(cx, 3.4, 1.3, 0, Math.PI * 2)
         ctx.fill()
+        // dome — narrow crown, trumpet flare to the lip
+        ctx.beginPath()
+        ctx.moveTo(cx - 1.5, 4.9)
+        ctx.bezierCurveTo(cx - 4.2, 6.0, cx - 3.3, 9.0, cx - 5.2, 12.6)
+        ctx.lineTo(cx + 5.2, 12.6)
+        ctx.bezierCurveTo(cx + 3.3, 9.0, cx + 4.2, 6.0, cx + 1.5, 4.9)
+        ctx.closePath()
+        if (checked)
+            ctx.fill()
+        else
+            ctx.stroke()
+        // lip — a hair wider than the dome feet
+        ctx.beginPath()
+        ctx.moveTo(cx - 6.0, 12.6)
+        ctx.lineTo(cx + 6.0, 12.6)
+        ctx.stroke()
+        // clapper
+        if (!checked) {
+            ctx.beginPath()
+            ctx.arc(cx, 14.6, 1.5, Math.PI * 0.15, Math.PI * 0.85)
+            ctx.stroke()
+        }
     }
 
     function paintSun(ctx, w, h, color) {
@@ -637,6 +656,19 @@ Window {
                                                           : Qt.rgba(0, 0, 0, 0.08))
         Behavior on color {
             ColorAnimation { duration: ccRoot.dur(Tokens.durQuick) }
+        }
+
+        // the WHOLE tile toggles — wide tiles included. The v0.6.20 boot
+        // test caught the regression: this MouseArea carried visible: !wide,
+        // so the Do Not Disturb tile body was dead and only the 36x20
+        // switch responded — five tags shipped identical "DND on" captures
+        // because the capture clicks the tile body. Declared FIRST so the
+        // narrow column and the wide content row stack above it and the
+        // switch keeps its own hit area.
+        MouseArea {
+            anchors.fill: parent
+            cursorShape: Qt.PointingHandCursor
+            onClicked: toggled()
         }
 
         // narrow tile — icon above label, centered
@@ -742,12 +774,6 @@ Window {
             }
         }
 
-        MouseArea {
-            visible: !wide
-            anchors.fill: parent
-            cursorShape: Qt.PointingHandCursor
-            onClicked: toggled()
-        }
     }
 
     // W13 — anchor layout: both tracks end at the SAME right margin

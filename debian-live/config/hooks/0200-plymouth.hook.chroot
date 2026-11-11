@@ -80,18 +80,18 @@ else
     fi
 fi
 
-# Start the splash from the root filesystem only. The initramfs-phase
-# plymouthd grabs the display before KMS settles and renders nothing
-# (boot-tested on the CI ISOs: splash active, screen black), and its
-# pidfile then blocks the root-phase plymouth-start from taking over.
-# Without initramfs integration the first seconds are a quiet black
-# console (quiet + loglevel=3 show nothing), then plymouth-start paints
-# the splash.
-rm -f /usr/share/initramfs-tools/hooks/plymouth \
-      /usr/share/initramfs-tools/scripts/init-premount/plymouth \
-      /usr/share/initramfs-tools/scripts/init-bottom/plymouth \
-      /usr/share/initramfs-tools/scripts/panic/plymouth
-
+# Start the splash from the initramfs — the standard Ubuntu boot path.
+# History of this block: an earlier pass deleted the initramfs plymouth
+# integration after black-screen experiments, relying on root-phase
+# plymouth-start.service. That never owned the display: every boot test
+# since v0.6.13 shows casper/live-config console text flooding the frame
+# from ~9 s (plymouth-start runs at 9.27 s and paints nothing it owns),
+# and v0.6.20 committed those terminal lines — the W14 ruling asked for
+# the mark, not console output. The two-step plugin is the SAME renderer
+# chain Ubuntu's own spinner/bgrt themes run in initramfs on every
+# machine, so the integration goes back: plymouthd takes the DRM master
+# in init-premount, paints ink + mark + progress line, and casper text
+# renders underneath until plymouth-quit hands over to SDDM.
 if [ -x /usr/sbin/update-initramfs ]; then
     update-initramfs -u
 fi

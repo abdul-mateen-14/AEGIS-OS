@@ -95,15 +95,17 @@ qmllint shell/src/qml/*.qml 2>&1 \
     (bell + label left, switch right, on AND off captures); both sliders
     end at the same right margin; 36 px power row; the footer echo shows
     the live accent hex, not "KWin Wayland".
-19. **Boot splash (W14)** — boot frames show the mark centered over ink with
-    the accent progress line ("splash: centre bright pixels" in the log).
-    The renderer is the two-step C plugin (plymouth-theme-spinner — the
-    script plugin never painted a frame in four boot tests); the 0200 hook
-    picks aegis-mark when two-step.so + watermark.png exist, else the
-    rebranded ubuntu-text falls back. If the centre is black, check which
-    theme the alternatives symlink resolved (`plymouth-set-default-theme`)
-    and whether two-step.so is installed. The hard assert lands the tag
-    AFTER a capture proves the theme.
+19. **Boot splash (W14, asserted)** — the boot frames must carry the mark
+    splash SIGNATURE: ink background 0x08090C, the mark watermark in the
+    centre band, the accent progress line at y ≈ 0.61 H ("splash: MARK
+    SPLASH CONFIRMED" in the log — ink + progress/watermark pixel counts).
+    The renderer is the two-step C plugin running from the INITRAMFS (the
+    standard Ubuntu path — plymouthd owns the DRM master from init-premount
+    and casper text renders underneath; the deleted-initramfs experiment
+    is what let the v0.6.20 frames flood with console lines). The 0200
+    hook picks aegis-mark when two-step.so + watermark.png exist, else the
+    rebranded ubuntu-text falls back. A run with no signature frame FAILS
+    the capture gate (exit 1) — console text is not a splash.
 20. **Files grid metrics (W15)** — 84 px cards, 16 px gutters, 12 px Medium
     labels 6 px below the card, 20 px margins, one row rhythm; capture
     shows folders AND mixed files; the status footer stays the bottom rail.

@@ -94,6 +94,8 @@ Window {
 
                 // W12 — one shared glyph set: 16 px optical, 2 px stroke,
                 // round caps, Tokens.fg at 90%, 18 px hit targets.
+                // Battery is always on the bar — on machines without a
+                // battery pack (the boot-test VM) it reads as AC power.
                 PanelGlyph { painter: panelRoot.paintWifi
                              tint: Util.wifiEnabled ? panelRoot.statusTint
                                                     : panelRoot.dimTint }
@@ -103,10 +105,12 @@ Window {
                              tint: Util.muted ? panelRoot.dimTint
                                               : panelRoot.statusTint }
 
+                BatteryGlyph { }
+
                 Text {
                     visible: Util.batteryPercent >= 0
                     text: Util.batteryPercent + "%"
-                    color: panelRoot.statusTint
+                    color: panelRoot.batteryTint
                     font { family: "Montserrat"; pixelSize: 11 }
                     anchors.verticalCenter: parent.verticalCenter
                 }
@@ -150,6 +154,11 @@ Window {
                                              Tokens.fg.b, 0.28)
     readonly property color ccTint: Qt.rgba(Tokens.fg.r, Tokens.fg.g,
                                             Tokens.fg.b, 0.55)
+    // Low battery (≤ 20 %, discharging) reads in the danger token.
+    readonly property color batteryTint: (Util.batteryPercent >= 0
+                                          && Util.batteryPercent <= 20
+                                          && !Util.charging) ? Tokens.danger
+                                                             : statusTint
 
     component PanelGlyph: Item {
         property var painter
@@ -173,23 +182,107 @@ Window {
         onMutedChanged: canvas.requestPaint()
     }
 
+    // Battery — always drawn (Table 3 right cluster): outline body + level
+    // fill when a battery is present, a bolt when charging, and on AC-only
+    // machines (the CI VM) the bolt alone marks powered. Repaints on the
+    // Util battery signal so level/state changes never go stale.
+    component BatteryGlyph: Item {
+        width: 18
+        height: 18
+        anchors.verticalCenter: parent.verticalCenter
+
+        Canvas {
+            id: batteryCanvas
+            anchors.centerIn: parent
+            width: 16
+            height: 16
+            onPaint: panelRoot.paintBattery(
+                         getContext("2d"), width, height,
+                         panelRoot.batteryTint, Util.charging,
+                         Util.batteryPercent)
+        }
+        Connections {
+            target: Util
+            function onBatteryChanged() { batteryCanvas.requestPaint() }
+        }
+    }
+
     // ── 16 px optical painters — 2 px stroke, round caps ──
 
+    // Wi-Fi — filled fan (macOS weight): three solid wedges read at a
+    // glance where the old stroked arcs went thin.
     function paintWifi(ctx, w, h, color) {
+        ctx.reset()
+        ctx.fillStyle = color
+        const cx = w / 2, cy = h / 2 + 3.5
+        const a0 = Math.PI * 1.25, a1 = Math.PI * 1.75
+        // innermost slice
+        ctx.beginPath()
+        ctx.moveTo(cx, cy)
+        ctx.arc(cx, cy, 2.4, a0, a1)
+        ctx.closePath()
+        ctx.fill()
+        // two bands
+        const bands = [[3.5, 5.2], [6.3, 7.7]]
+        for (const [rin, rout] of bands) {
+            ctx.beginPath()
+            ctx.arc(cx, cy, rout, a0, a1)
+            ctx.arc(cx, cy, rin, a1, a0, true)
+            ctx.closePath()
+            ctx.fill()
+        }
+    }
+
+    // Battery body — 2 px outline, level fill, bolt for charge/AC.
+    function paintBattery(ctx, w, h, color, charging, percent) {
         ctx.reset()
         ctx.strokeStyle = color
         ctx.fillStyle = color
-        ctx.lineWidth = 2
-        ctx.lineCap = "round"
-        const cx = w / 2, cy = h / 2 + 3
-        for (let i = 1; i <= 3; ++i) {
-            ctx.beginPath()
-            ctx.arc(cx, cy, i * 2.6, Math.PI * 1.25, Math.PI * 1.75, false)
-            ctx.stroke()
-        }
+        ctx.lineWidth = 1.8
+        ctx.lineJoin = "round"
+        // body
         ctx.beginPath()
-        ctx.arc(cx, cy, 1.5, 0, Math.PI * 2)
+        ctx.moveTo(3, 5.5)
+        ctx.lineTo(11, 5.5)
+        ctx.quadraticCurveTo(12.5, 5.5, 12.5, 7)
+        ctx.lineTo(12.5, 10.5)
+        ctx.quadraticCurveTo(12.5, 12, 11, 12)
+        ctx.lineTo(3, 12)
+        ctx.quadraticCurveTo(1.5, 12, 1.5, 10.5)
+        ctx.lineTo(1.5, 7)
+        ctx.quadraticCurveTo(1.5, 5.5, 3, 5.5)
+        ctx.stroke()
+        // terminal nub
+        ctx.beginPath()
+        ctx.moveTo(13.6, 7.4)
+        ctx.lineTo(14.4, 7.4)
+        ctx.quadraticCurveTo(15, 7.4, 15, 8)
+        ctx.lineTo(15, 9.5)
+        ctx.quadraticCurveTo(15, 10.1, 14.4, 10.1)
+        ctx.lineTo(13.6, 10.1)
+        ctx.closePath()
         ctx.fill()
+        const hasBattery = percent >= 0
+        if (hasBattery) {
+            // level fill — inset clear of the stroke so the two never fuse
+            const innerX = 3.4, innerMax = 10.6, innerH = 4.0
+            const level = Math.max(0, Math.min(100, percent)) / 100.0
+            ctx.globalAlpha = 0.9
+            ctx.fillRect(innerX, 6.9, Math.max(1.2, (innerMax - innerX) * level), innerH)
+            ctx.globalAlpha = 1.0
+        }
+        if (charging || !hasBattery) {
+            // bolt — charge pulse or AC-only power
+            ctx.beginPath()
+            ctx.moveTo(7.6, 6.2)
+            ctx.lineTo(5.4, 9.6)
+            ctx.lineTo(6.9, 9.6)
+            ctx.lineTo(6.1, 12.3)
+            ctx.lineTo(8.5, 8.9)
+            ctx.lineTo(7.0, 8.9)
+            ctx.closePath()
+            ctx.fill()
+        }
     }
 
     function paintSpeaker(ctx, w, h, color, muted) {

@@ -1,3 +1,38 @@
+aegis-shell (1.7.0-m8) resolute; urgency=medium
+
+  * The v0.6.20 captures called out four regressions; all four fixed.
+  * Boot splash restored (W14): the 0200 hook deleted the initramfs
+    plymouth integration after the script-theme black-screen era, so
+    plymouth-start at 9.27 s never owned the display and every boot since
+    flooded the frame with casper console text (boot-07/08 shipped the
+    lines verbatim). The integration is back — the aegis-mark two-step
+    theme (the same C-plugin chain as Ubuntu's own spinner) starts from
+    init-premount, paints ink + mark + accent progress line, and the
+    capture harness boots with console=tty1 so plymouth has a local
+    console while the serial stays the diagnostics channel.
+  * The splash assert is now real: the old "centre brightness" heuristic
+    scored the 4 % console frame as consistent with the mark splash. The
+    new signature check demands the ink background plus accent progress
+    line or watermark pixels on a boot frame, else the boot test exits 1.
+  * Do Not Disturb tile was dead on its body: the W13 wide-tile refactor
+    left the full-tile MouseArea at visible: !wide, so only the 36x20
+    switch responded — and the capture clicks the tile body, so five tags
+    of DND-on captures are byte-identical to DND-off. The tile-wide
+    MouseArea is back (declared first, switch keeps its own hit area),
+    the bell is redrawn (dome + lip + clapper + nub, filled when DND is
+    on), and the capture clicks the switch and asserts the frame moved.
+  * The desktop-ready heuristic read five dock slots in the console text
+    (boot-08 at val 13.7 passed as the desktop); readiness now also
+    requires wallpaper-class brightness (val >= 30).
+  * Top bar right cluster: the battery is always drawn (level fill when a
+    battery pack is present, bolt when charging, bolt-only on AC-only
+    machines like the boot-test VM), percentage beside it when known,
+    danger tint at 20 % or less while discharging; Wi-Fi redrawn as a
+    filled fan so the old stroked arcs stop reading thin. Tokens gains
+    the danger color as the single source.
+
+ -- Aegis Developers <dev@aegis-os.org>  Wed, 11 Nov 2026 03:10:00 +0000
+
 aegis-shell (1.7.0-m7) resolute; urgency=medium
 
   * W11 caption override finally reachable: KI18n hardcodes en_US as the

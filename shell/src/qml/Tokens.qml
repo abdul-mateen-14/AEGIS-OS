@@ -17,6 +17,9 @@ QtObject {
     readonly property color ink: "#101216"
     readonly property color inkDeep: "#08090C"
     readonly property color paper: "#F2F4F8"
+    // Status danger — low-battery tint in the top bar (§2.1 right cluster)
+    // and any destructive status readout. Same red as the Files kind tint.
+    readonly property color danger: "#FA2D48"
 
     // ── Foreground pair — dark rung default, light rung on request ─
     // (M2 surfaces read these; the full light-theme audit is M4.)

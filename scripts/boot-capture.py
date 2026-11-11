@@ -119,9 +119,15 @@ def diff_px(a, b):
     return t / n / 3
 
 # ---------------- boot ----------------
+# console=tty1 FIRST: plymouth needs a local (non-serial) console to bind
+# (plymouth.ignore-serial-consoles skips ttyS0); the serial stays LAST so
+# /dev/console — where systemd status and casper diagnostics land — keeps
+# feeding the harness serial log. This mirrors the Ubuntu live-ISO pattern
+# (console=tty1 console=ttyS0...).
 KERNEL_ARGS = ("boot=live components quiet splash vt.global_cursor_default=0 "
                "loglevel=3 hostname=aegis username=aegis autologin "
-               "console=ttyS0,115200n8 plymouth.ignore-serial-consoles "
+               "console=tty1 console=ttyS0,115200n8 "
+               "plymouth.ignore-serial-consoles "
                "systemd.journald.forward_to_console=true systemd.show_status=yes")
 
 def extract_kernel_initrd():
@@ -435,13 +441,36 @@ def probe_failed(text):
 
 def splash_report(out_dir, last=-1):
     """W14 proof step — did the boot splash paint the mark? Scans EVERY
-    pre-desktop boot frame's centre region for bright (non-ink) pixels and
-    logs the best frame. The v0.6.13 run only looked at boot-00/01 — both
-    were still SeaBIOS/console frames, so the plymouth window (which opens
-    between the last pre-desktop frame and the desktop frame) went unseen.
-    LOG-LEVEL for this tag: the brief keeps ubuntu-text as fallback until
-    boot-capture PROVES the mark theme; the hard assert lands the tag after
-    a capture shows it."""
+    pre-desktop boot frame for the aegis-mark splash SIGNATURE:
+      · ink background — the corner pixel must sit on 0x08090C (±5);
+        a console (0,0,0) or the wallpaper (grey-blue) fails this alone;
+      · accent progress line — saturated 0x3E8BFF-class pixels in the
+        progress band (y ≈ 0.61 H, centred), OR
+      · watermark — near-white mark pixels in the centre band (y ≈ 0.46 H).
+    The v0.6.20 heuristic called a 4%-bright CONSOLE frame "consistent
+    with the mark splash" — text pixels fooled the brightness counter and
+    the assert would have gone off on a false positive. Returns True when
+    at least one frame carries the signature; the caller turns a miss
+    into a failed release (brief §1: captures must assert)."""
+    def signature(png):
+        im = Image.open(png).convert("RGB")
+        W, H = im.size
+        corner = im.getpixel((5, H - 6))
+        inked = (abs(corner[0] - 8) <= 5 and abs(corner[1] - 9) <= 5
+                 and abs(corner[2] - 12) <= 5)
+        if not inked:
+            return None
+        # progress band — accent-blue pixels (b >> r, mid green)
+        band = im.crop((W // 2 - 140, int(H * 0.56),
+                        W // 2 + 140, int(H * 0.66)))
+        line = sum(1 for p in band.getdata()
+                   if p[2] > 200 and 60 < p[1] < 190 and p[2] - p[0] > 100)
+        # watermark band — near-white mark pixels
+        wm = im.crop((W // 2 - 150, int(H * 0.38),
+                      W // 2 + 150, int(H * 0.54)))
+        white = sum(1 for p in wm.getdata() if min(p) > 150)
+        return (line, white)
+
     best = None
     n = 0
     while True:
@@ -453,27 +482,25 @@ def splash_report(out_dir, last=-1):
             break
         n += 1
         try:
-            im = Image.open(path).convert("RGB")
-            W, H = im.size
-            box = im.crop((W // 2 - 250, max(0, H // 2 - 250),
-                           W // 2 + 250, min(H, H // 2 + 250)))
-            bright = sum(1 for p in box.getdata()
-                         if max(p) > 70)
-            total = (box.width * box.height)
-            pct = bright * 100 // total
-            log(f"splash {name}: centre bright pixels = {bright}/{total} ({pct}%)")
-            if best is None or pct > best[1]:
-                best = (name, pct)
+            sig = signature(path)
+            if sig is None:
+                log(f"splash {name}: background is not ink — console or "
+                    "desktop frame")
+                continue
+            line, white = sig
+            log(f"splash {name}: INK background — progress-line px {line}, "
+                f"watermark px {white}")
+            if best is None or line + white > best[1]:
+                best = (name, line + white, line, white)
         except Exception as e:
             log(f"splash {name}: unreadable ({e})")
-    if best and best[1] >= 1:
-        log(f"splash: best frame {best[0]} at {best[1]}% centre brightness "
-            f"— consistent with the mark splash (assert lands next tag)")
-    else:
-        log("splash: every pre-desktop frame is ink-black in the centre — "
-            "the mark splash did NOT paint (ubuntu-text fallback, console, "
-            "or the window fell between frames); review the boot frames "
-            "before claiming W14")
+    if best and (best[2] >= 40 or best[3] >= 500):
+        log(f"splash: MARK SPLASH CONFIRMED on {best[0]} "
+            f"(progress px {best[2]}, watermark px {best[3]})")
+        return True
+    log("splash: no boot frame carries the mark splash signature — "
+        "plymouth did not paint ink + mark + progress line; W14 NOT met")
+    return False
 
 def serial_recover(serial, q, W=1280, H=800):
     log("attempting live recovery over serial")
@@ -584,7 +611,12 @@ def wait_desktop(q, proc, timeout=DESKTOP_TIMEOUT):
         except Exception:
             pass
         log(f"boot-{n:02d}: sat={sat:.1f} val={val:.1f} dock-slots={present} t={time.time() - t0:.0f}s")
-        if present >= desktop_ready_threshold():
+        if present >= desktop_ready_threshold() and val >= 30:
+            # val >= 30 — the desktop gate. The v0.6.20 run "reached the
+            # desktop" at t=9 s because the geometric slot heuristic read
+            # five "tiles" in the casper console text (sat=0.3 val=13.7);
+            # the real wallpaper carries val ≈ 63. A text console is not
+            # the desktop.
             return n
         n += 1; time.sleep(1 if n < 12 else (5 if n < 20 else 20))
     return -1
@@ -782,22 +814,67 @@ def main():
     # top border at y=68, not the margin-40 the QML math suggests). Sheet
     # margins 16, header 30, 12 px gaps, grid 64+12+64, then the 44 px DND
     # wide tile centered at y=300 with its 36x20 switch riding the right
-    # end. The WHOLE tile toggles (MouseArea fills it), so click the tile
-    # body — safer against small layout shifts than the switch itself. The
-    # second click restores the off state.
+    # end (knob measured at x ≈ 1206-1222 on the v0.6.20 capture).
+    # v0.6.21: the QML bug is fixed (the whole tile toggles again), but the
+    # capture now clicks the SWITCH and then ASSERTS the frame actually
+    # changed — five tags (v0.6.15-v0.6.20) shipped identical "DND on"
+    # captures because the click hit the dead tile body and nothing ever
+    # verified the pixels moved. Brief §1: captures must assert.
     try:
-        q.click(W - 180, 300, W, H)       # DND tile body
-        time.sleep(2)
-        q.shot("05b-control-center-dnd")
-        log("05b-control-center-dnd captured (DND on)")
-        q.click(W - 180, 300, W, H)       # restore off
+        home = Image.open(f"{OUT}/05-control-center.png").convert("RGB")
+
+        def frame_diff(a, b):
+            # diff only inside the CC sheet (x > W-380, y < 540): the switch
+            # move + bell fill live there; sampling every 4 px. Whole-frame
+            # diff would dilute the ~1000 changed pixels to < 1.0 and the
+            # assert would false-fail on a working toggle.
+            pa, pb = a.load(), b.load()
+            Wd, Hd = a.size
+            x0 = max(0, Wd - 380)
+            y1 = min(Hd, 540)
+            t = n = 0
+            for y in range(0, y1, 4):
+                for x in range(x0, Wd, 4):
+                    t += sum(abs(pa[x, y][c] - pb[x, y][c]) for c in range(3))
+                    n += 1
+            return t / n / 3
+
+        def dnd_click_and_capture(name):
+            q.click(W - 64, 300, W, H)    # the 36x20 switch, right end
+            time.sleep(2)
+            q.shot(name)
+            return Image.open(f"{OUT}/{name}.png").convert("RGB")
+
+        dnd_on = dnd_click_and_capture("05b-control-center-dnd")
+        moved = frame_diff(home, dnd_on)
+        if moved < 1.0:
+            log(f"dnd assert: frame barely moved (diff={moved:.2f}) — "
+                "retrying on the tile body")
+            dnd_on = dnd_click_and_capture("05b-control-center-dnd")
+            moved = frame_diff(home, dnd_on)
+        if moved < 1.0:
+            raise RuntimeError(
+                f"DND toggle produced no frame change (diff={moved:.2f}) — "
+                "the switch did not respond; failing the capture gate")
+        log(f"05b-control-center-dnd captured (DND on, diff={moved:.1f})")
+        # restore off and confirm the sheet settled back
+        q.click(W - 64, 300, W, H)
         time.sleep(1.5)
+    except SystemExit:
+        raise
     except Exception as e:
         log(f"dnd toggle capture failed: {e}")
+        sys.exit(1)
 
-    # W14 proof step — did the mark splash paint? (log-level this tag;
-    # the hard assert lands once a capture proves the theme.)
-    splash_report(OUT, n)
+    # W14 proof step — the hard assert. The brief: "keep ubuntu-text as
+    # fallback until boot-capture proves the new theme". The signature
+    # check (ink background + accent progress line / watermark pixels)
+    # passed on this tag means the mark splash is REAL; a miss fails the
+    # release instead of shipping console text as "boot splash".
+    if not splash_report(OUT, n):
+        log("RELEASE GATE: the boot splash never painted the mark — "
+            "failing the capture run (W14)")
+        sys.exit(1)
 
     # W14 experiment — CAN plymouthd render at all in this VM? The boot
     # frames show casper's console text over the whole plymouth window
