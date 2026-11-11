@@ -62,7 +62,15 @@ capture, no proof the apps open on the runner.
 
 ### Status
 
-- DOING — this file updated first (progress anchor), code next.
+- D1-D3 DONE in tree (commit 22fda7c): four Tier A slots in config.json +
+  the util.cpp mirror; boot-capture.py grew the four open_app captures
+  (04c-music / 04d-calculator / 04e-editor / 04f-monitor, click_idx 5-8),
+  Settings click_idx moved to 9, the opens release gate covers all seven
+  first-party apps, app_diag grew PROBE-M/C/E/N foreground probes (music
+  filters pipewire/pulse/gstreamer/alsa chatter out of its DIRTY verdict
+  and its fetch). qml-guard PASS (21), py_compile PASS, config parses
+  11 tiles. Shell CI compiles this push; tag v0.6.28 after green.
+- D4 — release: pending (tag v0.6.28 once Shell CI is green on 22fda7c).
 
 ---
 
