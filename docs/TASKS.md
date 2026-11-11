@@ -50,15 +50,15 @@ from docs/MILESTONES.md.
 
 ### TODO (work in this order)
 
-- W14 — Aegis ID session overhaul (fig 3, "needs a lot of improvement").
-  Today the signed-out pane is two 30 px TextFields, two small buttons and
-  a muted explainer. Plan: hero identity card (aegis mark, title,
-  subtitle), the IdField glass-well component (already defined at
-  SettingsApp.qml line 93 but NOT yet applied) with accent focus border,
-  taller 36 px fields, 34 px primary/secondary buttons with hover states,
-  a proper status line, sync feature bullets, privacy note. Signed-in pane:
-  device cards + sync switches + sign-out. Then boot-capture pane 8 to
-  verify.
+- W14 — DONE (commit 5f26549): Aegis ID session redesign (fig 3). Hero
+  card (mark + pitch), glass form wells via the IdField component with
+  accent focus border, 34 px fields, Enter-signs-in, 34 px actions
+  (disabled + dimmed while working, error line in danger), three
+  what-syncs tiles in the sidebar dot language (Accent #3E8BFF / Wallpaper
+  #8B5CF6 / Files #34C77B), zero-knowledge note. Signed-in: account card
+  (avatar with initial, live dot, zero-knowledge chip), sync card (Sync
+  now / Sign out, encrypted note, sync status), devices card with
+  separators, empty state, THIS DEVICE chip, Remove. qml-guard PASS.
 - M3 — Depth (docs/MILESTONES.md):
   - [x] workspaces seed: kwinrc [Desktops] Number=4 Rows=1
   - [ ] Overview / Mission Control on Meta+W (verify stock overview
