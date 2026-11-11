@@ -1,0 +1,97 @@
+# TASKS — Aegis OS work orders
+
+This file is the cross-session memory. Every task gets a number; the status
+vocabulary is TODO / DOING / DONE (in tree) / SHIPPED (in a release tag).
+Update it after every step so a context cycle, session refresh or crash
+cannot lose the plan.
+
+- Repo: github.com/abdul-mateen-14/AEGIS-OS, local checkout
+  /home/z/my-project/work/AEGIS-OS
+- Release flow: push main -> tag vx.y.z -> Release CI builds the ISO ->
+  Boot Test is triggered manually with workflow_dispatch (inputs.tag) on a
+  GitHub runner -> captures land in docs/screenshots/<tag>/ on main
+- Pre-push: run scripts/qml-guard.py, keep commit messages free of
+  backticks, git pull --rebase before pushing (boot tests commit to main)
+
+---
+
+## T10 — v0.6.27: one window anatomy, glass controls, Aegis ID session, M3 Depth (CURRENT)
+
+Opened 2026-11-11. User reports (with screenshots) plus the milestone plan
+from docs/MILESTONES.md.
+
+### DONE (in tree, committed with this file)
+
+- W11 — one window anatomy; "the header is smaller than the body" (fig 1,
+  terminal). Root cause found: the Plasma 6.6 aurorae v2 engine CLAMPS the
+  theme's Border* to the session border size — BorderSize=Normal clamps
+  12 -> 6, so the client sat inside a body-coloured strip 6 px wider than
+  the glass band and the band arc floated inset. Fix: kwinrc
+  BorderSize=None (borders 0/44/0/0, client flush with the window edge
+  below the 44 px band), AegisLightsrc BorderLeft/Right/Bottom = 0, frame
+  SVG regenerated with radius-18 top corners matching the ShapeCorners
+  effect (Radius=18). ShapeCorners rounds every window, so Corex and
+  installed apps get the same curved corners as Settings/Files.
+  Files: etc/xdg/kwinrc, AegisLightsrc, decoration.svgz,
+  decoration-inactive.svgz, scripts/gen-aurorae-frame.py (PARTW=18).
+- W12 — glass switches + wallpaper picker row (fig 2). GlassSwitch
+  component (accent track when on, 20 px white knob, OutCubic 160 ms)
+  replaces every stock Switch in SettingsApp.qml. The Choose image… tile
+  is rebuilt as the same ColumnLayout anatomy as the four wallpaper tiles
+  (118 px thumbnail band + Custom + Your pictures rows) so it sits ON the
+  thumbnail line; 118 px also keeps five tiles inside the 658 px pane
+  (the 132 px row overflowed and clipped at the window edge).
+- W13 — panel status icons on one line ("wifi logo not in line"). Wi-Fi
+  fan: ink spans [cy - rout, cy] so its ink center is cy - rout/2 =
+  cy - 3.85; centering THAT on the glyph midline (canvas y 8) gives
+  cy = h/2 + 4 (v0.6.26 shipped h/2 + 2 and still read ~3 px high).
+  Battery ink center 8.9 -> translate(0, -0.9) to sit on y 8.
+  Files: shell/src/qml/Panel.qml.
+
+### TODO (work in this order)
+
+- W14 — Aegis ID session overhaul (fig 3, "needs a lot of improvement").
+  Today the signed-out pane is two 30 px TextFields, two small buttons and
+  a muted explainer. Plan: hero identity card (aegis mark, title,
+  subtitle), the IdField glass-well component (already defined at
+  SettingsApp.qml line 93 but NOT yet applied) with accent focus border,
+  taller 36 px fields, 34 px primary/secondary buttons with hover states,
+  a proper status line, sync feature bullets, privacy note. Signed-in pane:
+  device cards + sync switches + sign-out. Then boot-capture pane 8 to
+  verify.
+- M3 — Depth (docs/MILESTONES.md):
+  - [x] workspaces seed: kwinrc [Desktops] Number=4 Rows=1
+  - [ ] Overview / Mission Control on Meta+W (verify stock overview
+        effect enabled, glass-styled window titles)
+  - [ ] custom tiling on Meta+T (stock KWin tiling, document shortcuts)
+  - [ ] four apps: Music, Calculator, Editor, Monitor — AppWindow-based,
+        registered per docs/APP-SLOTS.md, dock + launcher entries
+  - [ ] Calm Mode: dim desktop, pause notifications — Control Center tile
+  - [ ] gestures: Meta+Ctrl+arrows for workspace switch, three-finger
+        swipe; dictionary in docs/DESIGN-TOKENS.md Table 10
+- M4 — Parity (docs/MILESTONES.md):
+  - [ ] GTK interop: gtk3/gtk4 settings.ini (theme, cursor, icons),
+        xdg-desktop-portal wiring so GTK apps follow the accent
+  - [ ] light theme parity: every Util.darkMode branch verified, light
+        wallpaper defaults, greeter/lock light variants
+  - [ ] i18n: extract shell strings, ship .mo files (pattern:
+        scripts/gen-konsole-mo.py)
+- Release: qml-guard -> commit -> pull --rebase -> push -> tag v0.6.27 ->
+  Release CI builds ISO -> Boot Test (workflow_dispatch, inputs.tag
+  v0.6.27) -> verify captures in docs/screenshots/v0.6.27/.
+
+### RESUME NOTES (for any fresh session)
+
+- Read this file first, then git log --oneline -5 and git status to see
+  how far T10 got. Uncommitted edits mean a step was mid-flight.
+- Verification tools that already exist: scripts/analyze-term-window.py
+  and scripts/analyze-term-fine.py (pixel anatomy of the terminal window
+  capture), scripts/boot-capture.py (runner capture suite),
+  scripts/qml-guard.py (syntax guard).
+- W11 pixel checks live in the boot capture 03-terminal.png: the band and
+  the body must share the same left edge (no body strip wider than the
+  band), top corners r18.
+- Known pitfalls: repository-wide rg can hang (use per-file rg or glob
+  white-lists); WebFetch of github.com trees fails (use
+  invent.kde.org GitLab API); ANSI-strip can fake QML corruption in CI
+  logs (verify against the file, not the log).
