@@ -15,7 +15,7 @@ cannot lose the plan.
 
 ---
 
-## T11 — v0.6.28: M3 apps on the dock + in the boot captures (CURRENT)
+## T11 — v0.6.28-v0.6.32: M3 apps on the dock + in the boot captures (SHIPPED)
 
 Opened 2026-11-12. User report on the shipped v0.6.27: "the boot [captures]
 do not contain the screenshots of new apps like music calculator etc and
@@ -148,7 +148,19 @@ capture, no proof the apps open on the runner.
      itself is healthy: Exec=/usr/bin/aegis-browser-stable (verified by
      extracting the r45 deb) — once installed, entryhit and command -v
      both match and the dock keeps the slot.
-  Release as v0.6.31.
+- D5d — v0.6.31 Boot Test: SUCCESS. All six probes CLEAN (the Monitor/
+  Editor import fixes and the multimedia filter landed), the four M3 app
+  captures carry healthy diff-vs-home deltas (music 15.6, calculator 6.7,
+  editor 15.2, monitor 14.1), header geometry PASS, capture complete with
+  zero assert failures. ONE residual: the guest still reports 10 dock
+  tiles (no Aegis Browser) — the 0900 fallback hook shipped with mode
+  100644 (all other hooks are 100755) and live-build skips non-executable
+  hooks silently; also the numbered unpack lines (0245-shell, 0494-corex,
+  0902-shapecorners, 1106-os) prove live-build's local repo again skipped
+  the browser deb itself. Fix: git update-index --chmod=+x on the hook.
+  The browser slot stays cosmetic-only for now (the dock is correct per
+  W8; T11's scope — the four M3 apps on the dock and in the captures —
+  is fully shipped). Browser slot follow-up moves to T12.
 - D4 — release: qml-guard -> commit -> pull --rebase -> push -> tag
   (v0.6.28 burned by D5, v0.6.29 by D5b, v0.6.30 by D5c; re-releases as
   v0.6.31) -> Release CI builds the ISO -> Boot Test (workflow_dispatch,
@@ -157,11 +169,16 @@ capture, no proof the apps open on the runner.
 
 ### Status
 
-- D1-D3 DONE (22fda7c); D5 (43d78e3); D5b (6dad71d); D5c DONE in tree
-  (this commit) — D4 release pending on the v0.6.31 tag. The four M3
-  apps verified visually in the v0.6.29 captures (Music with fixture
-  track, Calculator rendered); v0.6.30 proved settings/files/calculator/
-  editor probes CLEAN and all six wrappers installed.
+- SHIPPED — v0.6.31 (commit 6ca1c85, Boot Test run 43089802794 green):
+  the four M3 apps are ON THE DOCK (config slots + util.cpp mirror) and
+  IN THE CAPTURES (04c-music / 04d-calculator / 04e-editor / 04f-monitor
+  committed to docs/screenshots/v0.6.31/ by the boot test), the release
+  gate covers all seven first-party apps, all six QML probes CLEAN.
+  Side fixes shipped with it: the org.aegis.Shell DBus interface
+  (Q_CLASSINFO), MonitorApp/EditorApp singleton imports, the guest-
+  resolved dock click map, hard-minimum serial drain, file-based probe
+  verdicts, the Browser deb URL r31 -> r45. v0.6.32 follows with the
+  0900 hook executable bit (browser slot regression vs v0.6.27).
 
 - D1-D3 detail: four Tier A slots in config.json +
   the util.cpp mirror; boot-capture.py grew the four open_app captures
