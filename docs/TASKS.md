@@ -133,8 +133,23 @@ from docs/MILESTONES.md.
   (Adwaita fallback, accent gtk.css still applies) + distinct heredoc
   delimiters (SYNC_EOF/SETTINGS_EOF/CSS_EOF) + a sh -n sweep of every
   hook. RELEASE SHIPPED: v0.6.27 tag 2f7dbf1, Release success, ISO parts
-  published on the release page, Boot Test dispatched (workflow_dispatch
-  tag v0.6.27).
+  published on the release page. The first Boot Test died on the runner
+  resolver (45 min inside apt — boot-test.yml got the same DNS guard +
+  index-verified retry, fc950f6); the re-dispatch then FAILED ON THE T7
+  ASSERT — a real detector bug: band_left_edge anchored at dot_x-2 (inside
+  the close dot's own AA span) with a GLOBAL band ref, while the W11
+  flush-client band drifts over the wallpaper gradient — the walk stopped
+  2 px after the dot ("terminal dot inset 2 outside 14±5"). Fix 512447a:
+  anchor at the measured red-span left edge - 2, walk with a LOCAL
+  gradient criterion (|Δ| <= 6 per pixel), stop at the frame step.
+  Verified against the v0.6.27 artifacts (files 13 / terminal 17 — PASS)
+  AND the v0.6.26 captures (13 / 14 — PASS, backward compatible).
+  Final Boot Test: SUCCESS — boot-00..17, home/files/terminal/settings/
+  aegis-id/control-center/dnd captures committed to docs/screenshots/
+  v0.6.27/ (25584f6), zip attached to the release, asserts green. The
+  captures visually confirm W11 (band and body share the left edge),
+  W12 (Choose image… on the thumbnail line), W14 (hero card + glass
+  wells). T10 IS SHIPPED.
 
 ### RESUME NOTES (for any fresh session)
 
