@@ -127,11 +127,15 @@ def diff_px(a, b):
 # plymouth.debug=file: — plymouthd's own switch (libply reads it from
 # /proc/cmdline): boot-phase renderer decisions land in a file that
 # survives switch-root, so the probe can read WHY the splash did or did
-# not paint. Remove once W14 is proven and the gate is green.
+# not paint. plymouth.debug=stream:/dev/ttyS0 — the SAME trace piped
+# straight into the serial console, where the harness logs every byte:
+# no permissions, no dump step, the renderer decision lands in serial.log
+# in real time. Remove both once W14 is proven and the gate is green.
 KERNEL_ARGS = ("boot=live components quiet splash vt.global_cursor_default=0 "
                "loglevel=3 hostname=aegis username=aegis autologin "
                "console=tty1 console=ttyS0,115200n8 "
                "plymouth.ignore-serial-consoles "
+               "plymouth.debug=stream:/dev/ttyS0 "
                "plymouth.debug=file:/run/plymouth-boot-debug.log "
                "systemd.journald.forward_to_console=true systemd.show_status=yes")
 
@@ -773,10 +777,10 @@ def main():
             # still leaves the renderer decision in the workflow log.
             try:
                 dbg = serial.run(
-                    "ls -la /run/plymouth-boot-debug.log 2>&1; "
-                    "grep -aiE 'renderer|drm|device|error|fail|splash|plugin|"
-                    "two-step|console|master' /run/plymouth-boot-debug.log "
-                    "2>&1 | head -40; echo BOOT-DEBUG-READ", settle=8)
+                    "sudo sh -c 'ls -la /run/plymouth-boot-debug.log 2>&1; "
+                    "grep -aiE \"renderer|drm|device|error|fail|splash|plugin|"
+                    "two-step|console|master\" /run/plymouth-boot-debug.log "
+                    "2>&1 | head -40'; echo BOOT-DEBUG-READ", settle=10)
                 log("plymouth boot debug: "
                     + dbg.strip().replace("\n", " | ")[-1500:])
             except Exception as e:
