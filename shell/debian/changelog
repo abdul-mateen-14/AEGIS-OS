@@ -1,3 +1,20 @@
+aegis-shell (1.7.0-m12) resolute; urgency=medium
+
+  * THE SPLASH BUG, FOUND AND FIXED: the v0.6.24 serial trace shows the
+    renderer chain was never broken — plymouthd found card0 (virtio_gpu),
+    opened the drm renderer, found the 1280x800 head at 0.96 s, loaded
+    the aegis-mark two-step plugin — and then aborted at "loading lock
+    image: No such file or directory". plymouth's two-step theme REQUIRES
+    lock.png in ImageDir and a failed load kills the whole splash; the
+    fallback chain (text theme fails too) lands in the details plugin,
+    whose whole job is echoing boot output to the screen. Every black
+    frame and every terminal line since v0.6.10 was plymouth's own
+    details canvas. The theme now ships lock.png (paper padlock), entry
+    .png, bullet.png and box.png — the LUKS prompt assets — generated in
+    gen-plymouth-mark.py on the Tokens palette.
+
+ -- Aegis Developers <dev@aegis-os.org>  Wed, 11 Nov 2026 07:05:00 +0000
+
 aegis-shell (1.7.0-m11) resolute; urgency=medium
 
   * The v0.6.23 probe proved the boot debug file lands (193 KB in
