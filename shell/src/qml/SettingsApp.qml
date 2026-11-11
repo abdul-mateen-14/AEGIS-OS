@@ -361,20 +361,25 @@ Window {
         }
     }
 
-    // ── W6 — Aegis ID (§6: identity, devices, sync; zero-knowledge client) ─
+    // ── W14 — Aegis ID (§6: identity, devices, sync; zero-knowledge client) ─
+    // v0.6.27 redesign. The old pane was two bare 30 px fields and two small
+    // buttons — "needs a lot of improvement". Now: a hero card (mark + pitch),
+    // glass form wells (the IdField component, accent border on focus),
+    // 34 px actions, feature tiles, and — signed in — account, sync and
+    // device cards with separators.
     Component {
         id: aegisIdPane
         ColumnLayout {
             id: idPane
-            spacing: 12
+            spacing: 14
 
             property bool recoverySeen: false
 
             Text { text: "Aegis ID"; font.family: "Montserrat"; font.pixelSize: 20; font.weight: Font.DemiBold; color: Tokens.fg }
             Text {
                 text: AegisId.signedIn
-                      ? "Signed in as " + AegisId.email
-                      : AegisId.statusText
+                      ? "One account across your Aegis devices"
+                      : "Local account · sign in to turn on device sync"
                 font.pixelSize: 12; color: Tokens.fgMuted
             }
 
@@ -382,7 +387,7 @@ Window {
             Rectangle {
                 visible: AegisId.recoveryKey.length > 0 && !idPane.recoverySeen
                 Layout.fillWidth: true
-                Layout.preferredHeight: 110
+                Layout.preferredHeight: 116
                 radius: 14
                 color: Util.darkMode ? "#221A10" : "#FFF6E0"
                 border.color: "#FF9F0A"
@@ -410,146 +415,372 @@ Window {
                 }
             }
 
-            // ── signed-out: sign in / create ─────────────────────────────
+            // ── signed-out: hero, form, what syncs, privacy ──────────────
             ColumnLayout {
                 visible: !AegisId.signedIn
-                spacing: 8
+                spacing: 14
 
-                TextField {
-                    id: idEmail
-                    Layout.fillWidth: true; Layout.preferredHeight: 30
-                    placeholderText: "Email"
-                    font.pixelSize: 12
-                    color: Tokens.fg; placeholderTextColor: Tokens.fgMuted
-                    background: Rectangle { radius: 8; color: Util.darkMode ? "#17181D" : "#F4F6FA"; border.color: Tokens.glassBorder }
-                }
-                TextField {
-                    id: idPassword
-                    Layout.fillWidth: true; Layout.preferredHeight: 30
-                    placeholderText: "Password"
-                    echoMode: TextInput.Password
-                    font.pixelSize: 12
-                    color: Tokens.fg; placeholderTextColor: Tokens.fgMuted
-                    background: Rectangle { radius: 8; color: Util.darkMode ? "#17181D" : "#F4F6FA"; border.color: Tokens.glassBorder }
-                }
-                RowLayout {
-                    spacing: 8
-                    AbstractButton {
-                        Layout.preferredHeight: 30; Layout.preferredWidth: 110
-                        contentItem: Text { text: "Sign in"; font.pixelSize: 12; color: "#FFFFFF"; horizontalAlignment: Text.AlignHCenter; verticalAlignment: Text.AlignVCenter }
-                        background: Rectangle { radius: 8; color: Tokens.accent }
-                        onClicked: AegisId.signIn(idEmail.text, idPassword.text)
-                    }
-                    AbstractButton {
-                        Layout.preferredHeight: 30; Layout.preferredWidth: 150
-                        contentItem: Text { text: "Create account"; font.pixelSize: 12; color: Tokens.fg; horizontalAlignment: Text.AlignHCenter; verticalAlignment: Text.AlignVCenter }
-                        background: Rectangle {
-                            radius: 8; border.color: Tokens.glassBorder
-                            color: Util.darkMode ? "#262930" : "#E8ECF4"
-                        }
-                        onClicked: AegisId.registerAccount(idEmail.text, idPassword.text)
-                    }
-                    Text {
-                        text: AegisId.state === "working" ? AegisId.statusText : ""
-                        font.pixelSize: 11; color: Tokens.fgMuted
-                    }
-                }
-                Text {
-                    text: "Local account · sync off. Signing in enables device sync (accent, wallpaper, Files view) across your Aegis devices."
-                    font.pixelSize: 11; color: Tokens.fgMuted
-                    wrapMode: Text.WordWrap
+                // hero — the mark and the pitch
+                Rectangle {
                     Layout.fillWidth: true
-                }
-            }
-
-            // ── signed-in: devices + sync ────────────────────────────────
-            ColumnLayout {
-                visible: AegisId.signedIn
-                spacing: 8
-
-                Text { text: "Devices"; font.pixelSize: 12; font.bold: true; color: Tokens.fg }
-                Repeater {
-                    model: AegisId.devices
-                    delegate: RowLayout {
-                        Layout.fillWidth: true
-                        spacing: 10
+                    Layout.preferredHeight: 106
+                    radius: 16
+                    color: Util.darkMode ? Qt.rgba(1, 1, 1, 0.05) : "#FFFFFF"
+                    border.color: Tokens.glassBorder
+                    RowLayout {
+                        anchors { fill: parent; margins: 16 }
+                        spacing: 14
                         Rectangle {
-                            width: 26; height: 26; radius: 13
-                            color: modelData.isThis ? Tokens.accent : (Util.darkMode ? "#262930" : "#DDE3EE")
-                            Text {
+                            width: 56; height: 56; radius: 16
+                            color: Tokens.glassHighlight
+                            Image {
                                 anchors.centerIn: parent
-                                text: modelData.platform === "linux" ? "L"
-                                      : modelData.platform === "android" ? "A"
-                                      : modelData.platform === "macos" ? "M" : "\u25CB"
-                                font { pixelSize: 11; bold: true }
-                                color: modelData.isThis ? "#FFFFFF" : Tokens.fg
+                                source: "aegis-mark.png"
+                                sourceSize: Qt.size(34, 34)
                             }
                         }
                         ColumnLayout {
-                            spacing: 0
-                            RowLayout {
-                                spacing: 6
-                                Text { text: modelData.name; font.pixelSize: 12; color: Tokens.fg }
-                                Rectangle {
-                                    visible: modelData.isThis
-                                    width: 64; height: 16; radius: 4
-                                    color: Util.darkMode ? "#1B2B1F" : "#E4F5E8"
-                                    Text { anchors.centerIn: parent; text: "THIS DEVICE"; font.pixelSize: 8; font.bold: true; color: "#28C840" }
-                                }
+                            spacing: 4
+                            Layout.fillWidth: true
+                            Layout.fillHeight: true
+                            Text { text: "Sign in to Aegis ID"; font.family: "Montserrat"; font.pixelSize: 16; font.weight: Font.DemiBold; color: Tokens.fg }
+                            Text {
+                                text: "Your accent, wallpaper and Files view travel with you — vault-encrypted end to end. The password never leaves this device."
+                                font.pixelSize: 11; color: Tokens.fgMuted
+                                wrapMode: Text.WordWrap
+                                Layout.fillWidth: true
                             }
-                            Text { text: "seen " + (modelData.lastSeen || "—"); font.pixelSize: 10; color: Tokens.fgMuted }
-                        }
-                        Item { Layout.fillWidth: true }
-                        AbstractButton {
-                            visible: !modelData.isThis
-                            Layout.preferredHeight: 24; Layout.preferredWidth: 84
-                            contentItem: Text { text: "Remove"; font.pixelSize: 11; color: "#FA2D48"; horizontalAlignment: Text.AlignHCenter; verticalAlignment: Text.AlignVCenter }
-                            background: Rectangle {
-                                radius: 8; border.color: Tokens.glassBorder
-                                color: Util.darkMode ? "#262930" : "#E8ECF4"
-                            }
-                            onClicked: AegisId.revokeDevice(modelData.id)
                         }
                     }
                 }
 
+                // form — glass wells, 34 px fields, Enter signs in
+                Rectangle {
+                    Layout.fillWidth: true
+                    implicitHeight: idFormCol.implicitHeight + 28
+                    radius: 16
+                    color: Util.darkMode ? Qt.rgba(1, 1, 1, 0.05) : "#FFFFFF"
+                    border.color: Tokens.glassBorder
+                    ColumnLayout {
+                        id: idFormCol
+                        anchors { left: parent.left; right: parent.right; top: parent.top; margins: 14 }
+                        spacing: 10
+                        TextField {
+                            id: idEmail
+                            Layout.fillWidth: true; Layout.preferredHeight: 34
+                            placeholderText: "Email"
+                            font.pixelSize: 12
+                            color: Tokens.fg; placeholderTextColor: Tokens.fgMuted
+                            leftPadding: 12
+                            selectByMouse: true
+                            background: IdField { }
+                        }
+                        TextField {
+                            id: idPassword
+                            Layout.fillWidth: true; Layout.preferredHeight: 34
+                            placeholderText: "Password"
+                            echoMode: TextInput.Password
+                            font.pixelSize: 12
+                            color: Tokens.fg; placeholderTextColor: Tokens.fgMuted
+                            leftPadding: 12
+                            selectByMouse: true
+                            background: IdField { }
+                            onAccepted: {
+                                if (AegisId.state !== "working"
+                                        && idEmail.text.length > 0
+                                        && idPassword.text.length > 0)
+                                    AegisId.signIn(idEmail.text, idPassword.text)
+                            }
+                        }
+                        RowLayout {
+                            spacing: 10
+                            AbstractButton {
+                                Layout.preferredHeight: 34; Layout.preferredWidth: 132
+                                enabled: AegisId.state !== "working"
+                                         && idEmail.text.length > 0
+                                         && idPassword.text.length > 0
+                                opacity: enabled ? 1 : 0.55
+                                contentItem: Text {
+                                    text: "Sign in"
+                                    font { pixelSize: 12; family: "Montserrat"; weight: Font.DemiBold }
+                                    color: "#FFFFFF"; horizontalAlignment: Text.AlignHCenter; verticalAlignment: Text.AlignVCenter
+                                }
+                                background: Rectangle { radius: 10; color: Tokens.accent }
+                                onClicked: AegisId.signIn(idEmail.text, idPassword.text)
+                            }
+                            AbstractButton {
+                                Layout.preferredHeight: 34; Layout.preferredWidth: 150
+                                enabled: AegisId.state !== "working"
+                                opacity: enabled ? 1 : 0.55
+                                contentItem: Text {
+                                    text: "Create account"
+                                    font { pixelSize: 12; family: "Montserrat"; weight: Font.DemiBold }
+                                    color: Tokens.fg; horizontalAlignment: Text.AlignHCenter; verticalAlignment: Text.AlignVCenter
+                                }
+                                background: Rectangle {
+                                    radius: 10; border.color: Tokens.glassBorder
+                                    color: Util.darkMode ? "#262930" : "#E8ECF4"
+                                }
+                                onClicked: AegisId.registerAccount(idEmail.text, idPassword.text)
+                            }
+                            Item { Layout.fillWidth: true }
+                            Text {
+                                Layout.maximumWidth: 170
+                                text: AegisId.state === "working" ? AegisId.statusText : ""
+                                font.pixelSize: 11; color: Tokens.accent
+                                elide: Text.ElideRight
+                            }
+                        }
+                        Text {
+                            visible: AegisId.state === "error"
+                            text: AegisId.statusText
+                            font.pixelSize: 11; color: Tokens.danger
+                            wrapMode: Text.WordWrap
+                            Layout.fillWidth: true
+                        }
+                    }
+                }
+
+                // what syncs — three tiles in the sidebar dot language
                 RowLayout {
-                    spacing: 8
-                    AbstractButton {
-                        Layout.preferredHeight: 30; Layout.preferredWidth: 110
-                        contentItem: Text { text: "Sync now"; font.pixelSize: 12; color: "#FFFFFF"; horizontalAlignment: Text.AlignHCenter; verticalAlignment: Text.AlignVCenter }
-                        background: Rectangle { radius: 8; color: Tokens.accent }
-                        onClicked: AegisId.syncNow()
-                    }
-                    AbstractButton {
-                        Layout.preferredHeight: 30; Layout.preferredWidth: 110
-                        contentItem: Text { text: "Sign out"; font.pixelSize: 12; color: Tokens.fg; horizontalAlignment: Text.AlignHCenter; verticalAlignment: Text.AlignVCenter }
-                        background: Rectangle {
-                            radius: 8; border.color: Tokens.glassBorder
-                            color: Util.darkMode ? "#262930" : "#E8ECF4"
+                    Layout.fillWidth: true
+                    spacing: 12
+                    Repeater {
+                        model: [
+                            { t: "A", label: "Accent & theme", note: "follows you",  tint: "#3E8BFF" },
+                            { t: "W", label: "Wallpaper",      note: "every desk",   tint: "#8B5CF6" },
+                            { t: "F", label: "Files view",     note: "sorts, pins",  tint: "#34C77B" }
+                        ]
+                        delegate: Rectangle {
+                            Layout.fillWidth: true
+                            Layout.preferredHeight: 58
+                            radius: 14
+                            color: Util.darkMode ? Qt.rgba(1, 1, 1, 0.05) : "#FFFFFF"
+                            border.color: Tokens.glassBorder
+                            RowLayout {
+                                anchors { verticalCenter: parent.verticalCenter; left: parent.left; right: parent.right; margins: 12 }
+                                spacing: 10
+                                Rectangle {
+                                    width: 26; height: 26; radius: 13
+                                    color: modelData.tint
+                                    Text {
+                                        anchors.centerIn: parent
+                                        text: modelData.t
+                                        font { pixelSize: 11; bold: true }
+                                        color: "#FFFFFF"
+                                    }
+                                }
+                                ColumnLayout {
+                                    spacing: 1
+                                    Text { text: modelData.label; font.pixelSize: 12; font.bold: true; color: Tokens.fg }
+                                    Text { text: modelData.note; font.pixelSize: 10; color: Tokens.fgMuted }
+                                }
+                            }
                         }
-                        onClicked: {
-                            idPane.recoverySeen = false
-                            AegisId.signOut()
-                        }
-                    }
-                    Text {
-                        text: "accent · wallpaper · Files view — encrypted with your vault key, never readable on the server"
-                        font.pixelSize: 10; color: Tokens.fgMuted
-                        wrapMode: Text.WordWrap
-                        Layout.fillWidth: true
                     }
                 }
+
                 Text {
-                    id: idSyncStatus
-                    text: ""
-                    font.pixelSize: 11; color: Tokens.fgMuted
+                    Layout.fillWidth: true
+                    text: "Zero-knowledge by construction: the vault key is derived on this device (PBKDF2-SHA256, 100k iterations), the server stores only a verifier, and sync payloads are AES-256-GCM encrypted with a key it never sees. Tokens live in the secret service, never in plaintext on disk."
+                    font.pixelSize: 10; color: Tokens.fgMuted
+                    wrapMode: Text.WordWrap
                 }
-                Connections {
-                    target: AegisId
-                    function onSyncFinished(ok, message) {
-                        idSyncStatus.text = ok ? "Sync OK — " + message
-                                               : "Sync failed — " + message
+            }
+
+            // ── signed-in: account, sync, devices ─────────────────────────
+            ColumnLayout {
+                visible: AegisId.signedIn
+                spacing: 14
+
+                // account card — avatar, email, live dot
+                Rectangle {
+                    Layout.fillWidth: true
+                    Layout.preferredHeight: 84
+                    radius: 16
+                    color: Util.darkMode ? Qt.rgba(1, 1, 1, 0.05) : "#FFFFFF"
+                    border.color: Tokens.glassBorder
+                    RowLayout {
+                        anchors { fill: parent; margins: 16 }
+                        spacing: 14
+                        Rectangle {
+                            width: 48; height: 48; radius: 24
+                            color: Tokens.accent
+                            Text {
+                                anchors.centerIn: parent
+                                text: AegisId.email.length > 0
+                                      ? AegisId.email.charAt(0).toUpperCase() : "A"
+                                font { pixelSize: 18; family: "Montserrat"; weight: Font.DemiBold }
+                                color: "#FFFFFF"
+                            }
+                        }
+                        ColumnLayout {
+                            spacing: 3
+                            Text {
+                                text: AegisId.email
+                                font { family: "Montserrat"; pixelSize: 14; weight: Font.DemiBold }
+                                color: Tokens.fg
+                            }
+                            RowLayout {
+                                spacing: 6
+                                Rectangle { width: 7; height: 7; radius: 3.5; color: "#28C840" }
+                                Text { text: "Aegis ID · signed in"; font.pixelSize: 11; color: Tokens.fgMuted }
+                            }
+                        }
+                        Item { Layout.fillWidth: true }
+                        Rectangle {
+                            width: 118; height: 22; radius: 11
+                            color: Tokens.glassHighlight
+                            Text {
+                                anchors.centerIn: parent
+                                text: "Zero-knowledge vault"
+                                font.pixelSize: 9; color: Tokens.fgMuted
+                            }
+                        }
+                    }
+                }
+
+                // sync card
+                Rectangle {
+                    Layout.fillWidth: true
+                    implicitHeight: idSyncCol.implicitHeight + 28
+                    radius: 16
+                    color: Util.darkMode ? Qt.rgba(1, 1, 1, 0.05) : "#FFFFFF"
+                    border.color: Tokens.glassBorder
+                    ColumnLayout {
+                        id: idSyncCol
+                        anchors { left: parent.left; right: parent.right; top: parent.top; margins: 14 }
+                        spacing: 10
+                        Text { text: "Sync"; font.pixelSize: 13; font.bold: true; color: Tokens.fg }
+                        RowLayout {
+                            spacing: 10
+                            AbstractButton {
+                                Layout.preferredHeight: 32; Layout.preferredWidth: 120
+                                enabled: AegisId.state !== "working"
+                                opacity: enabled ? 1 : 0.55
+                                contentItem: Text {
+                                    text: "Sync now"
+                                    font { pixelSize: 12; family: "Montserrat"; weight: Font.DemiBold }
+                                    color: "#FFFFFF"; horizontalAlignment: Text.AlignHCenter; verticalAlignment: Text.AlignVCenter
+                                }
+                                background: Rectangle { radius: 10; color: Tokens.accent }
+                                onClicked: AegisId.syncNow()
+                            }
+                            AbstractButton {
+                                Layout.preferredHeight: 32; Layout.preferredWidth: 110
+                                contentItem: Text { text: "Sign out"; font.pixelSize: 12; color: Tokens.fg; horizontalAlignment: Text.AlignHCenter; verticalAlignment: Text.AlignVCenter }
+                                background: Rectangle {
+                                    radius: 10; border.color: Tokens.glassBorder
+                                    color: Util.darkMode ? "#262930" : "#E8ECF4"
+                                }
+                                onClicked: {
+                                    idPane.recoverySeen = false
+                                    AegisId.signOut()
+                                }
+                            }
+                            Item { Layout.fillWidth: true }
+                            Text {
+                                Layout.maximumWidth: 260
+                                text: AegisId.state === "working" ? AegisId.statusText : ""
+                                font.pixelSize: 11; color: Tokens.accent
+                                elide: Text.ElideRight
+                            }
+                        }
+                        Text {
+                            text: "accent · wallpaper · Files view — encrypted with your vault key, never readable on the server"
+                            font.pixelSize: 10; color: Tokens.fgMuted
+                            wrapMode: Text.WordWrap
+                            Layout.fillWidth: true
+                        }
+                        Text {
+                            id: idSyncStatus
+                            text: ""
+                            font.pixelSize: 11; color: Tokens.fgMuted
+                        }
+                        Connections {
+                            target: AegisId
+                            function onSyncFinished(ok, message) {
+                                idSyncStatus.text = ok ? "Sync OK — " + message
+                                                       : "Sync failed — " + message
+                            }
+                        }
+                    }
+                }
+
+                // devices card — rows with separators, the THIS DEVICE chip
+                Rectangle {
+                    Layout.fillWidth: true
+                    implicitHeight: idDevCol.implicitHeight + 28
+                    radius: 16
+                    color: Util.darkMode ? Qt.rgba(1, 1, 1, 0.05) : "#FFFFFF"
+                    border.color: Tokens.glassBorder
+                    ColumnLayout {
+                        id: idDevCol
+                        anchors { left: parent.left; right: parent.right; top: parent.top; margins: 14 }
+                        spacing: 0
+                        Text { text: "Devices"; font.pixelSize: 13; font.bold: true; color: Tokens.fg; bottomPadding: 8 }
+                        Text {
+                            visible: AegisId.devices.length === 0
+                            text: "No devices yet — this one appears the moment you sign in."
+                            font.pixelSize: 11; color: Tokens.fgMuted
+                            topPadding: 4; bottomPadding: 4
+                        }
+                        Repeater {
+                            model: AegisId.devices
+                            delegate: ColumnLayout {
+                                spacing: 0
+                                Rectangle {
+                                    visible: index > 0
+                                    Layout.fillWidth: true
+                                    Layout.preferredHeight: 1
+                                    color: Tokens.glassBorder
+                                    opacity: 0.5
+                                }
+                                RowLayout {
+                                    Layout.fillWidth: true
+                                    Layout.topMargin: 11
+                                    Layout.bottomMargin: 11
+                                    spacing: 10
+                                    Rectangle {
+                                        width: 30; height: 30; radius: 15
+                                        color: modelData.isThis ? Tokens.accent : Tokens.glassHighlight
+                                        Text {
+                                            anchors.centerIn: parent
+                                            text: modelData.platform === "linux" ? "L"
+                                                  : modelData.platform === "android" ? "A"
+                                                  : modelData.platform === "macos" ? "M" : "\u25CB"
+                                            font { pixelSize: 12; bold: true }
+                                            color: modelData.isThis ? "#FFFFFF" : Tokens.fg
+                                        }
+                                    }
+                                    ColumnLayout {
+                                        spacing: 1
+                                        RowLayout {
+                                            spacing: 6
+                                            Text { text: modelData.name; font.pixelSize: 12; font.bold: modelData.isThis; color: Tokens.fg }
+                                            Rectangle {
+                                                visible: modelData.isThis
+                                                width: 64; height: 16; radius: 4
+                                                color: Util.darkMode ? "#1B2B1F" : "#E4F5E8"
+                                                Text { anchors.centerIn: parent; text: "THIS DEVICE"; font.pixelSize: 8; font.bold: true; color: "#28C840" }
+                                            }
+                                        }
+                                        Text { text: "seen " + (modelData.lastSeen || "—"); font.pixelSize: 10; color: Tokens.fgMuted }
+                                    }
+                                    Item { Layout.fillWidth: true }
+                                    AbstractButton {
+                                        visible: !modelData.isThis
+                                        Layout.preferredHeight: 26; Layout.preferredWidth: 84
+                                        contentItem: Text { text: "Remove"; font.pixelSize: 11; color: Tokens.danger; horizontalAlignment: Text.AlignHCenter; verticalAlignment: Text.AlignVCenter }
+                                        background: Rectangle {
+                                            radius: 8; border.color: Tokens.glassBorder
+                                            color: Util.darkMode ? "#262930" : "#E8ECF4"
+                                        }
+                                        onClicked: AegisId.revokeDevice(modelData.id)
+                                    }
+                                }
+                            }
+                        }
                     }
                 }
             }
