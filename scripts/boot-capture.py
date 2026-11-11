@@ -208,18 +208,35 @@ def band_median_lum(png, top, x0, x1):
     return vals[len(vals) // 2]
 
 def band_left_edge(png, dot_x, dot_cy):
-    """T7 — window left edge: walk left along the dot's centre row across
-    the FLAT title band (|lum − band ref| <= 4) and stop at the first
-    outlier — the side border or the wallpaper. The aurorae band and the
-    Files GlassPanel both span the full window width, so the flat run ends
-    at the frame. Returns the first band pixel + 1 (the border pixel)."""
+    """T7 — window left edge: walk left along the dot's centre row from just
+    outside the close dot's RED SPAN (measured on that row — the dot is
+    10-12 px wide and dot_x is the mean over rows, which can sit inside the
+    span; v0.6.27's walk died on its own dot's AA fringe), following LOCAL
+    gradient (|Δ| <= 6 per pixel). The glass band drifts slowly over a
+    gradient wallpaper (a global ref stopped the v0.6.27 walk 2 px after
+    the dot), while the window edge is a STEP — the frame's edge stroke
+    (lum 90-140) or the CSD border. Stop at the first step; the returned x
+    is the last glass pixel."""
+    rgb = Image.open(png).convert("RGB")
     im = Image.open(png).convert("L")
-    px = im.load()
+    pl, px = rgb.load(), im.load()
     y = int(round(dot_cy))
-    ref = sorted(px[x, y] for x in range(dot_x + 60, min(im.size[0], dot_x + 260)))
-    ref = ref[len(ref) // 2]
-    x = max(0, dot_x - 2)   # skip the dot's own AA fringe before walking
-    while x > max(0, dot_x - 60) and abs(px[x - 1, y] - ref) <= 4:
+    dx = int(dot_x)
+    # anchor just left of the red span (r>150, g<110, b<110 — the same
+    # criterion red_dot uses)
+    rx = None
+    for x0 in range(dx - 40, dx + 6):
+        r, g, b = pl[x0, y]
+        if r > 150 and g < 110 and b < 110:
+            rx = x0
+            break
+    x = (rx - 2) if rx is not None else dx - 2
+    prev = px[x, y]
+    while x > max(0, dx - 120):
+        nxt = px[x - 1, y]
+        if abs(nxt - prev) > 6:
+            break
+        prev = nxt
         x -= 1
     return x
 
