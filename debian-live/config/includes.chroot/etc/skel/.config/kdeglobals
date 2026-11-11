@@ -98,6 +98,10 @@ Negative=255,95,87
 Neutral=254,188,46
 
 [WM]
+# Title captions render at the shell's title anatomy: Montserrat 10 pt
+# DemiBold (13 px at 96 dpi) — same family/weight as AppWindow.qml titleText.
+# KDecoration3 DecorationSettings::font maps kdeglobals [WM] activeFont.
+activeFont=Montserrat,10,-1,5,63,0,0,0,0,0
 activeBackground=44,47,56
 activeForeground=224,226,232
 inactiveBackground=34,36,43

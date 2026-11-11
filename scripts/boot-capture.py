@@ -118,6 +118,181 @@ def diff_px(a, b):
             t += abs(ra - rb) + abs(ga - gb) + abs(ba - bb); n += 1
     return t / n / 3
 
+def window_hairline(png, scan_to=260):
+    """T7 anchor — the window's top hairline. Both anatomies draw one: the
+    Files CSD GlassPanel borders white @ 0.14, the aurorae AegisLights
+    frame's top edge stroke is the same white @ 0.14. A hairline row is a
+    long qualifying run (lum 36..110, >= 60% of the best run) that also
+    SPIKES above its vertical neighbours (>= 10 lum) — wallpaper gradient
+    rows run long but never spike. The TOPMOST such row wins: the Files
+    toolbar hairline (top+96) and the aurorae band-bottom hairline
+    (top+43) are equally long but strictly lower. Returns
+    (y, x_run_start, run_len) or None."""
+    im = Image.open(png).convert("L")
+    W, H = im.size
+    px = im.load()
+    runs = {}
+    best_len = 0
+    for y in range(40, min(H, scan_to)):
+        cur = run_start = run_best_start = 0
+        run_best = 0
+        for x in range(W):
+            v = px[x, y]
+            if 36 <= v <= 150:
+                if cur == 0:
+                    run_start = x
+                cur += 1
+                if cur > run_best:
+                    run_best, run_best_start = cur, run_start
+            else:
+                cur = 0
+        if run_best >= 300:
+            runs[y] = (run_best, run_best_start)
+            best_len = max(best_len, run_best)
+    if best_len == 0:
+        return None
+    threshold = 0.6 * best_len
+    for y in sorted(runs):
+        run_len, run_start = runs[y]
+        if run_len < threshold:
+            continue
+        # spike test over the run's own columns
+        probe = range(run_start + 10, run_start + run_len - 10, 7)
+        here = above = below = n = 0
+        for x in probe:
+            here += px[x, y]
+            above += px[x, max(0, y - 4)]
+            below += px[x, min(H - 1, y + 4)]
+            n += 1
+        if n and here - (above + below) / 2 >= 10 * n:
+            return (y, run_start, run_len)
+    return None
+
+def red_dot(png, top, x_hint):
+    """T7 — the close (red) dot inside the title band: first red blob run
+    in y [top, top+44], x [x_hint-4, x_hint+160]. Returns
+    (left_x, centre_y, width) or None."""
+    im = Image.open(png).convert("RGB")
+    px = im.load()
+    x0, x1 = max(0, x_hint - 4), min(im.size[0], x_hint + 160)
+    y0, y1 = max(0, top), min(im.size[1], top + 44)
+    cols = []
+    for x in range(x0, x1):
+        ys = [y for y in range(y0, y1)
+              if (lambda p: p[0] > 180 and p[1] < 140 and p[2] < 120
+                  and p[0] - p[2] > 60)(px[x, y])]
+        cols.append((x, ys))
+    run = None
+    for x, ys in cols:
+        if len(ys) >= 3:
+            if run is None:
+                run = [x, x, ys]
+            else:
+                run[1] = x; run[2] += ys
+        else:
+            if run and run[1] - run[0] >= 7:
+                break
+            run = None
+    if not run or run[1] - run[0] < 7:
+        return None
+    xs, xe, ys = run
+    cy = sum(ys) / len(ys)
+    return (xs, cy, xe - xs + 1)
+
+def band_median_lum(png, top, x0, x1):
+    """T7 — median luminance of the title band interior (dots and caption
+    are a minority; median tracks the glass fill)."""
+    im = Image.open(png).convert("L")
+    box = im.crop((x0 + 40, top + 8, x1 - 40, top + 36))
+    vals = sorted(box.getdata())
+    return vals[len(vals) // 2]
+
+def band_left_edge(png, dot_x, dot_cy):
+    """T7 — window left edge: walk left along the dot's centre row across
+    the FLAT title band (|lum − band ref| <= 4) and stop at the first
+    outlier — the side border or the wallpaper. The aurorae band and the
+    Files GlassPanel both span the full window width, so the flat run ends
+    at the frame. Returns the first band pixel + 1 (the border pixel)."""
+    im = Image.open(png).convert("L")
+    px = im.load()
+    y = int(round(dot_cy))
+    ref = sorted(px[x, y] for x in range(dot_x + 60, min(im.size[0], dot_x + 260)))
+    ref = ref[len(ref) // 2]
+    x = max(0, dot_x - 2)   # skip the dot's own AA fringe before walking
+    while x > max(0, dot_x - 60) and abs(px[x - 1, y] - ref) <= 4:
+        x -= 1
+    return x
+
+def header_geometry_assert(files_png, terminal_png):
+    """T7 — ONE traffic-light anatomy, asserted on the capture set. The
+    W10/6.6-v2 theme (ButtonMarginTop 6, TitleEdgeLeft 18, TitleBorderRight
+    78) must make the aurorae terminal band behave like the Files CSD band:
+      · close dot vertically centred on the caption (centre ~ top + 22),
+        and the same within 2 px across the two windows;
+      · close dot inset from the window's LEFT EDGE ~14 px in BOTH. The
+        hairline run starts after the rounded corner, so the window left
+        edge is estimated as run_start − corner_radius (Files 18, aurorae
+        12); parity within 4 px, absolute within 14±5 (the old
+        TitleEdgeLeft 24 measured the dot at 20 and fails this);
+      · dot diameter ~12 px (the W10 "size one" regression guard);
+      · terminal band luminance in the flat-ink class (<= 32): the old
+        #343740 gradient read 44-55 and is what the user reported as the
+        bright band coming back.
+    Any miss is a failed release (brief §1: captures must assert)."""
+    for path in (files_png, terminal_png):
+        if not os.path.exists(path):
+            log(f"header assert: missing capture {path} — cannot verify")
+            sys.exit(1)
+    report = {}
+    for label, path in (("files", files_png),
+                        ("terminal", terminal_png)):
+        hl = window_hairline(path)
+        if hl is None:
+            log(f"header assert: no window hairline in {label} capture")
+            sys.exit(1)
+        y, xl, runw = hl
+        dot = red_dot(path, y, xl - 40)
+        if dot is None:
+            log(f"header assert: no red dot near hairline in {label} "
+                f"(hairline y={y} x={xl})")
+            sys.exit(1)
+        dx, dcy, dw = dot
+        win_left = band_left_edge(path, dx, dcy)
+        report[label] = dict(top=y, left=win_left, dot_x=dx,
+                             dot_cy=dcy, dot_w=dw,
+                             inset=dx - win_left, drop=dcy - y,
+                             band=band_median_lum(path, y, win_left,
+                                                  win_left + min(runw, 900)))
+        log(f"header assert {label}: hairline y={y} x_start={xl} "
+            f"win_left≈{win_left} dot_x={dx} dot_cy={dcy:.1f} dot_w={dw} "
+            f"inset={dx - win_left} drop={dcy - y:.1f} band_lum={report[label]['band']}")
+    f, t = report["files"], report["terminal"]
+    fails = []
+    for label, r in (("files", f), ("terminal", t)):
+        if abs(r["dot_w"] - 12) > 3:
+            fails.append(f"{label} dot width {r['dot_w']} != 12±3 (W10)")
+        if abs(r["drop"] - 22) > 4:
+            fails.append(f"{label} dot drop {r['drop']:.1f} != top+22±4 "
+                         "(caption centre)")
+        if not 9 <= r["inset"] <= 19:
+            fails.append(f"{label} dot inset {r['inset']} outside 14±5")
+    if abs(f["drop"] - t["drop"]) > 2:
+        fails.append(f"dot drop parity off: files {f['drop']:.1f} vs "
+                     f"terminal {t['drop']:.1f}")
+    if abs(f["inset"] - t["inset"]) > 4:
+        fails.append(f"dot inset parity off: files {f['inset']} vs "
+                     f"terminal {t['inset']} (TitleEdgeLeft)")
+    if t["band"] > 32:
+        fails.append(f"terminal band lum {t['band']} > 32 — bright title "
+                     "band regression (T5)")
+    if fails:
+        for msg in fails:
+            log("ASSERT FAILED: " + msg)
+        log("capture complete (FAILED release)")
+        sys.exit(1)
+    log("header geometry assert PASS — one traffic-light anatomy across "
+        "CSD and aurorae windows")
+
 # ---------------- boot ----------------
 # console=tty1 FIRST: plymouth needs a local (non-serial) console to bind
 # (plymouth.ignore-serial-consoles skips ttyS0); the serial stays LAST so
@@ -808,6 +983,17 @@ def main():
         opens["settings"] = True
         q.key("alt", "f4"); time.sleep(5)
 
+    # T7 — one traffic-light anatomy, asserted on the two fresh captures
+    # (Files CSD shell band vs Terminal aurorae band). Runs BEFORE anything
+    # else can cover the windows; a miss fails the release right here.
+    try:
+        header_geometry_assert(f"{OUT}/02-files.png", f"{OUT}/03-terminal.png")
+    except SystemExit:
+        raise
+    except Exception as e:
+        log(f"header geometry assert crashed: {e}")
+        sys.exit(1)
+
     # W6 review evidence — the Aegis ID pane, launched straight from the
     # serial shell ("aegis-settings 8") so no in-window clicking is needed.
     if serial:
@@ -928,10 +1114,18 @@ def main():
                          settle=4)
         log("splash probe: " + out.strip().replace("\n", " | ")[-120:])
         time.sleep(2.5)
-        q.shot("07-plymouth-test")
-        log("07-plymouth-test captured (live show-splash)")
+        # B2 — this is the LIVE show-splash EXPERIMENT (a plymouthd started
+        # on the idle session), not boot evidence. The old name
+        # "07-plymouth-test" read as a boot splash capture while the frame
+        # actually shows whatever the idle-session renderer managed to
+        # paint (often the desktop or casper console text — the "terminal
+        # lines are back" report). Boot evidence is and stays the boot-NN
+        # frames judged by splash_report(); keep this probe unambiguous.
+        q.shot("07-live-splash-probe")
+        log("07-live-splash-probe captured (idle-session show-splash "
+            "EXPERIMENT — not boot evidence)")
         try:
-            im = Image.open(f"{OUT}/07-plymouth-test.png").convert("RGB")
+            im = Image.open(f"{OUT}/07-live-splash-probe.png").convert("RGB")
             Wp, Hp = im.size
             box = im.crop((Wp // 2 - 250, max(0, Hp // 2 - 250),
                            Wp // 2 + 250, min(Hp, Hp // 2 + 250)))

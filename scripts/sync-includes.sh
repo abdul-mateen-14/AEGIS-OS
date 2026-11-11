@@ -34,11 +34,15 @@ cp "$ROOT"/theme/plymouth-mark/* "$INC/usr/share/plymouth/themes/aegis-mark/"
 
 # SDDM greeter theme — the glass login screen. The wallpaper doubles as
 # the greeter background (Aurora Ink) so boot → login → desktop reads as
-# one continuous surface.
+# one continuous surface. B3 — the greeter also carries the Aegis mark
+# (the transparent plymouth watermark cutout) with the splash's progress
+# device, so the logo survives past the boot splash.
 cp "$ROOT"/theme/sddm/aegis/Main.qml \
    "$ROOT"/theme/sddm/aegis/theme.conf \
    "$ROOT"/theme/sddm/aegis/metadata.desktop \
    "$INC/usr/share/sddm/themes/aegis/"
+cp "$ROOT"/theme/plymouth-mark/watermark.png \
+   "$INC/usr/share/sddm/themes/aegis/mark.png"
 cp "$ROOT"/theme/wallpapers/aurora-ink.jpg \
    "$INC/usr/share/sddm/themes/aegis/background.jpg"
 

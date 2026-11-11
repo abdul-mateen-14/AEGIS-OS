@@ -10,11 +10,9 @@ import Aegis.Activity
 // Four tiles toggle Wi-Fi, Bluetooth, Calm Mode and Dark Mode; the fifth
 // wide tile is Do Not Disturb (banners then stack silently). Display and
 // Sound sliders carry brightness and volume with 16 px mono glyphs. The
-// signature element is the tier badge — "TIER A · FULL EFFECTS" — wired
-// to the adaptive effects governor; clicking it opens the governor
-// popover. Performance is not a settings page the user will never find;
-// it is a status the shell admits to in plain sight. The footer links
-// All Settings and echoes the session in mono type.
+// footer links All Settings and Software Update. (T8 — the TIER chip and
+// its governor popover were debug chrome: performance belongs to Calm Mode
+// in the tile grid, not to a status chip that read as a build label.)
 //
 // Entry: spring 350 ms — sheet scales 0.96 → 1 with a 2 px drop, scrim
 // fade skipped (the panel is already glass). Exit: instant (80 ms).
@@ -34,8 +32,6 @@ Window {
     height: 446
     flags: Qt.FramelessWindowHint
 
-    property bool governorOpen: false
-
     // Tier C shortens every motion token — Table 17 fallback rung.
     function dur(std) {
         return Governor.tier === "C" ? Tokens.durInstant : std
@@ -43,7 +39,6 @@ Window {
 
     onVisibleChanged: {
         if (visible) {
-            governorOpen = false
             Util.refreshLinkStates()
             springIn.restart()
         }
@@ -84,7 +79,7 @@ Window {
                 anchors.margins: 16
                 spacing: 12
 
-                // ── header: title + tier badge ────────────────────────
+                // ── header: title ─────────────────────────────
                 Item {
                     width: parent.width
                     height: 30
@@ -96,47 +91,15 @@ Window {
                         color: Tokens.fg
                         font { family: "Montserrat"; pixelSize: 13; weight: Font.DemiBold }
                     }
-
-                    // the signature element — live governor tier (§7)
-                    Rectangle {
-                        id: tierBadge
-                        anchors.right: parent.right
-                        anchors.verticalCenter: parent.verticalCenter
-                        width: badgeText.implicitWidth + 20
-                        height: 24
-                        radius: 12
-                        color: Qt.rgba(Tokens.accent.r, Tokens.accent.g,
-                                       Tokens.accent.b, 0.14)
-                        border.width: 1
-                        border.color: Qt.rgba(Tokens.accent.r, Tokens.accent.g,
-                                              Tokens.accent.b, 0.35)
-
-                        Text {
-                            id: badgeText
-                            anchors.centerIn: parent
-                            text: Governor.tier === "A" ? "TIER A · FULL EFFECTS"
-                                  : Governor.tier === "B" ? "TIER B · BALANCED GLASS"
-                                  : "TIER C · CALM MODE"
-                            color: Util.darkMode ? "#8FB8FF" : "#2B66C8"
-                            font { family: "Montserrat"; pixelSize: 9; letterSpacing: 0.6; weight: Font.DemiBold }
-                        }
-
-                        MouseArea {
-                            anchors.fill: parent
-                            cursorShape: Qt.PointingHandCursor
-                            onClicked: ccRoot.governorOpen = !ccRoot.governorOpen
-                        }
-                    }
                 }
 
-                // ── main pane: tiles OR governor popover ─────────────
+                // ── main pane: tiles ──────────────────────────
                 Column {
                     width: parent.width
                     spacing: 12
 
                     // ============ tiles pane ============
                     Column {
-                        visible: !ccRoot.governorOpen
                         width: parent.width
                         spacing: 12
 
@@ -243,145 +206,6 @@ Window {
                         }
                     }
 
-                    // ============ governor popover ============
-                    Column {
-                        visible: ccRoot.governorOpen
-                        width: parent.width
-                        spacing: 8
-
-                        Text {
-                            text: "Effects governor"
-                            color: Tokens.fg
-                            font { family: "Montserrat"; pixelSize: 12; weight: Font.DemiBold }
-                        }
-
-                        Repeater {
-                            model: [
-                                { k: "A", name: "Full glass",
-                                  desc: "Live blur · springs · full shadows" },
-                                { k: "B", name: "Cached glass",
-                                  desc: "Cached wallpaper blur · halved shadows" },
-                                { k: "C", name: "Calm Mode",
-                                  desc: "Opaque panels · 80 ms crossfades" }
-                            ]
-
-                            delegate: Rectangle {
-                                id: tierCard
-                                required property var modelData
-                                width: parent.width
-                                height: 50
-                                radius: 14
-                                color: Governor.tier === tierCard.modelData.k
-                                       ? Qt.rgba(Tokens.accent.r, Tokens.accent.g, Tokens.accent.b, 0.12)
-                                       : (Util.darkMode ? Qt.rgba(1,1,1,0.06) : Qt.rgba(0,0,0,0.04))
-                                border.width: 1
-                                border.color: Governor.tier === tierCard.modelData.k
-                                              ? Qt.rgba(Tokens.accent.r, Tokens.accent.g, Tokens.accent.b, 0.4)
-                                              : "transparent"
-
-                                Row {
-                                    anchors.fill: parent
-                                    anchors.margins: 10
-                                    spacing: 10
-
-                                    Rectangle {
-                                        width: 14
-                                        height: 14
-                                        radius: 7
-                                        anchors.verticalCenter: parent.verticalCenter
-                                        color: Governor.tier === tierCard.modelData.k
-                                               ? Tokens.accent : "transparent"
-                                        border.width: 1.5
-                                        border.color: Governor.tier === tierCard.modelData.k
-                                                      ? Tokens.accent : Tokens.fgMuted
-                                    }
-
-                                    Column {
-                                        anchors.verticalCenter: parent.verticalCenter
-                                        spacing: 2
-
-                                        Text {
-                                            text: tierCard.modelData.k
-                                                  + " · " + tierCard.modelData.name
-                                            color: Tokens.fg
-                                            font { family: "Montserrat"; pixelSize: 12; weight: Font.DemiBold }
-                                        }
-                                        Text {
-                                            text: tierCard.modelData.desc
-                                            color: Tokens.fgMuted
-                                            font { family: "Montserrat"; pixelSize: 10 }
-                                        }
-                                    }
-                                }
-
-                                MouseArea {
-                                    anchors.fill: parent
-                                    cursorShape: Qt.PointingHandCursor
-                                    onClicked: Governor.setTier(tierCard.modelData.k)
-                                }
-                            }
-                        }
-
-                        Row {
-                            width: parent.width
-                            height: 24
-                            spacing: 8
-
-                            Rectangle {
-                                width: autoText.implicitWidth + 20
-                                height: 24
-                                radius: 12
-                                color: Governor.autoMode
-                                       ? Qt.rgba(Tokens.accent.r, Tokens.accent.g, Tokens.accent.b, 0.16)
-                                       : (Util.darkMode ? Qt.rgba(1,1,1,0.08) : Qt.rgba(0,0,0,0.06))
-
-                                Text {
-                                    id: autoText
-                                    anchors.centerIn: parent
-                                    text: "Auto"
-                                    color: Tokens.fg
-                                    font { family: "Montserrat"; pixelSize: 11; weight: Font.DemiBold }
-                                }
-
-                                MouseArea {
-                                    anchors.fill: parent
-                                    cursorShape: Qt.PointingHandCursor
-                                    onClicked: Governor.setAutoMode(true)
-                                }
-                            }
-
-                            Text {
-                                anchors.verticalCenter: parent.verticalCenter
-                                text: Governor.batteryPercent >= 0
-                                      ? (Governor.batteryPercent + "% · "
-                                         + (Governor.onBattery ? "battery" : "AC"))
-                                      : "AC power"
-                                color: Tokens.fgMuted
-                                font { family: "Montserrat"; pixelSize: 11 }
-                            }
-                        }
-
-                        Text {
-                            width: parent.width
-                            text: "Demotions apply instantly — the badge always shows the live tier. Calm Mode stays on until you turn it off."
-                            color: Tokens.fgMuted
-                            wrapMode: Text.WordWrap
-                            font { family: "Montserrat"; pixelSize: 10 }
-                        }
-
-                        Text {
-                            text: "‹  Back"
-                            color: Tokens.fgMuted
-                            font { family: "Montserrat"; pixelSize: 11 }
-
-                            MouseArea {
-                                anchors.fill: parent
-                                anchors.margins: -6
-                                cursorShape: Qt.PointingHandCursor
-                                onClicked: ccRoot.governorOpen = false
-                            }
-                        }
-                    }
                 }
 
                 // ── footer: All Settings + session echo (mono) ────────
@@ -423,17 +247,6 @@ Window {
                                 Util.launch("aegis-updates")
                             }
                         }
-                    }
-
-                    Text {
-                        anchors.right: parent.right
-                        anchors.verticalCenter: parent.verticalCenter
-                        // W13 — repurposed: the mono echo is the LIVE accent
-                        // value (W5's one token, in plain sight), not a
-                        // platform debug label.
-                        text: Tokens.accent.toString().toUpperCase()
-                        color: Tokens.fgMuted
-                        font { family: "DejaVu Sans Mono"; pixelSize: 10 }
                     }
                 }
             }

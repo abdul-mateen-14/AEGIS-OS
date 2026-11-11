@@ -37,6 +37,7 @@ FILES = [
     "shell/src/qml/Notifications.qml",
     "shell/src/qml/Spring.qml",
     "shell/src/qml/GlassPanel.qml",
+    "theme/sddm/aegis/Main.qml",
     "shell/src/qml/TrafficLights.qml",
 ]
 

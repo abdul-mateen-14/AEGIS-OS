@@ -1,3 +1,63 @@
+aegis-shell (1.7.0-m13) resolute; urgency=medium
+
+  * ONE TRAFFIC-LIGHT ANATOMY, top to bottom — the review round that
+    closes the "terminal lines are back / wifi / no battery / DND / no
+    boot logo" report. The AegisLights aurorae theme was re-derived from
+    the Plasma 6.6 aurorae v2 engine source (plasma/aurorae, the
+    decoration moved out of kwin at 6.4): buttons start exactly at
+    TitleEdgeLeft with no padding, the caption rect spans between the
+    button clusters plus TitleBorderLeft/Right, and borders().top is
+    max(TitleHeight, ButtonHeight + ButtonMarginTop) + TitleEdgeTop +
+    TitleEdgeBottom. With TitleEdgeLeft 24->18 the measured close dot
+    lands at 14 px = the shell's TrafficLights x:14 (the v0.6.20 engine
+    predicted 24 and measured 20 — the 4 px gap that motivated the
+    re-derivation). ButtonMarginTop 16->6 (plus a ButtonMarginTopMaximized
+    6) puts the dot center on the caption text center (top + 22), and
+    TitleBorderRight 24->78 re-centres the caption on the true window
+    center after the left button cluster (the v0.6.20 caption measured
+    30 px right of centre). Dead keys ButtonMarginLeft/Right/Bottom are
+    dropped with a comment naming the 6.6 reader set.
+  * The title band now paints the shell's glass recipe (T5): the old
+    #343740 -> #22242B gradient read 44-55 lum against the Files glass
+    band's flat 19 — the "bright band" the user saw. gen-aurorae-frame.py
+    (new) paints both frame SVGs flat rgba(16,16,18,0.52) with the shell
+    hairlines (white 0.14 active, ~0.06 inactive), so 02-files and
+    03-terminal band pixels agree over the same wallpaper.
+  * Hover glyphs (T6): Qt.lighter(hue, 3.4) clamps HSV value at 1.0 for
+    the close and minimize hues — the shell's hover glyph was rendering
+    at the circle's own color, i.e. invisible. TrafficLights.qml and the
+    regenerated button SVGs now share explicit hue-tinted whites
+    (#FFE7E6 / #FFF5E0 / #E0FFE5).
+  * Titles (T4): kdeglobals [WM] activeFont = Montserrat 10 pt DemiBold,
+    the same family and weight the first-party app windows use; the
+    session already exports QT_QPA_PLATFORMTHEME=kde so KDecoration3
+    settings->font() picks it up.
+  * Control Center (T8): the TIER chip and its governor popover are gone
+    (debug chrome — performance belongs to the Calm Mode tile), the
+    footer no longer echoes the live accent hex, and the window keeps
+    its Table 17 rhythm.
+  * Top bar (T9): the Wi-Fi fan re-centres on the speaker/clock midline
+    (cy h/2 + 3.5 -> + 2); the battery glyph itself shipped in a7998f4
+    (v0.6.21) and now reaches an ISO tag with this one.
+  * The capture harness gains teeth (T7): header_geometry_assert() pins
+    the Files CSD band and the aurorae band to one anatomy — dot drop
+    top+22 ±4 with parity, dot inset 14 ±5 with parity (the old
+    TitleEdgeLeft 24 measures 20 and fails), dot width 12 ±3, and the
+    terminal band luminance <= 32. Verified against the v0.6.20 captures:
+    the files side passes, the old terminal fails on all four classes.
+  * B2: the idle-session plymouth show-splash experiment is renamed
+    07-live-splash-probe.png with an explicit not-boot-evidence log line
+    — the old "07-plymouth-test" name read as boot proof while the frame
+    showed whatever the idle renderer managed, i.e. the "terminal lines
+    are back" confusion. Boot evidence stays the boot-NN frames judged
+    by splash_report().
+  * B3: the SDDM greeter carries the Aegis mark (the transparent plymouth
+    watermark, synced as mark.png) with the splash's track + accent
+    progress device above the clock — the logo survives past the boot
+    splash, and the greeter is now covered by qml-guard.
+
+ -- Aegis Developers <dev@aegis-os.org>  Wed, 11 Nov 2026 08:30:00 +0000
+
 aegis-shell (1.7.0-m12) resolute; urgency=medium
 
   * THE SPLASH BUG, FOUND AND FIXED: the v0.6.24 serial trace shows the

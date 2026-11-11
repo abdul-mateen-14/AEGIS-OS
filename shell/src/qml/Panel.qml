@@ -210,11 +210,14 @@ Window {
     // ── 16 px optical painters — 2 px stroke, round caps ──
 
     // Wi-Fi — filled fan (macOS weight): three solid wedges read at a
-    // glance where the old stroked arcs went thin.
+    // glance where the old stroked arcs went thin. cy = h/2 + 2: the fan's
+    // perceived top edge is the dome's shoulders (~0.7·rout), so the apex
+    // sits ~2.85 below box center for the ink to read centered — +2 keeps
+    // the fan on the speaker/clock midline without clipping the dome.
     function paintWifi(ctx, w, h, color) {
         ctx.reset()
         ctx.fillStyle = color
-        const cx = w / 2, cy = h / 2 + 3.5
+        const cx = w / 2, cy = h / 2 + 2
         const a0 = Math.PI * 1.25, a1 = Math.PI * 1.75
         // innermost slice
         ctx.beginPath()

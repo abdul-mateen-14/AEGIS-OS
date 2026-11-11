@@ -3,6 +3,11 @@ import QtQuick
 // Table 14 — traffic lights. 3 × 12 px filled circles, hues matched to macOS
 // within a tight ΔE; 1 px inset border of the same hue darkened 40%; 8 px gap;
 // hover glyph fades in at 80 ms; unfocused all three fall to ink at 30%.
+// T6 — hover glyphs use an explicit hue-tinted white per button (same hue,
+// S × 0.15, V = 1). The old Qt.lighter(hue, 3.4) clamps HSV value at 1.0 for
+// the close/minimize hues and rendered the glyph at the circle's own color —
+// invisible. The aurorae theme (gen-aurorae-buttons.py) carries the same
+// tints so shell and decorated windows share one glyph semantic.
 Row {
     id: root
 
@@ -15,9 +20,9 @@ Row {
     Repeater {
         // Row has no model/delegate of its own — the Repeater provides both.
         model: [
-            { hue: "#FF5F57", glyph: "\u00d7", sig: "closeClicked" },
-            { hue: "#FEBC2E", glyph: "\u2212", sig: "minClicked" },
-            { hue: "#28C840", glyph: "+",     sig: "maxClicked" }
+            { hue: "#FF5F57", tint: "#FFE7E6", glyph: "\u00d7", sig: "closeClicked" },
+            { hue: "#FEBC2E", tint: "#FFF5E0", glyph: "\u2212", sig: "minClicked" },
+            { hue: "#28C840", tint: "#E0FFE5", glyph: "+",     sig: "maxClicked" }
         ]
 
         delegate: Rectangle {
@@ -30,7 +35,7 @@ Row {
                 anchors.centerIn: parent
                 text: modelData.glyph
                 font { pixelSize: 9; bold: true }
-                color: Qt.lighter(modelData.hue, 3.4)
+                color: modelData.tint
                 opacity: ma.containsMouse ? 1 : 0
                 Behavior on opacity { NumberAnimation { duration: 80 } }
             }

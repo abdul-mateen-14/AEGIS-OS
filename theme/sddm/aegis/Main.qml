@@ -132,12 +132,52 @@ Rectangle {
         }
     }
 
-    // ── clock ────────────────────────────────────────────────────────
+    // ── mark + clock ──────────────────────────────────────────────
+    // B3 — the greeter carries the Aegis mark with the same accent
+    // progress device the plymouth splash paints (boot → login → desktop
+    // reads as one continuous surface). The mark ships as mark.png in the
+    // theme dir (synced from the transparent plymouth watermark); pure
+    // QtQuick — no Effects plugin.
     Column {
         anchors.horizontalCenter: parent.horizontalCenter
         anchors.top: parent.top
-        anchors.topMargin: parent.height * 0.10
-        spacing: 2
+        anchors.topMargin: parent.height * 0.045
+        spacing: 16
+
+        Item {
+            width: 56
+            height: 54
+            anchors.horizontalCenter: parent.horizontalCenter
+
+            Image {
+                anchors.fill: parent
+                source: "mark.png"
+                fillMode: Image.PreserveAspectFit
+                smooth: true
+                cache: true
+            }
+
+            // progress device — splash track + accent fill, at rest
+            Item {
+                width: 120
+                height: 2
+                anchors.horizontalCenter: parent.horizontalCenter
+                anchors.top: parent.bottom
+                anchors.topMargin: 10
+
+                Rectangle {
+                    anchors.fill: parent
+                    radius: 1
+                    color: Qt.rgba(1, 1, 1, 0.14)
+                }
+                Rectangle {
+                    width: 56
+                    height: 2
+                    radius: 1
+                    color: root.accent
+                }
+            }
+        }
 
         Text {
             anchors.horizontalCenter: parent.horizontalCenter

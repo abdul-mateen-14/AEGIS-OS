@@ -17,28 +17,38 @@ BorderBottom=12
 BorderTop=44
 TitleEdgeTop=10
 TitleEdgeBottom=10
-TitleEdgeLeft=24
+TitleEdgeLeft=18
 TitleEdgeRight=16
-TitleEdgeLeftMaximized=24
+TitleEdgeLeftMaximized=18
 TitleEdgeRightMaximized=16
 TitleEdgeTopMaximized=10
 TitleEdgeBottomMaximized=10
 TitleBorderLeft=24
-TitleBorderRight=24
+TitleBorderRight=78
 TitleHeight=24
-# W10 — ONE traffic-light geometry with the shell (TrafficLights.qml):
-# 12 px circles, 8 px gap. ButtonMarginTop=16 centers 12 px in the 44 px band;
-# ButtonMarginleft=14 matches the shell inset (AppWindow TrafficLights x:14).
+# W10 — ONE traffic-light anatomy with the shell (AppWindow.qml / aurorae v2
+# in Plasma 6.6, decoration.cpp positionButtons/captionRect):
+#   dots   y = TitleEdgeTop + ButtonMarginTop = 16..28  (center 22)
+#   caption y band = [TitleEdgeTop, +max(TitleHeight, ButtonHeight)] = 10..34
+#   → ButtonMarginTop=6 puts the dot center on the caption text center (22).
+#   Buttons start exactly at TitleEdgeLeft in 6.6 v2; the measured glyph lands
+#   at TitleEdgeLeft - 4, so 18 puts the red dot edge at 14 = shell x:14.
+#   Caption rect = [leftButtons.right + TitleBorderLeft,
+#                   width - TitleEdgeRight - TitleBorderRight] = [94, w-94]
+#   → TitleBorderRight=78 centers the caption on the true window center.
+# borders().top = max(TitleHeight, ButtonHeight + ButtonMarginTop)
+#              + TitleEdgeTop + TitleEdgeBottom = 24 + 20 = 44 = shell band.
 ButtonWidth=12
 ButtonHeight=12
 ButtonWidthClose=12
 ButtonWidthMinimize=12
 ButtonWidthMaximizeRestore=12
 ButtonSpacing=8
-ButtonMarginTop=16
-ButtonMarginleft=14
-ButtonMarginRight=6
-ButtonMarginBottom=0
+ButtonMarginTop=6
+ButtonMarginTopMaximized=6
+# ButtonMarginLeft/Right/Bottom are dead keys in the Plasma 6.6 aurorae v2
+# engine (decorationtheme.cpp reads only ButtonSpacing, ButtonMarginTop(Max),
+# ExplicitButtonSpacer) — horizontal placement comes from TitleEdgeLeft.
 ExplicitButtonSpacer=8
 PaddingLeft=0
 PaddingRight=0
