@@ -657,14 +657,41 @@ def main():
     q.mouse_abs(W // 2, int(H * NEUTRAL_Y), W, H)
     time.sleep(1.0)
 
-    def open_app(idx, name, wait_s=25):
+    def open_app(name, cmd, wait_s=25, click_idx=None):
+        """Launch via the shell's DBus surface (Util.launch is exported by
+        ExportAllInvokables on org.aegis.Shell) — deterministic, no pixel
+        geometry. The old dock-tile click raced the magnification
+        animation: the geometric layout assumes the 7-slot config, the W9
+        dock shows 6 tiles, and every center sits half a pitch left of the
+        real tile (the v0.6.18 run lost that race and konsole never
+        opened). Falls back to the geometric click when the serial console
+        is unavailable."""
         for attempt in range(2):
-            # dock is always expanded — park the pointer high so the tray is
-            # at rest, then click the tile (magnification starts on arrival)
-            q.mouse_abs(W // 2, int(H * NEUTRAL_Y), W, H)
-            time.sleep(0.8)
-            q.click(*tiles[idx], W, H)
-            time.sleep(wait_s)
+            launched = False
+            try:
+                if serial is not None:
+                    out = serial.run(
+                        "export XDG_RUNTIME_DIR=/run/user/$(id -u); "
+                        "busctl --user call org.aegis.Shell /org/aegis/Shell "
+                        f"org.aegis.Shell launch s \"{cmd}\" 2>&1; "
+                        f"echo LAUNCH-{name}-OK", settle=3)
+                    launched = f"LAUNCH-{name}-OK" in out
+                    log(f"{name}: dbus launch -> " +
+                        out.strip().replace("\n", " | ")[-120:])
+            except Exception as e:
+                log(f"{name}: dbus launch failed ({e})")
+            if launched:
+                time.sleep(wait_s)
+            elif click_idx is not None:
+                # dock is always expanded — park the pointer high so the
+                # tray is at rest, then click the tile (magnification
+                # starts on arrival)
+                q.mouse_abs(W // 2, int(H * NEUTRAL_Y), W, H)
+                time.sleep(0.8)
+                q.click(*tiles[click_idx], W, H)
+                time.sleep(wait_s)
+            else:
+                continue
             q.shot(name)
             d = diff_px(thumb(f"{OUT}/{name}.png"), home)
             try:
@@ -703,15 +730,15 @@ def main():
     # test lost dock -> island -> panel to exactly this cascade).
     # §1 — every open is RECORDED; a miss is a failed release (asserted below).
     opens = {}
-    if open_app(0, "02-files"):            # Files
+    if open_app("02-files", "aegis-files", click_idx=0):       # Files
         opens["files"] = True
         q.key("alt", "f4"); time.sleep(5)
-    if open_app(1, "03-terminal", wait_s=18):   # Terminal
+    if open_app("03-terminal", "konsole", wait_s=18, click_idx=1):   # Terminal
         opens["terminal"] = True
         q.key("alt", "f4"); time.sleep(5)
     # W9 — the dock shrank to 7 tiles (web tiles gone): Settings sits at
     # index 5, before only Files/Terminal/Browser/OS/CoreX.
-    if open_app(5, "04-settings", wait_s=30):   # Settings
+    if open_app("04-settings", "aegis-settings", wait_s=30, click_idx=5):   # Settings
         opens["settings"] = True
         q.key("alt", "f4"); time.sleep(5)
 
