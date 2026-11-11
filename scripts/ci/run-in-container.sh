@@ -24,7 +24,15 @@ fi
 # located). The host network namespace hands the container the runner's
 # working resolver directly. The VM is disposable — the isolation trade is
 # nil, and live-build's archive fetches take the same path.
+# v0.6.27 attempt 3: the host resolver itself answered "Temporary failure
+# resolving" — so the entrypoint pins the two public resolvers into
+# /etc/resolv.conf before exec'ing the build. Outbound UDP/53 to public
+# resolvers is open on Actions runners (docker builds rely on it); the
+# runner-local systemd-resolved stub is the flaky link in that chain.
 exec docker run --rm --privileged --network host \
     -v "${GITHUB_WORKSPACE:-$(pwd)}:/work" \
     -w /work \
-    "$IMG" "$@"
+    "$IMG" /bin/bash -c '
+        printf "nameserver 1.1.1.1\nnameserver 8.8.8.8\n" > /etc/resolv.conf
+        exec "$@"
+    ' aegis-container "$@"

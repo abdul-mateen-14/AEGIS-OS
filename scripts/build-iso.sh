@@ -9,7 +9,20 @@ ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 cd "$ROOT"
 
 export DEBIAN_FRONTEND=noninteractive
-apt-get update -qq
+# Same verdict-by-index retry as build-shell.sh: apt-get update exits 0 on
+# W-only fetch failures, and runner DNS blips are real (v0.6.27).
+for attempt in 1 2 3; do
+    apt-get update -qq || true
+    if apt-cache show live-build >/dev/null 2>&1; then
+        break
+    fi
+    echo "archive indexes unavailable (attempt $attempt), retrying in 10 s"
+    sleep 10
+    if [ "$attempt" = 3 ]; then
+        echo "archive unreachable after 3 attempts"
+        exit 1
+    fi
+done
 apt-get install -y --no-install-recommends \
     live-build debootstrap binutils \
     squashfs-tools xz-utils xorriso \

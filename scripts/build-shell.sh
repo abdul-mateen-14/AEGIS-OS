@@ -7,15 +7,20 @@ set -euo pipefail
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 
 export DEBIAN_FRONTEND=noninteractive
-# DNS blips on the runner fleet are real (v0.6.27 attempt 1 lost all four
-# archive hosts in one pass) — retry the index refresh before giving up.
+# DNS blips on the runner fleet are real (v0.6.27 lost all four archive
+# hosts in one pass). apt-get update exits 0 on W-only fetch failures, so
+# the retry verdict comes from the package index, not the exit code.
 for attempt in 1 2 3; do
-    if apt-get update -qq; then
+    apt-get update -qq || true
+    if apt-cache show build-essential >/dev/null 2>&1; then
         break
     fi
-    echo "apt-get update attempt $attempt failed, retrying in 10 s"
+    echo "archive indexes unavailable (attempt $attempt), retrying in 10 s"
     sleep 10
-    [ "$attempt" = 3 ] && exit 1
+    if [ "$attempt" = 3 ]; then
+        echo "archive unreachable after 3 attempts"
+        exit 1
+    fi
 done
 apt-get install -y --no-install-recommends \
     build-essential cmake debhelper pkg-config \
