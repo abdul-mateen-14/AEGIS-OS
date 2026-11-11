@@ -120,11 +120,21 @@ from docs/MILESTONES.md.
 - Release status: first tag push (0abd799) failed twice on runner-side DNS
   (docker bridge lost archive.ubuntu.com — "Could not resolve", exit 100
   in the aegis-shell deb step; Shell CI itself passed, the code compiles).
-  Fix shipped 24866bd: run-in-container.sh uses --network host and
-  build-shell.sh retries apt-get update 3x; tag force-moved to 24866bd and
-  the Release re-ran. LESSON: when a CI step dies on "Could not resolve"
-  for ALL hosts in one pass, it is the runner/container resolver, not the
-  code — rerun once, then switch the container to host networking.
+  Fix shipped 24866bd (--network host) + dc25c23 (pinned 1.1.1.1/8.8.8.8
+  into the container resolv.conf + index-verified apt retries in
+  build-shell.sh/build-iso.sh — apt-get update exits 0 on W-only fetch
+  failures, the verdict comes from apt-cache show). LESSON: when a CI step
+  dies on resolve failures for ALL hosts in one pass, it is the runner/
+  container resolver, not the code. Then dc25c23 hit a REAL hook bug:
+  adw-gtk3-theme is not in the resolute index (universe is in the chroot —
+  the multimedia packages installed fine) and the hook's nested heredocs
+  shared the EOF delimiter so the inner settings.ini writer terminated the
+  outer aegis-gtk-sync writer. Fix 2f7dbf1: tolerant best-effort install
+  (Adwaita fallback, accent gtk.css still applies) + distinct heredoc
+  delimiters (SYNC_EOF/SETTINGS_EOF/CSS_EOF) + a sh -n sweep of every
+  hook. RELEASE SHIPPED: v0.6.27 tag 2f7dbf1, Release success, ISO parts
+  published on the release page, Boot Test dispatched (workflow_dispatch
+  tag v0.6.27).
 
 ### RESUME NOTES (for any fresh session)
 
