@@ -51,6 +51,14 @@ QVariantMap Util::defaultConfig() const
                         {"cmd", "corex-terminal"},
                         {"resolve", true}},                     // Tier B — the CoreX deb's own entry/mark
             QVariantMap{{"type", "separator"}},
+            QVariantMap{{"name", "Music"}, {"icon", "aegis-music"},
+                        {"cmd", "aegis-music"}},               // Tier A — first-party Music (M3)
+            QVariantMap{{"name", "Calculator"}, {"icon", "aegis-calculator"},
+                        {"cmd", "aegis-calculator"}},          // Tier A — first-party Calculator (M3)
+            QVariantMap{{"name", "Editor"}, {"icon", "aegis-editor"},
+                        {"cmd", "aegis-editor"}},              // Tier A — first-party Editor (M3)
+            QVariantMap{{"name", "Monitor"}, {"icon", "aegis-monitor"},
+                        {"cmd", "aegis-monitor"}},             // Tier A — first-party Monitor (M3)
             QVariantMap{{"name", "Settings"}, {"icon", "aegis-settings"},
                         {"cmd", "aegis-settings"}},             // Tier A — first-party Settings (aegis-apps)
             QVariantMap{{"name", "Trash"}, {"icon", "aegis-trash"},

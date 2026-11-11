@@ -578,6 +578,32 @@ def app_diag(serial):
         ">/tmp/qml-probe-files.err 2>&1; if grep -qvi 'libEGL warning' "
         "/tmp/qml-probe-files.err; then echo PROBE-F-''DIRTY; else echo "
         "PROBE-F-''CLEAN; fi",
+        # T11 — the four M3 apps join the foreground probes. Music's DIRTY
+        # verdict additionally ignores audio-subsystem chatter (pipewire /
+        # pulse / gstreamer / alsa): MediaPlayer is constructed at startup
+        # and a headless VM may print benign audio lines, while a real QML
+        # load failure still says error/Cannot and stays DIRTY.
+        "echo ===QP''M===; export XDG_RUNTIME_DIR=/run/user/$(id -u); "
+        "WAYLAND_DISPLAY=wayland-0 timeout -k 2 6 aegis-apps music "
+        ">/tmp/qml-probe-music.err 2>&1; if grep -qvi -e 'libEGL warning' "
+        "-e 'pipewire' -e 'pulse' -e 'gstreamer' -e 'alsa' "
+        "/tmp/qml-probe-music.err; then echo PROBE-M-''DIRTY; else echo "
+        "PROBE-M-''CLEAN; fi",
+        "echo ===QP''C===; export XDG_RUNTIME_DIR=/run/user/$(id -u); "
+        "WAYLAND_DISPLAY=wayland-0 timeout -k 2 6 aegis-apps calculator "
+        ">/tmp/qml-probe-calculator.err 2>&1; if grep -qvi 'libEGL warning' "
+        "/tmp/qml-probe-calculator.err; then echo PROBE-C-''DIRTY; else echo "
+        "PROBE-C-''CLEAN; fi",
+        "echo ===QP''E===; export XDG_RUNTIME_DIR=/run/user/$(id -u); "
+        "WAYLAND_DISPLAY=wayland-0 timeout -k 2 6 aegis-apps editor "
+        ">/tmp/qml-probe-editor.err 2>&1; if grep -qvi 'libEGL warning' "
+        "/tmp/qml-probe-editor.err; then echo PROBE-E-''DIRTY; else echo "
+        "PROBE-E-''CLEAN; fi",
+        "echo ===QP''N===; export XDG_RUNTIME_DIR=/run/user/$(id -u); "
+        "WAYLAND_DISPLAY=wayland-0 timeout -k 2 6 aegis-apps monitor "
+        ">/tmp/qml-probe-monitor.err 2>&1; if grep -qvi 'libEGL warning' "
+        "/tmp/qml-probe-monitor.err; then echo PROBE-N-''DIRTY; else echo "
+        "PROBE-N-''CLEAN; fi",
         "echo ===JRN-SHELL===; sudo journalctl -b --no-pager 2>&1 | grep -aiE 'aegis-(shell|apps|session|files|settings)|QQml|qrc:' | tail -50",
         "echo ===JRN-KWIN===; sudo journalctl -b --no-pager 2>&1 | grep -ai 'kwin' | grep -aivE 'information|Rendering|colorProfile|ColorManagement' | tail -40",
         "echo ===JRN-CRASH===; sudo journalctl -b --no-pager 2>&1 | grep -aiE 'segfault|signal 11|coredump|abrt|general protection' | tail -20",
@@ -606,11 +632,20 @@ def app_diag(serial):
     # printed verdict. The rfind strip cannot lose them here.
     raw = serial.buf.decode(errors="replace")
     probes = {}
-    for name, tok, path in (("settings", "PROBE-S", "/tmp/qml-probe.err"),
-                            ("files", "PROBE-F", "/tmp/qml-probe-files.err")):
+    # extra = extra guest-side grep -e terms that must stay OUT of the
+    # verdict/fetch text (music: benign audio-subsystem chatter)
+    for name, tok, path, extra in (
+            ("settings", "PROBE-S", "/tmp/qml-probe.err", ""),
+            ("files", "PROBE-F", "/tmp/qml-probe-files.err", ""),
+            ("music", "PROBE-M", "/tmp/qml-probe-music.err",
+             "-e pipewire -e pulse -e gstreamer -e alsa"),
+            ("calculator", "PROBE-C", "/tmp/qml-probe-calculator.err", ""),
+            ("editor", "PROBE-E", "/tmp/qml-probe-editor.err", ""),
+            ("monitor", "PROBE-N", "/tmp/qml-probe-monitor.err", "")):
         if tok + "-DIRTY" in raw:
             fetch = serial.run(
-                f"grep -vi 'libEGL warning' {path} | head -10", settle=3)
+                f"grep -vi 'libEGL warning' {extra} {path} | head -10",
+                settle=3)
             log(f"probe {name}: DIRTY — " + fetch.strip()[:300])
             probes[name] = fetch
         elif tok + "-CLEAN" in raw:
@@ -994,9 +1029,10 @@ def main():
     if open_app("03-terminal", "konsole", wait_s=18, click_idx=1):   # Terminal
         opens["terminal"] = True
         q.key("alt", "f4"); time.sleep(5)
-    # W9 — the dock shrank to 7 tiles (web tiles gone): Settings sits at
-    # index 5, before only Files/Terminal/Browser/OS/CoreX.
-    if open_app("04-settings", "aegis-settings", wait_s=30, click_idx=5):   # Settings
+    # T11 — the dock grew to 11 tiles (M3 apps joined after the separator):
+    # Files 0, Terminal 1, Browser 2, OS 3, CoreX 4, Music 5, Calculator 6,
+    # Editor 7, Monitor 8, Settings 9, Trash 10. Settings sits at index 9.
+    if open_app("04-settings", "aegis-settings", wait_s=30, click_idx=9):   # Settings
         opens["settings"] = True
         q.key("alt", "f4"); time.sleep(5)
 
@@ -1028,6 +1064,23 @@ def main():
             q.key("alt", "f4"); time.sleep(5)
         except Exception as e:
             log(f"aegis-id pane capture failed: {e}")
+
+    # T11 — the four M3 apps, launched over the same DBus surface and
+    # captured the same way as Files/Terminal/Settings. Each open_app call
+    # carries its own diff-vs-home assert; a window that never paints
+    # fails the release below through the opens dict.
+    if open_app("04c-music", "aegis-music", wait_s=25, click_idx=5):
+        opens["music"] = True
+        q.key("alt", "f4"); time.sleep(5)
+    if open_app("04d-calculator", "aegis-calculator", wait_s=25, click_idx=6):
+        opens["calculator"] = True
+        q.key("alt", "f4"); time.sleep(5)
+    if open_app("04e-editor", "aegis-editor", wait_s=25, click_idx=7):
+        opens["editor"] = True
+        q.key("alt", "f4"); time.sleep(5)
+    if open_app("04f-monitor", "aegis-monitor", wait_s=25, click_idx=8):
+        opens["monitor"] = True
+        q.key("alt", "f4"); time.sleep(5)
 
     q.click(W - 60, 14, W, H)            # panel right cluster -> Control Center
     time.sleep(3)
@@ -1184,7 +1237,8 @@ def main():
     # foreground QML probes must come back clean. "A release whose capture
     # shows a wallpaper and a dock but no window is a FAILED release."
     failures = []
-    for app in ("files", "terminal", "settings"):
+    for app in ("files", "terminal", "settings", "music", "calculator",
+                "editor", "monitor"):
         if not opens.get(app):
             failures.append(f"{app} window never opened (screen unchanged)")
     for name, text in probes.items():

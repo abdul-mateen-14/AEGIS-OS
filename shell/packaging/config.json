@@ -7,6 +7,10 @@
     { "name": "OS",            "icon": "os-private-chat",   "cmd": "os-private-chat",      "resolve": true },
     { "name": "CoreX",         "icon": "corex-terminal",    "cmd": "corex-terminal",       "resolve": true },
     { "type": "separator" },
+    { "name": "Music",         "icon": "aegis-music",       "cmd": "aegis-music" },
+    { "name": "Calculator",    "icon": "aegis-calculator",  "cmd": "aegis-calculator" },
+    { "name": "Editor",        "icon": "aegis-editor",      "cmd": "aegis-editor" },
+    { "name": "Monitor",       "icon": "aegis-monitor",     "cmd": "aegis-monitor" },
     { "name": "Settings",      "icon": "aegis-settings",    "cmd": "aegis-settings" },
     { "name": "Trash",         "icon": "aegis-trash",       "cmd": "aegis-files" }
   ]
