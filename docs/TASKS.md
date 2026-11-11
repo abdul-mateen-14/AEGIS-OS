@@ -117,18 +117,51 @@ capture, no proof the apps open on the runner.
      command -v as the fallback) — verified offline against all three
      real entry shapes. The r45 Browser deb itself staged fine (115.9 MB
      in the v0.6.29 ISO build log).
-  Files: scripts/boot-capture.py. Release as v0.6.30.
+- D5c — v0.6.30 Boot Test (FAILED) postmortem: the harness losses are gone
+  (VERDICTS read works, settings/files/calculator/editor CLEAN, the
+  WRAPPERS dump proves all six /usr/bin/aegis-* wrappers are -rwxr-xr-x).
+  Three remaining defects, two of them REAL product bugs:
+  1. MonitorApp.qml threw "ReferenceError: Monitor is not defined" at load
+     (lines 65/148-150/157 — the MonitorBackend singleton is registered as
+     Aegis.Monitor/Monitor in apps-main.cpp but the QML never imported it).
+     Fix: import Aegis.Monitor added. EditorApp.qml had the same latent
+     defect with TextFile (Aegis.TextFile/TextFile; masked at startup by
+     the empty-doc ternary that never calls TextFile.prettyPath, but load/
+     save would throw). Fix: import Aegis.TextFile added.
+  2. Music probe DIRTY on a BENIGN line: "qt.multimedia.ffmpeg: Using Qt
+     multimedia with FFmpeg version 8.0.1-3ubuntu2..." — the audio-chatter
+     filter missed it. Fix: the filter grew qt.multimedia and ffmpeg (both
+     in the guest verdict chain and the DIRTY fetch).
+  3. The AegisBrowser r45 deb staged into config/packages.chroot (115.9 MB
+     in the build log) but live-build NEVER unpacked it — the log has
+     Preparing-to-unpack lines for aegis-shell (0245-), corex (0494-),
+     os-private-chat (1106-) and NOTHING for the browser; the local apt
+     repo (file:/root/packages) additionally logged "Permission denied" on
+     its Packages index in five passes. The guest (entryhit + command -v
+     both negative) confirms the browser is not installed, so the dock
+     dropped the slot correctly. Fix: hook 0900-app-debs-fallback.hook
+     .chroot — after the chroot package pass, any of OUR debs apt missed
+     (aegis-shell/aegis-browser-stable/corex-terminal/os-private-chat/
+     kwin4-effect-shapecorners) is dpkg -i'd from /root/packages (and
+     /root/packages.chroot), followed by apt-get -f; already-installed
+     packages are untouched so a re-run is a no-op. The browser entry
+     itself is healthy: Exec=/usr/bin/aegis-browser-stable (verified by
+     extracting the r45 deb) — once installed, entryhit and command -v
+     both match and the dock keeps the slot.
+  Release as v0.6.31.
 - D4 — release: qml-guard -> commit -> pull --rebase -> push -> tag
-  (v0.6.28 burned by D5 defects, v0.6.29 by D5b; re-releases as v0.6.30)
-  -> Release CI builds the ISO -> Boot Test (workflow_dispatch,
-  inputs.tag v0.6.30) -> verify 04c..04f captures exist and the asserts
+  (v0.6.28 burned by D5, v0.6.29 by D5b, v0.6.30 by D5c; re-releases as
+  v0.6.31) -> Release CI builds the ISO -> Boot Test (workflow_dispatch,
+  inputs.tag v0.6.31) -> verify 04c..04f captures exist and the asserts
   stay green -> mark T11 SHIPPED here with the run numbers.
 
 ### Status
 
-- D1-D3 DONE (22fda7c); D5 fixes DONE (43d78e3); D5b fixes DONE (this
-  commit); D4 release pending on the v0.6.30 tag. Shell CI green on
-  43d78e3; the four M3 apps verified visually in the v0.6.29 captures.
+- D1-D3 DONE (22fda7c); D5 (43d78e3); D5b (6dad71d); D5c DONE in tree
+  (this commit) — D4 release pending on the v0.6.31 tag. The four M3
+  apps verified visually in the v0.6.29 captures (Music with fixture
+  track, Calculator rendered); v0.6.30 proved settings/files/calculator/
+  editor probes CLEAN and all six wrappers installed.
 
 - D1-D3 detail: four Tier A slots in config.json +
   the util.cpp mirror; boot-capture.py grew the four open_app captures

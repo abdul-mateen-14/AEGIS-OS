@@ -4,6 +4,7 @@ import QtQuick.Controls
 import QtQuick.Layouts
 import QtQuick.Dialogs
 import Aegis.Util
+import Aegis.TextFile
 
 // Aegis Editor — M3 first-party app (proposal §8, plate 12).
 //

@@ -2,6 +2,7 @@ import QtQuick
 import QtQuick.Controls
 import QtQuick.Layouts
 import Aegis.Util
+import Aegis.Monitor
 
 // Aegis Monitor — M3 first-party app (proposal §8, plate 12).
 //

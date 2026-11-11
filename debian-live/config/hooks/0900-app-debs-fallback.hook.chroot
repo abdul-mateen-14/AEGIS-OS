@@ -1,0 +1,33 @@
+#!/bin/sh
+# T11-D5c — live-build's local packages.chroot apt repo (file:/root/packages)
+# intermittently lost the big AegisBrowser deb (115 MB): the v0.6.29 and
+# v0.6.30 builds unpacked aegis-shell / corex-terminal / os-private-chat but
+# never the browser (zero "Preparing to unpack" lines for it in the build
+# log), and the dock then dropped its Tier B slot per W8 — nothing on the
+# shelf that is not installed. Any of OUR debs that apt missed is installed
+# here directly. Already-installed packages are untouched: a re-run is a
+# no-op, and this can never regress a version apt already configured.
+set -e
+
+installed_any=0
+for d in /root/packages/*.deb /root/packages.chroot/*.deb; do
+    [ -f "$d" ] || continue
+    pkg=$(dpkg-deb -f "$d" Package 2>/dev/null) || continue
+    case "$pkg" in
+        aegis-shell|aegis-browser-stable|corex-terminal|os-private-chat|kwin4-effect-shapecorners) ;;
+        *) continue ;;
+    esac
+    status=$(dpkg-query -W -f='${Status}' "$pkg" 2>/dev/null) || status=""
+    case "$status" in
+        *"install ok installed"*) continue ;;
+    esac
+    echo "aegis-fallback: apt missed $pkg — dpkg -i $(basename "$d")"
+    dpkg -i "$d" >/dev/null 2>&1 || true
+    installed_any=1
+done
+
+# dpkg -i can leave a package unconfigured when a dependency is missing;
+# -f resolves those from the normal apt sources (all standard Ubuntu libs).
+if [ "$installed_any" = 1 ]; then
+    apt-get install -y -f -qq >/dev/null 2>&1 || true
+fi

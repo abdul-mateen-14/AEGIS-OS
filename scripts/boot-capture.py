@@ -587,14 +587,17 @@ def app_diag(serial):
         "/tmp/qml-probe-files.err; then echo DIRTY > /tmp/pv-f; else echo "
         "CLEAN > /tmp/pv-f; fi",
         # T11 — the four M3 apps join the foreground probes. Music's DIRTY
-        # verdict additionally ignores audio-subsystem chatter (pipewire /
-        # pulse / gstreamer / alsa): MediaPlayer is constructed at startup
-        # and a headless VM may print benign audio lines, while a real QML
-        # load failure still says error/Cannot and stays DIRTY.
+        # verdict additionally ignores audio/multimedia chatter (pipewire /
+        # pulse / gstreamer / alsa / qt.multimedia / ffmpeg): MediaPlayer is
+        # constructed at startup and a headless VM prints benign audio and
+        # backend-banner lines (v0.6.30 went red on the harmless
+        # "qt.multimedia.ffmpeg: Using Qt multimedia..." banner), while a
+        # real QML load failure still says error/Cannot and stays DIRTY.
         "echo ===QP''M===; export XDG_RUNTIME_DIR=/run/user/$(id -u); "
         "WAYLAND_DISPLAY=wayland-0 timeout -k 2 6 aegis-apps music "
         ">/tmp/qml-probe-music.err 2>&1; if grep -qvi -e 'libEGL warning' "
         "-e 'pipewire' -e 'pulse' -e 'gstreamer' -e 'alsa' "
+        "-e 'qt.multimedia' -e 'ffmpeg' "
         "/tmp/qml-probe-music.err; then echo DIRTY > /tmp/pv-m; else echo "
         "CLEAN > /tmp/pv-m; fi",
         "echo ===QP''C===; export XDG_RUNTIME_DIR=/run/user/$(id -u); "
@@ -657,7 +660,8 @@ def app_diag(serial):
             ("settings", "/tmp/qml-probe.err", ""),
             ("files", "/tmp/qml-probe-files.err", ""),
             ("music", "/tmp/qml-probe-music.err",
-             "-e pipewire -e pulse -e gstreamer -e alsa"),
+             "-e pipewire -e pulse -e gstreamer -e alsa "
+             "-e qt.multimedia -e ffmpeg"),
             ("calculator", "/tmp/qml-probe-calculator.err", ""),
             ("editor", "/tmp/qml-probe-editor.err", ""),
             ("monitor", "/tmp/qml-probe-monitor.err", "")):
