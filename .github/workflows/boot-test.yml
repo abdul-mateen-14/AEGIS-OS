@@ -42,7 +42,19 @@ jobs:
 
       - name: Install QEMU + Pillow
         run: |
-          sudo apt-get update -qq
+          # DNS guard — the 2026-11-11 v0.6.27 boot tests hung 45 min inside
+          # apt on the runner's stub resolver (the same drift that broke the
+          # ISO build container). Break the stub symlink, pin the two public
+          # resolvers, and give apt hard retries with an index verdict.
+          sudo rm -f /etc/resolv.conf
+          printf "nameserver 1.1.1.1\nnameserver 8.8.8.8\n" | sudo tee /etc/resolv.conf >/dev/null
+          for attempt in 1 2 3; do
+            sudo apt-get update -qq || true
+            apt-cache show qemu-system-x86 >/dev/null 2>&1 && break
+            echo "archive indexes unavailable (attempt $attempt), retrying in 10 s"
+            sleep 10
+            [ "$attempt" = 3 ] && exit 1
+          done
           sudo apt-get install -y -qq qemu-system-x86 >/dev/null
           qemu-system-x86_64 --version | head -1
           # KVM exists on public-repo runners but is often root-only; make it
