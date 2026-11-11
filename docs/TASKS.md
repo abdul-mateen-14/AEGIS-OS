@@ -15,7 +15,58 @@ cannot lose the plan.
 
 ---
 
-## T10 — v0.6.27: one window anatomy, glass controls, Aegis ID session, M3 Depth (CURRENT)
+## T11 — v0.6.28: M3 apps on the dock + in the boot captures (CURRENT)
+
+Opened 2026-11-12. User report on the shipped v0.6.27: "the boot [captures]
+do not contain the screenshots of new apps like music calculator etc and
+they are also not in the dock". Root cause is bookkeeping, not code: the
+four M3 apps ship as .desktop entries (the Launcher lists them through
+Util.allApps) but the dock config never received Tier A slots and
+boot-capture.py never learned their choreography — so no dock tile, no
+capture, no proof the apps open on the runner.
+
+### Subtasks (work in this order)
+
+- D1 — dock slots: add four Tier A slots (Music, Calculator, Editor,
+  Monitor — icons aegis-music/aegis-calculator/aegis-editor/aegis-monitor,
+  cmds aegis-music/aegis-calculator/aegis-editor/aegis-monitor) to
+  shell/packaging/config.json between the separator and Settings; mirror
+  the same list in shell/src/util.cpp defaultConfig() (the packaged file
+  wins at runtime, the C++ default is the offline mirror). Everything
+  downstream is config-driven and auto-updates: expected_tiles() counts 11,
+  dock_geometry()/find_tiles() lay the click map out arithmetically. New
+  geometric order: Files 0, Terminal 1, Browser 2, OS 3, CoreX 4, Music 5,
+  Calculator 6, Editor 7, Monitor 8, Settings 9, Trash 10. Tray width
+  11x58 + 10x2 + 2x6 = 670 px on the 1280 canvas — fits.
+- D2 — boot captures: in scripts/boot-capture.py, change the Settings
+  click_idx 5 -> 9 (comment updated too), and after the 04b-aegis-id pane
+  shot add open_app for the four apps: 04c-music (aegis-music, click_idx
+  5), 04d-calculator (aegis-calculator, 6), 04e-editor (aegis-editor, 7),
+  04f-monitor (aegis-monitor, 8), alt+F4 between each. The diff-vs-home
+  check inside open_app is the per-app assert; record the four in the
+  opens dict and extend the release gate loop
+  ("files", "terminal", "settings") with them.
+- D3 — QML probes: app_diag grows four foreground probes in the same
+  split-token pattern (aegis-apps music/calculator/editor/monitor with
+  timeout -k 2 6, verdict tokens PROBE-M/C/E/N-DIRTY/CLEAN). The music
+  probe additionally excludes audio-subsystem noise from the DIRTY
+  verdict (pipewire/pulse/gstreamer/alsa lines) — MusicApp constructs
+  MediaPlayer at startup and a headless VM may emit benign audio chatter,
+  while a real QML load failure still says error/Cannot and stays DIRTY.
+  The probe verdicts join the release gate automatically through the
+  probes dict loop.
+- D4 — release: qml-guard -> commit -> pull --rebase -> push -> tag
+  v0.6.28 -> Release CI builds the ISO -> Boot Test (workflow_dispatch,
+  inputs.tag v0.6.28) -> verify 04c..04f captures exist and the asserts
+  stay green -> mark T11 SHIPPED here with the run numbers.
+
+### Status
+
+- DOING — this file updated first (progress anchor), code next.
+
+---
+
+## T10 — v0.6.27: one window anatomy, glass controls, Aegis ID session, M3 Depth (SHIPPED)
 
 Opened 2026-11-11. User reports (with screenshots) plus the milestone plan
 from docs/MILESTONES.md.
