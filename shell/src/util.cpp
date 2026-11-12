@@ -9,6 +9,7 @@
 #include <QFile>
 #include <QFileInfo>
 #include <QImage>
+#include <QJsonArray>
 #include <QJsonDocument>
 #include <QJsonObject>
 #include <QNetworkAccessManager>
@@ -286,17 +287,27 @@ void Util::launch(const QString &command)
     QProcess::startDetached(QStringLiteral("/bin/sh"), {QStringLiteral("-c"), command});
 }
 
-void Util::windowListChanged(int count, bool anyFull, const QString &idsJoined)
+void Util::windowListChanged(const QString &json)
 {
     // W20 — the aegis-windowwatch KWin script is the source of truth for
-    // the active-workspace window state. m_windowIds joins the dock
-    // running-dot reads (isRunning) and the count/flag feed the island's
-    // auto-hide predicate. runningCmdsChanged fires alongside
+    // the active-workspace window state. ONE JSON STRING argument: KWin's
+    // callDBus marshals JS numbers as DBus DOUBLE and an int slot param
+    // never matched (the v0.6.37 run shipped exactly that silent break —
+    // the script pushed, the island never hid). m_windowIds feeds the
+    // dock running-dot reads (isRunning); the count/flag feed the
+    // island's auto-hide predicate. runningCmdsChanged fires alongside
     // windowTrackingChanged because every isRunning() binding just
     // potentially changed with the new ids.
-    m_workspaceWindows = count;
-    m_anyWindowFull = anyFull;
-    m_windowIds = idsJoined.split(' ', Qt::SkipEmptyParts);
+    const QJsonDocument doc = QJsonDocument::fromJson(json.toUtf8());
+    if (!doc.isObject())
+        return;
+    const QJsonObject o = doc.object();
+    m_workspaceWindows = o.value(QStringLiteral("count")).toInt();
+    m_anyWindowFull = o.value(QStringLiteral("anyFull")).toBool();
+    m_windowIds.clear();
+    const QJsonArray ids = o.value(QStringLiteral("ids")).toArray();
+    for (const QJsonValue &v : ids)
+        m_windowIds.append(v.toString());
     emit windowTrackingChanged();
     emit runningCmdsChanged();
 }

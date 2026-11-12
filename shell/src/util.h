@@ -135,12 +135,14 @@ public:
     Q_INVOKABLE void toggleControlCenter() { setCcOpen(!m_ccOpen); }
     Q_INVOKABLE void toggleLauncher() { setLauncherOpen(!m_launcherOpen); }
     // W20 — pushed by the aegis-windowwatch KWin script on every
-    // windowAdded/Removed/Activated. idsJoined is the SPACE-JOINED
-    // resourceClass list: callDBus marshals JS arrays as a variant list
-    // (DBus "av"), which will NOT demarshal into a QStringList slot — a
-    // single string is the safe contract (resourceClass has no spaces).
-    Q_INVOKABLE void windowListChanged(int count, bool anyFull,
-                                       const QString &idsJoined);
+    // windowAdded/Removed/Activated. ONE JSON STRING: {"count": n,
+    // "anyFull": b, "ids": [...]}. KWin's callDBus marshals JS numbers
+    // as DBus DOUBLE (jsArgument.toVariant() → QVariant(double)), so the
+    // earlier (int, bool, QString) slot NEVER matched (the v0.6.37 run:
+    // the script pushed, the island never hid) — a single string is the
+    // no-type-roulette contract, and ids never travel as a JS array (it
+    // would demarshal as DBus "av", not "as").
+    Q_INVOKABLE void windowListChanged(const QString &json);
 
     // W21 — Dock.qml publishes the resting tile centers {"<cmd>": [cx, cy]}
     // as JSON; this writes kwinrc [Effect-aegis-dockzoom] TileMap. The

@@ -58,7 +58,8 @@ function recount() {
             anyFull = true
     }
     callDBus("org.aegis.Shell", "/org/aegis/Shell", "org.aegis.Shell",
-             "windowListChanged", count, anyFull, ids.join(" "))
+             "windowListChanged",
+             JSON.stringify({count: count, anyFull: anyFull, ids: ids}))
 }
 
 // windowRemoved fires while the window can still sit in stackingOrder —

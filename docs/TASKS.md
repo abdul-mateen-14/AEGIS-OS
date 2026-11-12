@@ -257,6 +257,22 @@ Work order below is dependency-aware; the review's own order is W16-W23.
   now a journal MARKER: both plugins print "aegis-<name>: loaded" at
   startup and config_assert requires both markers in ===KWIN-LOADS===.
   v0.6.37 = resourceClass filters + markers (ISO change, new tag).
+- D11 run 6 (v0.6.37, FAILED — and each assert is now pulling its
+  weight): the resourceClass filter WORKED (island back at the idle
+  home, 27 px — the shell surfaces are no longer counted), isScriptLoaded
+  true — but files still showed the island (27 px) and the two journal
+  marker asserts fired (KWin script print() does NOT reach journald on
+  this stack — marker gate removed, the island assert is the end-to-end
+  proof). ROOT CAUSE of the never-hiding island found IN THE KWIN
+  SOURCE: Script::callDBus does dbusArguments << jsArgument.toVariant()
+  — a JS number becomes QVariant(double), DBus 'd' — and the Util slot
+  was (int, bool, QString) = (i,b,s). NO SLOT EVER MATCHED. Every push
+  since W20 landed failed silently: run 2 wrong keys, run 4 wrong path +
+  wrong keys, run 5 shell surfaces counted, run 6 the 'd' vs 'i' type.
+  FIX: the contract is now ONE JSON STRING argument — windowListChanged
+  (QString json) parses {"count", "anyFull", "ids"}; the script sends
+  JSON.stringify({count, anyFull, ids}). No type roulette possible.
+  v0.6.38 = the JSON contract (ISO change, new tag).
 
 ---
 
