@@ -55,6 +55,40 @@ Window {
         }
     }
 
+    // W21 — publish the RESTING tile centers {"<cmd>": [cx, cy]} for the
+    // aegis-dockzoom effect (transported through kwinrc — see
+    // Util.publishDockTileMap). Computed at rest on purpose: the
+    // magnification wave moves tiles transiently and the effect should
+    // anchor where the tile lives, not where it is mid-wave.
+    function publishTileMap() {
+        var map = {}
+        for (var i = 0; i < row.children.length; ++i) {
+            var t = row.children[i]
+            if (!t.iconItem || t.isSeparator)
+                continue
+            var cmd = t.modelData.cmd || ""
+            if (!cmd)
+                continue
+            var p = t.iconItem.mapToItem(null,
+                                         t.iconItem.width / 2,
+                                         t.iconItem.height / 2)
+            map[cmd] = [Math.round(p.x + dockRoot.x),
+                        Math.round(p.y + dockRoot.y)]
+        }
+        Util.publishDockTileMap(JSON.stringify(map))
+    }
+
+    Component.onCompleted: publishTileMap()
+    // the layer-shell configure assigns the window position AFTER the
+    // component completes — republish when it lands and once later
+    onXChanged: publishTileMap()
+    onYChanged: publishTileMap()
+    Timer {
+        interval: 1500
+        running: true
+        onTriggered: dockRoot.publishTileMap()
+    }
+
     Timer {
         id: idleHideTimer
         interval: Tokens.idleHideMs

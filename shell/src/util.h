@@ -97,15 +97,25 @@ public:
     Q_INVOKABLE void launch(const QString &command);
 
     // ── Running apps (dock running dots) ─────────────────────────────
-    // Session-level: launch() records every command it starts. M3 swaps the
-    // backing store for real KWin window tracking; the QML contract
-    // (isRunning / runningCmdsChanged) stays the same.
+    // Session-level: launch() records every command it starts. W20 (T12)
+    // adds the REAL backing store: the aegis-windowwatch KWin script
+    // pushes the active-workspace window list over DBus and isRunning()
+    // answers from both — so foreign-launched apps (CoreX opened from
+    // Files) light their dot too. The QML contract stays the same.
     Q_PROPERTY(QStringList runningCmds READ runningCmds NOTIFY runningCmdsChanged)
     QStringList runningCmds() const { return m_runningCmds; }
     Q_INVOKABLE bool isRunning(const QString &cmd) const
     {
-        return m_runningCmds.contains(cmd);
+        return m_runningCmds.contains(cmd) || m_windowIds.contains(cmd);
     }
+    // W20 — the island auto-hide predicate source: count of trackable
+    // normal windows on the ACTIVE workspace + any maximized/fullscreen
+    // flag (exposed as one property pair so the predicate can be tuned
+    // later; the ruling's hide predicate is workspaceWindows > 0).
+    Q_PROPERTY(int workspaceWindows READ workspaceWindows NOTIFY windowTrackingChanged)
+    Q_PROPERTY(bool anyWindowFull READ anyWindowFull NOTIFY windowTrackingChanged)
+    int workspaceWindows() const { return m_workspaceWindows; }
+    bool anyWindowFull() const { return m_anyWindowFull; }
 
     // "suspend" | "reboot" | "shutdown" via logind.
     Q_INVOKABLE void powerAction(const QString &action);
@@ -121,6 +131,20 @@ public:
     // ── Shell toggles (org.aegis.Shell DBus surface for CLIs/scripts) ─
     Q_INVOKABLE void toggleControlCenter() { setCcOpen(!m_ccOpen); }
     Q_INVOKABLE void toggleLauncher() { setLauncherOpen(!m_launcherOpen); }
+    // W20 — pushed by the aegis-windowwatch KWin script on every
+    // windowAdded/Removed/Activated. idsJoined is the SPACE-JOINED
+    // resourceClass list: callDBus marshals JS arrays as a variant list
+    // (DBus "av"), which will NOT demarshal into a QStringList slot — a
+    // single string is the safe contract (resourceClass has no spaces).
+    Q_INVOKABLE void windowListChanged(int count, bool anyFull,
+                                       const QString &idsJoined);
+
+    // W21 — Dock.qml publishes the resting tile centers {"<cmd>": [cx, cy]}
+    // as JSON; this writes kwinrc [Effect-aegis-dockzoom] TileMap. The
+    // aegis-dockzoom effect cannot callDBus (KWin 6.6 gives callDBus to
+    // window scripts, not effects), so kwinrc + KConfigWatcher is the
+    // transport into the effect's readConfig("TileMap").
+    Q_INVOKABLE void publishDockTileMap(const QString &json);
 
     // ── Hardware controls (Control Center) ───────────────────────────
     Q_INVOKABLE void refreshLinkStates();
@@ -149,6 +173,8 @@ signals:
     void chargingEvent(bool charging, int percent, int minutesToFull);
     void unlockResult(bool ok);
     void runningCmdsChanged();
+    // W20 — the window-tracking state changed (count / anyFull / ids)
+    void windowTrackingChanged();
 
 private slots:
     void refreshBattery();
@@ -184,4 +210,8 @@ private:
     QTimer m_batteryTimer;
     QTimer m_linkTimer;
     QStringList m_runningCmds;
+    // W20 — the KWin-reported window state
+    int m_workspaceWindows = 0;
+    bool m_anyWindowFull = false;
+    QStringList m_windowIds;
 };

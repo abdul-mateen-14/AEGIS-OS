@@ -1,0 +1,14 @@
+{
+    "KPlugin": {
+        "Description": "Dock-anchored open and close animation: windows grow out of their dock tile and shrink back into it",
+        "EnabledByDefault": false,
+        "Id": "aegis-dockzoom",
+        "License": "GPL-2.0+",
+        "Name": "Aegis Dock Zoom",
+        "Version": "1.0"
+    },
+    "KPackageStructure": "KWin/Effect",
+    "X-KWin-Exclusive-Category": "toplevel-open-close-animation",
+    "X-Plasma-API": "javascript",
+    "X-Plasma-MainScript": "code/main.js"
+}

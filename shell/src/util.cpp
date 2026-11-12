@@ -269,12 +269,45 @@ void Util::launch(const QString &command)
 {
     if (command.isEmpty())
         return;
-    // running dots — session-level tracking (M3: real KWin window tracking)
+    // running dots — session-level tracking (W20: the real backing store
+    // is the aegis-windowwatch KWin script; this launch-recorded list
+    // stays as the instant-feedback path until the window maps)
     if (!m_runningCmds.contains(command)) {
         m_runningCmds.append(command);
         emit runningCmdsChanged();
     }
     QProcess::startDetached(QStringLiteral("/bin/sh"), {QStringLiteral("-c"), command});
+}
+
+void Util::windowListChanged(int count, bool anyFull, const QString &idsJoined)
+{
+    // W20 — the aegis-windowwatch KWin script is the source of truth for
+    // the active-workspace window state. m_windowIds joins the dock
+    // running-dot reads (isRunning) and the count/flag feed the island's
+    // auto-hide predicate. runningCmdsChanged fires alongside
+    // windowTrackingChanged because every isRunning() binding just
+    // potentially changed with the new ids.
+    m_workspaceWindows = count;
+    m_anyWindowFull = anyFull;
+    m_windowIds = idsJoined.split(' ', Qt::SkipEmptyParts);
+    emit windowTrackingChanged();
+    emit runningCmdsChanged();
+}
+
+void Util::publishDockTileMap(const QString &json)
+{
+    // W21 — the transport into the aegis-dockzoom effect: it cannot
+    // callDBus, so the tile centers ride kwinrc. KConfigWatcher fires
+    // the effect's configChanged on this write; the map is read from
+    // the effect's own group (Effect-<plugin id>).
+    QSettings kwinRc(QStandardPaths::writableLocation(
+                         QStandardPaths::ConfigLocation)
+                         + QStringLiteral("/kwinrc"),
+                     QSettings::IniFormat);
+    kwinRc.beginGroup(QStringLiteral("Effect-aegis-dockzoom"));
+    kwinRc.setValue(QStringLiteral("TileMap"), json);
+    kwinRc.endGroup();
+    kwinRc.sync();
 }
 
 void Util::powerAction(const QString &action)

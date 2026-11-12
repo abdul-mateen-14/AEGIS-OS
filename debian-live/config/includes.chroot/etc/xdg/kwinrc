@@ -22,6 +22,15 @@ kwin4_effect_shapecornersEnabled=true
 # workspaces as pages) is declared explicitly so the shortcut dictionary in
 # docs/DESIGN-TOKENS.md Table 10 is guaranteed, not assumed.
 overviewEnabled=true
+# W20 — real window tracking: counts normal windows on the active
+# workspace and pushes org.aegis.Shell.windowListChanged (island
+# auto-hide predicate + dock running dots for foreign-launched apps).
+aegisWindowwatchEnabled=true
+# W21 — dock-anchored open/close (the stock scale effect is ALSO a
+# toplevel-open-close-animation effect; both grabbing windowAdded is
+# undefined — the stock one is disabled for the tile-anchored one).
+scaleEnabled=false
+aegisDockzoomEnabled=true
 
 [Effect-shapecorners]
 Radius=18

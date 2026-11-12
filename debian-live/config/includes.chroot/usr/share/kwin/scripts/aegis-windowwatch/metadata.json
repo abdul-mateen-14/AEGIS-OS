@@ -1,0 +1,12 @@
+{
+    "KPlugin": {
+        "Description": "Counts the trackable normal windows on the active workspace and pushes the list to the Aegis shell over DBus (island auto-hide, dock running dots)",
+        "Id": "aegis-windowwatch",
+        "License": "GPL-2.0+",
+        "Name": "Aegis Window Watch",
+        "Version": "1.0"
+    },
+    "KPackageStructure": "KWin/Script",
+    "X-Plasma-API": "javascript",
+    "X-Plasma-MainScript": "code/main.js"
+}

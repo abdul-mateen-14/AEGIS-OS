@@ -107,6 +107,12 @@ int main(int argc, char *argv[])
     else if (which == QStringLiteral("editor")) qmlName = QStringLiteral("EditorApp.qml");
     else if (which == QStringLiteral("monitor")) qmlName = QStringLiteral("MonitorApp.qml");
     else qmlName = QStringLiteral("FilesApp.qml");
+    // W20 — pin the Wayland app_id to the product name: without it every
+    // Aegis app reports resourceClass "aegis-apps" (the host binary) and
+    // the aegis-windowwatch KWin script could not tell Files from Music,
+    // so the dock running dots and the island predicate would read the
+    // wrong app. The ids must match the dock cmds (aegis-files, ...).
+    QGuiApplication::setDesktopFileName(QStringLiteral("aegis-%1").arg(which));
     // optional initial pane for Settings ("aegis-settings 8" opens the Aegis
     // ID pane directly — boot-capture uses this for the pane screenshots)
     int initialPane = -1;

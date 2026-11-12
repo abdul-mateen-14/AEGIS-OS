@@ -59,6 +59,17 @@ Window {
                                : (activities.length === 1
                                   ? stateFor(pk) : "split")
 
+    // W20 — island auto-hide: while the ACTIVE workspace has an open
+    // app window, the IDLE island dissolves into its own center point
+    // (invisible until something island-worthy happens); it grows back
+    // with a soft spring when the workspace empties. Non-idle states
+    // (nowPlaying, call, charging, timer, aegisId, split) ALWAYS win —
+    // the window predicate only ever touches the idle capsule. Source:
+    // Util.workspaceWindows, pushed by the aegis-windowwatch KWin
+    // script over org.aegis.Shell.windowListChanged.
+    readonly property bool windowsActive: Util.workspaceWindows > 0
+    readonly property bool idleHidden: stateName === "idle" && windowsActive
+
     // split lobes are data-driven too: width per kind, 8 px apart
     function lobeWidth(kind) {
         if (kind === "media")
@@ -122,6 +133,27 @@ Window {
         height: hSpring.value
         radius: Tokens.islandRadius(height)
         border.color: Qt.rgba(1, 1, 1, 0.14)
+        // W20 — the dissolve: scale 1 -> 0 with the transform origin at
+        // the capsule's center + opacity fade (~200 ms InCubic) reads as
+        // the island shrinking into its own center point; the return is
+        // the reverse grow-from-center with the subtle OutBack spring.
+        transformOrigin: Item.Center
+        scale: islandRoot.idleHidden ? 0 : 1
+        opacity: islandRoot.idleHidden ? 0 : 1
+        Behavior on scale {
+            NumberAnimation {
+                duration: islandRoot.idleHidden ? 200 : 320
+                easing.type: islandRoot.idleHidden ? Easing.InCubic
+                                                   : Easing.OutBack
+            }
+        }
+        Behavior on opacity {
+            NumberAnimation {
+                duration: islandRoot.idleHidden ? 180 : 300
+                easing.type: islandRoot.idleHidden ? Easing.InCubic
+                                                   : Easing.OutCubic
+            }
+        }
         gradient: Gradient {
             GradientStop { position: 0; color: Tokens.ink }
             GradientStop { position: 1; color: Tokens.inkDeep }
