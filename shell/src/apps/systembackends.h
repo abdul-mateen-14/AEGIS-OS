@@ -269,6 +269,10 @@ class SoundBackend : public QObject {
     // [{id, name, volume, muted, isDefault}]
     Q_PROPERTY(QVariantList sinks READ sinks NOTIFY changed)
     Q_PROPERTY(QVariantList sources READ sources NOTIFY changed)
+    // W30 — honest empty states: wpctl missing, PipeWire running with no
+    // output device, and a live sink are three different facts; the pane
+    // must not render one placeholder line for all of them.
+    Q_PROPERTY(QString state READ state NOTIFY changed)
 public:
     explicit SoundBackend(QObject *parent = nullptr) : QObject(parent)
     {
@@ -277,11 +281,13 @@ public:
 
     QVariantList sinks() const { return m_sinks; }
     QVariantList sources() const { return m_sources; }
+    QString state() const { return m_state; }
 
     Q_INVOKABLE void refresh()
     {
         m_sinks.clear();
         m_sources.clear();
+        m_state = QStringLiteral("nowpctl");
         const QString wpctl = QStandardPaths::findExecutable(
             QStringLiteral("wpctl"), {QStringLiteral("/usr/bin")});
         if (!wpctl.isEmpty()) {
@@ -322,6 +328,11 @@ public:
                 else if (section == Sources)
                     m_sources.append(entry);
             }
+            // W30 — wpctl ran: PipeWire is answering, devices may still be
+            // absent (a VM with no audio backend exposes no sinks).
+            m_state = m_sinks.isEmpty()
+                          ? QStringLiteral("nodevice")
+                          : QStringLiteral("pipewire");
         }
         emit changed();
     }
@@ -358,6 +369,7 @@ private:
 
     QVariantList m_sinks;
     QVariantList m_sources;
+    QString m_state;
 };
 
 // ── Network ──────────────────────────────────────────────────────────────
@@ -367,10 +379,19 @@ class NetworkBackend : public QObject {
     // [{ssid, strength, secure, known, inUse}]
     Q_PROPERTY(QVariantList networks READ networks NOTIFY changed)
     Q_PROPERTY(bool wifiEnabled READ wifiEnabled NOTIFY changed)
+    // W30/W32 — ethernet devices: VMs (and most desktops) are wired-first;
+    // the pane must never be a dead wifi list.
+    // [{iface, plugged, active}]
+    Q_PROPERTY(QVariantList wired READ wired NOTIFY changed)
+    // W32 — a Wi-Fi device exists at all (the runner VM has none: say so
+    // instead of "scanning...").
+    Q_PROPERTY(bool hasWifi READ hasWifi NOTIFY changed)
 public:
     explicit NetworkBackend(QObject *parent = nullptr) : QObject(parent) {}
 
     QVariantList networks() const { return m_networks; }
+    QVariantList wired() const { return m_wired; }
+    bool hasWifi() const { return m_hasWifi; }
 
     bool wifiEnabled() const
     {
@@ -412,18 +433,36 @@ public:
             }
         }
 
-        // the Wi-Fi device (DeviceType 2) and its access points
+        // the Wi-Fi device (DeviceType 2) and its access points; the
+        // W30/W32 wired pass collects every ethernet device (type 1)
         QString wifiDevice;
+        m_wired.clear();
         const QVariant devs = dbusGet(nm, nmPath, nm,
                                       QStringLiteral("Devices"));
         for (const QString &p : dbusPaths(devs)) {
             const QVariantMap dm = dbusGetAll(nm, p,
                 QStringLiteral("org.freedesktop.NetworkManager.Device"));
-            if (dm.value(QStringLiteral("DeviceType")).toUInt() == 2u) {
+            const uint devType = dm.value(QStringLiteral("DeviceType")).toUInt();
+            if (devType == 2u && wifiDevice.isEmpty()) {
                 wifiDevice = p;
-                break;
+                continue;
+            }
+            if (devType == 1u) {
+                // NM device states: 100 activated, 30 disconnected,
+                // 20 unavailable (no carrier), 10 unmanaged.
+                const uint st = dm.value(QStringLiteral("State")).toUInt();
+                const QVariantMap wm = dbusGetAll(nm, p,
+                    QStringLiteral("org.freedesktop.NetworkManager.Device.Wired"));
+                m_wired.append(QVariantMap{
+                    {QStringLiteral("iface"),
+                     dm.value(QStringLiteral("Interface")).toString()},
+                    {QStringLiteral("plugged"),
+                     wm.value(QStringLiteral("Carrier")).toBool()},
+                    {QStringLiteral("active"), st == 100u},
+                });
             }
         }
+        m_hasWifi = !wifiDevice.isEmpty();
         if (!wifiDevice.isEmpty()) {
             const QVariant aps = dbusCall(nm, wifiDevice,
                 QStringLiteral("org.freedesktop.NetworkManager.Device.Wireless"),
@@ -556,6 +595,9 @@ private:
 
     QVariantList m_networks;
     QStringList m_knownSsids;
+    // W30/W32 — the wired-first pane
+    QVariantList m_wired;
+    bool m_hasWifi = false;
 };
 
 // ── Users (AccountsService) ──────────────────────────────────────────────

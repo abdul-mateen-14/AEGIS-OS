@@ -39,15 +39,145 @@ Window {
     // pane loader both resolve it as win.panes (one lookup, no inner-item
     // scoping surprises)
     property var panes: [
-        { label: "Wallpaper",          tint: "#8B5CF6" },
-        { label: "Appearance",         tint: "#3E8BFF" },
-        { label: "Desktop Effects",    tint: "#28C840" },
-        { label: "Drivers & Firmware", tint: "#FF9F0A" },
-        { label: "Displays",           tint: "#5B8BFF" },
-        { label: "Sound",              tint: "#FA2D48" },
-        { label: "Network",            tint: "#4AC8C8" },
-        { label: "Users",              tint: "#6E7BFF" }
+        { label: "Wallpaper",          tint: "#8B5CF6", glyph: "mountain" },
+        { label: "Appearance",         tint: "#3E8BFF", glyph: "palette" },
+        { label: "Desktop Effects",    tint: "#28C840", glyph: "sparkles" },
+        { label: "Drivers & Firmware", tint: "#FF9F0A", glyph: "chip" },
+        { label: "Displays",           tint: "#5B8BFF", glyph: "monitor" },
+        { label: "Sound",              tint: "#FA2D48", glyph: "speaker" },
+        { label: "Network",            tint: "#4AC8C8", glyph: "wifi" },
+        { label: "Users",              tint: "#6E7BFF", glyph: "person" }
     ]
+
+    // W31 — the §6 sidebar glyphs, same 18 px Canvas + stroke family as the
+    // CC tiles (the panes model carried {label, tint} only, so the sidebar
+    // rendered plain circles). Outline glyphs, one painter per pane, painted
+    // white inside the tint circle — the v1.3 settings-sheet look.
+    function paintPaneGlyph(name, ctx, w, h, color) {
+        ctx.reset()
+        ctx.strokeStyle = color
+        ctx.fillStyle = color
+        ctx.lineWidth = 1.5
+        ctx.lineCap = "round"
+        ctx.lineJoin = "round"
+        const cx = w / 2, cy = h / 2
+        // manual rounded rect — Context2D has no roundRect in the QML API
+        const rrect = (x, y, rw, rh, r) => {
+            ctx.moveTo(x + r, y)
+            ctx.arcTo(x + rw, y, x + rw, y + rh, r)
+            ctx.arcTo(x + rw, y + rh, x, y + rh, r)
+            ctx.arcTo(x, y + rh, x, y, r)
+            ctx.arcTo(x, y, x + rw, y, r)
+            ctx.closePath()
+        }
+        if (name === "mountain") {
+            // image/mountain — frame + two peaks + sun dot
+            ctx.beginPath()
+            rrect(1.5, 3, w - 3, h - 6, 2)
+            ctx.stroke()
+            ctx.beginPath()
+            ctx.moveTo(4, 13)
+            ctx.lineTo(8, 7)
+            ctx.lineTo(10.5, 10)
+            ctx.lineTo(12, 8)
+            ctx.lineTo(14.5, 13)
+            ctx.stroke()
+            ctx.beginPath()
+            ctx.arc(11.6, 6, 1.1, 0, Math.PI * 2)
+            ctx.fill()
+        } else if (name === "palette") {
+            // palette — blob with thumb hole + three paint wells
+            ctx.beginPath()
+            ctx.arc(cx, cy, 7, Math.PI * 0.85, Math.PI * 2.55)
+            ctx.arc(cx + 1.2, cy + 1.2, 3.4, Math.PI * 2.2, Math.PI * 0.7,
+                    true)
+            ctx.closePath()
+            ctx.stroke()
+            const dots = [[cx - 3.4, cy - 1.6], [cx - 1.2, cy - 3.8],
+                          [cx + 2.0, cy - 3.4]]
+            for (const d of dots) {
+                ctx.beginPath()
+                ctx.arc(d[0], d[1], 1.05, 0, Math.PI * 2)
+                ctx.fill()
+            }
+        } else if (name === "sparkles") {
+            // desktop effects — one big + two small four-point stars
+            const star = (x, y, r) => {
+                ctx.beginPath()
+                ctx.moveTo(x, y - r)
+                ctx.quadraticCurveTo(x, y, x + r, y)
+                ctx.quadraticCurveTo(x, y, x, y + r)
+                ctx.quadraticCurveTo(x, y, x - r, y)
+                ctx.quadraticCurveTo(x, y, x, y - r)
+                ctx.closePath()
+                ctx.fill()
+            }
+            star(cx - 1.5, cy - 0.5, 5)
+            star(cx + 5, cy - 4.5, 2.4)
+            star(cx + 4.5, cy + 4.5, 2)
+        } else if (name === "chip") {
+            // drivers & firmware — chip body, legs, inner die
+            ctx.beginPath()
+            rrect(4, 4, w - 8, h - 8, 2)
+            ctx.stroke()
+            ctx.beginPath()
+            rrect(6.8, 6.8, w - 13.6, h - 13.6, 1)
+            ctx.stroke()
+            for (let i = 0; i < 3; ++i) {
+                const p = 6.5 + i * 3.5
+                ctx.beginPath(); ctx.moveTo(p, 1.5); ctx.lineTo(p, 4); ctx.stroke()
+                ctx.beginPath(); ctx.moveTo(p, h - 4); ctx.lineTo(p, h - 1.5); ctx.stroke()
+                ctx.beginPath(); ctx.moveTo(1.5, p); ctx.lineTo(4, p); ctx.stroke()
+                ctx.beginPath(); ctx.moveTo(w - 4, p); ctx.lineTo(w - 1.5, p); ctx.stroke()
+            }
+        } else if (name === "monitor") {
+            // displays — screen + stand + base
+            ctx.beginPath()
+            rrect(2, 3, w - 4, h - 9, 2)
+            ctx.stroke()
+            ctx.beginPath()
+            ctx.moveTo(cx, h - 6)
+            ctx.lineTo(cx, h - 3)
+            ctx.stroke()
+            ctx.beginPath()
+            ctx.moveTo(cx - 4, h - 3)
+            ctx.lineTo(cx + 4, h - 3)
+            ctx.stroke()
+        } else if (name === "speaker") {
+            // sound — driver body + one wave
+            ctx.beginPath()
+            ctx.moveTo(cx - 6, cy - 2.5)
+            ctx.lineTo(cx - 3, cy - 2.5)
+            ctx.lineTo(cx + 1, cy - 6.5)
+            ctx.lineTo(cx + 1, cy + 6.5)
+            ctx.lineTo(cx - 3, cy + 2.5)
+            ctx.lineTo(cx - 6, cy + 2.5)
+            ctx.closePath()
+            ctx.fill()
+            ctx.beginPath()
+            ctx.arc(cx + 2.5, cy, 3.4, -Math.PI / 3, Math.PI / 3)
+            ctx.stroke()
+        } else if (name === "wifi") {
+            // network — the CC paintWifi arcs
+            const b = cy + 3.5
+            for (let i = 1; i <= 3; ++i) {
+                ctx.beginPath()
+                ctx.arc(cx, b, i * 3.2, Math.PI * 1.25, Math.PI * 1.75, false)
+                ctx.stroke()
+            }
+            ctx.beginPath()
+            ctx.arc(cx, b, 1.5, 0, Math.PI * 2)
+            ctx.fill()
+        } else if (name === "person") {
+            // users — head + shoulders
+            ctx.beginPath()
+            ctx.arc(cx, cy - 2.8, 3.2, 0, Math.PI * 2)
+            ctx.stroke()
+            ctx.beginPath()
+            ctx.arc(cx, cy + 6.2, 5.2, Math.PI * 1.15, Math.PI * 1.85)
+            ctx.stroke()
+        }
+    }
 
     // W12 — the glass switch: the Control Center tile toggle's anatomy
     // (accent track when on, white knob on the standard easing) as a real
@@ -218,6 +348,15 @@ Window {
                                     Layout.leftMargin: 10
                                     color: modelData.tint
                                     opacity: 0.9
+                                    // W31 — the pane glyph inside the tint
+                                    // circle (outline, white on the tint)
+                                    Canvas {
+                                        anchors.fill: parent
+                                        onPaint: win.paintPaneGlyph(
+                                            modelData.glyph,
+                                            getContext("2d"), width, height,
+                                            "#FFFFFF")
+                                    }
                                 }
                                 Text { text: modelData.label; font.pixelSize: 13; color: Tokens.fg; Layout.alignment: Qt.AlignVCenter }
                                 Item { Layout.fillWidth: true }
@@ -1219,8 +1358,14 @@ Window {
             }
             Text {
                 visible: Sound.sinks.length === 0
-                text: "wpctl not available — PipeWire session not found"
+                // W30 — the three empty states are different facts; one
+                // placeholder line for all of them read as a broken pane.
+                text: Sound.state === "nowpctl"
+                      ? "wpctl not available — PipeWire session not found"
+                      : "No output device — PipeWire is running but no audio hardware is exposed"
                 font.pixelSize: 11; color: Tokens.fgMuted
+                wrapMode: Text.WordWrap
+                Layout.fillWidth: true
             }
             AbstractButton {
                 Layout.preferredHeight: 26; Layout.preferredWidth: 80
@@ -1239,6 +1384,42 @@ Window {
             Component.onCompleted: { Network.loadKnown(); Network.refresh() }
 
             Text { text: "Network"; font.family: "Montserrat"; font.pixelSize: 20; font.weight: Font.DemiBold; color: Tokens.fg }
+
+            // W30/W32 — the wired section first: VMs are ethernet-only and
+            // the pane must never read as dead. One row per ethernet device
+            // with its honest carrier state.
+            Repeater {
+                model: Network.wired
+                delegate: Rectangle {
+                    Layout.fillWidth: true
+                    Layout.preferredHeight: 38
+                    radius: 8
+                    color: Util.darkMode ? "#1E2026" : "#FFFFFF"
+                    border.color: Tokens.glassBorder
+                    RowLayout {
+                        anchors { fill: parent; leftMargin: 10; rightMargin: 10 }
+                        spacing: 8
+                        Rectangle {
+                            width: 8; height: 8; radius: 4
+                            Layout.alignment: Qt.AlignVCenter
+                            color: modelData.active ? "#28C840"
+                                                    : (modelData.plugged ? Tokens.accent
+                                                                         : (Util.darkMode ? "#3A3D45" : "#C6CCD8"))
+                        }
+                        Text {
+                            text: "Wired — " + modelData.iface
+                            font.pixelSize: 12; color: Tokens.fg
+                            Layout.fillWidth: true
+                        }
+                        Text {
+                            text: modelData.active ? "Connected"
+                                                   : (modelData.plugged ? "Cable connected"
+                                                                        : "Cable unplugged")
+                            font.pixelSize: 11; color: Tokens.fgMuted
+                        }
+                    }
+                }
+            }
 
             RowLayout {
                 GlassSwitch {
@@ -1311,9 +1492,12 @@ Window {
 
             Text {
                 visible: Network.networks.length === 0
-                text: Network.wifiEnabled
-                      ? "No networks visible — scanning…"
-                      : "Wi-Fi is off"
+                // W32 — a VM with no Wi-Fi radio must say so, not "scanning".
+                text: !Network.hasWifi
+                      ? "No Wi-Fi device — wired networking is above"
+                      : Network.wifiEnabled
+                        ? "No networks visible — scanning…"
+                        : "Wi-Fi is off"
                 font.pixelSize: 11; color: Tokens.fgMuted
             }
             AbstractButton {

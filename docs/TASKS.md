@@ -542,6 +542,20 @@ Work order below is dependency-aware; the review's own order is W16-W23.
      head on PATH, launch THAT (clean, quote-free, matches the tile
      tracking head); the entry Exec stays the fallback when nothing is
      on PATH (W24 honesty preserved).
+- D11 — BATCH 2 OPENED (v0.6.47): W30.2 (Sound honest empty states —
+  SoundBackend.state is now "nowpctl" / "nodevice" / "pipewire" and the
+  pane says WHICH one) + W30.3/W32.2 (Network pane wired section —
+  NetworkBackend.wired [{iface, plugged, active}] from DeviceType 1 +
+  Carrier + State, green/accent/dot and Connected / Cable connected /
+  Cable unplugged; NetworkBackend.hasWifi so a radio-less VM reads
+  "No Wi-Fi device" instead of "scanning...") + W31 (the §6 sidebar
+  glyphs — panes carry glyph keys, paintPaneGlyph paints outline glyphs
+  in the tint circles: mountain · palette · sparkles · chip · monitor ·
+  speaker · wifi · person, the CC stroke family, arcTo-based rrect
+  because Context2D has no roundRect). REMAINING batch 2: W30.1
+  (kscreen package + per-output rows), W32.1/32.3 (WPA join sheet +
+  bluetooth), W33 (drivers pane), W34 (Aegis ID errors + profile),
+  W35 (XKB), W36 (desktop context menu), W37 (dead-control sweep).
 
 ---
 
