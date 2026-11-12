@@ -41,7 +41,16 @@ function isFull(w) {
 }
 
 function recount() {
-    var desk = workspace.activeDesktop
+    // T13 — workspace.activeDesktop is NOT guaranteed to exist in the 6.6
+    // scripting API: when it is undefined, onDesktop() fails every window
+    // that sits on a specific desktop (indexOf(undefined) = -1) and the
+    // count stayed 0 FOREVER — the v0.6.39 boot run shipped exactly that
+    // (the payload arrived, the count never moved off 0). When the
+    // active desktop is unknowable, count ALL trackable windows — the
+    // honest approximation of the ruling's predicate.
+    var desk = null
+    try { desk = workspace.activeDesktop } catch (e) {}
+    var deskOk = (desk !== null && desk !== undefined)
     var count = 0
     var anyFull = false
     var ids = []
@@ -50,7 +59,9 @@ function recount() {
         var w = wins[i]
         if (dying.indexOf(w) >= 0)
             continue
-        if (!isTrackable(w) || !onDesktop(w, desk))
+        if (!isTrackable(w))
+            continue
+        if (deskOk && !onDesktop(w, desk))
             continue
         ++count
         ids.push(String(w.resourceClass || ""))

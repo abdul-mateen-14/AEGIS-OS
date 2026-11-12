@@ -650,8 +650,10 @@ def app_diag(serial):
         "| tail -6",
         "echo ===KWIN-PLUGINS===; ls /usr/lib/x86_64-linux-gnu/qt6/plugins/kwin/effects/plugins/ 2>&1; ls /usr/lib/qt6/plugins/kwin/effects/plugins/ 2>&1; echo PLUGINS-DONE",
         # T13 W24 — the launch logs (one file per app head, rotated):
-        # the VM review's diagnosability ask, visible in CI
-        "echo ===LAUNCH-LOGS===; tail -n 5 /home/aegis/.local/state/aegis/launch/*.log 2>&1 | head -40",
+        # the VM review's diagnosability ask, visible in CI. Qt's
+        # StateLocation APPENDS the app name, so the shell's logs live at
+        # ~/.local/state/aegis-shell/... — glob both shapes.
+        "echo ===LAUNCH-LOGS===; tail -n 5 /home/aegis/.local/state/*/aegis/launch/*.log 2>&1 | head -40",
         # W14 — did the splash renderer really run? The boot frames keep
         # missing the (short) plymouth window on the ~10 s KVM boot, so the
         # journal is the evidence: theme selected, service state, plugin.
@@ -1476,9 +1478,6 @@ def main():
                 "^DBUS_SESSION_BUS_ADDRESS= | cut -d= -f2-); "
                 "A=${A:-unix:path=$XDG_RUNTIME_DIR/bus}; "
                 "echo ===AEGIS-WINDOWS===; "
-                "busctl --address=$A call org.aegis.Shell /org/aegis/Shell "
-                "org.freedesktop.DBus.Properties Get ss org.aegis.Shell "
-                "workspaceWindows 2>&1; "
                 "busctl --address=$A call org.aegis.Shell /org/aegis/Shell "
                 "org.aegis.Shell windowListRaw 2>&1; "
                 "echo WINDBG-END",
