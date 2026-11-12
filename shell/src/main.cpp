@@ -37,6 +37,8 @@
 #include "util.h"
 #include "governor/Governor.h"
 #include "activity/ActivityService.h"
+// W36.1 — Desktop.qml resolves Aegis.Files for the New Folder action
+#include "apps/filemanager.h"
 
 namespace {
 
@@ -228,6 +230,11 @@ int main(int argc, char *argv[])
     static Util util;
     static ActivityService activity;
     static Governor governor(&util);
+    // v0.6.48 run — Desktop.qml imports Aegis.Files and the shell's engine
+    // only registered Util/Activity/Governor: the import failed, the
+    // Desktop component died, and the session aborted at startup
+    // (sddm-helper exit 134 — the boot gate red, correctly).
+    static FileManager files;
     // this process owns org.aegis.Shell on the bus: its accent/wallpaper
     // writes apply locally and must NOT be re-forwarded over DBus
     util.setOwnsDBus(true);
@@ -235,6 +242,7 @@ int main(int argc, char *argv[])
     qmlRegisterSingletonInstance("Aegis.Util", 1, 0, "Util", &util);
     qmlRegisterSingletonInstance("Aegis.Activity", 1, 0, "Activity", &activity);
     qmlRegisterSingletonInstance("Aegis.Governor", 1, 0, "Governor", &governor);
+    qmlRegisterSingletonInstance("Aegis.Files", 1, 0, "Files", &files);
 
     QQmlApplicationEngine engine;
     engine.addImageProvider(QStringLiteral("icons"), new IconProvider);

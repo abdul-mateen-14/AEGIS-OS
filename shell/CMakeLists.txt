@@ -36,6 +36,9 @@ qt_add_executable(aegis-shell
     src/governor/Governor.cpp
     src/activity/ActivityService.h
     src/activity/ActivityService.cpp
+    # Desktop.qml (W36.1) calls Files.makeDir for New Folder — the shell's
+    # engine must resolve Aegis.Files, not just the apps binary
+    src/apps/filemanager.h
 )
 
 qt_add_resources(aegis-shell "shell"

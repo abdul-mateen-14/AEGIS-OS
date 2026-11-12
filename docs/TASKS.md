@@ -614,6 +614,21 @@ Work order below is dependency-aware; the review's own order is W16-W23.
   review's honest answer (the Print-to-PDF ask waits for an archive
   reintroduction or a locally built deb). v0.6.48 = the same tree with
   the line gone; the D15 corex fix and D11-D14 ride it.
+- D17 — v0.6.48 BOOT RUN RED, A NEW CLASS: THE SESSION NEVER CAME UP.
+  sddm-helper exited 134 (SIGABRT) right after "aegis-session start ...
+  vt=2", sddm retried on vt3, wait_desktop timed out, the harness went
+  to the serial-recovery path. ROOT CAUSE: MY OWN D11-D14 — Desktop.qml
+  (a SHELL QML file) now imports Aegis.Files for the New Folder action,
+  but the shell's engine registers ONLY Util/Activity/Governor
+  (Aegis.Files is an apps-main registration); the import failed, the
+  Desktop component died, the session aborted. The audit says Desktop.qml
+  is the ONLY shell-loaded file using an app-only module. FIX: register
+  Aegis.Files in main.cpp (static FileManager files) and add
+  apps/filemanager.h to the aegis-shell CMake target. The boot gate did
+  exactly its job — a shipped-green-class regression went red on the
+  runner instead of on the reviewer's VM. v0.6.49 = the fix + everything
+  from D15 (the corex quoted-Exec fix is STILL UNVERIFIED — both the
+  v0.6.47 ISO build red and the v0.6.48 session abort blocked it).
 
 ---
 
