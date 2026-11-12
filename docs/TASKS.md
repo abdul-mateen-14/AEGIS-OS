@@ -15,6 +15,88 @@ cannot lose the plan.
 
 ---
 
+## T12 — v0.6.35: reviewer round 5 — W16-W23 (TODO)
+
+Opened 2026-11-12 from the uploaded review of v0.6.34
+(docs/REVIEW-v0.6.35.md — committed verbatim, rulings quoted from it).
+Scope: 4 fixes + 1 verify + 1 carry-over, 3 features, 4 test gaps.
+Work order below is dependency-aware; the review's own order is W16-W23.
+
+### Subtasks
+
+- D1 — W17 Monitor honesty (review §2): the v0.6.34 04f capture shows an
+  EMPTY Cores card and "0.0 GB of 0.0 GB" Memory while the process table
+  renders real RSS — so /proc reading works but the meminfo and per-core
+  parsers are broken. Fix the parsers (MemTotal KiB->GB, per-core from
+  /proc/stat); when a source is unavailable hide the card or show an
+  explicit unavailable placeholder — never a blank card. Assert lands
+  with W23.3.
+- D2 — W18 font pin (review §2): etc/xdg/kdeglobals has no [WM]
+  activeFont and no [General] font, so captions and Qt widgets fall back
+  to the session default instead of Montserrat 13 DemiBold / Montserrat
+  10. Ship the Qt6 KConfig serialization (Montserrat,13,-1,5,600,... /
+  Montserrat,10,-1,5,400,...); W23.1 asserts the keys exist, the
+  terminal caption crop re-checks the glyphs.
+- D3 — W19 GTK decoration layout (review §2): gtk-decoration-layout=
+  close,minimize,maximize: into gtk-3.0 AND gtk-4.0 settings.ini — skel
+  AND the aegis-gtk-sync writer in hook 0810.
+- D4 — W16 Files kind tints (review §2): image://icons gets a ?tint=
+  query param and the provider recolors the SVG stroke at request time;
+  document kinds map to document glyphs (PDF -> doc-page #FA2D48,
+  archive -> box #FF9F0A, text -> doc-line #3E8BFF; folder/image/audio/
+  video unchanged). Assert = W23.3 tint check on report.pdf.
+- D5 — V1 dock magnification clip (review §2): the pill padding must
+  grow by the magnification delta (Files clipped at the left edge in
+  01b-dock-magnify.png). W23.4 adds the magnified capture + assert.
+- D6 — carry-over (review §2): add the 18 px Aegis mark to the Control
+  Center header and Settings (v1.3 ruling stands; say so in the release
+  notes so the reviewer can close the item).
+- D7 — W23 test gaps (review §4): (1) parse the ===KWINRC=== dump and
+  FAIL the release on decoration drift (theme, ButtonsOnLeft, BorderSize
+  — the v0.6.20 class of shipped-green regressions); (2) capture the
+  SDDM greeter between splash and session + pixel assert (mark present,
+  progress line present — boot-14/15 are pure black today); (3) the
+  W16 tint assert and W17 monitor-card assert in the probe verdicts;
+  (4) the magnified-dock capture.
+- D8 — W20 island auto-hide (review §3): real window tracking first —
+  a shipped KWin script (workspace.windowAdded/Removed/activeWindow-
+  Changed) counts normal windows on the active workspace + maximized/
+  fullscreen flag and pushes org.aegis.Shell.windowListChanged(count,
+  anyFull); Util keeps the QML contract (isRunning / runningCmdsChanged)
+  and drops the launch-recorded backing store (closes the util.h:100
+  gap; dock running dots start working for foreign-launched apps).
+  Island behavior: idle island hides when the active workspace has a
+  window; hide = scale 1->0 transformOrigin Center + fade ~200 ms
+  InCubic; show on any non-idle activity (notification/charging/timer/
+  Aegis-ID/nowPlaying) or empty workspace again (~320 ms OutBack grow);
+  activity states ALWAYS win over the window predicate.
+- D9 — W21 dock-anchored open/close (review §3, lands after D8): KWin
+  scripted effect aegis-dockzoom — open grows scale 0.3->1 from the
+  dock tile center ~280 ms OutCubic, close/minimize reverse ~200 ms
+  InCubic; shell publishes app-id -> icon-rect map via DBus or
+  $XDG_RUNTIME_DIR/aegis/dock-map.json; normal windows only, never
+  layer-shell surfaces or popups. Fallback if the scripted effect is
+  unstable on 6.6: stock kwin4_effect_scale ~240 ms center origin
+  (documented, acceptable).
+- D10 — W22 web shortcuts, strictly opt-in (review §3): zero web tiles
+  in the default dock (W9 holds); Add to Dock... flow (paste URL ->
+  fetch title + apple-touch-icon/favicon.ico/letter-tile fallback ->
+  ~/.local/share/aegis/webicons/<hash>.png + aegis-web-<hash>.desktop
+  with Exec=xdg-open), remove deletes both files, user entries append
+  after the last first-party slot before Trash. Dedupe ALL .desktop
+  walkers by StartupWMClass/Exec basename (the browser deb ships two
+  identical entries — aegis-browser.desktop + org.aegisbrowser.Aegis).
+- D11 — release: qml-guard -> commit -> pull --rebase -> push -> tag
+  v0.6.35 -> Release CI -> Boot Test inputs.tag v0.6.35 -> verify the
+  extended capture set (greeter, magnify, tint, monitor cards, kwinrc
+  assert) -> close T12.
+
+### Status
+
+- TODO — all of D1-D11. Session log: none yet.
+
+---
+
 ## T11 — v0.6.28-v0.6.34: M3 apps on the dock + in the boot captures (SHIPPED)
 
 Opened 2026-11-12. User report on the shipped v0.6.27: "the boot [captures]
