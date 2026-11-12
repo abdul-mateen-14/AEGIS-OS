@@ -377,6 +377,58 @@ Work order below is dependency-aware; the review's own order is W16-W23.
   (QString json) parses {"count", "anyFull", "ids"}; the script sends
   JSON.stringify({count, anyFull, ids}). No type roulette possible.
   v0.6.38 = the JSON contract (ISO change, new tag).
+- D6 — v0.6.39 run 8 (FAILED, and the batch-1 instrumentation paid for
+  itself immediately):
+  1. W20 IS ALIVE END TO END: the window-state dump (fixed address from
+     the aegis-shell environ) read windowListRaw =
+     {"count":0,"anyFull":false,"ids":[]} — the script pushes arrive in
+     Util. BUT the count never moved off 0 when Files opened. ROOT
+     CAUSE: workspace.activeDesktop is not usable in the 6.6 scripting
+     API (undefined) — onDesktop() failed EVERY window that sits on a
+     specific desktop (indexOf(undefined) = -1) and only windows on all
+     desktops would count. FIX: deskOk guard — when the active desktop
+     is unknowable, count ALL trackable windows (the honest
+     approximation of the ruling's predicate).
+  2. W24 launch logs: the diag found no files at
+     ~/.local/state/aegis/launch/ because Qt's StateLocation APPENDS
+     the app name — the shell's logs live at
+     ~/.local/state/aegis-shell/aegis/launch/. Diag glob fixed to
+     /home/aegis/.local/state/*/aegis/launch/*.log.
+  3. The Properties.Get of workspaceWindows failed on this object
+     ("Interface org.aegis.Shell was not found") while the windowListRaw
+     invokable worked — the dump now reads ONLY windowListRaw (it
+     carries count/anyFull/ids anyway).
+  4. THE TIER B DEBS DID NOT OPEN (browser/os/corex diff 0.0-3.5, the
+     gate went red on all three — the honest W24 red the review asked
+     for). The dock-click attempt (resolver + wrapper) also failed, so
+     the electron apps do not start even guarded, OR the wrapper never
+     engaged. The launch logs (with the fixed path) name it on the next
+     run. NOT yet fixed — the diagnosis continues in v0.6.40.
+  v0.6.40 = the activeDesktop guard + the diag fixes; the Tier B
+  launch diagnosis rides the same run.
+- D7 — v0.6.40 run 9: TWO DECISIVE RESULTS.
+  1. **W20 ISLAND CHAIN GREEN**: "island assert: home 27 px (visible),
+     files 0 px (should be hidden)" — the KWin script -> DBus -> Util ->
+     QML dissolve chain is proven END TO END on the runner. Seven
+     shipped-green-class breaks were found and killed on the way (key
+     shape, path, layer-surface counting, double-vs-int marshalling,
+     activeDesktop, plus the two harness blind spots). The dock running
+     dots now track real windows for foreign-launched apps too.
+  2. The launch logs delivered the W25 diagnosis EXACTLY as designed:
+     aegis-browser-stable.log carries
+     "FATAL:sandbox/linux/services/credentials.cc:131 Check failed:
+     Permission denied (13)" + Trace/breakpoint trap — the Chromium
+     SUID helper fails EVEN after the 4755 chmod (the guest root is
+     mounted nosuid; user namespaces unavailable). The review's
+     "--no-sandbox only if the SUID check fails" cannot detect a nosuid
+     mount, so aegis-electron-launch now passes --disable-gpu
+     --no-sandbox unconditionally in VM mode (the wrapper only engages
+     in a VM — the metal path keeps the real sandbox). Also visible:
+     the launch-log FILE NAMES pick up serial-console escape junk for
+     harness-typed launches (the known ANSI artifact — the dock's own
+     launches name them cleanly); cosmetic, documented.
+  v0.6.41 = the wrapper fix (ISO change, new tag). Batch 2 (W30-W37)
+  queued after the Tier B gate goes green.
 
 ---
 

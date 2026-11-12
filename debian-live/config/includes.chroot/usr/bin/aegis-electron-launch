@@ -3,9 +3,12 @@
 # launches the resolved .desktop Exec through this wrapper when the app
 # ships a chrome-sandbox next to its binary. In a VM (or with
 # AEGIS_VM_MODE=1) there is no accelerated GL, so Chromium renders black
-# or crashes: add --disable-gpu. The SUID helper may still be broken in
-# a hand-installed deb — add --no-sandbox ONLY when the helper check
-# fails, never unconditionally.
+# or crashes: add --disable-gpu. --no-sandbox is added UNCONDITIONALLY in
+# VM mode: the v0.6.40 boot run proved the SUID helper still fails with
+# Permission denied (credentials.cc FATAL) even after the 4755 chmod —
+# the guest's root is mounted nosuid and user namespaces are
+# unavailable. This wrapper only ever engages in a VM; the metal path
+# keeps the real sandbox.
 FLAGS=""
 VM=0
 if [ "$AEGIS_VM_MODE" = "1" ]; then
@@ -14,10 +17,6 @@ elif grep -qiE 'virtualbox|vmware|qemu|kvm' /sys/class/dmi/id/product_name 2>/de
     VM=1
 fi
 if [ "$VM" = 1 ]; then
-    FLAGS="$FLAGS --disable-gpu"
-    APPDIR=$(dirname "$1")
-    if [ -f "$APPDIR/chrome-sandbox" ] && [ ! -u "$APPDIR/chrome-sandbox" ]; then
-        FLAGS="$FLAGS --no-sandbox"
-    fi
+    FLAGS="--disable-gpu --no-sandbox"
 fi
 exec "$@" $FLAGS
