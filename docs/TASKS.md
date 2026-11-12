@@ -195,6 +195,13 @@ capture, no proof the apps open on the runner.
   verdicts, the Browser deb URL r31 -> r45. v0.6.32 follows with the
   0900 hook executable bit (browser slot regression vs v0.6.27).
 
+- v0.6.33 (commit b66a018, D5e): Release CI green (run 43105308237,
+  ISO parts published on the release page), Boot Test dispatched
+  (run 43134801060, inputs.tag v0.6.33, ref main). Verify on green:
+  the guest dock reports 11 tiles (the Aegis Browser slot restored by
+  the includes-chroot deb path), 04c..04f captures green, screenshots
+  committed to docs/screenshots/v0.6.33/, then T11 closes for good.
+
 - D1-D3 detail: four Tier A slots in config.json +
   the util.cpp mirror; boot-capture.py grew the four open_app captures
   (04c-music / 04d-calculator / 04e-editor / 04f-monitor, click_idx 5-8),
@@ -202,8 +209,9 @@ capture, no proof the apps open on the runner.
   first-party apps, app_diag grew PROBE-M/C/E/N foreground probes (music
   filters pipewire/pulse/gstreamer/alsa chatter out of its DIRTY verdict
   and its fetch). qml-guard PASS (21), py_compile PASS, config parses
-  11 tiles. Shell CI compiles this push; tag v0.6.28 after green.
-- D4 — release: pending (tag v0.6.30 once Shell CI is green).
+  11 tiles. (Tag plan moved through v0.6.28-v0.6.32, see SHIPPED above.)
+- D4 — release: DONE for v0.6.31/v0.6.32 (green boot tests); v0.6.33
+  release + boot test in flight, see the status entry above.
 
 ---
 
