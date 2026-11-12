@@ -79,17 +79,30 @@ Window {
                 anchors.margins: 16
                 spacing: 12
 
-                // ── header: title ─────────────────────────────
+                // ── header: mark + title ──────────────────────
+                // D6 — the CC header carries the 18 px mark (reviewer
+                // carry-over on v0.6.34; the v1.3 ruling stands)
                 Item {
                     width: parent.width
                     height: 30
 
-                    Text {
+                    Row {
                         anchors.left: parent.left
                         anchors.verticalCenter: parent.verticalCenter
-                        text: "Control Center"
-                        color: Tokens.fg
-                        font { family: "Montserrat"; pixelSize: 13; weight: Font.DemiBold }
+                        spacing: 8
+
+                        Image {
+                            source: "aegis-mark.png"
+                            sourceSize: Qt.size(18, 18)
+                            width: 18; height: 18
+                            anchors.verticalCenter: parent.verticalCenter
+                        }
+                        Text {
+                            text: "Control Center"
+                            color: Tokens.fg
+                            font { family: "Montserrat"; pixelSize: 13; weight: Font.DemiBold }
+                            anchors.verticalCenter: parent.verticalCenter
+                        }
                     }
                 }
 

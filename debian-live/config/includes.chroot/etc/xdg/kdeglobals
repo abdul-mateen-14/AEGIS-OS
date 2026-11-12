@@ -1,5 +1,8 @@
 [General]
 ColorScheme=AegisDark
+# W18 — pin the type: without [General] font every Qt widget app fell
+# back to the session default; Montserrat 10 is the v1.3 body token.
+font=Montserrat,10,-1,5,400,0,0,0,0,0
 
 [KDE]
 widgetStyle=breeze
@@ -110,3 +113,9 @@ inactiveBackground=34,36,43
 inactiveForeground=150,155,166
 activeBlend=224,226,232
 inactiveBlend=150,155,166
+# W18 — the aurorae caption font: Montserrat 13 DemiBold (Qt6 KConfig
+# serialization: family,pointSize,pixelSize,styleHint,weight,style,
+# underline,strikeOut,fixedPitch,letterSpacing — weight 600 = DemiBold
+# on the Qt6 OpenType scale). Caption geometry is unchanged: the 44 px
+# band already centers it.
+activeFont=Montserrat,13,-1,5,600,0,0,0,0,0

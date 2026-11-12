@@ -43,6 +43,9 @@ gtk-font-name=Montserrat 10
 gtk-cursor-theme-name=Breeze
 gtk-cursor-theme-size=24
 gtk-application-prefer-dark-theme=true
+# W19 — one window anatomy on the GTK side too: everything left of the
+# colon sits LEFT of the titlebar, matching the aurorae traffic lights.
+gtk-decoration-layout=close,minimize,maximize:
 SETTINGS_EOF
   cat > "/etc/skel/.config/gtk-$ver/gtk.css" <<CSS_EOF
 /* aegis-gtk-sync — the one accent token, mirrored into GTK (W5) */
@@ -91,6 +94,8 @@ gtk-font-name=Montserrat 10
 gtk-cursor-theme-name=Breeze
 gtk-cursor-theme-size=24
 gtk-application-prefer-dark-theme=$DARK
+# W19 — same layout rule as the skel seed above (close left).
+gtk-decoration-layout=close,minimize,maximize:
 SETTINGS_EOF
   cat > "$CONF/gtk-$ver/gtk.css" <<CSS_EOF
 /* aegis-gtk-sync — the one accent token, mirrored into GTK (W5) */

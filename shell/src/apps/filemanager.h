@@ -328,6 +328,7 @@ private:
         QString tint = QStringLiteral("#8A909C");
         QString label = QStringLiteral("File");
         QString icon = QStringLiteral("text-x-generic");
+        bool tintable = false;
         QString mime;
         if (fi.isDir()) {
             tint = QStringLiteral("#5B8BFF");
@@ -340,16 +341,23 @@ private:
             if (mt.isValid())
                 mime = mt.name();
             const QString n = mime.toLower();
+            // W16 — document kinds render DOCUMENT glyphs tinted by §8.1
+            // (the provider template-recolors on the ?tint= query);
+            // folder/image/audio/video glyphs are pre-colored theme SVGs
+            // and stay untouched (tintable false).
             if (n == QLatin1String("application/pdf")) {
                 tint = QStringLiteral("#FA2D48");
                 label = QStringLiteral("PDF");
-                icon = QStringLiteral("folder-documents");
+                icon = QStringLiteral("aegis-doc-page");
+                tintable = true;
             } else if (n.contains(QLatin1String("zip"))
                        || n.contains(QLatin1String("tar"))
                        || n.contains(QLatin1String("compressed"))
                        || n.contains(QLatin1String("archive"))) {
                 tint = QStringLiteral("#FF9F0A");
                 label = QStringLiteral("Archive");
+                icon = QStringLiteral("aegis-doc-archive");
+                tintable = true;
             } else if (n.startsWith(QLatin1String("image/"))) {
                 tint = QStringLiteral("#8B5CF6");
                 label = QStringLiteral("Image");
@@ -365,9 +373,12 @@ private:
             } else if (n.startsWith(QLatin1String("text/"))) {
                 tint = QStringLiteral("#3E8BFF");
                 label = QStringLiteral("Text");
+                icon = QStringLiteral("aegis-doc-text");
+                tintable = true;
             }
         }
         m.insert(QStringLiteral("tint"), tint);
+        m.insert(QStringLiteral("tintable"), tintable);
         m.insert(QStringLiteral("label"), label);
         m.insert(QStringLiteral("icon"), icon);
         m.insert(QStringLiteral("mime"), mime);

@@ -29,6 +29,8 @@
 #include <QQmlApplicationEngine>
 #include <QQmlEngine>
 #include <QMargins>
+#include <QUrlQuery>
+#include <QColor>
 
 #include <LayerShellQt/Window>
 
@@ -47,9 +49,32 @@ public:
                         const QSize &requestedSize) override
     {
         const QSize px = requestedSize.isEmpty() ? QSize(96, 96) : requestedSize;
-        QIcon icon = QIcon::fromTheme(id,
+        // W16 — same tint query as the apps host: "?tint=%23RRGGBB"
+        // template-recolors the glyph (keep alpha, swap RGB).
+        QString name = id;
+        QColor tint;
+        const int q = id.indexOf(QLatin1Char('?'));
+        if (q >= 0) {
+            name = id.left(q);
+            const QUrlQuery query(id.mid(q + 1));
+            const QString t = query.queryItemValue(QStringLiteral("tint"));
+            if (!t.isEmpty()) tint = QColor(t);
+        }
+        QIcon icon = QIcon::fromTheme(name,
             QIcon::fromTheme(QStringLiteral("application-x-executable")));
         QImage image = icon.pixmap(px).toImage();
+        if (tint.isValid() && !image.isNull()) {
+            image = image.convertToFormat(QImage::Format_ARGB32_Premultiplied);
+            for (int y = 0; y < image.height(); ++y) {
+                QRgb *row = reinterpret_cast<QRgb *>(image.scanLine(y));
+                for (int x = 0; x < image.width(); ++x) {
+                    const int a = qAlpha(row[x]);
+                    if (a == 0) continue;
+                    row[x] = qPremultiply(qRgba(tint.red(), tint.green(),
+                                                tint.blue(), a));
+                }
+            }
+        }
         if (size) *size = image.size();
         return image;
     }

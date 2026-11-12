@@ -47,6 +47,7 @@ Window {
 
     function resetField() {
         hoverIndex = -1
+        tray.fieldGrowth = 0
         for (var i = 0; i < row.children.length; ++i) {
             var t = row.children[i]
             if (t.spring)
@@ -109,7 +110,14 @@ Window {
             bottom: parent.bottom
             bottomMargin: Tokens.dockMargin
         }
-        width: row.implicitWidth + Tokens.trayPadding * 2
+        // V1 — the pill's horizontal padding grows by the same delta the
+        // magnified icons add: the row always grew the tray with it, but
+        // the PADDING stayed 6 px, so the end tiles kept kissing the
+        // rounded corners while the field was live (01b-dock-magnify:
+        // Files at 3-4 px from the left edge). The solver writes the
+        // largest spring rise over B here; both ends clear the corners.
+        property real fieldGrowth: 0
+        width: row.implicitWidth + Tokens.trayPadding * 2 + fieldGrowth
         // macOS behaviour — the tray is a FIXED SHELF. Its height NEVER
         // changes: the magnified icon OVERFLOWS above the tray's top edge and
         // hangs over the desktop (v1.3 reference plate: the icon fills ~79%
@@ -314,11 +322,18 @@ Window {
         FrameAnimation {
             running: dockRoot.stateName === "expanded"
             onTriggered: {
+                var growth = 0
                 for (var i = 0; i < row.children.length; ++i) {
                     var t = row.children[i]
-                    if (t.spring)
+                    if (t.spring) {
                         t.spring.step(frameTime)
+                        // V1 — track the largest magnification rise for the
+                        // tray padding (both ends must clear the corners)
+                        if (t.spring.value - Tokens.tileWidth > growth)
+                            growth = t.spring.value - Tokens.tileWidth
+                    }
                 }
+                tray.fieldGrowth = growth
                 // (1) Track, continued — point.position only fires when the
                 // pointer MOVES; when the tiles slide under a stationary pointer
                 // the field must be refreshed here, or the wave freezes

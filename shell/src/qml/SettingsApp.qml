@@ -122,6 +122,30 @@ Window {
                     anchors { fill: parent; margins: 10 }
                     spacing: 2
 
+                    // D6 — brand row: the 18 px mark + wordmark above the
+                    // Aegis ID rail (reviewer carry-over on v0.6.34; the
+                    // v1.3 ruling stands)
+                    Row {
+                        Layout.fillWidth: true
+                        Layout.leftMargin: 6
+                        Layout.topMargin: 2
+                        Layout.bottomMargin: 6
+                        spacing: 8
+
+                        Image {
+                            source: "aegis-mark.png"
+                            sourceSize: Qt.size(18, 18)
+                            width: 18; height: 18
+                            anchors.verticalCenter: parent.verticalCenter
+                        }
+                        Text {
+                            text: "Aegis"
+                            font { family: "Montserrat"; pixelSize: 13; weight: Font.DemiBold }
+                            color: Tokens.fg
+                            anchors.verticalCenter: parent.verticalCenter
+                        }
+                    }
+
                     // Aegis ID row — 38 px avatar + name + chevron (§6)
                     AbstractButton {
                         id: aegisRow

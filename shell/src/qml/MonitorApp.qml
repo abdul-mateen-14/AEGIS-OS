@@ -152,10 +152,18 @@ Window {
                 }
                 StatCard {
                     label: "Memory"
-                    value: Monitor.summary.memPercent.toFixed(0) + " %"
-                    detail: (Monitor.summary.memUsedMb / 1024).toFixed(1) + " GB of "
-                            + (Monitor.summary.memTotalMb / 1024).toFixed(1) + " GB"
-                    fraction: Monitor.summary.memPercent / 100
+                    // W17 — honesty: with the /proc parser dead the card
+                    // rendered "0.0 GB of 0.0 GB", which looks real. When
+                    // meminfo is unavailable show an explicit dash state.
+                    value: Monitor.summary.memTotalMb > 0
+                           ? Monitor.summary.memPercent.toFixed(0) + " %"
+                           : "\u2014"
+                    detail: Monitor.summary.memTotalMb > 0
+                            ? (Monitor.summary.memUsedMb / 1024).toFixed(1) + " GB of "
+                              + (Monitor.summary.memTotalMb / 1024).toFixed(1) + " GB"
+                            : "unavailable"
+                    fraction: Monitor.summary.memTotalMb > 0
+                              ? Monitor.summary.memPercent / 100 : -1
                 }
                 StatCard {
                     label: "Uptime"
@@ -193,6 +201,14 @@ Window {
                         Layout.fillWidth: true
                         Layout.alignment: Qt.AlignVCenter
                         spacing: 5
+                        // W17 — honesty: an empty cores list must never
+                        // render a blank card; say unavailable instead.
+                        Text {
+                            visible: Monitor.cores.length === 0
+                            text: "per-core usage unavailable"
+                            font.pixelSize: 10
+                            color: Tokens.fgMuted
+                        }
                         Repeater {
                             model: Monitor.cores
                             delegate: ColumnLayout {

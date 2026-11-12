@@ -72,9 +72,13 @@ private:
         qint64 totalTicks = 0, idleTicks = 0;
         if (statFile.open(QIODevice::ReadOnly | QIODevice::Text)) {
             QTextStream in(&statFile);
-            while (!in.atEnd()) {
-                const QStringList f = in.readLine().simplified().split(' ');
-                if (f.isEmpty()) continue;
+            // W17 — /proc files stat to size 0, so QFile::atEnd() is true
+            // IMMEDIATELY and a while(!in.atEnd()) loop reads nothing: the
+            // v0.6.34 capture shipped an empty Cores card and cpu 0.0 %.
+            // readLine() still pulls real bytes — null QString means EOF.
+            for (QString line = in.readLine(); !line.isNull();
+                 line = in.readLine()) {
+                const QStringList f = line.simplified().split(' ');
                 if (f[0] == QStringLiteral("cpu")) {
                     totalTicks = fieldSum(f, 1);
                     // idle column + iowait column (4 and 5 after "cpu")
@@ -114,8 +118,12 @@ private:
         QFile memInfo(QStringLiteral("/proc/meminfo"));
         if (memInfo.open(QIODevice::ReadOnly | QIODevice::Text)) {
             QTextStream in(&memInfo);
-            while (!in.atEnd()) {
-                const QStringList f = in.readLine().simplified().split(' ');
+            // W17 — the same /proc atEnd trap: meminfo never entered the
+            // loop and Memory rendered "0.0 GB of 0.0 GB" while the
+            // process table (per-pid readLine) showed real RSS.
+            for (QString line = in.readLine(); !line.isNull();
+                 line = in.readLine()) {
+                const QStringList f = line.simplified().split(' ');
                 if (f.size() < 2) continue;
                 if (f[0] == QStringLiteral("MemTotal:")) memTotal = f[1].toLongLong();
                 else if (f[0] == QStringLiteral("MemAvailable:")) memAvail = f[1].toLongLong();
@@ -143,8 +151,9 @@ private:
         if (netFile.open(QIODevice::ReadOnly | QIODevice::Text)) {
             QTextStream in(&netFile);
             in.readLine(); in.readLine();   // two header rows
-            while (!in.atEnd()) {
-                const QString line = in.readLine();
+            // W17 — atEnd trap here too; network rates were always 0.
+            for (QString line = in.readLine(); !line.isNull();
+                 line = in.readLine()) {
                 const int colon = line.indexOf(':');
                 if (colon < 0) continue;
                 if (line.left(colon).trimmed() == QStringLiteral("lo")) continue;

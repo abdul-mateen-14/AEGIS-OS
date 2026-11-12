@@ -358,7 +358,12 @@ Window {
 
                             Image {
                                 anchors.centerIn: parent
+                                // W16 — document kinds request the tinted
+                                // template (provider recolors the stroke).
                                 source: "image://icons/" + gridCard.meta.icon
+                                        + (gridCard.meta.tintable
+                                           ? "?tint=" + encodeURIComponent(gridCard.meta.tint)
+                                           : "")
                                 sourceSize: "44x44"; width: 44; height: 44
                             }
                         }
@@ -409,7 +414,10 @@ Window {
                         Row {
                             anchors.verticalCenter: parent.verticalCenter
                             leftPadding: 10; spacing: 10
-                            Image { source: "image://icons/" + listRow.meta.icon; sourceSize: "18x18"; width: 18; height: 18; anchors.verticalCenter: parent.verticalCenter }
+                            Image { source: "image://icons/" + listRow.meta.icon
+                                    + (listRow.meta.tintable
+                                       ? "?tint=" + encodeURIComponent(listRow.meta.tint)
+                                       : ""); sourceSize: "18x18"; width: 18; height: 18; anchors.verticalCenter: parent.verticalCenter }
                             Text { text: fileName; font.pixelSize: 13; color: Tokens.fg; width: 300; elide: Text.ElideMiddle; anchors.verticalCenter: parent.verticalCenter }
                             Text { text: listRow.meta.label; font.pixelSize: 12; color: listRow.meta.tint; anchors.verticalCenter: parent.verticalCenter }
                             Text { text: fileIsDir ? "" : (fileSize > 1048576 ? (fileSize / 1048576).toFixed(1) + " MB" : Math.max(1, Math.round(fileSize / 1024)) + " KB"); font.pixelSize: 12; color: Tokens.fgMuted; anchors.verticalCenter: parent.verticalCenter }
