@@ -175,8 +175,36 @@ Work order below is dependency-aware; the review's own order is W16-W23.
     (the browser deb ships two identical entries); the providers
     accept absolute icon paths; dockApps grew NOTIFY (was CONSTANT —
     the dock could never refresh).
-- D11 — release: NEXT (tag v0.6.35, Release CI, Boot Test with the
-  extended assert set, close T12 on green).
+- D11 — release: IN FLIGHT. v0.6.35 tagged at fda5ace (Release run
+  43163420575 GREEN, ISO published; Shell CI compiled the full C++
+  batch). First Boot Test (run 43166164076, FAILED) — the PRODUCT IS
+  GREEN (11 tiles + browser, header PASS, ALL SIX probes CLEAN with
+  the monitor's own PV-n, monitor assert 599 accent px = the W17 fix
+  proven in-guest, config asserts clean, W16/W20/W21 shipped), the
+  two reds were HARNESS CALIBRATION:
+  1. greeter assert: the live ISO NEVER SHOWS the greeter — SDDM
+     autologins straight into the session (serial: sddm-helper --start
+     dbus-run-session --autologin, no sddm-greeter process), and
+     boot-14/15/16 are the pure-black SDDM-to-session handoff gap the
+     reviewer saw in v0.6.34. The mark+clock+progress pixel check
+     applies to the INSTALLED path only; the boot gate now asserts the
+     theme FILES ship instead (===SDDM-THEME===: Main.qml, mark.png,
+     metadata.desktop — a sync-includes slip still goes red) and
+     greeter_assert stays in the file UNWIRED for that future gate.
+     TELL THE REVIEWER: their W23.2 premise does not hold on the live
+     path; the theme-presence gate is the honest equivalent.
+  2. tint gate 450 was miscalibrated: the MEASURED red decomposition is
+     broken=237 (the pre-colored music glyph's edge AA 223 + a 14 px
+     sidebar artifact) vs fixed=395 (same 237 + ~158 for the red
+     doc-page outline stroke at 44 px — an outline glyph, not a fill).
+     The fix is VISUALLY confirmed (artifact crop: red doc-page glyph
+     on the pdf card, amber archive box, blue text page). Gate moved
+     to 300, dead center between the two measured states.
+  3. magnify assert was unmeasurable because the FIX WORKED: the pill
+     grew leftward past the W/5 scan start (edge 271 -> 246, clearance
+     4 -> 29 px). Scan now starts at W/10; expected rest 4 / mag 29.
+  Harness recalibrated (94b0ec7) and re-dispatched on the SAME
+  v0.6.35 ISO — the harness runs from main, no re-release needed.
 
 ---
 
