@@ -1,6 +1,7 @@
 #pragma once
 
 #include <QDateTime>
+#include <QDebug>
 #include <QDir>
 #include <QFile>
 #include <QHash>
@@ -130,6 +131,16 @@ private:
             }
         }
         const qint64 memUsedKb = qMax<qint64>(0, memTotal - memAvail);
+        // W17 — the probe verdicts key on these: a dead source prints a
+        // warning whose 'failed' marker probe_failed() treats as a load
+        // error, so a blank card cannot ship green. Healthy runners are
+        // silent (meminfo and /proc/stat always parse there).
+        if (memTotal <= 0)
+            qWarning() << "MonitorBackend: failed to read /proc/meminfo"
+                       << "— memory will show unavailable";
+        if (coreList.isEmpty())
+            qWarning() << "MonitorBackend: failed to read /proc/stat"
+                       << "— cores will show unavailable";
 
         // ── uptime + load ───────────────────────────────────────────────
         double uptimeSec = 0;

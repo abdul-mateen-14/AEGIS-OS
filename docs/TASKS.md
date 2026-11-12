@@ -93,7 +93,90 @@ Work order below is dependency-aware; the review's own order is W16-W23.
 
 ### Status
 
-- TODO — all of D1-D11. Session log: none yet.
+- SHIPPED IN TREE (v0.6.35 tag next) — the full D1-D10 batch:
+  - D1 (W17): ROOT CAUSE found and proven — /proc files stat to size 0,
+    so QFile::atEnd() is true immediately and every while(!in.atEnd())
+    loop over /proc/stat, /proc/meminfo and /proc/net/dev read NOTHING
+    (empty Cores card, cpu 0.0, "0.0 GB of 0.0 GB" — while the process
+    table worked because it does per-pid readLine with no atEnd). All
+    three loops rewritten to the readLine-until-null pattern; the trap
+    proven with a standalone POSIX check (stat 0 B, real bytes > 0).
+    MonitorApp.qml grew the honest states (em-dash + "unavailable",
+    "per-core usage unavailable") so a dead source can never render as
+    a lie again.
+  - D2 (W18): kdeglobals [WM] activeFont=Montserrat,13,-1,5,600,0,0,0,0,0
+    and [General] font=Montserrat,10,-1,5,400,0,0,0,0,0 (Qt6 KConfig
+    serialization, OpenType weight scale).
+  - D3 (W19): gtk-decoration-layout=close,minimize,maximize: in BOTH
+    settings.ini writers of hook 0810 (skel + aegis-gtk-sync).
+  - D4 (W16): image://icons gained ?tint=%23RRGGBB — both IconProviders
+    (shell + apps hosts) template-recolor the raster (keep alpha, swap
+    RGB); three new theme glyphs (aegis-doc-page/-archive/-text, stroke
+    style matched to the theme); metaFor maps PDF/archive/text to them
+    with a new tintable role; FilesApp grid + list requests carry the
+    tint; folder/image/audio/video stay pre-colored (tintable false).
+  - D5 (V1): the tray grew a fieldGrowth property — the solver writes
+    the largest spring rise over B and the pill padding follows, so the
+    end tiles clear the rounded corners while the field is live
+    (measured on v0.6.34: rest clearance 4 px, magnified 4 px — the
+    padding never grew).
+  - D6: 18 px mark in the Control Center header and a mark+wordmark
+    brand row atop the Settings sidebar (the v1.3 ruling stands).
+  - D7 (W23): FIVE new gate asserts, each offline-validated against the
+    v0.6.34 captures BEFORE shipping (every one read RED on the known-
+    broken data): config_assert parses ===KWINRC===/===KDEGLOBALS=== and
+    fails on decoration/plugin/font drift (the section parser bug — a
+    lazy lookahead truncating sections to one line — was caught by the
+    same simulation); greeter_assert scans the pre-desktop frames for
+    the greeter's clock/progress signature (boot cadence densified to
+    2.5 s for frames 12-26); tint_assert gates the PDF glyph at 450 px
+    (the tinted label alone is ~250 — measured); monitor_card_assert
+    gates the exact-accent fill pixels at 25 (loose window matched the
+    wallpaper at 420 — measured); magnify_clearance_assert requires the
+    magnified end-tile clearance to beat rest by 8 px. MonitorBackend
+    additionally warns "failed to read /proc/meminfo|/proc/stat" per
+    dead source so the probe verdicts arbitrate partial failures.
+  - D8 (W20): the aegis-windowwatch KWin script (windowAdded/Removed/
+    Activated -> recount -> org.aegis.Shell.windowListChanged(count,
+    anyFull, idsJoined)) — the ids travel as ONE STRING because callDBus
+    marshals JS arrays as DBus "av" which will not demarshal into a
+    QStringList slot. Util grew workspaceWindows/anyWindowFull +
+    windowListChanged; isRunning answers from the launch records AND
+    the window ids (the QML contract unchanged; the dock dots now work
+    for foreign-launched apps); apps-main pins the Wayland app_id to
+    aegis-<which> so resourceClass matches the dock cmds. Island: the
+    idle capsule dissolves (scale 1->0, center origin, 200 ms InCubic +
+    fade) while Util.workspaceWindows > 0 and grows back with the
+    OutBack spring; non-idle states always win.
+  - D9 (W21): the aegis-dockzoom scripted effect — modeled line-by-line
+    on the stock scale effect (KWin 6.6 ships scale AS A JS EFFECT —
+    the authoritative API reference). Open: scale 0.3->1 + opacity +
+    Position from the tile center (280 ms OutCubic); close reverse
+    (200 ms InCubic). KWin anchors Scale at edges/corners only, so the
+    tile anchoring is the Position pair. JS effects have NO callDBus in
+    6.6 (window scripts do) — the tile map travels through kwinrc
+    [Effect-aegis-dockzoom] TileMap written by Util.publishDockTileMap
+    from Dock.qml's resting layout. The stock scale effect is disabled
+    (same exclusive category). DOCUMENTED DELTA: minimize/restore has
+    no scripted hook in 6.6 (EffectsHandler exposes only windowAdded/
+    Closed/Activated/Deleted to JS) — open/close ship, minimize/
+    restore waits for a C++ effect.
+  - D10 (W22): strictly opt-in web shortcuts — right-click on the tray
+    glass opens the Add pill (paste a link, Enter adds, Esc cancels;
+    the dock surface's keyboard is OnDemand); Util.addWebShortcut
+    fetches the page (title, apple-touch-icon -> favicon -> letter
+    tile in the theme color), stores
+    ~/.local/share/aegis/webicons/<id>.png +
+    ~/.local/share/applications/aegis-web-<id>.desktop
+    (Exec=xdg-open, StartupWMClass=aegis-web-<id>); dockApps appends
+    the user entries before Trash (a network failure still lands the
+    shortcut with the letter tile); right-click on a web tile offers
+    Remove. The resolvers dedupe by Exec basename AND StartupWMClass
+    (the browser deb ships two identical entries); the providers
+    accept absolute icon paths; dockApps grew NOTIFY (was CONSTANT —
+    the dock could never refresh).
+- D11 — release: NEXT (tag v0.6.35, Release CI, Boot Test with the
+  extended assert set, close T12 on green).
 
 ---
 

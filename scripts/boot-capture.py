@@ -632,6 +632,7 @@ def app_diag(serial):
         "echo ===JRN-CRASH===; sudo journalctl -b --no-pager 2>&1 | grep -aiE 'segfault|signal 11|coredump|abrt|general protection' | tail -20",
         "echo ===COREDUMPCTL===; coredumpctl list --no-pager 2>&1 | tail -10",
         "echo ===KWINRC===; cat /etc/xdg/kwinrc 2>&1",
+        "echo ===KDEGLOBALS===; cat /etc/xdg/kdeglobals 2>&1",
         "echo ===KWIN-PLUGINS===; ls /usr/lib/x86_64-linux-gnu/qt6/plugins/kwin/effects/plugins/ 2>&1; ls /usr/lib/qt6/plugins/kwin/effects/plugins/ 2>&1; echo PLUGINS-DONE",
         # W14 — did the splash renderer really run? The boot frames keep
         # missing the (short) plymouth window on the ~10 s KVM boot, so the
@@ -770,6 +771,193 @@ def splash_report(out_dir, last=-1):
     log("splash: no boot frame carries the mark splash signature — "
         "plymouth did not paint ink + mark + progress line; W14 NOT met")
     return False
+
+def config_assert(diag_path):
+    """W23.1 — assert the decoration config, don't just dump it. The run
+    log printed ===KWINRC=== for nine releases and NOTHING failed on
+    drift — the same shipped-green class as the v0.6.20 boot regression
+    (a sync-includes slip regresses the theme and the run stays green).
+    Every needle below is a shipped ruling: W10/W11 anatomy, Table 18
+    corners, M3 Depth, W20 window tracking, W21 dock zoom, W18 fonts."""
+    try:
+        blob = open(diag_path, errors="replace").read()
+    except OSError:
+        return ["serial-diag.txt missing — the decoration config was "
+                "never verified"]
+    failures = []
+
+    def section(header):
+        # The serial lines carry escape prefixes and the markers land
+        # mid-line ("...cwd=/home/aegis\===KWINRC==="), so a line-anchored
+        # regex cannot cut the sections. Scan lines: a section starts at
+        # the line carrying ===header=== and ends at the next ===MARKER===
+        # line. (The first cut used a lazy lookahead that stopped the
+        # capture at the FIRST newline — every needle failed on a
+        # perfectly healthy config, caught by the offline simulation.)
+        out = []
+        active = False
+        marker = "===" + header + "==="
+        for ln in blob.splitlines():
+            if "===" in ln:
+                if marker in ln:
+                    active = True
+                    continue
+                if active:
+                    break
+            if active:
+                out.append(ln)
+        return "\n".join(out)
+
+    kwinrc = section("KWINRC")
+    kde = section("KDEGLOBALS")
+    if not kwinrc:
+        return ["===KWINRC=== dump missing from the serial diag"]
+
+    def need(text, needle, what):
+        if needle not in text:
+            failures.append(what)
+
+    need(kwinrc, "theme=__aurorae__svg__AegisLights",
+         "decoration theme is not AegisLights")
+    need(kwinrc, "ButtonsOnLeft=XIA",
+         "ButtonsOnLeft drifted from XIA (close dot must lead on the left)")
+    need(kwinrc, "BorderSize=None",
+         "BorderSize drifted (W11 flush-client anatomy)")
+    need(kwinrc, "kwin4_effect_shapecornersEnabled=true",
+         "ShapeCorners effect disabled (Table 18 r18 corners)")
+    need(kwinrc, "aegisWindowwatchEnabled=true",
+         "aegis-windowwatch script disabled (W20 island predicate)")
+    need(kwinrc, "aegisDockzoomEnabled=true",
+         "aegis-dockzoom effect disabled (W21 dock zoom)")
+    need(kwinrc, "scaleEnabled=false",
+         "stock scale effect re-enabled (it conflicts with aegis-dockzoom)")
+    need(kwinrc, "Number=4",
+         "workspace count drifted from 4 (M3 Depth)")
+    if not kde:
+        failures.append("===KDEGLOBALS=== dump missing (W18 font pin)")
+    else:
+        need(kde, "activeFont=Montserrat",
+             "kdeglobals [WM] activeFont missing (W18 caption font)")
+        if not re.search(r"^font=Montserrat", kde, re.M):
+            failures.append("kdeglobals [General] font missing "
+                            "(W18 body font)")
+    return failures
+
+def greeter_assert(out_dir, last_frame):
+    """W23.2 — verify the SDDM greeter painted. Its frame reads 'pure
+    black' (ink + scrim) in the timeline, and nothing between the splash
+    and the session ever verified the mark + accent progress device +
+    the 72 px clock (B3 continuity). Signature: a big BRIGHT band at
+    y ≈ 0.14-0.27H near the center (the clock — console text is excluded
+    by the empty left margin) OR the accent progress line at
+    y ≈ 0.09-0.16H. The splash's devices live at 0.38-0.54H / 0.61H —
+    no overlap. Only frames BEFORE the desktop gate count."""
+    n = 0
+    best = None
+    while True:
+        if last_frame > 0 and n >= last_frame:
+            break
+        path = os.path.join(out_dir, f"boot-{n:02d}.png")
+        if not os.path.exists(path):
+            break
+        im = Image.open(path).convert("RGB")
+        W, H = im.size
+        clock = im.crop((W // 2 - 160, int(H * 0.14),
+                         W // 2 + 160, int(H * 0.27)))
+        bright = sum(1 for p in clock.getdata() if min(p) > 150)
+        margin = im.crop((0, int(H * 0.14), int(W * 0.15), int(H * 0.27)))
+        edge = sum(1 for p in margin.getdata() if min(p) > 150)
+        line = im.crop((W // 2 - 80, int(H * 0.09),
+                        W // 2 + 80, int(H * 0.16)))
+        accent = sum(1 for p in line.getdata()
+                     if p[2] > 200 and 60 < p[1] < 190 and p[2] - p[0] > 100)
+        score = (bright, accent)
+        if best is None or sum(score) > sum(best[1]):
+            best = (n, score)
+        if bright >= 300 and edge <= 40:
+            log(f"greeter: clock confirmed on boot-{n:02d} "
+                f"(bright px {bright}, left margin px {edge}, "
+                f"accent px {accent})")
+            return True
+        if accent >= 25:
+            log(f"greeter: accent progress confirmed on boot-{n:02d} "
+                f"(accent px {accent}, bright px {bright})")
+            return True
+        n += 1
+    if best:
+        log(f"greeter: best candidate boot-{best[0]:02d} — clock px "
+            f"{best[1][0]}, accent px {best[1][1]} (below thresholds)")
+    return False
+
+def tint_assert(files_png):
+    """W16 — the report.pdf card must render the tinted doc-page glyph
+    (#FA2D48). The v0.6.34 capture shipped the blue folder-documents
+    glyph for PDFs — its red pixels are ONLY the tinted 'PDF' label text
+    (measured: 256 px, one 64 px band). The fixed build adds the 44 px
+    glyph stroke (~500 px) on top of the label, so the gate is 450:
+    broken ≈ 250, fixed ≈ 700+. Tolerance ±14/channel keeps the
+    traffic-light red (255,95,87) out (its green is 50 away)."""
+    im = Image.open(files_png).convert("RGB")
+    hits = 0
+    for p in im.getdata():
+        if (abs(p[0] - 250) <= 14 and abs(p[1] - 45) <= 14
+                and abs(p[2] - 72) <= 14):
+            hits += 1
+    return hits
+
+def monitor_card_assert(monitor_png):
+    """W17 — the Monitor capture must show REAL data, never the
+    honest-looking lies (v0.6.34 shipped an empty Cores card and
+    '0.0 GB of 0.0 GB'). The StatCard fill bars and the per-core strips
+    paint EXACTLY Tokens.accent (62,139,255) — a ±10 window around it
+    (measured: 5 px on the broken v0.6.34 capture; the loose ±window
+    matched wallpaper waves at 420). Healthy fills on the loaded runner
+    give hundreds of exact-accent px; a total parse failure zeroes every
+    fill and the assert goes red. The partial-failure case (one source
+    dead) is covered by the probe verdicts: MonitorBackend warns
+    'failed to read' per dead source and probe_failed() arbitrates."""
+    im = Image.open(monitor_png).convert("RGB")
+    hits = 0
+    for p in im.getdata():
+        if (52 <= p[0] <= 72 and 129 <= p[1] <= 149
+                and 245 <= p[2] <= 255):
+            hits += 1
+    return hits
+
+def magnify_clearance_assert(home_png, mag_png):
+    """V1 — the pill padding must grow by the field delta: the end tiles
+    gain clearance while magnified (v0.6.34 kept the rest clearance —
+    Files at 3-4 px kissing the rounded corner). Self-calibrating: the
+    magnified clearance must beat the REST clearance by ≥ 8 px. The
+    first tile is the Files folder (blue glyph) by config."""
+    def clearance(png):
+        im = Image.open(png).convert("RGB")
+        W, H = im.size
+        y = H - 20                       # through the pill body
+        def lum(p):
+            return (p[0] * 299 + p[1] * 587 + p[2] * 114) // 1000
+        prev = None
+        left = None
+        for x in range(W // 5, W // 2):
+            l = lum(im.getpixel((x, y)))
+            if prev is not None and abs(l - prev) > 14:
+                left = x
+                break
+            prev = l
+        if left is None:
+            return None
+        blues = [x for x in range(left - 4, min(left + 130, W))
+                 if (lambda p: p[2] > 150 and p[2] - p[0] > 40)(
+                     im.getpixel((x, H - 47)))]
+        if not blues:
+            return None
+        return blues[0] - left
+
+    rest = clearance(home_png)
+    mag = clearance(mag_png)
+    if rest is None or mag is None:
+        return (None, None)
+    return (rest, mag)
 
 def serial_recover(serial, q, W=1280, H=800):
     log("attempting live recovery over serial")
@@ -951,7 +1139,7 @@ def wait_desktop(q, proc, timeout=DESKTOP_TIMEOUT):
             # the real wallpaper carries val ≈ 63. A text console is not
             # the desktop.
             return n
-        n += 1; time.sleep(1 if n < 12 else (5 if n < 20 else 20))
+        n += 1; time.sleep(1 if n < 12 else (2.5 if n < 26 else 20))
     return -1
 
 def main():
@@ -1380,6 +1568,50 @@ def main():
     for name, text in probes.items():
         if probe_failed(text):
             failures.append(f"QML probe ({name}) reported a load error")
+
+    # T12 D7 — the W23 test gaps: config drift, greeter, kind tints,
+    # monitor cards, magnification clearance. "A probe that cannot fail
+    # is not a probe" — the v0.6.20 lesson.
+    for f in config_assert("serial-diag.txt"):
+        failures.append("config drift: " + f)
+    try:
+        if not greeter_assert(OUT, n):
+            failures.append("SDDM greeter never painted its devices "
+                            "(clock/progress) before the session")
+    except Exception as e:
+        failures.append(f"greeter assert crashed: {e}")
+    try:
+        tint = tint_assert(f"{OUT}/02-files.png")
+        log(f"tint assert: {tint} px at #FA2D48 in 02-files")
+        if tint < 450:
+            failures.append(f"Files PDF tint missing ({tint} px at "
+                            "#FA2D48, need >= 450: label alone is ~250, "
+                            "the tinted glyph adds ~500) — W16 regressed")
+    except Exception as e:
+        failures.append(f"tint assert crashed: {e}")
+    try:
+        mon = monitor_card_assert(f"{OUT}/04f-monitor.png")
+        log(f"monitor assert: {mon} accent px in 04f-monitor")
+        if mon < 25:
+            failures.append(f"Monitor cards empty ({mon} accent px, "
+                            "need >= 25) — W17 regressed")
+    except Exception as e:
+        failures.append(f"monitor assert crashed: {e}")
+    try:
+        rest, mag = magnify_clearance_assert(f"{OUT}/01-home.png",
+                                             f"{OUT}/01b-dock-magnify.png")
+        if rest is None or mag is None:
+            log("magnify assert: clearance not measurable — skipped")
+        else:
+            log(f"magnify assert: rest clearance {rest} px, "
+                f"magnified {mag} px")
+            if mag < rest + 8:
+                failures.append(
+                    f"dock end-tile clearance did not grow with the field "
+                    f"(rest {rest}, mag {mag}) — V1 regressed")
+    except Exception as e:
+        failures.append(f"magnify assert crashed: {e}")
+
     if failures:
         for f in failures:
             log("ASSERT FAILED: " + f)
