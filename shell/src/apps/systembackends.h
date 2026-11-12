@@ -521,6 +521,35 @@ public:
         QTimer::singleShot(2500, this, &NetworkBackend::refresh);
     }
 
+    // W32.1 — join a WPA network: the secret rides the settings map of the
+    // agent-less AddAndActivateConnection call (the review: a password
+    // sheet is the missing half of the pane). Open networks keep
+    // connectTo — the sheet only opens for secure ones.
+    Q_INVOKABLE void connectWithSecret(const QString &ssid,
+                                       const QString &secret)
+    {
+        const QString ap = apFor(ssid);
+        const QString dev = wifiDevicePath();
+        if (ap.isEmpty() || dev.isEmpty())
+            return;
+        const QVariantMap settings{
+            {QStringLiteral("802-11-wireless"),
+             QVariantMap{{QStringLiteral("ssid"), ssid.toUtf8()}}},
+            {QStringLiteral("802-11-wireless-security"),
+             QVariantMap{{QStringLiteral("key-mgmt"),
+                          QStringLiteral("wpa-psk")},
+                         {QStringLiteral("psk"), secret}}},
+        };
+        dbusAsync(QStringLiteral("org.freedesktop.NetworkManager"),
+                  QStringLiteral("/org/freedesktop/NetworkManager"),
+                  QStringLiteral("org.freedesktop.NetworkManager"),
+                  QStringLiteral("AddAndActivateConnection"),
+                  QVariantList{settings, QDBusObjectPath(dev),
+                               QDBusObjectPath(ap)});
+        QTimer::singleShot(2500, this, &NetworkBackend::refresh);
+        QTimer::singleShot(6000, this, &NetworkBackend::refresh);
+    }
+
     // Load the known-connection SSID set (Settings.ListConnections).
     Q_INVOKABLE void loadKnown()
     {

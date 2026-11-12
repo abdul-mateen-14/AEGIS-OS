@@ -396,7 +396,7 @@ Window {
     Item {
         anchors.fill: parent
         z: 30
-        visible: imagePickerHost.active || userRename.visible
+        visible: imagePickerHost.active || userRename.visible || wifiJoin.visible
         MouseArea { anchors.fill: parent; onClicked: (mouse) => { mouse.accepted = true; imagePickerHost.active = false; userRename.visible = false } }
 
         Loader {
@@ -426,6 +426,93 @@ Window {
                     onAccepted: {
                         Users.setRealName(userRename.targetPath, text)
                         userRename.visible = false
+                    }
+                }
+            }
+        }
+
+        // W32.1 — the WPA join sheet: ssid + password field, working spin,
+        // honest error state on a wrong secret (the activation is
+        // agent-less, so the failure is read from the refreshed list: the
+        // network is not inUse after the settle window).
+        Rectangle {
+            id: wifiJoin
+            property string ssid: ""
+            property string errorText: ""
+            property bool working: false
+            anchors.centerIn: parent
+            width: 320; height: 190; radius: 18
+            color: Util.darkMode ? "#23252B" : "#FFFFFF"
+            border.color: Tokens.glassBorder
+            visible: false
+            function join() {
+                if (wifiJoinInput.text.length < 8) {
+                    wifiJoin.errorText = "A WPA password is at least 8 characters"
+                    return
+                }
+                wifiJoin.working = true
+                wifiJoin.errorText = ""
+                Network.connectWithSecret(wifiJoin.ssid, wifiJoinInput.text)
+                joinSettle.restart()
+            }
+            Timer {
+                id: joinSettle
+                interval: 7500
+                onTriggered: {
+                    wifiJoin.working = false
+                    const nets = Network.networks
+                    let inUse = false
+                    for (const n of nets) {
+                        if (n.ssid === wifiJoin.ssid && n.inUse) {
+                            inUse = true
+                            break
+                        }
+                    }
+                    if (inUse) {
+                        wifiJoin.visible = false
+                    } else {
+                        wifiJoin.errorText =
+                            "Wrong password or network unreachable — try again"
+                    }
+                }
+            }
+            Column {
+                anchors { fill: parent; margins: 14 }
+                spacing: 10
+                Text { text: wifiJoin.ssid; font.pixelSize: 13; font.bold: true; color: Tokens.fg; elide: Text.ElideMiddle; width: parent.width }
+                Text { text: "Password"; font.pixelSize: 11; color: Tokens.fgMuted }
+                TextField {
+                    id: wifiJoinInput
+                    width: parent.width; font.pixelSize: 13
+                    echoMode: TextInput.Password
+                    enabled: !wifiJoin.working
+                    color: Tokens.fg
+                    background: Rectangle { radius: 8; color: Util.darkMode ? "#17181D" : "#F4F6FA"; border.color: Tokens.glassBorder }
+                    onAccepted: wifiJoin.join()
+                }
+                Text {
+                    visible: wifiJoin.errorText !== ""
+                    text: wifiJoin.errorText
+                    font.pixelSize: 11; color: "#FA2D48"
+                    wrapMode: Text.WordWrap
+                    width: parent.width
+                }
+                Row {
+                    spacing: 8
+                    anchors.right: parent.right
+                    AbstractButton {
+                        width: 72; height: 26
+                        enabled: !wifiJoin.working
+                        contentItem: Text { text: "Cancel"; font.pixelSize: 11; color: Tokens.fg; horizontalAlignment: Text.AlignHCenter; verticalAlignment: Text.AlignVCenter }
+                        background: Rectangle { radius: 8; color: Util.darkMode ? "#262930" : "#E8ECF4"; border.color: Tokens.glassBorder }
+                        onClicked: { wifiJoin.visible = false; wifiJoin.working = false }
+                    }
+                    AbstractButton {
+                        width: 96; height: 26
+                        enabled: !wifiJoin.working
+                        contentItem: Text { text: wifiJoin.working ? "Connecting…" : "Connect"; font.pixelSize: 11; color: "#FFFFFF"; horizontalAlignment: Text.AlignHCenter; verticalAlignment: Text.AlignVCenter }
+                        background: Rectangle { radius: 8; color: wifiJoin.working ? Tokens.fgMuted : Tokens.accent }
+                        onClicked: wifiJoin.join()
                     }
                 }
             }
@@ -1484,7 +1571,20 @@ Window {
                             Layout.preferredHeight: 24; Layout.preferredWidth: 72
                             contentItem: Text { text: modelData.known ? "Connect" : "Join"; font.pixelSize: 11; color: "#FFFFFF"; horizontalAlignment: Text.AlignHCenter; verticalAlignment: Text.AlignVCenter }
                             background: Rectangle { radius: 8; color: Tokens.accent }
-                            onClicked: Network.connectTo(modelData.ssid)
+                            // W32.1 — secure unknown networks open the
+                            // password sheet; open and known networks join
+                            // directly (NM picks the stored secret).
+                            onClicked: {
+                                if (modelData.secure && !modelData.known) {
+                                    wifiJoin.ssid = modelData.ssid
+                                    wifiJoin.errorText = ""
+                                    wifiJoinInput.text = ""
+                                    wifiJoin.visible = true
+                                    wifiJoinInput.forceActiveFocus()
+                                } else {
+                                    Network.connectTo(modelData.ssid)
+                                }
+                            }
                         }
                     }
                 }
