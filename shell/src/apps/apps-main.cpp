@@ -151,6 +151,16 @@ int main(int argc, char *argv[])
     if (initialPane >= 0)
         engine.rootContext()->setContextProperty(QStringLiteral("aegisInitialPane"),
                                                  initialPane);
+    // W26 — "aegis-files --path trash:///" opens Files AT that location
+    // (the dock Trash slot); absent, the window stays on Home.
+    for (int i = 2; i + 1 < argc; ++i) {
+        if (QString::fromLocal8Bit(argv[i]) == QStringLiteral("--path")) {
+            engine.rootContext()->setContextProperty(
+                QStringLiteral("aegisInitialPath"),
+                QString::fromLocal8Bit(argv[i + 1]));
+            break;
+        }
+    }
     qmlRegisterSingletonInstance("Aegis.Util", 1, 0, "Util", &util);
     qmlRegisterSingletonInstance("Aegis.Governor", 1, 0, "Governor", &governor);
     qmlRegisterSingletonInstance("Aegis.Files", 1, 0, "Files", &files);

@@ -212,12 +212,22 @@ public:
     // ── W1 — properties sheet ────────────────────────────────────────────
     Q_INVOKABLE QVariantMap propertiesOf(const QString &path) const
     {
-        const QFileInfo fi(path);
+        // W28 — the sheet binds size/modified/path; they showed as
+        // placeholders in the VM review when the input arrived as a
+        // file:// URL (QFileInfo on a URL string: size 0, epoch mtime).
+        // Accept both shapes and always work on a local path.
+        QString p = path;
+        if (p.startsWith(QStringLiteral("file://")))
+            p = QUrl(p).toLocalFile();
+        const QFileInfo fi(p);
         QVariantMap m = metaFor(fi);
         const qint64 bytes = fi.isDir() ? -1 : fi.size();
         QString size;
         if (fi.isDir())
             size = QStringLiteral("—");
+        else if (bytes >= 1073741824)
+            size = QString::number(bytes / 1073741824.0, 'f', 1)
+                   + QStringLiteral(" GB");
         else if (bytes >= 1048576)
             size = QString::number(bytes / 1048576.0, 'f', 1) + QStringLiteral(" MB");
         else if (bytes >= 1024)
@@ -225,8 +235,9 @@ public:
         else
             size = QString::number(bytes) + QStringLiteral(" B");
         m.insert(QStringLiteral("size"), size);
+        // W28 — the v1.3 date style: "12 Nov 2026 14:32"
         m.insert(QStringLiteral("modified"),
-                 fi.lastModified().toString(QStringLiteral("yyyy-MM-dd HH:mm")));
+                 fi.lastModified().toString(QStringLiteral("d MMM yyyy HH:mm")));
         m.insert(QStringLiteral("path"), fi.absoluteFilePath());
         return m;
     }

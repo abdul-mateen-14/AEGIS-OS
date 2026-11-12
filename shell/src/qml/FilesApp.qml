@@ -53,6 +53,13 @@ Window {
     Component.onCompleted: {
         applyPrefs(Files.loadViewPrefs())
         history = [Files.homeUrl()]
+        // W26 — a start location from the command line (the dock Trash
+        // slot: aegis-files --path trash:///)
+        if (typeof aegisInitialPath !== "undefined"
+                && aegisInitialPath.toString().length > 0) {
+            win.navigateTo(aegisInitialPath.toString())
+            history = [Files.homeUrl(), aegisInitialPath.toString()]
+        }
     }
     // files.prefs synced by Aegis ID on another device — re-apply live
     Connections {

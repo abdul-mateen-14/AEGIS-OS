@@ -35,5 +35,14 @@ if [ "$installed_any" = 1 ]; then
     apt-get install -y -f -qq >/dev/null 2>&1 || true
 fi
 
+# W25 — electron/Chromium apps need the SUID helper root-owned 4755.
+# dpkg (especially from the includes path) may not preserve the mode, and
+# a non-4755 chrome-sandbox makes every electron app refuse to start.
+for sb in /opt/*/chrome-sandbox /opt/*/*/chrome-sandbox \
+          /usr/lib/*/chrome-sandbox; do
+    [ -f "$sb" ] && chmod 4755 "$sb" && \
+        echo "aegis-fallback: chmod 4755 $sb"
+done
+
 # the payload must not reach the squashfs
 rm -rf /opt/aegis-debs

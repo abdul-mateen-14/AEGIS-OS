@@ -1,17 +1,66 @@
 {
   "wallpaper": "/usr/share/wallpapers/aegis/aurora-ink.jpg",
   "apps": [
-    { "name": "Files",         "icon": "aegis-files",       "cmd": "aegis-files" },
-    { "name": "Terminal",      "icon": "aegis-terminal",    "cmd": "konsole" },
-    { "name": "AEGIS Browser", "icon": "aegis-browser",     "cmd": "aegis-browser-stable", "resolve": true },
-    { "name": "OS",            "icon": "os-private-chat",   "cmd": "os-private-chat",      "resolve": true },
-    { "name": "CoreX",         "icon": "corex-terminal",    "cmd": "corex-terminal",       "resolve": true },
-    { "type": "separator" },
-    { "name": "Music",         "icon": "aegis-music",       "cmd": "aegis-music" },
-    { "name": "Calculator",    "icon": "aegis-calculator",  "cmd": "aegis-calculator" },
-    { "name": "Editor",        "icon": "aegis-editor",      "cmd": "aegis-editor" },
-    { "name": "Monitor",       "icon": "aegis-monitor",     "cmd": "aegis-monitor" },
-    { "name": "Settings",      "icon": "aegis-settings",    "cmd": "aegis-settings" },
-    { "name": "Trash",         "icon": "aegis-trash",       "cmd": "aegis-files" }
+    {
+      "name": "Files",
+      "icon": "aegis-files",
+      "cmd": "aegis-files"
+    },
+    {
+      "name": "Terminal",
+      "icon": "aegis-terminal",
+      "cmd": "konsole"
+    },
+    {
+      "name": "AEGIS Browser",
+      "icon": "aegis-browser",
+      "cmd": "aegis-browser-stable",
+      "resolve": true
+    },
+    {
+      "name": "OS",
+      "icon": "os-private-chat",
+      "cmd": "os-private-chat",
+      "resolve": true
+    },
+    {
+      "name": "CoreX",
+      "icon": "corex-terminal",
+      "cmd": "corex-terminal",
+      "resolve": true
+    },
+    {
+      "type": "separator"
+    },
+    {
+      "name": "Music",
+      "icon": "aegis-music",
+      "cmd": "aegis-music"
+    },
+    {
+      "name": "Calculator",
+      "icon": "aegis-calculator",
+      "cmd": "aegis-calculator"
+    },
+    {
+      "name": "Editor",
+      "icon": "aegis-editor",
+      "cmd": "aegis-editor"
+    },
+    {
+      "name": "Monitor",
+      "icon": "aegis-monitor",
+      "cmd": "aegis-monitor"
+    },
+    {
+      "name": "Settings",
+      "icon": "aegis-settings",
+      "cmd": "aegis-settings"
+    },
+    {
+      "name": "Trash",
+      "icon": "aegis-trash",
+      "cmd": "aegis-files --path trash:///"
+    }
   ]
 }

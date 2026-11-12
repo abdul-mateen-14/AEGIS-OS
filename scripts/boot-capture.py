@@ -649,6 +649,9 @@ def app_diag(serial):
         "grep -ai 'aegis-windowwatch: loaded\\|aegis-dockzoom: loaded' "
         "| tail -6",
         "echo ===KWIN-PLUGINS===; ls /usr/lib/x86_64-linux-gnu/qt6/plugins/kwin/effects/plugins/ 2>&1; ls /usr/lib/qt6/plugins/kwin/effects/plugins/ 2>&1; echo PLUGINS-DONE",
+        # T13 W24 — the launch logs (one file per app head, rotated):
+        # the VM review's diagnosability ask, visible in CI
+        "echo ===LAUNCH-LOGS===; tail -n 5 /home/aegis/.local/state/aegis/launch/*.log 2>&1 | head -40",
         # W14 — did the splash renderer really run? The boot frames keep
         # missing the (short) plymouth window on the ~10 s KVM boot, so the
         # journal is the evidence: theme selected, service state, plugin.
@@ -1301,7 +1304,7 @@ def main():
     q.mouse_abs(W // 2, int(H * NEUTRAL_Y), W, H)
     time.sleep(1.0)
 
-    def open_app(name, cmd, wait_s=25, click_idx=None):
+    def open_app(name, cmd, wait_s=25, click_idx=None, launch_cmd=None):
         """Launch an app and capture it. Ladder (T11-D5):
         1. the session API over DBus — Util.launch on org.aegis.Shell (the
            Q_CLASSINFO D-Bus Interface fix; before it, Qt exported the
@@ -1312,7 +1315,24 @@ def main():
            independent of the bus AND of the dock geometry (the proven
            04b-aegis-id pane mechanism),
         3. geometric dock click — built from the guest's real tile list
-           when the serial answer arrived, the config count otherwise."""
+           when the serial answer arrived, the config count otherwise.
+        T13 W24 — launch_cmd="desktop" resolves the FULL Exec= from the
+        guest's .desktop first (the Tier B debs install into /opt with
+        bare heads that are not on PATH; the dock launches the resolved
+        Exec and the probe must prove THE SAME path works)."""
+        lc = cmd
+        if launch_cmd == "desktop" and serial is not None:
+            try:
+                out = serial.run(
+                    "grep -h '^Exec=' "
+                    f"/usr/share/applications/{cmd}.desktop 2>/dev/null "
+                    "| head -1 | cut -d= -f2-", settle=2)
+                resolved = out.strip().splitlines()[-1].strip() if out.strip() else ""
+                if resolved and "not found" not in resolved:
+                    lc = resolved
+                    log(f"{name}: resolved Exec from the desktop entry: {lc}")
+            except Exception as e:
+                log(f"{name}: Exec resolution failed ({e}) — using the cmd")
         # dynamic lookup wins (guest-resolved order); the passed index is
         # only the serial-less / rebuild-failed fallback against the config
         # count
@@ -1320,7 +1340,14 @@ def main():
         for attempt in range(2):
             launched = False
             try:
-                if serial is not None:
+                # T13 W24 — attempt 0 launches the resolved Exec over the
+                # bus; attempt 1 goes through the DOCK ITSELF (the
+                # resolver + the W25 electron wrapper live in Util's
+                # dockApps) — the click is the real user path and the
+                # last resort before the honest red.
+                if attempt == 1 and launch_cmd == "desktop":
+                    launched = False
+                elif serial is not None:
                     # (1) the shell's bus is the dbus-run-session private
                     # session, NOT the systemd --user bus at
                     # $XDG_RUNTIME_DIR/bus ("The name org.aegis.Shell was
@@ -1335,7 +1362,7 @@ def main():
                         "| grep '^DBUS_SESSION_BUS_ADDRESS=' | head -1 "
                         "| cut -d= -f2-); "
                         "busctl --user call org.aegis.Shell /org/aegis/Shell "
-                        f"org.aegis.Shell launch s \"{cmd}\" 2>&1; "
+                        f"org.aegis.Shell launch s \"{lc}\" 2>&1; "
                         f"echo LAUNCH-{name}-OK", settle=3)
                     launched = (f"LAUNCH-{name}-OK" in out
                                 and "Call failed" not in out)
@@ -1348,7 +1375,7 @@ def main():
                         out = serial.run(
                             "export XDG_RUNTIME_DIR=/run/user/$(id -u); "
                             "WAYLAND_DISPLAY=wayland-0 nohup "
-                            f"{cmd} >/tmp/aegis-launch-{name}.err 2>&1 & "
+                            f"{lc} >/tmp/aegis-launch-{name}.err 2>&1 & "
                             f"echo LAUNCH-{name}-OK", settle=3)
                         launched = f"LAUNCH-{name}-OK" in out
                         log(f"{name}: nohup launch -> " +
@@ -1437,22 +1464,25 @@ def main():
     if serial is not None:
         try:
             dbg = serial.run(
-                # the shell lives on the dbus-run-session bus, NOT the
-                # systemd user bus the serial console resolves by default
-                # (v0.6.36 run 5: "The name org.aegis.Shell was not
-                # provided") — take the address from the session env
-                "SA=$(cat /proc/$(pgrep -f aegis-session | head -1)/environ "
+                # T13 D5 — the shell lives on the dbus-run-session bus, NOT
+                # the systemd user bus the serial console resolves by
+                # default. The address comes from the SHELL's environ (the
+                # earlier dump grepped aegis-session and matched the
+                # dbus-run-session PARENT, whose environ lacks the
+                # address). Ask for the live count AND the raw payload
+                # the windowwatch script last pushed.
+                "A=$(cat /proc/$(pgrep -f aegis-shell | head -1)/environ "
                 "2>/dev/null | tr '\\0' '\\n' | grep "
                 "^DBUS_SESSION_BUS_ADDRESS= | cut -d= -f2-); "
-                "A=${SA:-unix:path=$XDG_RUNTIME_DIR/bus}; "
-                "echo ===AEGIS-WINDOWS===; busctl --address=$A call "
-                "org.aegis.Shell /org/aegis/Shell "
+                "A=${A:-unix:path=$XDG_RUNTIME_DIR/bus}; "
+                "echo ===AEGIS-WINDOWS===; "
+                "busctl --address=$A call org.aegis.Shell /org/aegis/Shell "
                 "org.freedesktop.DBus.Properties Get ss org.aegis.Shell "
-                "workspaceWindows 2>&1; busctl --address=$A call "
-                "org.aegis.Shell /org/aegis/Shell "
-                "org.freedesktop.DBus.Properties Get ss org.aegis.Shell "
-                "runningCmds 2>&1; echo WINDBG-END",
-                settle=6)
+                "workspaceWindows 2>&1; "
+                "busctl --address=$A call org.aegis.Shell /org/aegis/Shell "
+                "org.aegis.Shell windowListRaw 2>&1; "
+                "echo WINDBG-END",
+                settle=8)
             log("window-state dump: "
                 + dbg.strip().replace("\n", " | ")[:400])
         except Exception as e:
@@ -1523,6 +1553,27 @@ def main():
         q.key("alt", "f4"); time.sleep(5)
     if open_app("04f-monitor", "aegis-monitor", wait_s=25, click_idx=8):
         opens["monitor"] = True
+        q.key("alt", "f4"); time.sleep(5)
+
+    # T13 W24 — the three TIER B debs must LAUNCH, not just install ("installs
+    # but doesn't launch must go red in CI, not be discovered in a VM").
+    # open_app's diff-vs-home check IS the W25 window-mapped proof (the
+    # process existing says nothing — a crashed electron process is
+    # exactly what this catches). The dock clicks ride the guest-resolved
+    # map (browser 2, os 3, corex 4); the W25 wrapper guards the electron
+    # launches, and the W24 launch logs land in
+    # ~/.local/state/aegis/launch/ for the diag dump.
+    if open_app("04g-browser", "aegis-browser-stable", wait_s=30,
+                click_idx=2, launch_cmd="desktop"):
+        opens["browser"] = True
+        q.key("alt", "f4"); time.sleep(5)
+    if open_app("04h-os", "os-private-chat", wait_s=30,
+                click_idx=3, launch_cmd="desktop"):
+        opens["os"] = True
+        q.key("alt", "f4"); time.sleep(5)
+    if open_app("04i-corex", "corex-terminal", wait_s=30,
+                click_idx=4, launch_cmd="desktop"):
+        opens["corex"] = True
         q.key("alt", "f4"); time.sleep(5)
 
     q.click(W - 60, 14, W, H)            # panel right cluster -> Control Center
@@ -1679,9 +1730,10 @@ def main():
     # §1 — the release gate: every first-party app must really open, and the
     # foreground QML probes must come back clean. "A release whose capture
     # shows a wallpaper and a dock but no window is a FAILED release."
+    # T13 W24 — the three Tier B debs joined the gate.
     failures = []
     for app in ("files", "terminal", "settings", "music", "calculator",
-                "editor", "monitor"):
+                "editor", "monitor", "browser", "os", "corex"):
         if not opens.get(app):
             failures.append(f"{app} window never opened (screen unchanged)")
     for name, text in probes.items():

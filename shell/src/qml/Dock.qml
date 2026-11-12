@@ -428,7 +428,11 @@ Window {
 
                     function launch() {
                         bounceAnim.restart()
-                        Util.launch(tile.modelData.cmd || "")
+                        // W24 — Tier B slots launch the resolved .desktop
+                        // Exec (the bare head is not on PATH for the /opt
+                        // debs); the cmd stays for tracking/matching.
+                        Util.launch(tile.modelData.launch
+                                    || tile.modelData.cmd || "")
                     }
 
                     MouseArea {

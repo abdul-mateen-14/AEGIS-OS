@@ -2,6 +2,7 @@
 
 #include <QColor>
 #include <QCryptographicHash>
+#include <QDateTime>
 #include <QDBusConnection>
 #include <QDBusMessage>
 #include <QDBusPendingCall>
@@ -70,7 +71,9 @@ QVariantMap Util::defaultConfig() const
             QVariantMap{{"name", "Settings"}, {"icon", "aegis-settings"},
                         {"cmd", "aegis-settings"}},             // Tier A — first-party Settings (aegis-apps)
             QVariantMap{{"name", "Trash"}, {"icon", "aegis-trash"},
-                        {"cmd", "aegis-files"}},               // Tier A — Files sidebar → Trash
+                        // W26 — Files gained --path: the Trash tile opens
+                        // the trash view, not Home
+                        {"cmd", "aegis-files --path trash:///"}},  // Tier A
         }},
     };
 }
@@ -284,7 +287,45 @@ void Util::launch(const QString &command)
         m_runningCmds.append(command);
         emit runningCmdsChanged();
     }
-    QProcess::startDetached(QStringLiteral("/bin/sh"), {QStringLiteral("-c"), command});
+    // W24 — every launch is diagnosable: the process output goes to
+    // ~/.local/state/aegis/launch/<head>.log (rotated to the last 50
+    // lines) with a timestamped line per launch. A VM failure is then
+    // one file the user can send (the v0.6.36 review's §3 ask).
+    const QString head = QFileInfo(command.section(QLatin1Char(' '), 0, 0))
+                             .fileName();
+    const QString stateDir = QStandardPaths::writableLocation(
+                                 QStandardPaths::StateLocation)
+                             + QStringLiteral("/aegis/launch");
+    QDir().mkpath(stateDir);
+    const QString logPath = stateDir + QStringLiteral("/%1.log").arg(head);
+    QFile logFile(logPath);
+    if (logFile.size() > 8192) {
+        QStringList keep;
+        if (logFile.open(QIODevice::ReadOnly | QIODevice::Text)) {
+            const QStringList lines =
+                QString::fromUtf8(logFile.readAll())
+                    .split(QLatin1Char('\n'));
+            keep = lines.mid(lines.size() > 50 ? lines.size() - 50 : 0);
+            logFile.close();
+        }
+        if (logFile.open(QIODevice::WriteOnly | QIODevice::Truncate
+                         | QIODevice::Text)) {
+            logFile.write(keep.join(QLatin1Char('\n')).toUtf8());
+            logFile.close();
+        }
+    }
+    if (logFile.open(QIODevice::WriteOnly | QIODevice::Append
+                     | QIODevice::Text)) {
+        logFile.write((QStringLiteral("--- ")
+                       + QDateTime::currentDateTime().toString(Qt::ISODate)
+                       + QLatin1Char('\n') + command + QLatin1Char('\n'))
+                          .toUtf8());
+        logFile.close();
+    }
+    QProcess::startDetached(QStringLiteral("/bin/sh"),
+                            {QStringLiteral("-c"),
+                             command + QStringLiteral(" >> ") + logPath
+                                 + QStringLiteral(" 2>&1")});
 }
 
 void Util::windowListChanged(const QString &json)
@@ -299,8 +340,12 @@ void Util::windowListChanged(const QString &json)
     // windowTrackingChanged because every isRunning() binding just
     // potentially changed with the new ids.
     const QJsonDocument doc = QJsonDocument::fromJson(json.toUtf8());
-    if (!doc.isObject())
+    if (!doc.isObject()) {
+        m_lastJson = json;   // T13 D5 — even a bad payload is evidence
+        emit windowTrackingChanged();
+        emit runningCmdsChanged();
         return;
+    }
     const QJsonObject o = doc.object();
     m_workspaceWindows = o.value(QStringLiteral("count")).toInt();
     m_anyWindowFull = o.value(QStringLiteral("anyFull")).toBool();
@@ -308,6 +353,8 @@ void Util::windowListChanged(const QString &json)
     const QJsonArray ids = o.value(QStringLiteral("ids")).toArray();
     for (const QJsonValue &v : ids)
         m_windowIds.append(v.toString());
+    // T13 D5 — keep the raw payload for the harness dump
+    m_lastJson = json;
     emit windowTrackingChanged();
     emit runningCmdsChanged();
 }
@@ -614,6 +661,13 @@ static QVariantMap findInstalledEntry(const QString &cmdHead)
                      entry.value(QStringLiteral("icon")).toString()},
                     {QStringLiteral("name"),
                      entry.value(QStringLiteral("name")).toString()},
+                    // W24 — the FULL Exec= line: electron-builder debs
+                    // install into /opt (CoreX's path even has a space)
+                    // with no /usr/bin symlink, so the bare command head
+                    // can never launch. The dock launches THIS, quoted as
+                    // the entry wrote it.
+                    {QStringLiteral("exec"),
+                     entry.value(QStringLiteral("cmd")).toString()},
                 };
         }
     }
@@ -650,6 +704,29 @@ QVariantList Util::dockApps() const
                 slot.insert(QStringLiteral("icon"), icon);
             if (!name.isEmpty())
                 slot.insert(QStringLiteral("name"), name);
+            // W24 — the dock launches the entry's FULL Exec= (the bare
+            // head is not on PATH for the /opt debs), but the slot's cmd
+            // stays the bare head: isRunning/the tile tracking match by
+            // the head and the window resourceClass, not by the launch
+            // line.
+            const QString exec = entry.value(QStringLiteral("exec")).toString();
+            if (!exec.isEmpty()) {
+                // W25 — electron apps ride the launch guard (--disable-gpu
+                // under a VM; --no-sandbox only when the SUID helper is
+                // missing). Detected by the chrome-sandbox file next to
+                // the binary — splitCommand, because the CoreX Exec
+                // quotes a path with a space.
+                const QStringList parts = QProcess::splitCommand(exec);
+                const QString bin = parts.value(0);
+                if (!bin.isEmpty() && QFileInfo::exists(
+                        QFileInfo(bin).absolutePath()
+                        + QStringLiteral("/chrome-sandbox")))
+                    slot.insert(QStringLiteral("launch"),
+                                QStringLiteral("aegis-electron-launch ")
+                                    + exec);
+                else
+                    slot.insert(QStringLiteral("launch"), exec);
+            }
             out.append(slot);
             continue;
         }

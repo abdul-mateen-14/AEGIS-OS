@@ -1,0 +1,23 @@
+#!/bin/sh
+# W25 — electron/Chromium launch guard. The dock (and anything else)
+# launches the resolved .desktop Exec through this wrapper when the app
+# ships a chrome-sandbox next to its binary. In a VM (or with
+# AEGIS_VM_MODE=1) there is no accelerated GL, so Chromium renders black
+# or crashes: add --disable-gpu. The SUID helper may still be broken in
+# a hand-installed deb — add --no-sandbox ONLY when the helper check
+# fails, never unconditionally.
+FLAGS=""
+VM=0
+if [ "$AEGIS_VM_MODE" = "1" ]; then
+    VM=1
+elif grep -qiE 'virtualbox|vmware|qemu|kvm' /sys/class/dmi/id/product_name 2>/dev/null; then
+    VM=1
+fi
+if [ "$VM" = 1 ]; then
+    FLAGS="$FLAGS --disable-gpu"
+    APPDIR=$(dirname "$1")
+    if [ -f "$APPDIR/chrome-sandbox" ] && [ ! -u "$APPDIR/chrome-sandbox" ]; then
+        FLAGS="$FLAGS --no-sandbox"
+    fi
+fi
+exec "$@" $FLAGS

@@ -143,6 +143,11 @@ public:
     // no-type-roulette contract, and ids never travel as a JS array (it
     // would demarshal as DBus "av", not "as").
     Q_INVOKABLE void windowListChanged(const QString &json);
+    // T13 D5 — the LAST RAW payload the windowwatch script pushed, kept
+    // verbatim for the boot harness: the island auto-hide assert reads
+    // pixels, this answers "did the push arrive at all, and with what
+    // count" ("" = the script never successfully called the slot).
+    Q_INVOKABLE QString windowListRaw() const { return m_lastJson; }
 
     // W21 — Dock.qml publishes the resting tile centers {"<cmd>": [cx, cy]}
     // as JSON; this writes kwinrc [Effect-aegis-dockzoom] TileMap. The
@@ -242,6 +247,8 @@ private:
     int m_workspaceWindows = 0;
     bool m_anyWindowFull = false;
     QStringList m_windowIds;
+    // T13 D5 — the raw payload for the harness dump
+    QString m_lastJson;
     // W22 — the fetch pipeline for opt-in web shortcuts
     QNetworkAccessManager *m_nam = nullptr;
 };
