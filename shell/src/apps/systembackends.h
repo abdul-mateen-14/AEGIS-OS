@@ -759,7 +759,8 @@ private:
         p->setArguments(aptArgs);
         p->setProcessChannelMode(QProcess::MergedChannels);
         // the apt output streams into the per-app log and the message line
-        connect(p, &QProcess::readyReadStandardOutput, this, [this, p]() {
+        connect(p, &QProcess::readyReadStandardOutput, this,
+                [this, p, logPath]() {
             const QByteArray chunk = p->readAllStandardOutput();
             m_lastMessage = QString::fromUtf8(chunk)
                 .trimmed()
