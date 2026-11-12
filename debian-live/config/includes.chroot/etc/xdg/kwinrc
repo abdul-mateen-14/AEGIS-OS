@@ -25,12 +25,17 @@ overviewEnabled=true
 # W20 — real window tracking: counts normal windows on the active
 # workspace and pushes org.aegis.Shell.windowListChanged (island
 # auto-hide predicate + dock running dots for foreign-launched apps).
-aegisWindowwatchEnabled=true
+# Key shape = the VERBATIM plugin id + Enabled (the KWin pattern —
+# kwin4_effect_shapecornersEnabled for the id kwin4_effect_shapecorners;
+# the camelCase aegisWindowwatchEnabled loaded nothing and the boot
+# gate's isScriptLoaded went red on the v0.6.35 run 3).
+aegis-windowwatchEnabled=true
 # W21 — dock-anchored open/close (the stock scale effect is ALSO a
 # toplevel-open-close-animation effect; both grabbing windowAdded is
 # undefined — the stock one is disabled for the tile-anchored one).
+# Same verbatim-id key shape.
+aegis-dockzoomEnabled=true
 scaleEnabled=false
-aegisDockzoomEnabled=true
 
 [Effect-shapecorners]
 Radius=18

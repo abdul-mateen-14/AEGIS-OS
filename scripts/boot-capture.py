@@ -640,6 +640,8 @@ def app_diag(serial):
         "echo ===KWIN-SCRIPTS===; busctl --user call org.kde.KWin "
         "/Scripting org.kde.kwin.Scripting isScriptLoaded s "
         "aegis-windowwatch 2>&1",
+        "echo ===KWIN-EFFECTS===; busctl --user call org.kde.KWin "
+        "/Effects org.kde.KWin.loadedEffects 2>&1",
         "echo ===KWIN-PLUGINS===; ls /usr/lib/x86_64-linux-gnu/qt6/plugins/kwin/effects/plugins/ 2>&1; ls /usr/lib/qt6/plugins/kwin/effects/plugins/ 2>&1; echo PLUGINS-DONE",
         # W14 — did the splash renderer really run? The boot frames keep
         # missing the (short) plymouth window on the ~10 s KVM boot, so the
@@ -832,10 +834,12 @@ def config_assert(diag_path):
          "BorderSize drifted (W11 flush-client anatomy)")
     need(kwinrc, "kwin4_effect_shapecornersEnabled=true",
          "ShapeCorners effect disabled (Table 18 r18 corners)")
-    need(kwinrc, "aegisWindowwatchEnabled=true",
-         "aegis-windowwatch script disabled (W20 island predicate)")
-    need(kwinrc, "aegisDockzoomEnabled=true",
-         "aegis-dockzoom effect disabled (W21 dock zoom)")
+    need(kwinrc, "aegis-windowwatchEnabled=true",
+         "aegis-windowwatch script disabled (W20 island predicate — "
+         "the key is the VERBATIM plugin id + Enabled)")
+    need(kwinrc, "aegis-dockzoomEnabled=true",
+         "aegis-dockzoom effect disabled (W21 dock zoom — verbatim id "
+         "+ Enabled)")
     need(kwinrc, "scaleEnabled=false",
          "stock scale effect re-enabled (it conflicts with aegis-dockzoom)")
     need(kwinrc, "Number=4",
@@ -855,6 +859,12 @@ def config_assert(diag_path):
         failures.append("aegis-windowwatch is not loaded in KWin "
                         "(isScriptLoaded said: "
                         + scripts.strip()[:60] + ")")
+    # W21 — the dockzoom effect must be loaded too
+    effects = section("KWIN-EFFECTS")
+    if effects and "aegis-dockzoom" not in effects:
+        failures.append("aegis-dockzoom is not among KWin's loaded "
+                        "effects (loadedEffects said: "
+                        + effects.strip()[:80] + ")")
     return failures
 
 def greeter_assert(out_dir, last_frame):

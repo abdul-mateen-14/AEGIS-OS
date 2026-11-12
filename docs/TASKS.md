@@ -220,6 +220,20 @@ Work order below is dependency-aware; the review's own order is W16-W23.
   01-home (mark ~27 px) and HIDDEN in 02-files (a window is open;
   <= 8 px) — the chain proven end to end, the shipped-green class
   killed. Re-dispatched again on the same ISO.
+- D11 run 3 (FAILED — and the new asserts did EXACTLY their job):
+  isScriptLoaded said "b false" — the script NEVER loaded. Root cause:
+  the kwinrc key shape. KWin keys plugins by the VERBATIM id + Enabled
+  (kwin4_effect_shapecornersEnabled for id kwin4_effect_shapecorners,
+  scaleEnabled for id scale) — my camelCase aegisWindowwatchEnabled /
+  aegisDockzoomEnabled matched nothing, so neither the windowwatch
+  script nor the dockzoom effect ever loaded. Fix: kwinrc now carries
+  aegis-windowwatchEnabled=true and aegis-dockzoomEnabled=true; the
+  config needles updated to the verbatim-id keys; a ===KWIN-EFFECTS===
+  diag (org.kde.KWin.loadedEffects) added and asserted for
+  aegis-dockzoom. NOTE: kwinrc ships INSIDE the ISO, so this fix needs
+  a new release — v0.6.36 (the v0.6.35 ISO cannot load the script no
+  matter what main carries). v0.6.35 remains product-valid for
+  everything else; v0.6.36 supersedes it with W20/W21 actually live.
 
 ---
 
