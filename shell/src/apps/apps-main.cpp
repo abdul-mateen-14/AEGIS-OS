@@ -108,6 +108,7 @@ int main(int argc, char *argv[])
     else if (which == QStringLiteral("calculator")) qmlName = QStringLiteral("CalculatorApp.qml");
     else if (which == QStringLiteral("editor")) qmlName = QStringLiteral("EditorApp.qml");
     else if (which == QStringLiteral("monitor")) qmlName = QStringLiteral("MonitorApp.qml");
+    else if (which == QStringLiteral("store")) qmlName = QStringLiteral("StoreApp.qml");
     else qmlName = QStringLiteral("FilesApp.qml");
     // W20 — pin the Wayland app_id to the product name: without it every
     // Aegis app reports resourceClass "aegis-apps" (the host binary) and
@@ -128,6 +129,7 @@ int main(int argc, char *argv[])
     SoundBackend sound;
     NetworkBackend network;
     UsersBackend users;
+    StoreBackend store;
     AegisId aegisId;
     // M3 — Monitor + Editor backends
     MonitorBackend monitor;
@@ -169,6 +171,7 @@ int main(int argc, char *argv[])
     qmlRegisterSingletonInstance("Aegis.Sound", 1, 0, "Sound", &sound);
     qmlRegisterSingletonInstance("Aegis.Network", 1, 0, "Network", &network);
     qmlRegisterSingletonInstance("Aegis.Users", 1, 0, "Users", &users);
+    qmlRegisterSingletonInstance("Aegis.Store", 1, 0, "Store", &store);
     qmlRegisterSingletonInstance("Aegis.Id", 1, 0, "AegisId", &aegisId);
     // M3 — Monitor + Editor
     qmlRegisterSingletonInstance("Aegis.Monitor", 1, 0, "Monitor", &monitor);

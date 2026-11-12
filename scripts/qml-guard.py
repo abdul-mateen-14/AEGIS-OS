@@ -28,6 +28,7 @@ FILES = [
     "shell/src/qml/CalculatorApp.qml",
     "shell/src/qml/EditorApp.qml",
     "shell/src/qml/MonitorApp.qml",
+    "shell/src/qml/StoreApp.qml",
     "shell/src/qml/Tokens.qml",
     "shell/src/qml/Desktop.qml",
     "shell/src/qml/AppWindow.qml",

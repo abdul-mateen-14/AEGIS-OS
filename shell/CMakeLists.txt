@@ -136,6 +136,7 @@ install(TARGETS aegis-apps RUNTIME DESTINATION bin)
 install(PROGRAMS src/apps/aegis-files src/apps/aegis-settings
                  src/apps/aegis-music src/apps/aegis-calculator
                  src/apps/aegis-editor src/apps/aegis-monitor
+                 src/apps/aegis-store
         DESTINATION bin)
 
 if(AEGIS_HAS_DESIRED_SIZE)

@@ -68,6 +68,8 @@ QVariantMap Util::defaultConfig() const
                         {"cmd", "aegis-editor"}},              // Tier A — first-party Editor (M3)
             QVariantMap{{"name", "Monitor"}, {"icon", "aegis-monitor"},
                         {"cmd", "aegis-monitor"}},             // Tier A — first-party Monitor (M3)
+            QVariantMap{{"name", "Store"}, {"icon", "aegis-store"},
+                        {"cmd", "aegis-store"}},               // Tier A — the apt-backed store (T14)
             QVariantMap{{"name", "Settings"}, {"icon", "aegis-settings"},
                         {"cmd", "aegis-settings"}},             // Tier A — first-party Settings (aegis-apps)
             QVariantMap{{"name", "Trash"}, {"icon", "aegis-trash"},

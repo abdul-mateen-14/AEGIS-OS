@@ -1,6 +1,8 @@
 #pragma once
 #include <QDBusConnection>
 #include <QDBusMessage>
+#include <QDir>
+#include <QFile>
 #include <QDBusObjectPath>
 #include <QDBusReply>
 #include <QObject>
@@ -631,4 +633,296 @@ signals:
 
 private:
     QVariantList m_users;
+};
+
+// ── T14 — Store: the apt-backed app store (famous Ubuntu/Debian apps) ────
+//
+// One curated catalog (name, category, description, apt package set), an
+// installed check per entry (dpkg-query), and install/remove through
+// `sudo -n apt-get` (the live user is NOPASSWD via 0610). The runner VM's
+// usermode NAT reaches the archive, so installs really work in CI; the
+// output streams into ~/.local/state/aegis-shell/aegis/store/<id>.log.
+class StoreBackend : public QObject {
+    Q_OBJECT
+    // [{id, name, category, description, pkgs, installed}]
+    Q_PROPERTY(QVariantList catalog READ catalog NOTIFY catalogChanged)
+    Q_PROPERTY(QString installingId READ installingId NOTIFY busyChanged)
+    Q_PROPERTY(QString lastMessage READ lastMessage NOTIFY busyChanged)
+
+public:
+    explicit StoreBackend(QObject *parent = nullptr) : QObject(parent)
+    {
+        m_stateDir = QStandardPaths::writableLocation(
+                         QStandardPaths::StateLocation)
+                     + QStringLiteral("/aegis/store");
+        QDir().mkpath(m_stateDir);
+    }
+
+    QVariantList catalog() const { return m_catalog; }
+    QString installingId() const { return m_installingId; }
+    QString lastMessage() const { return m_lastMessage; }
+
+    Q_INVOKABLE void refresh()
+    {
+        for (const QVariant &v : std::as_const(m_catalog)) {
+            const QVariantMap m = v.toMap();
+            const QStringList pkgs =
+                m.value(QStringLiteral("pkgs")).toStringList();
+            const bool installed = !pkgs.isEmpty()
+                && pkgInstalled(pkgs.first());
+            setInstalled(m.value(QStringLiteral("id")).toString(), installed);
+        }
+        emit catalogChanged();
+    }
+
+    Q_INVOKABLE void install(const QString &id)
+    {
+        if (!m_installingId.isEmpty())
+            return;
+        const QVariantMap m = entry(id);
+        if (m.isEmpty())
+            return;
+        const QStringList pkgs =
+            m.value(QStringLiteral("pkgs")).toStringList();
+        startProcess(QStringLiteral("install"), id,
+                     QStringList() << QStringLiteral("-n")
+                                   << QStringLiteral("apt-get")
+                                   << QStringLiteral("install") << QStringLiteral("-y")
+                                   << pkgs);
+    }
+
+    Q_INVOKABLE void remove(const QString &id)
+    {
+        if (!m_installingId.isEmpty())
+            return;
+        const QVariantMap m = entry(id);
+        if (m.isEmpty())
+            return;
+        const QStringList pkgs =
+            m.value(QStringLiteral("pkgs")).toStringList();
+        startProcess(QStringLiteral("remove"), id,
+                     QStringList() << QStringLiteral("-n")
+                                   << QStringLiteral("apt-get")
+                                   << QStringLiteral("remove") << QStringLiteral("-y")
+                                   << pkgs);
+    }
+
+signals:
+    void catalogChanged();
+    void busyChanged();
+    void installFinished(const QString &id, bool ok, const QString &message);
+
+private:
+    QVariantMap entry(const QString &id) const
+    {
+        for (const QVariant &v : std::as_const(m_catalog)) {
+            const QVariantMap m = v.toMap();
+            if (m.value(QStringLiteral("id")).toString() == id)
+                return m;
+        }
+        return {};
+    }
+
+    bool pkgInstalled(const QString &pkg) const
+    {
+        QProcess p;
+        p.start(QStringLiteral("dpkg-query"),
+                {QStringLiteral("-W"), QStringLiteral("-f=${Status}"), pkg});
+        p.waitForFinished(4000);
+        return QString::fromUtf8(p.readAllStandardOutput())
+            .contains(QStringLiteral("install ok installed"));
+    }
+
+    void setInstalled(const QString &id, bool installed)
+    {
+        for (int i = 0; i < m_catalog.size(); ++i) {
+            QVariantMap m = m_catalog.at(i).toMap();
+            if (m.value(QStringLiteral("id")).toString() == id) {
+                m.insert(QStringLiteral("installed"), installed);
+                m_catalog[i] = m;
+                return;
+            }
+        }
+    }
+
+    void startProcess(const QString &kind, const QString &id,
+                      const QStringList &aptArgs)
+    {
+        m_installingId = id;
+        m_lastMessage = QStringLiteral("Starting…");
+        emit busyChanged();
+        const QString logPath = m_stateDir
+                                + QStringLiteral("/%1.log").arg(id);
+        QFile(logPath).remove();
+        QProcess *p = new QProcess(this);
+        p->setProgram(QStringLiteral("sudo"));
+        p->setArguments(aptArgs);
+        p->setProcessChannelMode(QProcess::MergedChannels);
+        // the apt output streams into the per-app log and the message line
+        connect(p, &QProcess::readyReadStandardOutput, this, [this, p]() {
+            const QByteArray chunk = p->readAllStandardOutput();
+            m_lastMessage = QString::fromUtf8(chunk)
+                .trimmed()
+                .section(QLatin1Char('\n'), -1)
+                .left(160);
+            emit busyChanged();
+            QFile log(logPath);
+            if (log.open(QIODevice::WriteOnly | QIODevice::Append))
+                log.write(chunk);
+        });
+        connect(p, &QProcess::finished, this,
+                [this, p, kind, id, logPath](int code, QProcess::ExitStatus) {
+                    const bool ok = code == 0;
+                    QFile log(logPath);
+                    if (log.open(QIODevice::WriteOnly | QIODevice::Append
+                                 | QIODevice::Text)) {
+                        log.write(("\n--- " + kind + " finished "
+                                   + (ok ? QStringLiteral("ok")
+                                         : QStringLiteral("failed")))
+                                      .toUtf8());
+                        log.close();
+                    }
+                    p->deleteLater();
+                    m_installingId.clear();
+                    m_lastMessage = ok
+                        ? QStringLiteral("Done")
+                        : QStringLiteral("Failed — see the store log");
+                    refresh();
+                    emit busyChanged();
+                    emit installFinished(id, ok, m_lastMessage);
+                });
+        p->start();
+    }
+
+    QString m_stateDir;
+    QVariantList m_catalog = {
+        { { QStringLiteral("id"), QStringLiteral("vlc") },
+          { QStringLiteral("name"), QStringLiteral("VLC") },
+          { QStringLiteral("category"), QStringLiteral("Multimedia") },
+          { QStringLiteral("description"),
+            QStringLiteral("The universal media player — every format, "
+                           "no codecs to hunt for") },
+          { QStringLiteral("pkgs"), QStringList{QStringLiteral("vlc")} } },
+        { { QStringLiteral("id"), QStringLiteral("gimp") },
+          { QStringLiteral("name"), QStringLiteral("GIMP") },
+          { QStringLiteral("category"), QStringLiteral("Graphics") },
+          { QStringLiteral("description"),
+            QStringLiteral("The GNU Image Manipulation Program — the open "
+                           "Photoshop") },
+          { QStringLiteral("pkgs"), QStringList{QStringLiteral("gimp")} } },
+        { { QStringLiteral("id"), QStringLiteral("inkscape") },
+          { QStringLiteral("name"), QStringLiteral("Inkscape") },
+          { QStringLiteral("category"), QStringLiteral("Graphics") },
+          { QStringLiteral("description"),
+            QStringLiteral("Vector drawing, the SVG professional") },
+          { QStringLiteral("pkgs"), QStringList{QStringLiteral("inkscape")} } },
+        { { QStringLiteral("id"), QStringLiteral("blender") },
+          { QStringLiteral("name"), QStringLiteral("Blender") },
+          { QStringLiteral("category"), QStringLiteral("Graphics") },
+          { QStringLiteral("description"),
+            QStringLiteral("3D modeling, animation, rendering, video") },
+          { QStringLiteral("pkgs"), QStringList{QStringLiteral("blender")} } },
+        { { QStringLiteral("id"), QStringLiteral("krita") },
+          { QStringLiteral("name"), QStringLiteral("Krita") },
+          { QStringLiteral("category"), QStringLiteral("Graphics") },
+          { QStringLiteral("description"),
+            QStringLiteral("Digital painting, sketching and comics") },
+          { QStringLiteral("pkgs"), QStringList{QStringLiteral("krita")} } },
+        { { QStringLiteral("id"), QStringLiteral("audacity") },
+          { QStringLiteral("name"), QStringLiteral("Audacity") },
+          { QStringLiteral("category"), QStringLiteral("Multimedia") },
+          { QStringLiteral("description"),
+            QStringLiteral("The audio editor and recorder") },
+          { QStringLiteral("pkgs"), QStringList{QStringLiteral("audacity")} } },
+        { { QStringLiteral("id"), QStringLiteral("obs") },
+          { QStringLiteral("name"), QStringLiteral("OBS Studio") },
+          { QStringLiteral("category"), QStringLiteral("Multimedia") },
+          { QStringLiteral("description"),
+            QStringLiteral("Screen recording and live streaming") },
+          { QStringLiteral("pkgs"), QStringList{QStringLiteral("obs-studio")} } },
+        { { QStringLiteral("id"), QStringLiteral("libreoffice") },
+          { QStringLiteral("name"), QStringLiteral("LibreOffice") },
+          { QStringLiteral("category"), QStringLiteral("Office") },
+          { QStringLiteral("description"),
+            QStringLiteral("Writer, Calc, Impress — the full office suite") },
+          { QStringLiteral("pkgs"),
+            QStringList{QStringLiteral("libreoffice"),
+                        QStringLiteral("libreoffice-gtk3")} } },
+        { { QStringLiteral("id"), QStringLiteral("thunderbird") },
+          { QStringLiteral("name"), QStringLiteral("Thunderbird") },
+          { QStringLiteral("category"), QStringLiteral("Office") },
+          { QStringLiteral("description"),
+            QStringLiteral("Email, calendar and chat") },
+          { QStringLiteral("pkgs"), QStringList{QStringLiteral("thunderbird")} } },
+        { { QStringLiteral("id"), QStringLiteral("firefox") },
+          { QStringLiteral("name"), QStringLiteral("Firefox") },
+          { QStringLiteral("category"), QStringLiteral("Internet") },
+          { QStringLiteral("description"),
+            QStringLiteral("The classic open web browser") },
+          { QStringLiteral("pkgs"), QStringList{QStringLiteral("firefox")} } },
+        { { QStringLiteral("id"), QStringLiteral("telegram") },
+          { QStringLiteral("name"), QStringLiteral("Telegram Desktop") },
+          { QStringLiteral("category"), QStringLiteral("Internet") },
+          { QStringLiteral("description"),
+            QStringLiteral("The Telegram messenger, desktop client") },
+          { QStringLiteral("pkgs"),
+            QStringList{QStringLiteral("telegram-desktop")} } },
+        { { QStringLiteral("id"), QStringLiteral("filezilla") },
+          { QStringLiteral("name"), QStringLiteral("FileZilla") },
+          { QStringLiteral("category"), QStringLiteral("Internet") },
+          { QStringLiteral("description"),
+            QStringLiteral("FTP/SFTP client with a site manager") },
+          { QStringLiteral("pkgs"), QStringList{QStringLiteral("filezilla")} } },
+        { { QStringLiteral("id"), QStringLiteral("transmission") },
+          { QStringLiteral("name"), QStringLiteral("Transmission") },
+          { QStringLiteral("category"), QStringLiteral("Internet") },
+          { QStringLiteral("description"),
+            QStringLiteral("The lightweight BitTorrent client") },
+          { QStringLiteral("pkgs"),
+            QStringList{QStringLiteral("transmission-gtk")} } },
+        { { QStringLiteral("id"), QStringLiteral("keepassxc") },
+          { QStringLiteral("name"), QStringLiteral("KeePassXC") },
+          { QStringLiteral("category"), QStringLiteral("Utilities") },
+          { QStringLiteral("description"),
+            QStringLiteral("The password manager — KDBX, offline") },
+          { QStringLiteral("pkgs"), QStringList{QStringLiteral("keepassxc")} } },
+        { { QStringLiteral("id"), QStringLiteral("flameshot") },
+          { QStringLiteral("name"), QStringLiteral("Flameshot") },
+          { QStringLiteral("category"), QStringLiteral("Utilities") },
+          { QStringLiteral("description"),
+            QStringLiteral("Annotating screenshots with a full toolbox") },
+          { QStringLiteral("pkgs"), QStringList{QStringLiteral("flameshot")} } },
+        { { QStringLiteral("id"), QStringLiteral("gparted") },
+          { QStringLiteral("name"), QStringLiteral("GParted") },
+          { QStringLiteral("category"), QStringLiteral("Utilities") },
+          { QStringLiteral("description"),
+            QStringLiteral("The partition editor") },
+          { QStringLiteral("pkgs"), QStringList{QStringLiteral("gparted")} } },
+        { { QStringLiteral("id"), QStringLiteral("synaptic") },
+          { QStringLiteral("name"), QStringLiteral("Synaptic") },
+          { QStringLiteral("category"), QStringLiteral("Utilities") },
+          { QStringLiteral("description"),
+            QStringLiteral("The classic full-power package manager") },
+          { QStringLiteral("pkgs"), QStringList{QStringLiteral("synaptic")} } },
+        { { QStringLiteral("id"), QStringLiteral("htop") },
+          { QStringLiteral("name"), QStringLiteral("htop") },
+          { QStringLiteral("category"), QStringLiteral("Utilities") },
+          { QStringLiteral("description"),
+            QStringLiteral("The interactive process viewer") },
+          { QStringLiteral("pkgs"), QStringList{QStringLiteral("htop")} } },
+        { { QStringLiteral("id"), QStringLiteral("kate") },
+          { QStringLiteral("name"), QStringLiteral("Kate") },
+          { QStringLiteral("category"), QStringLiteral("Development") },
+          { QStringLiteral("description"),
+            QStringLiteral("The KDE advanced text editor") },
+          { QStringLiteral("pkgs"), QStringList{QStringLiteral("kate")} } },
+        { { QStringLiteral("id"), QStringLiteral("git") },
+          { QStringLiteral("name"), QStringLiteral("Git") },
+          { QStringLiteral("category"), QStringLiteral("Development") },
+          { QStringLiteral("description"),
+            QStringLiteral("Distributed version control (also the CLI)") },
+          { QStringLiteral("pkgs"), QStringList{QStringLiteral("git")} } },
+    };
+    QString m_installingId;
+    QString m_lastMessage;
 };

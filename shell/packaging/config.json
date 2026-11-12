@@ -53,6 +53,12 @@
       "cmd": "aegis-monitor"
     },
     {
+      "name": "Store",
+      "icon": "aegis-store",
+      "cmd": "aegis-store",
+      "resolve": false
+    },
+    {
       "name": "Settings",
       "icon": "aegis-settings",
       "cmd": "aegis-settings"

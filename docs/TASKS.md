@@ -15,6 +15,41 @@ cannot lose the plan.
 
 ---
 
+## T14 — v0.6.42: the Store (user request) (DOING)
+
+Opened 2026-11-12 from the user ruling: "add an appstore with all the
+famous ubuntu and debian etc apps".
+
+- D1 DONE — StoreBackend (systembackends.h): one curated catalog of 20
+  famous archive apps (VLC, GIMP, Inkscape, Blender, Krita, Audacity,
+  OBS Studio, LibreOffice, Thunderbird, Firefox, Telegram Desktop,
+  FileZilla, Transmission, KeePassXC, Flameshot, GParted, Synaptic,
+  htop, Kate, Git — every one in the Ubuntu/Debian archive, nothing
+  from third-party repos), dpkg-query for the installed state, install/
+  remove through sudo -n apt-get (NOPASSWD via 0610), the output
+  streamed to ~/.local/state/aegis-shell/aegis/store/<id>.log and the
+  status line. Category tints ride the §8.1 palette.
+- D2 DONE — StoreApp.qml: sidebar (search + categories) + cards with
+  letter tiles in the category tint, Install/Working…/Installed
+  buttons (Remove on installed), the status bar. Rides aegis-apps;
+  the store icon (aegis-store) ships in the Aegis theme.
+- D3 DONE — wiring: aegis-store wrapper + CMake install(PROGRAMS) +
+  aegis-store.desktop + apps-main store->StoreApp.qml + the Store
+  singleton registered (Aegis.Store/Store) + the dock slot (Store
+  after Monitor — 12 tiles, tray 730 px) in config.json AND the
+  util.cpp defaultConfig mirror; the boot harness gained the
+  04k-store capture (click_idx 9; Settings -> 10, Trash -> 11) and
+  the gate grew the store key.
+
+### Status
+
+- SHIPPED IN TREE (v0.6.42 tag next). The boot run verifies the store
+  opens with the catalog rendered. NOT in this cycle: a search-index
+  from the real archive (the catalog is curated), app detail pages,
+  update-all — recorded for a later round if the reviewer wants them.
+
+---
+
 ## T13 — v0.6.39: VM usage round — W24-W37 (DOING)
 
 Opened 2026-11-12 from the first REAL-VM usage report of v0.6.34

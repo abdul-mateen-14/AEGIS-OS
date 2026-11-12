@@ -1,0 +1,3 @@
+#!/bin/sh
+# Aegis Store — T14, the apt-backed app store.
+exec aegis-apps store "$@"

@@ -1500,11 +1500,12 @@ def main():
         q.key("alt", "f4"); time.sleep(5)
     # T11 — the dock grew to 11 tiles (M3 apps joined after the separator):
     # Files 0, Terminal 1, Browser 2, OS 3, CoreX 4, Music 5, Calculator 6,
-    # Editor 7, Monitor 8, Settings 9, Trash 10 — config order. The click
-    # fallback uses the GUEST-resolved order via tile_index (a missing
-    # Tier B deb drops the slot and shifts everything); the hardcoded 9
-    # below is only the fallback for a full install.
-    if open_app("04-settings", "aegis-settings", wait_s=30, click_idx=9):   # Settings
+    # Editor 7, Monitor 8, Store 9, Settings 10, Trash 11 — config order
+    # (T14 added the Store slot; 12 tiles, tray width 728 px on 1280). The
+    # click fallback uses the GUEST-resolved order via tile_index (a missing
+    # Tier B deb drops the slot and shifts everything); the hardcoded
+    # indices below are only the fallback for a full install.
+    if open_app("04-settings", "aegis-settings", wait_s=30, click_idx=10):   # Settings
         opens["settings"] = True
         q.key("alt", "f4"); time.sleep(5)
 
@@ -1575,11 +1576,18 @@ def main():
         opens["corex"] = True
         q.key("alt", "f4"); time.sleep(5)
 
+    # T14 — the Store: the apt-backed app store opens with the curated
+    # catalog rendered (the diff gate proves the window; the cards carry
+    # the letter tiles in the category tints).
+    if open_app("04k-store", "aegis-store", wait_s=25, click_idx=9):
+        opens["store"] = True
+        q.key("alt", "f4"); time.sleep(5)
+
     # T13 W26 — the Trash tile must open Files AT the trash view (it used
     # to open Home because aegis-files took no path argument). The dock
     # click launches aegis-files --path trash:///; the capture is the
     # evidence and the diff gate proves the window opened.
-    trash_idx = tile_index.get("aegis-files --path trash:///", 10)
+    trash_idx = tile_index.get("aegis-files --path trash:///", 11)
     q.mouse_abs(W // 2, int(H * NEUTRAL_Y), W, H)
     time.sleep(0.8)
     q.click(*tiles[trash_idx], W, H)
@@ -1743,10 +1751,10 @@ def main():
     # §1 — the release gate: every first-party app must really open, and the
     # foreground QML probes must come back clean. "A release whose capture
     # shows a wallpaper and a dock but no window is a FAILED release."
-    # T13 W24 — the three Tier B debs joined the gate.
+    # T13 W24 — the three Tier B debs joined the gate; T14 — the Store.
     failures = []
     for app in ("files", "terminal", "settings", "music", "calculator",
-                "editor", "monitor", "browser", "os", "corex"):
+                "editor", "monitor", "store", "browser", "os", "corex"):
         if not opens.get(app):
             failures.append(f"{app} window never opened (screen unchanged)")
     for name, text in probes.items():
