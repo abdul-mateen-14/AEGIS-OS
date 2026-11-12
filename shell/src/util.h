@@ -4,6 +4,8 @@
 #include <QTimer>
 #include <QVariantMap>
 
+class QNetworkAccessManager;   // W22 — web-shortcut fetch pipeline
+
 // Small C++ helpers the QML surfaces need: config loading, app launching,
 // battery status, hardware controls (brightness, volume, radio states),
 // the app inventory for the Launcher, and the PAM-verified unlock bridge
@@ -22,8 +24,9 @@ class Util : public QObject {
     // W8/W9 — the dock model: config.json slots with every Tier B slot
     // ("resolve": true) re-marked from its installed .desktop entry (Icon=,
     // Name=) and dropped entirely when the product is not installed. Tier A
-    // first-party slots pass through untouched.
-    Q_PROPERTY(QVariantList dockApps READ dockApps CONSTANT)
+    // first-party slots pass through untouched. W22 — user-added web
+    // shortcuts append before Trash; the list recomputes on demand.
+    Q_PROPERTY(QVariantList dockApps READ dockApps NOTIFY dockAppsChanged)
     Q_PROPERTY(int batteryPercent READ batteryPercent NOTIFY batteryChanged)
     Q_PROPERTY(bool onBattery READ onBattery NOTIFY batteryChanged)
     Q_PROPERTY(bool charging READ charging NOTIFY batteryChanged)
@@ -146,6 +149,19 @@ public:
     // transport into the effect's readConfig("TileMap").
     Q_INVOKABLE void publishDockTileMap(const QString &json);
 
+    // ── Web shortcuts (W22 — strictly opt-in dock entries) ────────
+    // Fetches the page (title + apple-touch-icon/favicon.ico/theme-color),
+    // stores the icon at ~/.local/share/aegis/webicons/<id>.png and the
+    // launcher at ~/.local/share/applications/aegis-web-<id>.desktop
+    // (Exec=xdg-open). The W8 resolver surfaces it; nothing is added to
+    // the default dock, ever. A network failure still lands the shortcut
+    // with a generated letter tile — the entry must always open.
+    Q_INVOKABLE void addWebShortcut(const QString &url);
+    // Deletes both files for the shortcut with this id.
+    Q_INVOKABLE void removeWebShortcut(const QString &id);
+    // [{id, name, icon, cmd, web}] — the user-added entries only.
+    Q_INVOKABLE QVariantList webShortcuts() const;
+
     // ── Hardware controls (Control Center) ───────────────────────────
     Q_INVOKABLE void refreshLinkStates();
     Q_INVOKABLE void setWifiEnabled(bool on);
@@ -175,12 +191,22 @@ signals:
     void runningCmdsChanged();
     // W20 — the window-tracking state changed (count / anyFull / ids)
     void windowTrackingChanged();
+    // W22 — the dock model changed (web shortcut added/removed)
+    void dockAppsChanged();
+    // W22 — addWebShortcut finished (ok=false: the URL never resolved;
+    // the tile still lands with a generated letter tile when possible)
+    void webShortcutAdded(bool ok, const QString &name);
 
 private slots:
     void refreshBattery();
 
 private:
     QVariantMap defaultConfig() const;
+    // W22 — writes the aegis-web-<id>.desktop launcher once the icon is
+    // settled (fetched or letter-tile), then fires webShortcutAdded and
+    // dockAppsChanged so the dock re-resolves with the new slot.
+    void writeWebDesktop(const QString &url, const QString &id,
+                         const QString &title, const QString &iconPath);
     void loadPrefs();
     void savePrefs() const;
     void loadAccent();
@@ -214,4 +240,6 @@ private:
     int m_workspaceWindows = 0;
     bool m_anyWindowFull = false;
     QStringList m_windowIds;
+    // W22 — the fetch pipeline for opt-in web shortcuts
+    QNetworkAccessManager *m_nam = nullptr;
 };

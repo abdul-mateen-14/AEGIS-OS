@@ -1,15 +1,22 @@
 #include "util.h"
 
 #include <QColor>
+#include <QCryptographicHash>
 #include <QDBusConnection>
 #include <QDBusMessage>
 #include <QDBusPendingCall>
 #include <QDir>
 #include <QFile>
 #include <QFileInfo>
+#include <QImage>
 #include <QJsonDocument>
 #include <QJsonObject>
+#include <QNetworkAccessManager>
+#include <QNetworkReply>
+#include <QNetworkRequest>
+#include <QPainter>
 #include <QProcess>
+#include <QRegularExpression>
 #include <QSettings>
 #include <QStandardPaths>
 #include <QTextStream>
@@ -640,6 +647,24 @@ QVariantList Util::dockApps() const
         if (!QStandardPaths::findExecutable(head).isEmpty())
             out.append(slot);
     }
+    // W22 — user-added web shortcuts append after the last first-party
+    // slot, BEFORE Trash (the review's order). Nothing is ever added
+    // unless the user explicitly asked for it (the default dock carries
+    // zero web entries — W9 holds).
+    const QVariantList web = webShortcuts();
+    if (!web.isEmpty()) {
+        int trashIdx = -1;
+        for (int i = 0; i < out.size(); ++i) {
+            const QVariantMap m = out.at(i).toMap();
+            if (m.value(QStringLiteral("name")).toString()
+                == QLatin1String("Trash")) {
+                trashIdx = i;
+                break;
+            }
+        }
+        for (int i = web.size() - 1; i >= 0; --i)
+            out.insert(trashIdx < 0 ? out.size() : trashIdx, web.at(i));
+    }
     return out;
 }
 
@@ -681,6 +706,8 @@ static QVariantMap parseDesktopFile(const QString &path)
             app.insert(QStringLiteral("icon"), value);
         else if (key == QLatin1String("TryExec"))
             app.insert(QStringLiteral("tryExec"), value);
+        else if (key == QLatin1String("StartupWMClass"))
+            app.insert(QStringLiteral("wmclass"), value);
         else if (key == QLatin1String("NoDisplay"))
             app.insert(QStringLiteral("nodisplay"), value == QLatin1String("true"));
         else if (key == QLatin1String("Hidden"))
@@ -726,11 +753,16 @@ QVariantList Util::allApps() const
          << QStringLiteral("/usr/share/applications");
 
     QList<QVariantMap> discovered;
+    QStringList seenWmClasses;
     for (const QString &dirPath : dirs) {
         QDir dir(dirPath);
         const auto files = dir.entryList({QStringLiteral("*.desktop")},
                                          QDir::Files);
         for (const QString &f : files) {
+            // W22 — user web shortcuts already ride the pinned section
+            // (dockApps appends them before Trash); never double them here.
+            if (f.startsWith(QLatin1String("aegis-web-")))
+                continue;
             QVariantMap app = parseDesktopFile(dir.filePath(f));
             if (app.isEmpty())
                 continue;
@@ -738,11 +770,21 @@ QVariantList Util::allApps() const
                 continue;
             const QString cmd = app.value(QStringLiteral("cmd")).toString();
             const QString head = cmd.section(QLatin1Char(' '), 0, 0);
-            if (head.isEmpty() || seenExecs.contains(head))
+            const QString wm = app.value(QStringLiteral("wmclass")).toString();
+            // W22 — dedupe by Exec basename AND StartupWMClass: the
+            // aegis-browser deb ships two identical entries
+            // (aegis-browser.desktop + org.aegisbrowser.Aegis.desktop);
+            // same-exec twins were already caught by seenExecs, but two
+            // entries whose Exec spellings differ (an /opt path vs the
+            // wrapper) must also collapse to one tile.
+            const bool wmSeen = !wm.isEmpty() && seenWmClasses.contains(wm);
+            if (head.isEmpty() || seenExecs.contains(head) || wmSeen)
                 continue;
             // record the exec even for hidden entries so a NoDisplay
             // override wins over the stock file (see dir order above)
             seenExecs << head;
+            if (!wm.isEmpty())
+                seenWmClasses << wm;
             if (app.value(QStringLiteral("nodisplay")).toBool()
                 || app.value(QStringLiteral("hidden")).toBool())
                 continue;
@@ -763,4 +805,258 @@ QVariantList Util::allApps() const
     for (const QVariantMap &m : discovered)
         out.append(m);
     return out;
+}
+
+// ── W22 — web shortcuts (strictly opt-in dock entries) ────────────────
+
+static QString webShortcutId(const QString &normalizedUrl)
+{
+    return QString::fromLatin1(QCryptographicHash::hash(
+                                   normalizedUrl.toUtf8(),
+                                   QCryptographicHash::Md5)
+                                   .toHex()
+                                   .left(12));
+}
+
+static QString webIconDir()
+{
+    const QString dataHome = qEnvironmentVariable("XDG_DATA_HOME");
+    const QString base = dataHome.isEmpty()
+        ? (qEnvironmentVariable("HOME") + QStringLiteral("/.local/share"))
+        : dataHome;
+    return base + QStringLiteral("/aegis/webicons");
+}
+
+// The fallback tile: rounded square in the site's theme color (or a
+// stable hash hue), white site initial in Montserrat. A network failure
+// must still land a working, good-looking shortcut.
+static QImage makeLetterTile(const QString &letter, const QColor &color)
+{
+    QImage img(96, 96, QImage::Format_ARGB32_Premultiplied);
+    img.fill(Qt::transparent);
+    QPainter p(&img);
+    p.setRenderHint(QPainter::Antialiasing);
+    p.setPen(Qt::NoPen);
+    p.setBrush(color.isValid() ? color : QColor(0x3E, 0x8B, 0xFF));
+    p.drawRoundedRect(4, 4, 88, 88, 22, 22);
+    QFont f;
+    f.setFamily(QStringLiteral("Montserrat"));
+    f.setPixelSize(44);
+    f.setWeight(QFont::DemiBold);
+    p.setFont(f);
+    p.setPen(QColor(255, 255, 255, 235));
+    p.drawText(img.rect(), Qt::AlignCenter, letter.toUpper());
+    p.end();
+    return img;
+}
+
+QVariantList Util::webShortcuts() const
+{
+    QVariantList out;
+    const QString appsDir = webIconDir().section(QLatin1Char('/'), 0, -2)
+                                + QStringLiteral("/../applications");
+    QDir dir(QDir::cleanPath(appsDir));
+    const auto files = dir.entryList({QStringLiteral("aegis-web-*.desktop")},
+                                     QDir::Files, QDir::Name);
+    for (const QString &f : files) {
+        const QVariantMap entry =
+            parseDesktopFile(dir.filePath(f));
+        if (entry.isEmpty()
+            || entry.value(QStringLiteral("type")).toString()
+                   != QLatin1String("Application"))
+            continue;
+        // id from the file name: aegis-web-<id>.desktop
+        const QString id = f.mid(10, f.size() - 10
+                                       - QStringLiteral(".desktop").size());
+        out.append(QVariantMap{
+            {QStringLiteral("id"), id},
+            {QStringLiteral("name"),
+             entry.value(QStringLiteral("name")).toString()},
+            {QStringLiteral("icon"),
+             entry.value(QStringLiteral("icon")).toString()},
+            {QStringLiteral("cmd"),
+             entry.value(QStringLiteral("cmd")).toString()},
+            {QStringLiteral("web"), true},
+        });
+    }
+    return out;
+}
+
+void Util::removeWebShortcut(const QString &id)
+{
+    if (id.isEmpty() || id.contains(QLatin1Char('/')))
+        return;   // ids are hex — never trust a path component
+    QFile::remove(webIconDir() + QStringLiteral("/%1.png").arg(id));
+    const QString dataHome = qEnvironmentVariable("XDG_DATA_HOME");
+    const QString base = dataHome.isEmpty()
+        ? (qEnvironmentVariable("HOME") + QStringLiteral("/.local/share"))
+        : dataHome;
+    QFile::remove(base + QStringLiteral("/applications/aegis-web-%1.desktop")
+                          .arg(id));
+    emit dockAppsChanged();
+}
+
+void Util::addWebShortcut(const QString &rawUrl)
+{
+    QString url = rawUrl.trimmed();
+    if (url.isEmpty()) {
+        emit webShortcutAdded(false, QString());
+        return;
+    }
+    if (!url.contains(QLatin1String("://")))
+        url = QStringLiteral("https://") + url;
+    const QUrl u(url);
+    if (!u.isValid() || u.host().isEmpty()) {
+        emit webShortcutAdded(false, QString());
+        return;
+    }
+    const QString normalized = u.toString();
+    const QString id = webShortcutId(normalized);
+    const QString host = u.host();
+
+    if (!m_nam)
+        m_nam = new QNetworkAccessManager(this);
+    QNetworkRequest req(u);
+    req.setAttribute(QNetworkRequest::RedirectPolicyAttribute,
+                     QNetworkRequest::NoLessSafeRedirectPolicy);
+    req.setTransferTimeout(10000);
+    QNetworkReply *pageReply = m_nam->get(req);
+    connect(pageReply, &QNetworkReply::finished, this,
+            [this, pageReply, normalized, id, host]() {
+                pageReply->deleteLater();
+                QString title = host;
+                QString iconUrl;
+                QColor themeColor;
+                const QByteArray body =
+                    pageReply->error() == QNetworkReply::NoError
+                        ? pageReply->readAll()
+                        : QByteArray();
+                if (!body.isEmpty()) {
+                    const QString html =
+                        QString::fromUtf8(body.left(300 * 1024));
+                    QRegularExpression titleRe(
+                        QStringLiteral("<title[^>]*>([^<]{1,120})"),
+                        QRegularExpression::CaseInsensitiveOption);
+                    const auto tm = titleRe.match(html);
+                    if (tm.hasMatch())
+                        title = tm.captured(1).simplified();
+                    // theme-color for the fallback tile
+                    QRegularExpression colorRe(
+                        QStringLiteral("name=[\"']theme-color[\"'][^>]*"
+                                       "content=[\"']([^\"']+)[\"']"),
+                        QRegularExpression::CaseInsensitiveOption);
+                    const auto cm = colorRe.match(html);
+                    if (cm.hasMatch())
+                        themeColor = QColor(cm.captured(1).trimmed());
+                    // icon links — apple-touch-icon first, then any icon
+                    QRegularExpression linkRe(
+                        QStringLiteral("<link[^>]+>"),
+                        QRegularExpression::CaseInsensitiveOption);
+                    QString fallbackIcon;
+                    auto it = linkRe.globalMatch(html);
+                    while (it.hasNext()) {
+                        const QString tag = it.next().captured(0);
+                        QRegularExpression relRe(
+                            QStringLiteral("rel=[\"']([^\"']*)[\"']"),
+                            QRegularExpression::CaseInsensitiveOption);
+                        QRegularExpression hrefRe(
+                            QStringLiteral("href=[\"']([^\"']+)[\"']"),
+                            QRegularExpression::CaseInsensitiveOption);
+                        const auto rel = relRe.match(tag);
+                        const auto href = hrefRe.match(tag);
+                        if (!rel.hasMatch() || !href.hasMatch())
+                            continue;
+                        const QString r =
+                            rel.captured(1).toLower();
+                        if (r.contains(QLatin1String("apple-touch-icon"))) {
+                            iconUrl = href.captured(1);
+                            break;
+                        }
+                        if (r.contains(QLatin1String("icon"))
+                            && fallbackIcon.isEmpty())
+                            fallbackIcon = href.captured(1);
+                    }
+                    if (iconUrl.isEmpty())
+                        iconUrl = fallbackIcon;
+                }
+                if (title.isEmpty())
+                    title = host;
+
+                const QString iconPath =
+                    webIconDir() + QStringLiteral("/%1.png").arg(id);
+                QDir().mkpath(webIconDir());
+                bool iconDone = false;
+                if (!iconUrl.isEmpty()) {
+                    const QUrl resolved =
+                        QUrl(iconUrl).isRelative()
+                            ? QUrl(normalized).resolved(QUrl(iconUrl))
+                            : QUrl(iconUrl);
+                    if (resolved.isValid()) {
+                        QNetworkRequest ireq(resolved);
+                        ireq.setAttribute(
+                            QNetworkRequest::RedirectPolicyAttribute,
+                            QNetworkRequest::NoLessSafeRedirectPolicy);
+                        ireq.setTransferTimeout(10000);
+                        QNetworkReply *iconReply = m_nam->get(ireq);
+                        connect(iconReply, &QNetworkReply::finished, this,
+                                [this, iconReply, iconPath, title,
+                                 normalized, id, host, themeColor]() {
+                                    iconReply->deleteLater();
+                                    QImage icon;
+                                    if (iconReply->error()
+                                        == QNetworkReply::NoError) {
+                                        const QByteArray data =
+                                            iconReply->readAll();
+                                        icon.loadFromData(data);
+                                    }
+                                    if (icon.isNull()) {
+                                        // favicon.ico missing or
+                                        // undecodable — the letter tile
+                                        // keeps the entry presentable
+                                        icon = makeLetterTile(
+                                            host.left(1), themeColor);
+                                    }
+                                    icon.save(iconPath, "PNG");
+                                    writeWebDesktop(normalized, id, title,
+                                                    iconPath);
+                                });
+                        iconDone = true;
+                    }
+                }
+                if (!iconDone) {
+                    makeLetterTile(host.left(1), themeColor)
+                        .save(iconPath, "PNG");
+                    writeWebDesktop(normalized, id, title, iconPath);
+                }
+            });
+}
+
+void Util::writeWebDesktop(const QString &url, const QString &id,
+                           const QString &title, const QString &iconPath)
+{
+    const QString dataHome = qEnvironmentVariable("XDG_DATA_HOME");
+    const QString base = dataHome.isEmpty()
+        ? (qEnvironmentVariable("HOME") + QStringLiteral("/.local/share"))
+        : dataHome;
+    QDir().mkpath(base + QStringLiteral("/applications"));
+    QFile f(base + QStringLiteral("/applications/aegis-web-%1.desktop")
+                .arg(id));
+    if (!f.open(QIODevice::WriteOnly | QIODevice::Truncate)) {
+        emit webShortcutAdded(false, title);
+        return;
+    }
+    // multi-arg form: the title can legitimately contain percent signs
+    const QString desktop = QStringLiteral(
+        "[Desktop Entry]\n"
+        "Type=Application\n"
+        "Name=%1\n"
+        "Exec=xdg-open %2\n"
+        "Icon=%3\n"
+        "StartupWMClass=aegis-web-%4\n"
+        "Terminal=false\n"
+        "X-Aegis-WebShortcut=true\n")
+                                .arg(title, url, iconPath, id);
+    f.write(desktop.toUtf8());
+    emit webShortcutAdded(true, title);
+    emit dockAppsChanged();
 }

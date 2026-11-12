@@ -1,4 +1,5 @@
 import QtQuick
+import QtQuick.Controls
 import Aegis.Util
 
 // Floating dock — a real liquid tray, packed macOS-tight (§2.2, Table 4).
@@ -87,6 +88,109 @@ Window {
         interval: 1500
         running: true
         onTriggered: dockRoot.publishTileMap()
+    }
+
+    // W22 — the Add-to-Dock input pill (right-click on the tray glass).
+    // Anchored to the WINDOW, not the tray: the tray folds to 0.55 scale
+    // and the pill must not distort with it. The dock surface's keyboard
+    // interactivity is OnDemand, so the field takes typing directly.
+    // Enter adds, Escape cancels; nothing is added unless the user asks.
+    Rectangle {
+        id: addPill
+        property bool open: false
+        anchors {
+            horizontalCenter: parent.horizontalCenter
+            bottom: parent.bottom
+            bottomMargin: Tokens.dockMargin + Tokens.iconSize
+                          + Tokens.trayPadding * 2 + Tokens.dotGap + 12
+        }
+        width: 470
+        height: 58
+        radius: 29
+        color: Tokens.dockGlassTint
+        border.color: Tokens.dockGlassBorder
+        border.width: 1
+        opacity: open ? 1 : 0
+        scale: open ? 1 : 0.92
+        visible: opacity > 0
+        onOpenChanged: if (open) urlField.forceActiveFocus()
+        Behavior on opacity {
+            NumberAnimation { duration: 160; easing.type: Easing.OutCubic }
+        }
+        Behavior on scale {
+            NumberAnimation { duration: 200; easing.type: Easing.OutBack }
+        }
+
+        function commit() {
+            if (urlField.text.trim().length === 0) {
+                open = false
+                return
+            }
+            Util.addWebShortcut(urlField.text)
+            urlField.text = ""
+            open = false
+        }
+
+        Row {
+            anchors { fill: parent; margins: 11 }
+            spacing: 8
+
+            TextField {
+                id: urlField
+                width: 330
+                height: 36
+                anchors.verticalCenter: parent.verticalCenter
+                placeholderText: "Paste a link — https://…"
+                font { family: "Montserrat"; pixelSize: 12 }
+                color: Tokens.fg
+                placeholderTextColor: Tokens.fgMuted
+                selectByMouse: true
+                background: Rectangle {
+                    radius: 18
+                    color: Util.darkMode ? Qt.rgba(1, 1, 1, 0.06)
+                                         : Qt.rgba(0, 0, 0, 0.05)
+                    border.color: urlField.activeFocus ? Tokens.accent
+                                                       : Tokens.glassBorder
+                }
+                onAccepted: addPill.commit()
+                Keys.onEscapePressed: addPill.open = false
+            }
+
+            Rectangle {
+                width: 62; height: 36; radius: 18
+                anchors.verticalCenter: parent.verticalCenter
+                color: Tokens.accent
+                Text {
+                    anchors.centerIn: parent
+                    text: "Add"
+                    color: "#FFFFFF"
+                    font { family: "Montserrat"; pixelSize: 12; weight: Font.DemiBold }
+                }
+                MouseArea {
+                    anchors.fill: parent
+                    cursorShape: Qt.PointingHandCursor
+                    onClicked: addPill.commit()
+                }
+            }
+
+            Rectangle {
+                width: 36; height: 36; radius: 18
+                anchors.verticalCenter: parent.verticalCenter
+                color: Util.darkMode ? Qt.rgba(1, 1, 1, 0.08)
+                                     : Qt.rgba(0, 0, 0, 0.06)
+                Text {
+                    anchors.centerIn: parent
+                    text: "\u2715"
+                    color: Tokens.fgMuted
+                    font.pixelSize: 12
+                }
+                MouseArea {
+                    anchors.fill: parent
+                    cursorShape: Qt.PointingHandCursor
+                    onClicked: addPill.open = false
+                }
+            }
+        }
     }
 
     Timer {
@@ -215,6 +319,28 @@ Window {
             }
         }
 
+        // W22 — right-click on the empty tray glass opens the Add flow.
+        // Strictly opt-in: the default dock carries zero web tiles (W9).
+        MouseArea {
+            anchors.fill: parent
+            acceptedButtons: Qt.RightButton
+            cursorShape: Qt.ArrowCursor
+            enabled: !addPill.open
+            onClicked: (mouse) => {
+                if (mouse.button === Qt.RightButton)
+                    addPill.open = true
+            }
+        }
+
+        Menu {
+            id: webMenu
+            property string webId: ""
+            MenuItem {
+                text: "Remove from Dock"
+                onTriggered: Util.removeWebShortcut(webMenu.webId)
+            }
+        }
+
         Row {
             id: row
             anchors {
@@ -308,7 +434,18 @@ Window {
                     MouseArea {
                         anchors.fill: parent
                         cursorShape: Qt.PointingHandCursor
-                        onClicked: tile.launch()
+                        acceptedButtons: Qt.LeftButton | Qt.RightButton
+                        onClicked: (mouse) => {
+                            if (mouse.button === Qt.RightButton
+                                && tile.modelData.web) {
+                                // W22 — user-added web shortcuts are
+                                // removable; first-party slots are not
+                                webMenu.webId = tile.modelData.id || ""
+                                webMenu.popup()
+                                return
+                            }
+                            tile.launch()
+                        }
                     }
 
                     HoverHandler {

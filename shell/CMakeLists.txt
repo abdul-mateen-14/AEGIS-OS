@@ -78,6 +78,7 @@ target_link_libraries(aegis-shell PRIVATE
     Qt6::Quick
     Qt6::QuickControls2
     Qt6::DBus
+    Qt6::Network   # W22 — the web-shortcut fetch pipeline lives in Util
     ${AEGIS_LAYERSHELL_TARGET}
 )
 

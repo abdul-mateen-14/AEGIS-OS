@@ -60,8 +60,10 @@ public:
             const QString t = query.queryItemValue(QStringLiteral("tint"));
             if (!t.isEmpty()) tint = QColor(t);
         }
-        QIcon icon = QIcon::fromTheme(name,
-            QIcon::fromTheme(QStringLiteral("application-x-executable")));
+        QIcon icon = name.startsWith(QLatin1Char('/'))
+            ? QIcon(name)   // W22 — web shortcuts store absolute icon paths
+            : QIcon::fromTheme(name,
+                  QIcon::fromTheme(QStringLiteral("application-x-executable")));
         QImage image = icon.pixmap(px).toImage();
         if (tint.isValid() && !image.isNull()) {
             image = image.convertToFormat(QImage::Format_ARGB32_Premultiplied);
