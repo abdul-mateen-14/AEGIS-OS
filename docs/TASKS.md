@@ -575,6 +575,38 @@ Work order below is dependency-aware; the review's own order is W16-W23.
   aegis-settings 4, Open Terminal; Clean Up waits for M2 desktop icons.
   All of D11-D14 are LOCAL commits while Boot Test 43275799810 flies —
   push only after it lands.
+- D15 — v0.6.46 BOOT RUN + ARTIFACT FORENSICS = **COREX ROOT CAUSE,
+  NINE RUNS AFTER W24 OPENED**. The D10 diagnostics paid for themselves:
+  1. The resolved Execs are clean now (`/opt/OSPrivateChat/
+     os-private-chat`, `"/opt/CoreX Terminal/corex-terminal" %U`) and
+     the liveness probes answer the crash-vs-slow question: corex is
+     DEAD on both launch paths within the window.
+  2. The artifact's serial-diag.txt carried the FULL per-file launch
+     dump (the typed-channel drain still cut the CI log at the first
+     file — the artifact is the reliable channel now). corex-terminal.log:
+     the dock click launched the BARE head and FATALed at
+     credentials.cc:131 — the electron wrapper NEVER ENGAGED for corex.
+  3. WHY: CoreX's desktop Exec is quoted — Exec="/opt/CoreX Terminal/
+     corex-terminal" %U. findInstalledEntry's basename match takes
+     section(' ',0,0) of the raw Exec = `"/opt/CoreX`, basename `"CoreX`
+     != corex-terminal — THE ENTRY NEVER MATCHED. The tile survived the
+     W8 PATH fallback (update-alternatives symlink) but lost the W24
+     launch field, so Dock launched tile.cmd = the bare head. Every run
+     since v0.6.39. The PATH-first change in v0.6.46 sat INSIDE the
+     match branch it could never reach.
+  FIX (v0.6.47): findInstalledEntry strips the quoting from the first
+  Exec token (quoted form "..."; backslash escapes) before the basename
+  match. CoreX now matches (and gets the entry's real icon/name), the
+  PATH-first exec applies, dockApps wraps, the VM flags reach electron —
+  the os-private-chat path that already works end to end. Harness side:
+  the Exec resolution walks ALL /usr/share/applications entries the way
+  the W8 entryhit rule does (the browser's entry is aegis-browser.desktop
+  / org.aegisbrowser.Aegis, not aegis-browser-stable.desktop — its
+  attempt-0 fallback launched the bare head and FATALed identically,
+  proving the mechanism from a second angle). ALSO NOTED (cosmetic):
+  konsole.log shows kwinrc line 8 "Invalid escape sequence «\"»" twice
+  at session start — the W21 TileMap JSON quotes are written unescaped;
+  harmless, queued for a later hygiene pass.
 
 ---
 

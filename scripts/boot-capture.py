@@ -1357,9 +1357,19 @@ def main():
                 # Util.launch even created a launch log named after it).
                 # run() now strips escapes; the sentinels bound the value.
                 out = serial.run(
-                    "echo EXEC-RES-START; grep -h '^Exec=' "
-                    f"/usr/share/applications/{cmd}.desktop 2>/dev/null "
-                    "| head -1 | cut -d= -f2-; echo EXEC-RES-END", settle=2)
+                    "echo EXEC-RES-START; "
+                    # D10/v0.6.46 run — the deb entry is not always named
+                    # after the command head (the browser ships
+                    # aegis-browser.desktop / org.aegisbrowser.Aegis, not
+                    # aegis-browser-stable.desktop): walk every entry the
+                    # way the W8 entryhit rule does and take the first
+                    # Exec whose basename matches the head.
+                    "for d in /usr/share/applications/*.desktop; do "
+                    "ex=$(sed -n 's/^Exec=//p' \"$d\" 2>/dev/null | head -1 "
+                    "| tr -d '\\\"' | awk '{print $1}'); ex=${ex##*/}; "
+                    f"[ \"$ex\" = \"{cmd}\" ] && sed -n 's/^Exec=//p' \"$d\" "
+                    "| head -1 | cut -d= -f2- && break; done; "
+                    "echo EXEC-RES-END", settle=3)
                 m = re.search(r"EXEC-RES-START\r?\n(.*?)\r?\nEXEC-RES-END",
                               out, re.S)
                 lines = [ln.strip() for ln in

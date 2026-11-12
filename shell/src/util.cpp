@@ -656,18 +656,37 @@ static QVariantMap findInstalledEntry(const QString &cmdHead)
             const QString execHead = QFileInfo(
                 entry.value(QStringLiteral("cmd")).toString()
                     .section(QLatin1Char(' '), 0, 0)).fileName();
+            // D10/v0.6.46 run — the desktop Exec may QUOTE the path (CoreX:
+            // Exec="/opt/CoreX Terminal/corex-terminal" %U). The raw
+            // section() first token is then `"/opt/CoreX` and the basename
+            // match never fires: the entry went unmatched, the tile lost
+            // the W24 launch field, and the dock launched the bare head —
+            // the credentials.cc sandbox FATAL in corex-terminal.log.
+            // Strip the quoting before the basename match (the desktop
+            // spec quotes exactly like sh: "..."; \ escapes).
+            const QString execRaw =
+                entry.value(QStringLiteral("cmd")).toString();
+            QString execToken = execRaw.section(QLatin1Char(' '), 0, 0);
+            if (execToken.startsWith(QLatin1Char('"'))) {
+                const int close = execToken.indexOf(QLatin1Char('"'), 1);
+                execToken = (close > 0)
+                                ? execToken.mid(1, close - 1)
+                                : execToken.mid(1);
+            } else if (execToken.contains(QLatin1Char('\\'))) {
+                execToken.remove(QLatin1Char('\\'));
+            }
+            const QString quotedHead =
+                QFileInfo(execToken).fileName();
             const QString tryExec = entry.value(QStringLiteral("tryExec")).toString();
-            if (execHead == cmdHead || tryExec == cmdHead) {
+            if (quotedHead == cmdHead || execHead == cmdHead
+                || tryExec == cmdHead) {
                 // W24/D10 — the launch line: prefer the bare head when it
                 // resolves on PATH. All three Tier B debs install a
                 // /usr/bin symlink (CoreX via update-alternatives), and
                 // the PATH binary is the canonical entry point — no
-                // quoting or desktop field codes to re-parse. CoreX's
-                // Exec is `"/opt/CoreX Terminal/corex-terminal" %U`: the
-                // quoted space + field code rode the launch line verbatim
-                // into /bin/sh (the v0.6.45 run's red). The entry Exec
-                // stays the fallback when nothing is on PATH — the W24
-                // rule (the entry is the source of truth) is intact.
+                // quoting or desktop field codes to re-parse. The entry
+                // Exec stays the fallback when nothing is on PATH — the
+                // W24 rule (the entry is the source of truth) is intact.
                 const QString onPath = QStandardPaths::findExecutable(cmdHead);
                 return QVariantMap{
                     {QStringLiteral("icon"),
