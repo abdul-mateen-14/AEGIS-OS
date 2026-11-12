@@ -607,6 +607,13 @@ Work order below is dependency-aware; the review's own order is W16-W23.
   konsole.log shows kwinrc line 8 "Invalid escape sequence «\"»" twice
   at session start — the W21 TileMap JSON quotes are written unescaped;
   harmless, queued for a later hygiene pass.
+- D16 — v0.6.47 release run RED: the ISO build died on
+  "E: Package 'cups-pdf' has no installation candidate" — the W33.2
+  package ask churned out of the resolute archive (rolling release;
+  kscreen stayed in). cups-pdf reverted on main, recorded here as the
+  review's honest answer (the Print-to-PDF ask waits for an archive
+  reintroduction or a locally built deb). v0.6.48 = the same tree with
+  the line gone; the D15 corex fix and D11-D14 ride it.
 
 ---
 

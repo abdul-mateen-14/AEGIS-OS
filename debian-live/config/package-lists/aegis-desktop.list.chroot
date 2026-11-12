@@ -42,9 +42,10 @@ wireplumber
 # Printing & scanning — out of the box (Table 22)
 cups
 printer-driver-gutenprint
-# W33.2 — the review's "pdfs" ask: Print-to-PDF exists as a printer out
-# of the box (the Drivers pane's test page lands in ~/PDF).
-cups-pdf
+# W33.2 — cups-pdf is GONE from the resolute archive ("no installation
+# candidate", the v0.6.47 release run failed on exactly this line). The
+# Print-to-PDF ask is recorded in TASKS.md D16 and waits for an archive
+# reintroduction or a locally-built cups-pdf deb.
 sane-utils
 simple-scan
 
