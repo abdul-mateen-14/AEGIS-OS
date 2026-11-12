@@ -13,7 +13,10 @@ FLAGS=""
 VM=0
 if [ "$AEGIS_VM_MODE" = "1" ]; then
     VM=1
-elif grep -qiE 'virtualbox|vmware|qemu|kvm' /sys/class/dmi/id/product_name 2>/dev/null; then
+elif grep -qiE 'virtualbox|vmware|qemu|kvm' /sys/class/dmi/id/product_name \
+        /sys/class/dmi/id/sys_vendor 2>/dev/null; then
+    # v0.6.44 run: the QEMU guest's product_name is "Standard PC (Q35 +
+    # ICH9, 2009)" — no qemu/kvm in it; QEMU identifies via sys_vendor.
     VM=1
 fi
 if [ "$VM" = 1 ]; then

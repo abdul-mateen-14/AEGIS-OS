@@ -464,6 +464,29 @@ Work order below is dependency-aware; the review's own order is W16-W23.
      launches name them cleanly); cosmetic, documented.
   v0.6.41 = the wrapper fix (ISO change, new tag). Batch 2 (W30-W37)
   queued after the Tier B gate goes green.
+- D8 — v0.6.42-44 runs: THE WRAPPER NEVER ENGAGED, THREE LAYERS DEEP:
+  1. v0.6.42: the browser log still showed the RAW Exec — the dock's
+     chrome-sandbox detection checked next to the /usr/bin WRAPPER
+     SCRIPT (the sandbox lives in the /opt app dir) so no launch ever
+     got wrapped. FIX: ALL Tier B resolved Execs ride
+     aegis-electron-launch (a transparent exec outside VM mode).
+  2. v0.6.43: "/bin/sh: 1: aegis-electron-launch: Permission denied" —
+     the wrapper shipped mode 100644 (git does not preserve the +x
+     from the filesystem; the D5d hook-bit class). FIX: git
+     update-index --chmod=+x.
+  3. v0.6.44: the wrapper RAN (its log exists) but the flags did not
+     reach the app — os-private-chat still FATAL'd at credentials.cc.
+     ROOT CAUSE: the VM detection grepped only product_name, and the
+     QEMU guest's product_name is "Standard PC (Q35 + ICH9, 2009)" —
+     QEMU identifies via sys_vendor. FIX: grep both files.
+  ALSO SHIPPED: the Store capture (04k-store, diff 15.9 — the store
+  opens with the catalog rendered), the Trash-slot capture with the
+  aegis-files --path launch logged, the island chain green on every
+  run since v0.6.40.
+  v0.6.45 = the sys_vendor fix (ISO change, new tag). If the Tier B
+  gate stays red after this, the next lever is AEGIS_VM_MODE=1 on the
+  runner's kernel command line (a build-iso/boot-test pairing) — the
+  detection is then guaranteed, no DMI dependency.
 
 ---
 
