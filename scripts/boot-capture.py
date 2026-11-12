@@ -641,7 +641,7 @@ def app_diag(serial):
         "/Scripting org.kde.kwin.Scripting isScriptLoaded s "
         "aegis-windowwatch 2>&1",
         "echo ===KWIN-EFFECTS===; busctl --user call org.kde.KWin "
-        "/Effects org.kde.KWin.loadedEffects 2>&1",
+        "/Effects org.kde.KWin.isEffectLoaded s aegis-dockzoom 2>&1",
         "echo ===KWIN-PLUGINS===; ls /usr/lib/x86_64-linux-gnu/qt6/plugins/kwin/effects/plugins/ 2>&1; ls /usr/lib/qt6/plugins/kwin/effects/plugins/ 2>&1; echo PLUGINS-DONE",
         # W14 — did the splash renderer really run? The boot frames keep
         # missing the (short) plymouth window on the ~10 s KVM boot, so the
@@ -859,12 +859,13 @@ def config_assert(diag_path):
         failures.append("aegis-windowwatch is not loaded in KWin "
                         "(isScriptLoaded said: "
                         + scripts.strip()[:60] + ")")
-    # W21 — the dockzoom effect must be loaded too
+    # W21 — the dockzoom effect must be loaded too (isEffectLoaded replies
+    # "b true"/"b false")
     effects = section("KWIN-EFFECTS")
-    if effects and "aegis-dockzoom" not in effects:
-        failures.append("aegis-dockzoom is not among KWin's loaded "
-                        "effects (loadedEffects said: "
-                        + effects.strip()[:80] + ")")
+    if effects and "true" not in effects.lower():
+        failures.append("aegis-dockzoom is not loaded in KWin "
+                        "(isEffectLoaded said: "
+                        + effects.strip()[:60] + ")")
     return failures
 
 def greeter_assert(out_dir, last_frame):
@@ -1423,6 +1424,27 @@ def main():
             log("serial login FAILED — no fixtures, no Aegis ID pane shot")
     except Exception as e:
         log(f"early serial setup failed: {e}")
+
+    # W20 evidence — what does the shell ACTUALLY see right now, BEFORE
+    # any app window opens? The island auto-hide assert reads the pixels;
+    # this reads the state: workspaceWindows + the window ids the KWin
+    # script pushed. If the idle island hid, this names the surface the
+    # script mis-counts (the v0.6.36 run: the island hid at home).
+    if serial is not None:
+        try:
+            dbg = serial.run(
+                "export XDG_RUNTIME_DIR=/run/user/$(id -u); "
+                "echo ===AEGIS-WINDOWS===; busctl --user call "
+                "org.aegis.Shell /org/aegis/Shell "
+                "org.freedesktop.DBus.Properties Get ss org.aegis.Shell "
+                "workspaceWindows 2>&1; busctl --user call org.aegis.Shell "
+                "/org/aegis/Shell org.freedesktop.DBus.Properties Get ss "
+                "org.aegis.Shell runningCmds 2>&1; echo WINDBG-END",
+                settle=6)
+            log("window-state dump: "
+                + dbg.strip().replace("\n", " | ")[:400])
+        except Exception as e:
+            log(f"window-state dump failed: {e}")
 
     # alt+F4 only after a window really opened: with no app window focused,
     # the close lands on the focused shell layer surface (the v0.6.5 boot
