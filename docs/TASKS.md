@@ -487,6 +487,21 @@ Work order below is dependency-aware; the review's own order is W16-W23.
   gate stays red after this, the next lever is AEGIS_VM_MODE=1 on the
   runner's kernel command line (a build-iso/boot-test pairing) — the
   detection is then guaranteed, no DMI dependency.
+- D9 — v0.6.45 run: **THE SYS_VENDOR FIX WORKED FOR TWO OF THREE**:
+  browser diff 59.7 (window rendered, was 3.2), os-private-chat diff
+  32.5 (the app RUNS — its log's only complaint is
+  ERR_INTERNET_DISCONNECTED for its remote page, honest in the offline
+  runner VM). The island chain green again, all probes CLEAN, the
+  Store capture green. ONE HOLDOUT: corex diff 3.8 — its launch log
+  tail was cut by the diag's tail -5 (the wrapped launches all land in
+  aegis-electron-launch.log; corex's entry is beyond the 40-line cap).
+  NEXT SESSION: raise the LAUNCH-LOGS diag cap (head -40 -> head -80 or
+  tail the corex launches only), read corex's own error, fix — likely
+  a missing dependency (CoreX Terminal may not be chromium-family: the
+  --no-sandbox/--disable-gpu flags are ignored by a non-chromium binary
+  and its real failure is something else entirely — check
+  dpkg -L corex-terminal for the real binary shape first).
+  CURRENT GATE: 10 of 11 apps open; corex is the last red.
 
 ---
 
