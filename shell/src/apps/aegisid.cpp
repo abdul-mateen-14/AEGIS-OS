@@ -57,6 +57,24 @@ void AegisId::setState(const QString &state, const QString &status)
     emit stateChanged();
 }
 
+// W34 — the classification table behind the form's error line: transport
+// failure, service trouble, and server-rejected each get their own
+// sentence; anything else is the server's message or the caller's
+// fallback.
+QString AegisId::classifyError(int status, const QString &errText,
+                               const QString &fallback)
+{
+    if (status == 0)
+        return QStringLiteral(
+            "Can't reach the Aegis sync service — check the network, then retry");
+    if (status == 401 || status == 403)
+        return QStringLiteral("Wrong email or password");
+    if (status >= 500)
+        return QStringLiteral(
+            "Service error — the sync backend is having trouble, try again later");
+    return errText.isEmpty() ? fallback : errText;
+}
+
 // ── crypto primitives (static, worker-thread safe) ────────────────────────
 
 QByteArray AegisId::sha256(const QByteArray &data)
@@ -322,6 +340,16 @@ void AegisId::handleReply(QNetworkReply *reply, const QString &kind,
             root.value(QStringLiteral("error")).toObject()
                 .value(QStringLiteral("message")).toString();
 
+        // W34 — the backend answered or it did not; both facts outlive
+        // this reply and feed the form's state line. Any HTTP status
+        // (even 4xx/5xx) means the transport is fine; only a zero status
+        // (DNS, no route, timeout, TLS) means unreachable.
+        m_backendState = (status == 0) ? QStringLiteral("unreachable")
+                                       : QStringLiteral("reachable");
+        m_lastAttempt = QDateTime::currentDateTime()
+                            .toString(QStringLiteral("HH:mm"));
+        emit stateChanged();
+
         // 401 → refresh once (the token rotates on use), then signed-out.
         if (status == 401 && !m_refreshToken.isEmpty() && attempt == 0) {
             const QString used = m_refreshToken;
@@ -343,9 +371,8 @@ void AegisId::handleReply(QNetworkReply *reply, const QString &kind,
         if (kind == QStringLiteral("GET /v1/auth/kdf-params")) {
             if (status != 200) {
                 setState(QStringLiteral("error"),
-                         errText.isEmpty()
-                             ? QStringLiteral("Account not found")
-                             : errText);
+                         classifyError(status, errText,
+                                       QStringLiteral("Account not found")));
                 return;
             }
             const QByteArray salt = QByteArray::fromBase64(
@@ -360,9 +387,8 @@ void AegisId::handleReply(QNetworkReply *reply, const QString &kind,
         if (kind == QStringLiteral("POST /v1/auth/register")) {
             if (status != 200 && status != 201) {
                 setState(QStringLiteral("error"),
-                         errText.isEmpty()
-                             ? QStringLiteral("Registration failed")
-                             : errText);
+                         classifyError(status, errText,
+                                       QStringLiteral("Registration failed")));
                 return;
             }
             // created — now sign in with the verifier we already derived
@@ -374,10 +400,12 @@ void AegisId::handleReply(QNetworkReply *reply, const QString &kind,
         if (kind == QStringLiteral("POST /v1/auth/login")
             || kind == QStringLiteral("POST /v1/auth/refresh")) {
             if (status != 200) {
+                // W34 — a 4xx here means the verifier did not match; the
+                // classifier says "Wrong email or password" (never the
+                // generic fallback on the wrong-secret path).
                 setState(QStringLiteral("error"),
-                         errText.isEmpty()
-                             ? QStringLiteral("Sign-in failed")
-                             : errText);
+                         classifyError(status, errText,
+                                       QStringLiteral("Sign-in failed")));
                 return;
             }
             onAuthSuccess(root);

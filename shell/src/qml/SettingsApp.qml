@@ -788,6 +788,21 @@ Window {
                             wrapMode: Text.WordWrap
                             Layout.fillWidth: true
                         }
+                        // W34 — the state line the review asked for: is the
+                        // backend even connected? Last attempt time makes a
+                        // silent-failure session diagnosable.
+                        Text {
+                            text: AegisId.backendState === "reachable"
+                                  ? "Backend: reachable · last attempt " + AegisId.lastAttempt
+                                  : AegisId.backendState === "unreachable"
+                                    ? "Backend: unreachable · last attempt " + AegisId.lastAttempt
+                                    : "Backend: not tried yet this session"
+                            font.pixelSize: 10
+                            color: AegisId.backendState === "reachable"
+                                       ? Tokens.fgMuted
+                                       : (AegisId.backendState === "unreachable"
+                                              ? Tokens.danger : Tokens.fgMuted)
+                        }
                     }
                 }
 

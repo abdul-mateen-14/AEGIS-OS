@@ -39,6 +39,12 @@ class AegisId : public QObject {
     Q_PROPERTY(QString state READ state NOTIFY stateChanged)
     Q_PROPERTY(QString email READ email NOTIFY stateChanged)
     Q_PROPERTY(QString statusText READ statusText NOTIFY stateChanged)
+    // W34 — the form must say whether the BACKEND is reachable at all
+    // (the user's complaint: "I don't know whether the backend is
+    // connected or not"). reachable = any HTTP answer; unreachable =
+    // transport failure; unknown = nothing attempted this session.
+    Q_PROPERTY(QString backendState READ backendState NOTIFY stateChanged)
+    Q_PROPERTY(QString lastAttempt READ lastAttempt NOTIFY stateChanged)
     // [{id, name, platform, lastSeen, isThis}]
     Q_PROPERTY(QVariantList devices READ devices NOTIFY devicesChanged)
     // The one-time recovery key, shown after account creation only.
@@ -48,6 +54,8 @@ public:
     explicit AegisId(QObject *parent = nullptr);
 
     QString state() const { return m_state; }
+    QString backendState() const { return m_backendState; }
+    QString lastAttempt() const { return m_lastAttempt; }
     QString email() const { return m_email; }
     QString statusText() const { return m_statusText; }
     QVariantList devices() const { return m_devices; }
@@ -119,9 +127,15 @@ private:
     void saveSyncState(const QVariantMap &state);
 
     void setState(const QString &state, const QString &status = QString());
+    // W34 — transport vs service vs server-message: the error line must
+    // say WHY (network down read as "Account not found" on the VM round).
+    QString classifyError(int status, const QString &errText,
+                          const QString &fallback);
 
     QString m_baseUrl;
     QString m_state = QStringLiteral("signedOut");
+    QString m_backendState = QStringLiteral("unknown");
+    QString m_lastAttempt;
     QString m_email;
     QString m_statusText = QStringLiteral("Local account · sync off");
     QString m_recoveryKey;

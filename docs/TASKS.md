@@ -556,6 +556,16 @@ Work order below is dependency-aware; the review's own order is W16-W23.
   (kscreen package + per-output rows), W32.1/32.3 (WPA join sheet +
   bluetooth), W33 (drivers pane), W34 (Aegis ID errors + profile),
   W35 (XKB), W36 (desktop context menu), W37 (dead-control sweep).
+- D13 — W34.1 DONE (v0.6.47): the Aegis ID form now says WHY it failed
+  and whether the backend is even connected. AegisId.classifyError:
+  status 0 (DNS/no-route/timeout/TLS) = "Can't reach the Aegis sync
+  service — check the network, then retry" (on the VM round this read
+  as "Account not found" — the user's exact complaint); 401/403 =
+  "Wrong email or password"; 5xx = "Service error... try again later";
+  else the server's message or the caller fallback. New backendState
+  ("reachable"/"unreachable"/"unknown") + lastAttempt (HH:mm) update on
+  EVERY reply and render as the state line under the form. Wired into
+  kdf-params, register and login/refresh error paths.
 
 ---
 
