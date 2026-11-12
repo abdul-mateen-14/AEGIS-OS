@@ -642,6 +642,12 @@ def app_diag(serial):
         "aegis-windowwatch 2>&1",
         "echo ===KWIN-EFFECTS===; busctl --user call org.kde.KWin "
         "/Effects org.kde.KWin.isEffectLoaded s aegis-dockzoom 2>&1",
+        # W20/W21 — the plugins print their load markers at KWin startup;
+        # the journal is the proof the CODE ran (isScriptLoaded only
+        # proves the registration)
+        "echo ===KWIN-LOADS===; sudo journalctl -b --no-pager 2>&1 | "
+        "grep -ai 'aegis-windowwatch: loaded\\|aegis-dockzoom: loaded' "
+        "| tail -6",
         "echo ===KWIN-PLUGINS===; ls /usr/lib/x86_64-linux-gnu/qt6/plugins/kwin/effects/plugins/ 2>&1; ls /usr/lib/qt6/plugins/kwin/effects/plugins/ 2>&1; echo PLUGINS-DONE",
         # W14 — did the splash renderer really run? The boot frames keep
         # missing the (short) plymouth window on the ~10 s KVM boot, so the
@@ -859,13 +865,17 @@ def config_assert(diag_path):
         failures.append("aegis-windowwatch is not loaded in KWin "
                         "(isScriptLoaded said: "
                         + scripts.strip()[:60] + ")")
-    # W21 — the dockzoom effect must be loaded too (isEffectLoaded replies
-    # "b true"/"b false")
-    effects = section("KWIN-EFFECTS")
-    if effects and "true" not in effects.lower():
-        failures.append("aegis-dockzoom is not loaded in KWin "
-                        "(isEffectLoaded said: "
-                        + effects.strip()[:60] + ")")
+    # W20/W21 — both plugins must have RUN (their load markers in the
+    # journal). The isEffectLoaded busctl call had a signature mismatch
+    # on 6.6 ("Too few parameters") — the journal markers are the
+    # honest, arity-free proof for BOTH plugins.
+    loads = section("KWIN-LOADS")
+    if not loads or "aegis-windowwatch: loaded" not in loads:
+        failures.append("aegis-windowwatch never printed its load marker "
+                        "— the script did not run")
+    if "aegis-dockzoom: loaded" not in loads:
+        failures.append("aegis-dockzoom never printed its load marker "
+                        "— the effect did not run")
     return failures
 
 def greeter_assert(out_dir, last_frame):
@@ -1433,13 +1443,21 @@ def main():
     if serial is not None:
         try:
             dbg = serial.run(
-                "export XDG_RUNTIME_DIR=/run/user/$(id -u); "
-                "echo ===AEGIS-WINDOWS===; busctl --user call "
+                # the shell lives on the dbus-run-session bus, NOT the
+                # systemd user bus the serial console resolves by default
+                # (v0.6.36 run 5: "The name org.aegis.Shell was not
+                # provided") — take the address from the session env
+                "SA=$(cat /proc/$(pgrep -f aegis-session | head -1)/environ "
+                "2>/dev/null | tr '\\0' '\\n' | grep "
+                "^DBUS_SESSION_BUS_ADDRESS= | cut -d= -f2-); "
+                "A=${SA:-unix:path=$XDG_RUNTIME_DIR/bus}; "
+                "echo ===AEGIS-WINDOWS===; busctl --address=$A call "
                 "org.aegis.Shell /org/aegis/Shell "
                 "org.freedesktop.DBus.Properties Get ss org.aegis.Shell "
-                "workspaceWindows 2>&1; busctl --user call org.aegis.Shell "
-                "/org/aegis/Shell org.freedesktop.DBus.Properties Get ss "
-                "org.aegis.Shell runningCmds 2>&1; echo WINDBG-END",
+                "workspaceWindows 2>&1; busctl --address=$A call "
+                "org.aegis.Shell /org/aegis/Shell "
+                "org.freedesktop.DBus.Properties Get ss org.aegis.Shell "
+                "runningCmds 2>&1; echo WINDBG-END",
                 settle=6)
             log("window-state dump: "
                 + dbg.strip().replace("\n", " | ")[:400])

@@ -21,7 +21,13 @@ function onDesktop(w, desk) {
 }
 
 function isTrackable(w) {
+    // The shell's OWN layer surfaces (desktop, panel, island, dock) pass
+    // normalWindow in KWin 6.6 scripting — the v0.6.36 boot run proved
+    // it: with the script loaded the island hid at the IDLE home because
+    // the count never dropped below the four shell surfaces. The shell
+    // binary is never an app: exclude its resourceClass outright.
     return w.normalWindow && !w.minimized && !w.hidden
+        && String(w.resourceClass || "") !== "aegis-shell"
 }
 
 function isFull(w) {
@@ -57,6 +63,10 @@ function recount() {
 
 // windowRemoved fires while the window can still sit in stackingOrder —
 // remember it for the synchronous recount that follows, then clear.
+// boot marker — the boot gate's journal grep asserts this line exists
+// (isScriptLoaded proves the registration, this proves the code ran)
+print("aegis-windowwatch: loaded")
+
 var dying = []
 workspace.windowRemoved.connect(function (w) {
     dying.push(w)

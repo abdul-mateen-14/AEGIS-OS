@@ -57,10 +57,16 @@ function centerOf(window) {
 
 function isZoomWindow(window) {
     // Same filter shape as the stock scale effect: popups, menus,
-    // tooltips, the lock screen and unmanaged windows never zoom; layer
-    // shell surfaces (panel/dock/island/desktop) are not normalWindow.
+    // tooltips, the lock screen and unmanaged windows never zoom. The
+    // shell's own layer surfaces pass normalWindow in KWin 6.6 — the
+    // v0.6.36 boot run proved the class — and the W21 ruling says the
+    // effect NEVER touches panel/dock/island/desktop: exclude the
+    // shell's resourceClass outright.
     if (window.popupWindow || !window.managed
             || window.lockScreen || window.outline) {
+        return false;
+    }
+    if (String(window.resourceClass || "") === "aegis-shell") {
         return false;
     }
     return window.normalWindow || window.dialog;
@@ -116,3 +122,5 @@ effect.configChanged.connect(readMap);
 effects.windowAdded.connect(growFromTile);
 effects.windowClosed.connect(shrinkIntoTile);
 readMap();
+// boot marker — the boot gate's journal grep asserts this line exists
+print("aegis-dockzoom: loaded");

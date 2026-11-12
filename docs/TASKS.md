@@ -234,6 +234,29 @@ Work order below is dependency-aware; the review's own order is W16-W23.
   a new release — v0.6.36 (the v0.6.35 ISO cannot load the script no
   matter what main carries). v0.6.35 remains product-valid for
   everything else; v0.6.36 supersedes it with W20/W21 actually live.
+- D11 runs 4-5 (v0.6.36, FAILED then diagnostic FAILED): the verbatim-id
+  keys worked (isScriptLoaded said "b true") and the new asserts
+  immediately exposed the NEXT layer: the island went INVISIBLE
+  EVERYWHERE — 0 px on the idle home (the marker pill gone from the
+  first desktop frame; run-2's captures show it rendered at the same
+  frame). Cross-run discriminator: v0.6.35 (plugins inert) = island
+  visible at boot-21 + home; v0.6.36 (plugins live) = absent from the
+  first desktop frame. ROOT CAUSE: KWin 6.6 layer-shell surfaces PASS
+  w.normalWindow in the scripting API — the windowwatch script counted
+  the shell's own four surfaces (desktop/panel/island/dock) from the
+  moment they mapped, so workspaceWindows >= 4 forever and the idle
+  island dissolved and never returned. THE RULING ANTICIPATED IT
+  ("never layer-shell shell surfaces") — the fix is the resourceClass
+  guard: both the windowwatch script and the dockzoom effect now skip
+  resourceClass "aegis-shell" outright. Also fixed this round: the
+  window-state dump reads the DBus address from the aegis-session
+  environ (the shell lives on the dbus-run-session bus, NOT the systemd
+  user bus the serial console resolves — "The name org.aegis.Shell was
+  not provided"); the isEffectLoaded busctl call has a signature
+  mismatch on 6.6 ("Too few parameters") so the effect's load proof is
+  now a journal MARKER: both plugins print "aegis-<name>: loaded" at
+  startup and config_assert requires both markers in ===KWIN-LOADS===.
+  v0.6.37 = resourceClass filters + markers (ISO change, new tag).
 
 ---
 
