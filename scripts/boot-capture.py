@@ -1576,6 +1576,20 @@ def main():
         opens["corex"] = True
         q.key("alt", "f4"); time.sleep(5)
 
+    # T13 W26 — the Trash tile must open Files AT the trash view (it used
+    # to open Home because aegis-files took no path argument). The dock
+    # click launches aegis-files --path trash:///; the capture is the
+    # evidence and the diff gate proves the window opened.
+    trash_idx = tile_index.get("aegis-files --path trash:///", 10)
+    q.mouse_abs(W // 2, int(H * NEUTRAL_Y), W, H)
+    time.sleep(0.8)
+    q.click(*tiles[trash_idx], W, H)
+    time.sleep(8)
+    q.shot("04j-trash")
+    d = diff_px(thumb(f"{OUT}/04j-trash.png"), home)
+    log(f"04j-trash: diff-vs-home={d:.1f} (Trash slot click, "
+        f"tile index {trash_idx})")
+
     q.click(W - 60, 14, W, H)            # panel right cluster -> Control Center
     time.sleep(3)
     q.shot("05-control-center")
