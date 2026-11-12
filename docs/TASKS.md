@@ -629,6 +629,27 @@ Work order below is dependency-aware; the review's own order is W16-W23.
   runner instead of on the reviewer's VM. v0.6.49 = the fix + everything
   from D15 (the corex quoted-Exec fix is STILL UNVERIFIED — both the
   v0.6.47 ISO build red and the v0.6.48 session abort blocked it).
+- D18 — v0.6.49 BOOT RUN: THE D17 FIX WORKED (session up, the whole
+  choreography ran, browser opened on ATTEMPT 0 with the wrapped
+  resolved Exec — the walk found /usr/bin/aegis-browser-stable %U), os
+  opens, everything else green. COREX STILL RED, and the artifact nails
+  it: corex-terminal.log shows TWO bare-head FATALs,
+  aegis-electron-launch.log has NO corex entry — the D15 strip was
+  ITSELF broken. section(' ',0,0) splits INSIDE the quoted path (the
+  first token is `"/opt/CoreX`), the closing quote lies beyond the
+  token, the basename read `"CoreX`, the entry stayed unmatched, and
+  the dock launched the bare head twice more. THE SAME BUG lived in the
+  harness: both the entryhit prelude and the resolution walk used awk
+  $1 after tr -d quote — the walk never matched corex either (the tile
+  map only ever matched via command -v on the update-alternatives
+  symlink). FIX (v0.6.50): the quoted parse runs on the FULL Exec value
+  — from the opening quote to the closing quote, spaces inside included
+  — in findInstalledEntry; the harness gets a quote-aware execbase()
+  helper (leading-quote then cut -d quote -f1, else awk $1) shared by
+  entryhit and the walk. BOTH verified locally against the actual
+  desktop files: entryhit hits all four heads, the walk resolves the
+  full quoted Exec, the DBus launch line becomes aegis-electron-launch
+  "/opt/CoreX Terminal/corex-terminal" %U.
 
 ---
 

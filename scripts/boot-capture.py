@@ -1199,10 +1199,20 @@ def resolved_tile_cmds(serial):
     # is on PATH. command -v alone is NOT the W8 rule: the Aegis Browser
     # deb ships the entry with an /opt Exec and no PATH binary, so the
     # v0.6.29 harness read 10 tiles while the dock showed 11.
+    # D18 — the Exec head parse is quote-aware: awk '{print $1}' splits
+    # INSIDE a quoted path (CoreX: "/opt/CoreX Terminal/corex-terminal")
+    # and the basename read CoreX. The v0.6.49 run proved the same bug
+    # lives in BOTH the entryhit prelude and the Tier B resolution walk.
     prelude = (
-        "entryhit() { c=$1; for d in /usr/share/applications/*.desktop; do "
-        "ex=$(sed -n 's/^Exec=//p' \"$d\" 2>/dev/null | head -1 | "
-        "tr -d '\"' | awk '{print $1}'); ex=${ex##*/}; "
+        r"""execbase() { l=$(sed -n 's/^Exec=//p' "$1" 2>/dev/null | head -1); """
+        r"""if [ "${l#\"}" != "$l" ]; then """
+        r"""e=$(printf '%s' "${l#\"}" | cut -d'"' -f1); """
+        r"""else e=$(printf '%s' "$l" | awk '{print $1}'); fi; """
+        r"""printf '%s' "${e##*/}"; }"""
+    )
+    prelude += (
+        "\nentryhit() { c=$1; for d in /usr/share/applications/*.desktop; do "
+        "ex=$(execbase \"$d\"); "
         "te=$(sed -n 's/^TryExec=//p' \"$d\" 2>/dev/null | head -1); "
         "[ \"$ex\" = \"$c\" ] && return 0; "
         "[ \"$te\" = \"$c\" ] && return 0; done; "
@@ -1363,12 +1373,19 @@ def main():
                     # aegis-browser.desktop / org.aegisbrowser.Aegis, not
                     # aegis-browser-stable.desktop): walk every entry the
                     # way the W8 entryhit rule does and take the first
-                    # Exec whose basename matches the head.
+                    # Exec whose basename matches the head. D18 — the
+                    # basename is QUOTE-AWARE: awk $1 split inside the
+                    # quoted CoreX path and the walk never matched it.
+                    r"""execbase() { l=$(sed -n 's/^Exec=//p' "$1" """
+                    r"""2>/dev/null | head -1); """
+                    r"""if [ "${l#\"}" != "$l" ]; then """
+                    r"""e=$(printf '%s' "${l#\"}" | cut -d'"' -f1); """
+                    r"""else e=$(printf '%s' "$l" | awk '{print $1}'); fi; """
+                    r"""printf '%s' "${e##*/}"; }; """
                     "for d in /usr/share/applications/*.desktop; do "
-                    "ex=$(sed -n 's/^Exec=//p' \"$d\" 2>/dev/null | head -1 "
-                    "| tr -d '\\\"' | awk '{print $1}'); ex=${ex##*/}; "
-                    f"[ \"$ex\" = \"{cmd}\" ] && sed -n 's/^Exec=//p' \"$d\" "
-                    "| head -1 | cut -d= -f2- && break; done; "
+                    f"ex=$(execbase \"$d\"); [ \"$ex\" = \"{cmd}\" ] "
+                    "&& sed -n 's/^Exec=//p' \"$d\" | head -1 | "
+                    "cut -d= -f2- && break; done; "
                     "echo EXEC-RES-END", settle=3)
                 m = re.search(r"EXEC-RES-START\r?\n(.*?)\r?\nEXEC-RES-END",
                               out, re.S)
