@@ -15,7 +15,7 @@ cannot lose the plan.
 
 ---
 
-## T11 — v0.6.28-v0.6.32: M3 apps on the dock + in the boot captures (SHIPPED)
+## T11 — v0.6.28-v0.6.34: M3 apps on the dock + in the boot captures (SHIPPED)
 
 Opened 2026-11-12. User report on the shipped v0.6.27: "the boot [captures]
 do not contain the screenshots of new apps like music calculator etc and
@@ -246,6 +246,19 @@ capture, no proof the apps open on the runner.
   resolved dock click map, hard-minimum serial drain, file-based probe
   verdicts, the Browser deb URL r31 -> r45. v0.6.32 follows with the
   0900 hook executable bit (browser slot regression vs v0.6.27).
+
+- CLOSED — v0.6.34 (commit afb1ad6, Boot Test run 43140958250 GREEN):
+  the guest reported PV-n=CLEAN — the monitor's OWN verdict token, read
+  by the fixed parser, backed by the zero-initialized summary map; all
+  six probes honestly CLEAN, header assert PASS, 11 dock tiles with the
+  browser restored in slot 2, and the runner committed 30 captures to
+  docs/screenshots/v0.6.34/ — 01-home shows the four M3 squircles on
+  the dock between CoreX and Settings, 04c-music / 04d-calculator /
+  04e-editor / 04f-monitor show the apps fully rendered — and attached
+  AegisOS-v0.6.34-screenshots.zip to the release. v0.6.33 is a BROKEN
+  release (monitor TypeError shipped behind the parse collision; ISO
+  also fine for everything else but do not distribute) — v0.6.34
+  supersedes it.
 
 - v0.6.33 (commit b66a018, D5e): Release CI green (run 43105308237,
   ISO parts published on the release page), Boot Test dispatched
