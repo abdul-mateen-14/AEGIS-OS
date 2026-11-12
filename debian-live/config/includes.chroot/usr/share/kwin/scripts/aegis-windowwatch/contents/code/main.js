@@ -51,7 +51,7 @@ function recount() {
         if (isFull(w))
             anyFull = true
     }
-    callDBus("org.aegis.Shell", "/", "org.aegis.Shell",
+    callDBus("org.aegis.Shell", "/org/aegis/Shell", "org.aegis.Shell",
              "windowListChanged", count, anyFull, ids.join(" "))
 }
 

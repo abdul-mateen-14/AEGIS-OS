@@ -205,6 +205,21 @@ Work order below is dependency-aware; the review's own order is W16-W23.
      4 -> 29 px). Scan now starts at W/10; expected rest 4 / mag 29.
   Harness recalibrated (94b0ec7) and re-dispatched on the SAME
   v0.6.35 ISO — the harness runs from main, no re-release needed.
+- D11 run 2 (43169048444, SUCCESS — captures committed + zip attached):
+  every calibrated assert green (tint 395, monitor 719, magnify
+  rest 4 / mag 29, config clean, six probes CLEAN). BUT the captures
+  exposed a SILENT W20 break the gate could not see: the island stayed
+  visible with windows open. ROOT CAUSE: the windowwatch script called
+  DBus path "/" while Util registers "/org/aegis/Shell" (the same path
+  the busctl ladder uses) — every push failed silently, the count
+  stayed 0. THE T11-D5 CLASS (interface/path contract mismatch) on the
+  path this time. Fix: the script now calls /org/aegis/Shell; TWO new
+  gate pieces close the blind spot: (1) ===KWIN-SCRIPTS=== diag +
+  config_assert requires isScriptLoaded(aegis-windowwatch)=true;
+  (2) island_autohide_assert — the idle island must be VISIBLE on
+  01-home (mark ~27 px) and HIDDEN in 02-files (a window is open;
+  <= 8 px) — the chain proven end to end, the shipped-green class
+  killed. Re-dispatched again on the same ISO.
 
 ---
 

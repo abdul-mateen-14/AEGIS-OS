@@ -634,6 +634,12 @@ def app_diag(serial):
         "echo ===KWINRC===; cat /etc/xdg/kwinrc 2>&1",
         "echo ===KDEGLOBALS===; cat /etc/xdg/kdeglobals 2>&1",
         "echo ===SDDM-THEME===; ls /usr/share/sddm/themes/aegis/ 2>&1",
+        # W20 — did KWin really load the windowwatch script? busctl asks
+        # the scripting manager directly; the island auto-hide assert
+        # below proves the whole chain end to end.
+        "echo ===KWIN-SCRIPTS===; busctl --user call org.kde.KWin "
+        "/Scripting org.kde.kwin.Scripting isScriptLoaded s "
+        "aegis-windowwatch 2>&1",
         "echo ===KWIN-PLUGINS===; ls /usr/lib/x86_64-linux-gnu/qt6/plugins/kwin/effects/plugins/ 2>&1; ls /usr/lib/qt6/plugins/kwin/effects/plugins/ 2>&1; echo PLUGINS-DONE",
         # W14 — did the splash renderer really run? The boot frames keep
         # missing the (short) plymouth window on the ~10 s KVM boot, so the
@@ -842,6 +848,13 @@ def config_assert(diag_path):
         if not re.search(r"^font=Montserrat", kde, re.M):
             failures.append("kdeglobals [General] font missing "
                             "(W18 body font)")
+    # W20 — the windowwatch script must be LOADED inside KWin (the kwinrc
+    # key alone proves intent, not the load)
+    scripts = section("KWIN-SCRIPTS")
+    if scripts and "true" not in scripts.lower():
+        failures.append("aegis-windowwatch is not loaded in KWin "
+                        "(isScriptLoaded said: "
+                        + scripts.strip()[:60] + ")")
     return failures
 
 def greeter_assert(out_dir, last_frame):
@@ -961,6 +974,27 @@ def monitor_card_assert(monitor_png):
                 and 245 <= p[2] <= 255):
             hits += 1
     return hits
+
+def island_autohide_assert(home_png, files_png):
+    """W20 — the island auto-hide chain proven END TO END: the idle
+    island VISIBLE on the empty home (the white mark reads ~27 px in the
+    top-center region), HIDDEN once a window is open (KWin script ->
+    DBus -> Util.workspaceWindows -> dissolve). The v0.6.35 first run
+    exposed a silent break exactly here: the script called DBus path /
+    while Util registers /org/aegis/Shell, so the island never hid and
+    nothing went red — the class of shipped-green regression this
+    assert exists to kill. The mark is the only bright thing in that
+    region on the ink sky."""
+    def bright(png):
+        im = Image.open(png).convert("RGB")
+        W, H = im.size
+        n = 0
+        for y in range(int(H * 0.037), int(H * 0.078)):
+            for x in range(int(W * 0.45), int(W * 0.55)):
+                if min(im.getpixel((x, y))) > 120:
+                    n += 1
+        return n
+    return bright(home_png), bright(files_png)
 
 def magnify_clearance_assert(home_png, mag_png):
     """V1 — the pill padding must grow by the field delta: the end tiles
@@ -1638,6 +1672,21 @@ def main():
                             "need >= 25) — W17 regressed")
     except Exception as e:
         failures.append(f"monitor assert crashed: {e}")
+    try:
+        home_i, files_i = island_autohide_assert(f"{OUT}/01-home.png",
+                                                 f"{OUT}/02-files.png")
+        log(f"island assert: home {home_i} px (visible), "
+            f"files {files_i} px (should be hidden)")
+        if home_i < 15:
+            failures.append(f"island missing on the idle home "
+                            f"({home_i} px) — the idle capsule itself broke")
+        if files_i > 8:
+            failures.append(
+                f"island did not hide with a window open ({files_i} px "
+                "in 02-files) — the W20 chain broke (script load, DBus "
+                "path, Util slot or the QML binding)")
+    except Exception as e:
+        failures.append(f"island assert crashed: {e}")
     try:
         rest, mag = magnify_clearance_assert(f"{OUT}/01-home.png",
                                              f"{OUT}/01b-dock-magnify.png")
