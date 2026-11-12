@@ -713,21 +713,15 @@ QVariantList Util::dockApps() const
             // line.
             const QString exec = entry.value(QStringLiteral("exec")).toString();
             if (!exec.isEmpty()) {
-                // W25 — electron apps ride the launch guard (--disable-gpu
-                // under a VM; --no-sandbox only when the SUID helper is
-                // missing). Detected by the chrome-sandbox file next to
-                // the binary — splitCommand, because the CoreX Exec
-                // quotes a path with a space.
-                const QStringList parts = QProcess::splitCommand(exec);
-                const QString bin = parts.value(0);
-                if (!bin.isEmpty() && QFileInfo::exists(
-                        QFileInfo(bin).absolutePath()
-                        + QStringLiteral("/chrome-sandbox")))
-                    slot.insert(QStringLiteral("launch"),
-                                QStringLiteral("aegis-electron-launch ")
-                                    + exec);
-                else
-                    slot.insert(QStringLiteral("launch"), exec);
+                // W25 — ALL Tier B deb apps ride the launch guard. The
+                // chrome-sandbox file check cannot detect electron from
+                // the resolved binary: the debs ship a /usr/bin wrapper
+                // SCRIPT whose chrome-sandbox lives in the /opt app dir
+                // (v0.6.42 proved the check never engaged). The guard is
+                // a transparent exec outside VM mode; in a VM it adds
+                // --disable-gpu --no-sandbox (the sandbox FATAL).
+                slot.insert(QStringLiteral("launch"),
+                            QStringLiteral("aegis-electron-launch ") + exec);
             }
             out.append(slot);
             continue;
