@@ -655,6 +655,14 @@ def app_diag(serial):
     open("serial-diag.txt", "w").write("\n".join(blob))
     # §1 — verdicts come from the guest's /tmp/pv-* files (see the
     # VERDICTS diag command): in-band tokens desynced twice on v0.6.28.
+    # T11-D6 — name-to-verdict-token MAP, not name[0]: music and monitor
+    # both start with m, so the old regex read PV-m for BOTH probes —
+    # the monitor's own verdict file (pv-n) was never parsed and a
+    # DIRTY monitor went unseen (v0.6.33 run 43134801060 logged
+    # "probe monitor: CLEAN" while the guest said PV-n=DIRTY; the
+    # monitor probe has been unverified since the file verdicts landed).
+    tokens = {"settings": "s", "files": "f", "music": "m",
+              "calculator": "c", "editor": "e", "monitor": "n"}
     probes = {}
     for name, path, extra in (
             ("settings", "/tmp/qml-probe.err", ""),
@@ -665,7 +673,7 @@ def app_diag(serial):
             ("calculator", "/tmp/qml-probe-calculator.err", ""),
             ("editor", "/tmp/qml-probe-editor.err", ""),
             ("monitor", "/tmp/qml-probe-monitor.err", "")):
-        m = re.search(rf"PV-{name[0]}=(\w+)", verdict_out)
+        m = re.search(rf"PV-{tokens[name]}=(\w+)", verdict_out)
         verdict = m.group(1) if m else "MISSING"
         if verdict == "CLEAN":
             log(f"probe {name}: CLEAN")

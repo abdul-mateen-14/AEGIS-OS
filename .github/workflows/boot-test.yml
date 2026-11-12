@@ -119,6 +119,11 @@ jobs:
             echo "no new screenshots to commit"
           else
             git commit -m "docs(screenshots): boot-test captures for $TAG"
+            # T11-D6: main moves under us while this job runs (plan docs
+            # land mid-flight) and the checkout is minutes old — rebase
+            # on top of origin/main before pushing, or the capture push
+            # is rejected (v0.6.33 run 43134801060 died exactly there).
+            git pull --rebase origin main
             git push
           fi
 

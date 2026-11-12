@@ -176,6 +176,39 @@ capture, no proof the apps open on the runner.
   rm -rf's /opt/aegis-debs so the squashfs carries no payload (zero ISO
   bloat). The includes dir is build-time only and gitignored. Release as
   v0.6.33.
+- D6 — v0.6.33 Boot Test (run 43134801060, FAILED) postmortem: the D5e
+  deb path WORKS — the click map was rebuilt from the guest with 11
+  tiles and aegis-browser-stable restored in slot 2, header assert PASS,
+  all seven app opens green, screenshots artifact uploaded. Two defects
+  failed the run, both in the tooling:
+  1. THE MONITOR PROBE VERDICT WAS NEVER READ — harness bug found by
+     postmortem, not by the gate: the verdict parse used PV-<name[0]>,
+     and music/monitor share the first letter m, so "probe monitor"
+     parsed music's PV-m=CLEAN and logged "probe monitor: CLEAN" while
+     the guest verdict file said PV-n=DIRTY. The monitor probe has been
+     unverified since the file-based verdicts landed (D5) — every
+     earlier "all six probes CLEAN" read music twice and monitor never.
+     The gate's own probe_failed() never saw the content, so whether
+     the monitor stderr is benign or a real load error is UNKNOWN and
+     must be settled by the re-run. Fix: explicit name-to-token map
+     (settings s / files f / music m / calculator c / editor e /
+     monitor n) in boot-capture.py. On the re-run a DIRTY monitor is
+     fetched and logged verbatim, and probe_failed() arbitrates
+     honestly: benign chatter passes, a real error/Cannot line fails
+     the release and becomes a MonitorApp fix (which would need a new
+     ISO + tag v0.6.34).
+  2. THE CAPTURE PUSH RACED MY OWN DOCS PUSH — I pushed the TASKS.md
+     anchor (b1b5e77) 3 minutes after the runner checked out main at
+     b66a018; the runner's screenshot push was rejected "fetch first"
+     and the job exited 1 with the captures safe in the artifact.
+     Fix: the Commit screenshots step now runs git pull --rebase
+     origin main before git push. NEW PITFALL for every session: do
+     NOT push anything to main while a boot test is in flight —
+     update TASKS.md before dispatching or after the run lands.
+  Fix batch (harness only, the ISO is untouched): boot-capture.py
+  token map + boot-test.yml pull-rebase. Then re-dispatch Boot Test
+  inputs.tag v0.6.33 on the updated main — same v0.6.33 ISO, honest
+  probe evaluation, screenshots committed by the runner.
 - D4 — release: qml-guard -> commit -> pull --rebase -> push -> tag
   (v0.6.28 burned by D5, v0.6.29 by D5b, v0.6.30 by D5c; re-releases as
   v0.6.31) -> Release CI builds the ISO -> Boot Test (workflow_dispatch,
