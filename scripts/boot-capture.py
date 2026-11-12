@@ -394,6 +394,24 @@ def start_qemu_with_fallback():
     raise RuntimeError("qemu failed to start under every accelerator — see qemu.log")
 
 # ---------------- serial console ----------------
+# T13-D10 — the serial console's bash emits shell-integration OSC 3008
+# markers and ANSI color codes around every command and its output. On the
+# v0.6.45 run the resolved-Exec parser read `splitlines()[-1]` of that
+# stream and got `]3008;end=...;exit=success` — an OSC fragment — and the
+# harness then launched THAT string over DBus (Util.launch even created a
+# log file named after it, escape bytes included). Every parsed value off
+# this channel is now stripped of CSI/OSC/other escape sequences first.
+ANSI_RE = re.compile(
+    r"\x1b\[[0-9;?]*[ -/]*[@-~]"          # CSI sequences (colors, ?2004h…)
+    r"|\x1b\][^\x07\x1b]*(?:\x07|\x1b\\)"  # OSC sequences (3008, 0;title…)
+    r"|\x1b[@-Z\\-_]"                      # other single-char escapes
+)
+
+
+def strip_ansi(text):
+    return ANSI_RE.sub("", text)
+
+
 class Serial:
     """Interactive serial console over the chardev socket."""
 
@@ -494,7 +512,10 @@ class Serial:
         out = self.buf.decode(errors="replace")
         # keep only the response after the echoed command
         idx = out.rfind(cmd)
-        return out[idx + len(cmd):] if idx >= 0 else out
+        out = out[idx + len(cmd):] if idx >= 0 else out
+        # T13-D10 — shell-integration OSC markers and color codes are
+        # noise on every parsed value; strip before any caller reads this
+        return strip_ansi(out)
 
 def seed_review_files(serial):
     """W2 review fixtures: one file of each kind tint directly in $HOME, so
@@ -652,8 +673,12 @@ def app_diag(serial):
         # T13 W24 — the launch logs (one file per app head, rotated):
         # the VM review's diagnosability ask, visible in CI. Qt's
         # StateLocation APPENDS the app name, so the shell's logs live at
-        # ~/.local/state/aegis-shell/... — glob both shapes.
-        "echo ===LAUNCH-LOGS===; tail -n 5 /home/aegis/.local/state/*/aegis/launch/*.log 2>&1 | head -40",
+        # ~/.local/state/aegis-shell/... — glob both shapes. T13-D10 —
+        # per-file walk with an explicit header: the old tail|head cap cut
+        # corex's entry out of the dump entirely, and escape-byte FILE
+        # NAMES (the OSC-garbage launch logs) must still be listed.
+        "echo ===LAUNCH-LOGS===; for f in /home/aegis/.local/state/*/aegis/launch/*.log; do "
+        '[ -f "$f" ] || continue; echo "### LOGFILE: $f"; tail -n 14 "$f"; done; echo LAUNCH-LOGS-END',
         # W14 — did the splash renderer really run? The boot frames keep
         # missing the (short) plymouth window on the ~10 s KVM boot, so the
         # journal is the evidence: theme selected, service state, plugin.
@@ -1325,14 +1350,36 @@ def main():
         lc = cmd
         if launch_cmd == "desktop" and serial is not None:
             try:
+                # T13-D10 — marker-bounded resolution. The old version read
+                # splitlines()[-1] of the raw serial stream and got the
+                # shell-integration OSC fragment instead of the Exec line
+                # (the v0.6.45 run then LAUNCHED that garbage over DBus —
+                # Util.launch even created a launch log named after it).
+                # run() now strips escapes; the sentinels bound the value.
                 out = serial.run(
-                    "grep -h '^Exec=' "
+                    "echo EXEC-RES-START; grep -h '^Exec=' "
                     f"/usr/share/applications/{cmd}.desktop 2>/dev/null "
-                    "| head -1 | cut -d= -f2-", settle=2)
-                resolved = out.strip().splitlines()[-1].strip() if out.strip() else ""
-                if resolved and "not found" not in resolved:
-                    lc = resolved
-                    log(f"{name}: resolved Exec from the desktop entry: {lc}")
+                    "| head -1 | cut -d= -f2-; echo EXEC-RES-END", settle=2)
+                m = re.search(r"EXEC-RES-START\r?\n(.*?)\r?\nEXEC-RES-END",
+                              out, re.S)
+                lines = [ln.strip() for ln in
+                         (m.group(1).splitlines() if m else [])
+                         if ln.strip()]
+                resolved = lines[0] if lines else ""
+                if resolved and "not found" not in resolved \
+                        and not ANSI_RE.search(resolved):
+                    log(f"{name}: resolved Exec: {resolved}")
+                    # T13-D10 — attempt 0 rides the dock's ACTUAL launch
+                    # line: dockApps prefixes every Tier B resolved Exec
+                    # with the W25 electron guard. Launching the raw Exec
+                    # here would test a path no user ever exercises (and
+                    # in a VM the sandbox FATAL is exactly why the guard
+                    # exists).
+                    lc = f"aegis-electron-launch {resolved}"
+                else:
+                    log(f"{name}: Exec resolution empty or dirty — "
+                        "using the bare head (all three debs install the "
+                        "/usr/bin symlink)")
             except Exception as e:
                 log(f"{name}: Exec resolution failed ({e}) — using the cmd")
         # dynamic lookup wins (guest-resolved order); the passed index is
@@ -1405,6 +1452,22 @@ def main():
             log(f"{name}: diff-vs-home={d:.1f} dock-slots={slots}")
             if d > 6:
                 return True
+            # T13-D10 — a red capture says only "no window". The liveness
+            # line says WHY it stayed red: process alive (slow paint or a
+            # hung renderer) vs process dead (crashed or never started).
+            if serial is not None:
+                try:
+                    lv = serial.run(
+                        f"pgrep -af '{cmd.split(' ')[0]}' | head -3; "
+                        "echo LIVENESS-END", settle=2)
+                    lv = lv.strip()
+                    lv = lv[:lv.index("LIVENESS-END")].strip() \
+                        if "LIVENESS-END" in lv else lv
+                    log(f"{name}: liveness: "
+                        + (lv.replace("\n", " | ")[-200:] if lv
+                           else "no process alive"))
+                except Exception as e:
+                    log(f"{name}: liveness probe failed ({e})")
             log(f"{name} attempt {attempt + 1}: screen looks unchanged, retrying")
             q.mouse_abs(W // 2, H // 2, W, H)
             time.sleep(2)
@@ -1571,7 +1634,7 @@ def main():
                 click_idx=3, launch_cmd="desktop"):
         opens["os"] = True
         q.key("alt", "f4"); time.sleep(5)
-    if open_app("04i-corex", "corex-terminal", wait_s=30,
+    if open_app("04i-corex", "corex-terminal", wait_s=45,
                 click_idx=4, launch_cmd="desktop"):
         opens["corex"] = True
         q.key("alt", "f4"); time.sleep(5)

@@ -502,6 +502,46 @@ Work order below is dependency-aware; the review's own order is W16-W23.
   and its real failure is something else entirely — check
   dpkg -L corex-terminal for the real binary shape first).
   CURRENT GATE: 10 of 11 apps open; corex is the last red.
+- D10 — v0.6.46: LOCAL FORENSICS KILLED THE D9 SPECULATION, THE HARNESS
+  DIAG CHANNEL IS THE FIRST FIX. Downloaded both debs in the sandbox
+  (app-deb-urls.txt URLs) and inspected them directly:
+  1. CoreX IS chromium-family — Electron 45.2.3 / Chrome 156.0.8078.80
+     (OS messenger is Electron 45.2.2, same Chrome). The binary RUNS in
+     this sandbox with exactly the VM wrapper flags
+     (--no-sandbox --disable-gpu): no credentials.cc FATAL, ldd clean,
+     app.asar loads. The "non-chromium binary" theory is dead.
+  2. THE v0.6.45 RUN'S EXEC RESOLUTION WAS GARBAGE: the CI log printed
+     `resolved Exec from the desktop entry: ]3008;end=...;exit=success`
+     — Serial.run's splitlines()[-1] picked the serial console's
+     shell-integration OSC markers, not the Exec line. So EVERY Tier B
+     attempt-0 dbus launch sent an OSC-contaminated string to
+     Util.launch (proof: a launch log named with embedded escape bytes
+     and prompt fragments exists in the LAUNCH-LOGS dump). The small
+     diffs (3.3/3.4) were the dock running-dot for garbage commands.
+     Browser/os never opened on attempt 0 either — only attempt 1 (the
+     dock click) ever launched a real process on any run.
+  3. Desktop-file diff, OS (works) vs CoreX (fails):
+     OS Exec=/opt/OSPrivateChat/os-private-chat (plain, no quotes);
+     CoreX Exec="/opt/CoreX Terminal/corex-terminal" %U (quoted + field
+     code). Both valid desktop files; sh handles both. CoreX also ships
+     an AppArmor profile (unconfined, userns) — not the blocker (the
+     userns path is unused with --no-sandbox; a failed profile load
+     leaves the binary unconfined). CoreX's postinst installs
+     /usr/bin/corex-terminal via update-alternatives — the bare head IS
+     on PATH for all three debs (browser and os too).
+  FIX PACKAGE (v0.6.46):
+  a. Harness: Serial.run ANSI/OSC-sanitizes its decoded output; the
+     Exec resolution is marker-bounded (EXEC-RES-START/END, first
+     non-empty line, refuse anything still containing escapes);
+     attempt 0 launches aegis-electron-launch + the resolved line (the
+     dock's actual launch line — honest end-to-end); after each failed
+     attempt a pgrep liveness line separates crash vs slow-paint vs
+     never-launched; the LAUNCH-LOGS diag walks the glob with a
+     per-file header instead of tail|head caps; corex wait 30 -> 45 s.
+  b. findInstalledEntry (util.cpp): when QStandardPaths finds the bare
+     head on PATH, launch THAT (clean, quote-free, matches the tile
+     tracking head); the entry Exec stays the fallback when nothing is
+     on PATH (W24 honesty preserved).
 
 ---
 

@@ -657,20 +657,29 @@ static QVariantMap findInstalledEntry(const QString &cmdHead)
                 entry.value(QStringLiteral("cmd")).toString()
                     .section(QLatin1Char(' '), 0, 0)).fileName();
             const QString tryExec = entry.value(QStringLiteral("tryExec")).toString();
-            if (execHead == cmdHead || tryExec == cmdHead)
+            if (execHead == cmdHead || tryExec == cmdHead) {
+                // W24/D10 — the launch line: prefer the bare head when it
+                // resolves on PATH. All three Tier B debs install a
+                // /usr/bin symlink (CoreX via update-alternatives), and
+                // the PATH binary is the canonical entry point — no
+                // quoting or desktop field codes to re-parse. CoreX's
+                // Exec is `"/opt/CoreX Terminal/corex-terminal" %U`: the
+                // quoted space + field code rode the launch line verbatim
+                // into /bin/sh (the v0.6.45 run's red). The entry Exec
+                // stays the fallback when nothing is on PATH — the W24
+                // rule (the entry is the source of truth) is intact.
+                const QString onPath = QStandardPaths::findExecutable(cmdHead);
                 return QVariantMap{
                     {QStringLiteral("icon"),
                      entry.value(QStringLiteral("icon")).toString()},
                     {QStringLiteral("name"),
                      entry.value(QStringLiteral("name")).toString()},
-                    // W24 — the FULL Exec= line: electron-builder debs
-                    // install into /opt (CoreX's path even has a space)
-                    // with no /usr/bin symlink, so the bare command head
-                    // can never launch. The dock launches THIS, quoted as
-                    // the entry wrote it.
                     {QStringLiteral("exec"),
-                     entry.value(QStringLiteral("cmd")).toString()},
+                     onPath.isEmpty()
+                         ? entry.value(QStringLiteral("cmd")).toString()
+                         : cmdHead},
                 };
+            }
         }
     }
     return {};
