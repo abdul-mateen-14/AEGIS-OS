@@ -633,6 +633,7 @@ def app_diag(serial):
         "echo ===COREDUMPCTL===; coredumpctl list --no-pager 2>&1 | tail -10",
         "echo ===KWINRC===; cat /etc/xdg/kwinrc 2>&1",
         "echo ===KDEGLOBALS===; cat /etc/xdg/kdeglobals 2>&1",
+        "echo ===SDDM-THEME===; ls /usr/share/sddm/themes/aegis/ 2>&1",
         "echo ===KWIN-PLUGINS===; ls /usr/lib/x86_64-linux-gnu/qt6/plugins/kwin/effects/plugins/ 2>&1; ls /usr/lib/qt6/plugins/kwin/effects/plugins/ 2>&1; echo PLUGINS-DONE",
         # W14 — did the splash renderer really run? The boot frames keep
         # missing the (short) plymouth window on the ~10 s KVM boot, so the
@@ -844,14 +845,16 @@ def config_assert(diag_path):
     return failures
 
 def greeter_assert(out_dir, last_frame):
-    """W23.2 — verify the SDDM greeter painted. Its frame reads 'pure
-    black' (ink + scrim) in the timeline, and nothing between the splash
-    and the session ever verified the mark + accent progress device +
-    the 72 px clock (B3 continuity). Signature: a big BRIGHT band at
-    y ≈ 0.14-0.27H near the center (the clock — console text is excluded
-    by the empty left margin) OR the accent progress line at
-    y ≈ 0.09-0.16H. The splash's devices live at 0.38-0.54H / 0.61H —
-    no overlap. Only frames BEFORE the desktop gate count."""
+    """W23.2 — the SDDM greeter pixel signature (clock/progress devices).
+    NOT WIRED INTO THE GATE: the v0.6.35 boot run proved the live ISO
+    NEVER SHOWS the greeter — SDDM autologins straight into the session
+    (serial log: sddm-helper --start dbus-run-session --aegis-session
+    --autologin, no sddm-greeter process at all), and boot-14/15/16 are
+    the pure-black SDDM-to-session handoff gap, not a broken greeter.
+    The reviewer's mark+clock+progress verification applies to the
+    INSTALLED path (no autologin); the boot gate instead asserts the
+    theme FILES ship (sddm_theme_assert below) — a sync-includes slip
+    still goes red. Keep this function for that future gate."""
     n = 0
     best = None
     while True:
@@ -889,14 +892,49 @@ def greeter_assert(out_dir, last_frame):
             f"{best[1][0]}, accent px {best[1][1]} (below thresholds)")
     return False
 
+def sddm_theme_assert(diag_path):
+    """W23.2 (revised after the autologin finding) — the greeter is never
+    rendered on the live path (SDDM autologins straight into the
+    session; boot-14/15/16 pure black is the handoff gap), so the gate
+    verifies the THEME SHIPS: ===SDDM-THEME=== must list the aegis
+    theme's files (Main.qml, mark.png, metadata.desktop). A
+    sync-includes slip that drops the theme still fails the release."""
+    try:
+        blob = open(diag_path, errors="replace").read()
+    except OSError:
+        return ["serial-diag.txt missing — the SDDM theme was never "
+                "verified"]
+    marker = "===SDDM-THEME==="
+    section = []
+    active = False
+    for ln in blob.splitlines():
+        if "===" in ln:
+            if marker in ln:
+                active = True
+                continue
+            if active:
+                break
+        if active:
+            section.append(ln)
+    text = "\n".join(section)
+    failures = []
+    for needle, what in (("Main.qml", "SDDM theme Main.qml missing"),
+                         ("mark.png", "SDDM theme mark.png missing"),
+                         ("metadata.desktop",
+                          "SDDM theme metadata.desktop missing")):
+        if needle not in text:
+            failures.append(what + " (a sync-includes slip?)")
+    return failures
+
 def tint_assert(files_png):
     """W16 — the report.pdf card must render the tinted doc-page glyph
-    (#FA2D48). The v0.6.34 capture shipped the blue folder-documents
-    glyph for PDFs — its red pixels are ONLY the tinted 'PDF' label text
-    (measured: 256 px, one 64 px band). The fixed build adds the 44 px
-    glyph stroke (~500 px) on top of the label, so the gate is 450:
-    broken ≈ 250, fixed ≈ 700+. Tolerance ±14/channel keeps the
-    traffic-light red (255,95,87) out (its green is 50 away)."""
+    (#FA2D48). MEASURED decomposition on the v0.6.35 boot captures:
+    broken build = 237 px (the pre-colored music glyph's edge AA 223 + a
+    14 px sidebar artifact — the pdf icon was BLUE then); fixed build =
+    395 px (the same 237 + ~158 for the red doc-page outline stroke at
+    44 px). Gate at 300 — dead center between the two measured states.
+    Tolerance ±14/channel keeps the traffic-light red (255,95,87) out
+    (its green is 50 away)."""
     im = Image.open(files_png).convert("RGB")
     hits = 0
     for p in im.getdata():
@@ -938,7 +976,10 @@ def magnify_clearance_assert(home_png, mag_png):
             return (p[0] * 299 + p[1] * 587 + p[2] * 114) // 1000
         prev = None
         left = None
-        for x in range(W // 5, W // 2):
+        # the FIXED pill grows leftward past W/5 when the field is live
+        # (v0.6.35: edge at 246 — a scan starting at 256 found nothing)
+        # — start from W/10
+        for x in range(W // 10, W // 2):
             l = lum(im.getpixel((x, y)))
             if prev is not None and abs(l - prev) > 14:
                 left = x
@@ -1574,19 +1615,19 @@ def main():
     # is not a probe" — the v0.6.20 lesson.
     for f in config_assert("serial-diag.txt"):
         failures.append("config drift: " + f)
-    try:
-        if not greeter_assert(OUT, n):
-            failures.append("SDDM greeter never painted its devices "
-                            "(clock/progress) before the session")
-    except Exception as e:
-        failures.append(f"greeter assert crashed: {e}")
+    for f in sddm_theme_assert("serial-diag.txt"):
+        failures.append(f)
+    # greeter_assert stays UNWIRED — the live ISO autologins and the
+    # greeter never renders between splash and session (see its
+    # docstring and the T12 D7 notes in docs/TASKS.md).
     try:
         tint = tint_assert(f"{OUT}/02-files.png")
         log(f"tint assert: {tint} px at #FA2D48 in 02-files")
-        if tint < 450:
+        if tint < 300:
             failures.append(f"Files PDF tint missing ({tint} px at "
-                            "#FA2D48, need >= 450: label alone is ~250, "
-                            "the tinted glyph adds ~500) — W16 regressed")
+                            "#FA2D48, need >= 300 — broken build measures "
+                            "237 without the glyph, fixed 395) — W16 "
+                            "regressed")
     except Exception as e:
         failures.append(f"tint assert crashed: {e}")
     try:
