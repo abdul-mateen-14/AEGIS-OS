@@ -15,7 +15,77 @@ cannot lose the plan.
 
 ---
 
-## T12 — v0.6.35: reviewer round 5 — W16-W23 (TODO)
+## T13 — v0.6.39: VM usage round — W24-W37 (DOING)
+
+Opened 2026-11-12 from the first REAL-VM usage report of v0.6.34
+(docs/REVIEW-v0.6.36-VM.md, committed verbatim — behavior evidence, not
+pixels). The reviewer's scope note: W16-W23 still stand; this adds
+W24-W37. TRIAGE against what already shipped in T12 (v0.6.35-v0.6.38):
+
+- ALREADY DONE (the reviewer reviewed v0.6.34 in the VM):
+  - W29 = T12 D1 (W17): the /proc atEnd trap was found and fixed, the
+    unavailable states shipped, the boot gate asserts the Monitor cards
+    (719 accent px on the last full green run). The reviewer's "print
+    the raw lines in the probe once" debugging pass was replaced by the
+    POSIX-level root cause + the pixel gate.
+  - W20 prerequisite = T12 D8, with FOUR shipped-green-class breaks
+    found and fixed by the boot gate (kwinrc key shape, DBus path,
+    resourceClass filter for the shell's own layer surfaces which DO
+    pass normalWindow on 6.6, and the callDBus double-vs-int
+    marshalling — the contract is now ONE JSON string). The island
+    auto-hide chain verification is the ONLY item still open: run 7
+    (v0.6.38) showed the island NOT hiding with a window open while
+    every other assert is green. Debug instrumentation ships with T13:
+    Util.windowListRaw() (the last raw JSON payload the script pushed)
+    + the window-state dump reads the DBus address from the
+    aegis-shell environ (the first pgrep match was the
+    dbus-run-session parent, whose environ lacks the address).
+  - W22 (web shortcuts) = T12 D10, shipped.
+  - W16/W17 fold into W28/W29 as the review says — W16 shipped (tint
+    gate 395 px green), W28 is NEW (the properties fields below).
+- T13 batch 1 (this cycle, the reviewer's own ship order: W24+W25+W26+
+  W28 first, then W20/W27):
+  - D1 (W24): the three deb apps cannot launch — dock cmd is a bare
+    command head that is not on PATH. findInstalledEntry already parses
+    the winning .desktop: also return the full Exec= string; resolve:
+    true slots launch that full quoted Exec (QProcess::splitCommand
+    semantics), bare cmd only as the fallback; wrap every Tier B launch
+    with a timestamped log at ~/.local/state/aegis/launch/<app>.log
+    (last 50 lines); boot-test probe per Tier B app (pgrep the Exec
+    head + the existing capture).
+  - D2 (W25): electron/Chromium under the VM — chmod 4755 the
+    chrome-sandbox of each installed electron app in the 0900 hook; an
+    aegis-electron-launch wrapper adds --disable-gpu (and --no-sandbox
+    only when the SUID check fails) when in a VM; the W24 probe asserts
+    the window MAPPED, not just the process.
+  - D3 (W26): Trash opens Files Home — aegis-files gains --path <url>
+    parsing (apps-main argv), the Trash dock slot becomes
+    aegis-files --path trash:///, the boot test clicks Trash and
+    asserts the sidebar Trash row active.
+  - D4 (W28): the Files properties sheet binds info.size/modified/path
+    which metaFor never populates — add humanized size, local
+    timestamp, absolute path; recapture 02-files with the sheet open.
+  - D5 (W20 finish + W27): windowListRaw() instrumentation + the dump
+    fix; on green, W27 (activateOrLaunch + unminimize via the script)
+    rides the same tracking.
+- T13 batch 2 (NEXT cycle, recorded so nothing is lost): W30 (Settings
+  panes degrade gracefully: kscreen package, Sound empty-state, wired
+  section), W31 (sidebar glyphs), W32 (WPA join + bluetooth UI), W33
+  (Drivers pane: printing/cups-pdf/scan/presentation/charging), W34
+  (Aegis ID error classification + avatar/username), W35 (keyboard:
+  XKB verify + explicit kglobalshortcutsrc), W36 (desktop context
+  menu), W37 (dead-control sweep + inventory in docs/).
+
+### Status
+
+- DOING — batch 1 in flight. Session log:
+  - The v0.6.38 boot test (run 43189872664) verified everything EXCEPT
+    the island hide (files 27 px); the window-state dump still failed
+    because the first pgrep match was the dbus-run-session parent.
+
+---
+
+## T12 — v0.6.35: reviewer round 5 — W16-W23 (SHIPPED)
 
 Opened 2026-11-12 from the uploaded review of v0.6.34
 (docs/REVIEW-v0.6.35.md — committed verbatim, rulings quoted from it).
