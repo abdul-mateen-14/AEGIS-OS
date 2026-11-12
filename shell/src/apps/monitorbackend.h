@@ -241,7 +241,23 @@ private:
         emit updated();
     }
 
-    QVariantMap m_summary;
+    // T11-D6 — the summary map must carry the FULL zeroed key set from
+    // construction. MonitorApp.qml binds summary.load1.toFixed(2) at
+    // component creation, BEFORE the first /proc walk fills the map, and
+    // undefined.toFixed threw "TypeError: Cannot call method 'toFixed'"
+    // at MonitorApp.qml:150 (v0.6.33 boot test 43136845770 — the verdict
+    // had been masked by the PV-m/PV-n parse collision since D5).
+    QVariantMap m_summary = {
+        { QStringLiteral("cpu"), 0.0 },
+        { QStringLiteral("memUsedMb"), 0.0 },
+        { QStringLiteral("memTotalMb"), 0.0 },
+        { QStringLiteral("memPercent"), 0.0 },
+        { QStringLiteral("uptimeSec"), 0 },
+        { QStringLiteral("load1"), 0.0 },
+        { QStringLiteral("netUpKbps"), 0.0 },
+        { QStringLiteral("netDownKbps"), 0.0 },
+        { QStringLiteral("processCount"), 0 }
+    };
     QVariantList m_cores;
     QVariantList m_processes;
     qint64 m_lastMs = 0, m_lastTotal = 0, m_lastIdle = 0;

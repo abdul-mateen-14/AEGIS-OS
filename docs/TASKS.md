@@ -209,6 +209,25 @@ capture, no proof the apps open on the runner.
   token map + boot-test.yml pull-rebase. Then re-dispatch Boot Test
   inputs.tag v0.6.33 on the updated main — same v0.6.33 ISO, honest
   probe evaluation, screenshots committed by the runner.
+- D6 verdict — re-run 43136845770 (same v0.6.33 ISO, fixed harness):
+  the honest gate WORKED. "probe monitor: DIRTY" was read, fetched and
+  arbitrated: MonitorApp.qml:150 TypeError "Cannot call method 'toFixed'"
+  — a REAL product bug that shipped in the v0.6.31/v0.6.32 ISOs behind
+  the parse collision. Root cause: MonitorBackend's QVariantMap
+  m_summary starts EMPTY and MonitorApp.qml binds summary.load1.toFixed
+  at component creation, before the first /proc walk populates the map
+  (first data lands on the 2 s timer) — undefined.toFixed throws.
+  Fix: m_summary now carries the full zeroed key set (cpu / memUsedMb /
+  memTotalMb / memPercent / uptimeSec / load1 / netUpKbps /
+  netDownKbps / processCount) from construction, so every summary
+  binding sees a number from the first evaluation. Audit: no unguarded
+  numeric calls in Music/Calculator/Editor QML. Same run also proved
+  again: 11 tiles browser-restored, header PASS, s/f/m/c/e CLEAN, and
+  the push race did not reproduce. NEXT: commit the backend fix, tag
+  v0.6.34, Release CI, Boot Test inputs.tag v0.6.34 — on green, v0.6.34
+  closes T11 (browser restored + monitor verdict honest + all six
+  probes real) and carries the four M3 app captures in
+  docs/screenshots/v0.6.34/.
 - D4 — release: qml-guard -> commit -> pull --rebase -> push -> tag
   (v0.6.28 burned by D5, v0.6.29 by D5b, v0.6.30 by D5c; re-releases as
   v0.6.31) -> Release CI builds the ISO -> Boot Test (workflow_dispatch,
