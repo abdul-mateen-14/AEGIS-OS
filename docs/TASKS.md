@@ -50,7 +50,7 @@ famous ubuntu and debian etc apps".
 
 ---
 
-## T13 — v0.6.39: VM usage round — W24-W37 (DOING)
+## T13 — v0.6.39-v0.6.50: VM usage round — W24-W37 (batch 1 SHIPPED, batch 2 DOING)
 
 Opened 2026-11-12 from the first REAL-VM usage report of v0.6.34
 (docs/REVIEW-v0.6.36-VM.md, committed verbatim — behavior evidence, not
@@ -113,7 +113,28 @@ W24-W37. TRIAGE against what already shipped in T12 (v0.6.35-v0.6.38):
 
 ### Status
 
-- BATCH 1 IN TREE (6001a5a), v0.6.39 tag next:
+- D19 — v0.6.50 BOOT TEST GREEN. THE FULL GATE PASSED FOR THE FIRST TIME
+  SINCE THE TIER B APPS JOINED IT. Eleven apps open with diffs: files
+  20.8, terminal 22.4, settings 20.7, music 15.6, calculator 6.8,
+  editor 15.3, monitor 14.6, browser 53.7 (attempt 0 — wrapped resolved
+  Exec /usr/bin/aegis-browser-stable %U), os 29.5 (attempt 0),
+  COREX 39.2 (attempt 1, the dock click — the capture 04i-corex.png
+  shows the real CoreX window with its own honest offline page, the
+  runner VM has no network, the same ERR_INTERNET_DISCONNECTED class as
+  os), store 19.4, trash 23.8. Asserts: header geometry PASS, tint 395,
+  monitor 717, island 27/0, magnify 4/28. Screenshots zip attached to
+  the v0.6.50 release and committed to docs/screenshots/v0.6.50/.
+  W24/W25/W26/W28 + the W20 island chain + W21 magnify: ALL SHIPPED AND
+  PROVEN. T14 (the Store) rides green since v0.6.42. Batch 2 progress
+  in tree and session-safe (D11-D14): Sound honest states, the wired
+  Network section, the §6 sidebar glyphs, the WPA join sheet, the Aegis
+  ID failure classification + backend-state line, the desktop
+  right-click menu, kscreen packaged. REMAINING batch 2: W30.1 UI half
+  (per-output rows/scale/presentation), W32.3 bluetooth, W33 drivers
+  pane UI, W35 XKB, W37 dead-control sweep. CoreX needed eleven boot
+  runs, two ISO reds, one session abort, and a quote — the entry is now
+  matched, the wrapper engaged, the sandbox flags reach electron.
+- BATCH 1 SHIPPED (v0.6.50):
   - D1 (W24) DONE: findInstalledEntry returns the full Exec=; dockApps
     carries it as the slot's launch field (cmd stays the bare head for
     isRunning/tracking); the dock tile launches modelData.launch first;
