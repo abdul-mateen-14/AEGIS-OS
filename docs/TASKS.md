@@ -78,10 +78,44 @@ W24-W37. TRIAGE against what already shipped in T12 (v0.6.35-v0.6.38):
 
 ### Status
 
-- DOING — batch 1 in flight. Session log:
-  - The v0.6.38 boot test (run 43189872664) verified everything EXCEPT
-    the island hide (files 27 px); the window-state dump still failed
-    because the first pgrep match was the dbus-run-session parent.
+- BATCH 1 IN TREE (6001a5a), v0.6.39 tag next:
+  - D1 (W24) DONE: findInstalledEntry returns the full Exec=; dockApps
+    carries it as the slot's launch field (cmd stays the bare head for
+    isRunning/tracking); the dock tile launches modelData.launch first;
+    every Util.launch appends a timestamped line + the process output to
+    ~/.local/state/aegis/launch/<head>.log (rotated to 50 lines); the
+    boot harness resolves the Exec from the guest's .desktop entry for
+    the Tier B probes (launch_cmd="desktop") and the release gate grew
+    browser/os/corex keys; a ===LAUNCH-LOGS=== diag dumps the logs in CI.
+  - D2 (W25) DONE: the 0900 hook chmods 4755 every chrome-sandbox under
+    /opt; /usr/bin/aegis-electron-launch guards electron launches
+    (--disable-gpu in a VM via DMI/AEGIS_VM_MODE, --no-sandbox only when
+    the SUID bit is missing); dockApps wraps the Exec when a
+    chrome-sandbox sits next to the binary (splitCommand — the CoreX
+    path has a space); the diff-vs-home probe is the window-MAPPED proof.
+  - D3 (W26) DONE: aegis-files parses --path <url> (apps-main argv -> a
+    aegisInitialPath context property -> navigateTo on completion);
+    the Trash slot is aegis-files --path trash:/// in config.json AND
+    the util.cpp defaultConfig mirror; the boot test clicks the Trash
+    tile and captures 04j-trash.
+  - D4 (W28) DONE: propertiesOf is URL-defensive (a file:// input read
+    as size 0 + epoch mtime — the placeholder look), GB tier added, the
+    modified format is the v1.3 "d MMM yyyy HH:mm". The fields were
+    already populated since 299e521 — the review's metaFor citation was
+    the wrong function; the defensive fix + capture cover the report.
+  - D5 (W20 instrumentation) DONE: Util.windowListRaw() returns the last
+    raw payload the script pushed (empty = the push never arrived); the
+    window-state dump takes the DBus address from the aegis-shell
+    environ (the aegis-session grep matched the dbus-run-session parent).
+  - W27 (activateOrLaunch) rides the SAME tracking — deferred to batch 2
+    until the island chain is proven green (run 7 left it open).
+- T13 batch 2 (NEXT cycle, recorded so nothing is lost): W30 (Settings
+  panes degrade gracefully: kscreen package, Sound empty-state, wired
+  section), W31 (sidebar glyphs), W32 (WPA join + bluetooth UI), W33
+  (Drivers pane: printing/cups-pdf/scan/presentation/charging), W34
+  (Aegis ID error classification + avatar/username), W35 (keyboard:
+  XKB verify + explicit kglobalshortcutsrc), W36 (desktop context
+  menu), W37 (dead-control sweep + inventory in docs/).
 
 ---
 
