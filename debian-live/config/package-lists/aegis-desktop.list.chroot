@@ -13,6 +13,10 @@ powerdevil
 kinfocenter
 systemsettings
 polkit-kde-agent-1
+# W30.1 — the Displays pane parses kscreen-doctor output; plasma-workspace
+# does not guarantee the kscreen package, so the pane degraded to its
+# "not available" state on the VM round. kscreen ships kscreen-doctor.
+kscreen
 
 # Login manager
 sddm
@@ -38,6 +42,9 @@ wireplumber
 # Printing & scanning — out of the box (Table 22)
 cups
 printer-driver-gutenprint
+# W33.2 — the review's "pdfs" ask: Print-to-PDF exists as a printer out
+# of the box (the Drivers pane's test page lands in ~/PDF).
+cups-pdf
 sane-utils
 simple-scan
 

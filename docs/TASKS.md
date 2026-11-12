@@ -566,6 +566,15 @@ Work order below is dependency-aware; the review's own order is W16-W23.
   ("reachable"/"unreachable"/"unknown") + lastAttempt (HH:mm) update on
   EVERY reply and render as the state line under the form. Wired into
   kdf-params, register and login/refresh error paths.
+- D14 — W30.1 package half + W33.2 package + W36.1 DONE (v0.6.47):
+  kscreen added to aegis-desktop.list.chroot (the Displays pane no
+  longer degrades to not-available on a fresh ISO); cups-pdf (the
+  review's Print-to-PDF ask); the desktop right-click menu in
+  Desktop.qml — New Folder in ~/Desktop (numbered fallback),
+  Change Wallpaper -> aegis-settings 0, Display Settings ->
+  aegis-settings 4, Open Terminal; Clean Up waits for M2 desktop icons.
+  All of D11-D14 are LOCAL commits while Boot Test 43275799810 flies —
+  push only after it lands.
 
 ---
 
