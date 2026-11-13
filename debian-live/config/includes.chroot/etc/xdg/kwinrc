@@ -30,12 +30,24 @@ overviewEnabled=true
 # the camelCase aegisWindowwatchEnabled loaded nothing and the boot
 # gate's isScriptLoaded went red on the v0.6.35 run 3).
 aegis-windowwatchEnabled=true
+# D24 (W35) — the shell's Meta+Space / Meta+S global shortcuts ride
+# KGlobalAccel through this script (the stock dictionary is pinned in
+# /etc/xdg/kglobalshortcutsrc; shell actions cannot ride that file
+# because nothing registers them there).
+aegis-shortcutsEnabled=true
 # W21 — dock-anchored open/close (the stock scale effect is ALSO a
 # toplevel-open-close-animation effect; both grabbing windowAdded is
 # undefined — the stock one is disabled for the tile-anchored one).
 # Same verbatim-id key shape.
 aegis-dockzoomEnabled=true
 scaleEnabled=false
+# D20 (W27) — minimize/restore animation. Our JS effect cannot hook
+# minimize on 6.6 (EffectsHandler exposes only windowAdded/Closed/
+# Activated/Deleted to JS — verified against the KWin 6.6.0 source), so
+# the "minimize goes somewhere" ruling rides the stock squash effect,
+# which animates exactly minimize + unminimize. Scale stays off (it
+# would grab open/close and fight the dockzoom).
+squashEnabled=true
 
 [Effect-shapecorners]
 Radius=18

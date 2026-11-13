@@ -56,13 +56,18 @@ Window {
         }
     }
 
-    // W21 — publish the RESTING tile centers {"<cmd>": [cx, cy]} for the
-    // aegis-dockzoom effect (transported through kwinrc — see
-    // Util.publishDockTileMap). Computed at rest on purpose: the
-    // magnification wave moves tiles transiently and the effect should
-    // anchor where the tile lives, not where it is mid-wave.
+    // W21 — publish the RESTING tile centers for the aegis-dockzoom
+    // effect (transported through kwinrc — see Util.publishDockTileMap).
+    // Computed at rest on purpose: the magnification wave moves tiles
+    // transiently and the effect should anchor where the tile lives, not
+    // where it is mid-wave.
+    // D25 — the format is quote-free "head=cx,cy;head2=cx,cy", keyed by
+    // the command HEAD (the window resourceClass). The old JSON rode
+    // QSettings IniFormat, which escaped the quotes as \" — an invalid
+    // KConfig escape the guest journal flagged twice per session
+    // ("Invalid escape sequence «\"»").
     function publishTileMap() {
-        var map = {}
+        var parts = []
         for (var i = 0; i < row.children.length; ++i) {
             var t = row.children[i]
             if (!t.iconItem || t.isSeparator)
@@ -73,10 +78,11 @@ Window {
             var p = t.iconItem.mapToItem(null,
                                          t.iconItem.width / 2,
                                          t.iconItem.height / 2)
-            map[cmd] = [Math.round(p.x + dockRoot.x),
-                        Math.round(p.y + dockRoot.y)]
+            parts.push(cmd.split(" ")[0] + "="
+                       + Math.round(p.x + dockRoot.x) + ","
+                       + Math.round(p.y + dockRoot.y))
         }
-        Util.publishDockTileMap(JSON.stringify(map))
+        Util.publishDockTileMap(parts.join(";"))
     }
 
     Component.onCompleted: publishTileMap()
@@ -341,6 +347,32 @@ Window {
             }
         }
 
+        // W36.2 — the first-party tile menu: New Window always, Quit for
+        // a running app, Empty Trash on the Trash slot. Right-click was a
+        // silent no-op on these tiles — the W37 sweep flags exactly that.
+        Menu {
+            id: tileMenu
+            property bool trash: false
+            property bool running: false
+            property string head: ""
+            property string launchCmd: ""
+            dim: false
+            MenuItem {
+                text: "New Window"
+                onTriggered: Util.launch(tileMenu.launchCmd)
+            }
+            MenuItem {
+                visible: tileMenu.running && !tileMenu.trash
+                text: "Quit"
+                onTriggered: Util.quitApp(tileMenu.head)
+            }
+            MenuItem {
+                visible: tileMenu.trash
+                text: "Empty Trash"
+                onTriggered: Util.emptyTrash()
+            }
+        }
+
         Row {
             id: row
             anchors {
@@ -428,11 +460,14 @@ Window {
 
                     function launch() {
                         bounceAnim.restart()
-                        // W24 — Tier B slots launch the resolved .desktop
-                        // Exec (the bare head is not on PATH for the /opt
-                        // debs); the cmd stays for tracking/matching.
-                        Util.launch(tile.modelData.launch
-                                    || tile.modelData.cmd || "")
+                        // W27 — a dock click brings an existing window
+                        // back (activateOrLaunch falls through to a
+                        // normal launch otherwise; argumented cmds like
+                        // the Trash slot never re-focus). Tier B slots
+                        // carry the resolved .desktop Exec in launch.
+                        Util.activateOrLaunch(tile.modelData.cmd || "",
+                                              tile.modelData.launch
+                                              || tile.modelData.cmd || "")
                     }
 
                     MouseArea {
@@ -440,12 +475,29 @@ Window {
                         cursorShape: Qt.PointingHandCursor
                         acceptedButtons: Qt.LeftButton | Qt.RightButton
                         onClicked: (mouse) => {
-                            if (mouse.button === Qt.RightButton
-                                && tile.modelData.web) {
-                                // W22 — user-added web shortcuts are
-                                // removable; first-party slots are not
-                                webMenu.webId = tile.modelData.id || ""
-                                webMenu.popup()
+                            if (mouse.button === Qt.RightButton) {
+                                if (tile.modelData.web) {
+                                    // W22 — user-added web shortcuts are
+                                    // removable; first-party slots are not
+                                    webMenu.webId = tile.modelData.id || ""
+                                    webMenu.popup()
+                                } else if (!tile.isSeparator) {
+                                    // W36.2 — every first-party tile gets a
+                                    // real menu (right-click was a silent
+                                    // no-op here — the W37 sweep flags it)
+                                    tileMenu.trash =
+                                        (tile.modelData.cmd || "")
+                                        .indexOf("trash:///") >= 0
+                                    tileMenu.head =
+                                        (tile.modelData.cmd || "")
+                                        .split(" ")[0]
+                                    tileMenu.launchCmd =
+                                        tile.modelData.launch
+                                        || tile.modelData.cmd || ""
+                                    tileMenu.running =
+                                        Util.isRunning(tileMenu.head)
+                                    tileMenu.popup()
+                                }
                                 return
                             }
                             tile.launch()

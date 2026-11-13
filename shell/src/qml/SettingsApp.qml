@@ -1260,35 +1260,196 @@ Window {
         }
     }
 
-    // ── Drivers & Firmware (plate 13: six domains, every row BUILT-IN)
+    // ── D23 (W33) — Drivers & Firmware: the real inventory ────────────────
+    // The pane used to be the static BUILT-IN placeholder list (the W37
+    // poster child). Every section now renders REAL data with an explicit
+    // empty state — never blank: device inventory (lspci/lsusb/lsblk with
+    // the kernel driver per PCI device), printing (CUPS queues + test
+    // page + CUPS web UI; cups-pdf waits for an archive reintroduction —
+    // TASKS.md D16), scanning (simple-scan), power & charging (Util's
+    // sysfs read; VMs say "AC power"), firmware (fwupdmgr best-effort)
+    // and the presentation toggle lives in Displays.
     Component {
         id: driversPane
         ColumnLayout {
             spacing: 12
+            Component.onCompleted: Drivers.refresh()
+
             Text { text: "Drivers & Firmware"; font.family: "Montserrat"; font.pixelSize: 20; font.weight: Font.DemiBold; color: Tokens.fg }
-            Rectangle {
-                Layout.fillWidth: true; Layout.preferredHeight: 30; radius: 8
-                color: Util.darkMode ? "#1B2B1F" : "#E4F5E8"
-                Text {
-                    anchors { verticalCenter: parent.verticalCenter; left: parent.left; margins: 10 }
-                    text: "aegis-drivers \u2014 verified store \u00b7 0 missing"
-                    font { pixelSize: 12; family: "Monospace" }
-                    color: "#28C840"
+
+            // Power & charging — Util reads /sys/class/power_supply; a VM
+            // without a battery reads "AC power" honestly.
+            Text { text: "Power"; font.pixelSize: 12; font.bold: true; color: Tokens.fg }
+            Text {
+                text: Util.onBattery
+                      ? "Battery — " + Util.batteryPercent + "%"
+                        + (Util.charging ? ", charging" : "")
+                      : "AC power"
+                font.pixelSize: 11; color: Tokens.fgMuted
+            }
+
+            // Device inventory — categories with the kernel driver where
+            // resolvable; zero devices renders the explicit empty line.
+            Text { text: "Device inventory"; font.pixelSize: 12; font.bold: true; color: Tokens.fg }
+            Repeater {
+                model: ["Graphics", "Network", "Audio", "Storage"]
+                delegate: ColumnLayout {
+                    id: pciCat
+                    property string cat: modelData
+                    Layout.fillWidth: true
+                    spacing: 4
+                    Text {
+                        text: pciCat.cat
+                        font { pixelSize: 11; bold: true }
+                        color: Tokens.fgMuted
+                    }
+                    Repeater {
+                        model: Drivers.pciDevices.filter(
+                                   function (d) { return d.category === pciCat.cat })
+                        delegate: Text {
+                            text: modelData.name
+                                  + (modelData.driver
+                                     ? "  —  driver: " + modelData.driver
+                                     : "  —  no kernel driver bound")
+                            font.pixelSize: 11
+                            color: Tokens.fg
+                            elide: Text.ElideMiddle
+                            Layout.fillWidth: true
+                        }
+                    }
+                    Text {
+                        visible: Drivers.pciDevices.filter(
+                                     function (d) { return d.category === pciCat.cat }).length === 0
+                        text: "No devices in this class"
+                        font.pixelSize: 11; color: Tokens.fgMuted
+                    }
                 }
             }
+            Text {
+                text: "USB"
+                font { pixelSize: 11; bold: true }
+                color: Tokens.fgMuted
+            }
             Repeater {
-                model: [
-                    "Wi-Fi", "Bluetooth", "Graphics", "Audio",
-                    "Print & scan", "Input", "WWAN & tethering", "Secure Boot"
-                ]
+                model: Drivers.usbDevices
+                delegate: Text {
+                    text: modelData.name
+                    font.pixelSize: 11; color: Tokens.fg
+                    elide: Text.ElideMiddle
+                    Layout.fillWidth: true
+                }
+            }
+            Text {
+                visible: Drivers.usbDevices.length === 0
+                text: "No USB devices visible"
+                font.pixelSize: 11; color: Tokens.fgMuted
+            }
+            Text {
+                text: "Storage"
+                font { pixelSize: 11; bold: true }
+                color: Tokens.fgMuted
+            }
+            Repeater {
+                model: Drivers.storageDevices
+                delegate: Text {
+                    text: "/dev/" + modelData.name + " — " + modelData.size
+                    font.pixelSize: 11; color: Tokens.fg
+                }
+            }
+            Text {
+                visible: Drivers.storageDevices.length === 0
+                text: "No disks visible"
+                font.pixelSize: 11; color: Tokens.fgMuted
+            }
+
+            // Printing — real CUPS queues; the buttons act (test page
+            // through lp, the CUPS web UI at localhost:631).
+            Text { text: "Printing"; font.pixelSize: 12; font.bold: true; color: Tokens.fg }
+            Repeater {
+                model: Drivers.printers
                 delegate: RowLayout {
                     Layout.fillWidth: true
-                    Text { text: modelData; font.pixelSize: 13; color: Tokens.fg; Layout.fillWidth: true }
-                    Rectangle {
-                        Layout.preferredWidth: 64; Layout.preferredHeight: 20; radius: 6
-                        color: Util.darkMode ? "#1B2B1F" : "#E4F5E8"
-                        Text { anchors.centerIn: parent; text: "BUILT-IN"; font.pixelSize: 9; font.bold: true; color: "#28C840" }
+                    Text {
+                        text: modelData.name + " — " + modelData.state
+                        font.pixelSize: 11; color: Tokens.fg
+                        elide: Text.ElideMiddle
+                        Layout.fillWidth: true
                     }
+                    AbstractButton {
+                        Layout.preferredHeight: 24; Layout.preferredWidth: 84
+                        contentItem: Text { text: "Test page"; font.pixelSize: 11; color: Tokens.fg; horizontalAlignment: Text.AlignHCenter; verticalAlignment: Text.AlignVCenter }
+                        background: Rectangle { radius: 8; color: Util.darkMode ? "#262930" : "#E8ECF4"; border.color: Tokens.glassBorder }
+                        onClicked: Drivers.printTestPage(modelData.name)
+                    }
+                }
+            }
+            Text {
+                visible: Drivers.printers.length === 0
+                text: "No print queues — printers added through CUPS appear here"
+                font.pixelSize: 11; color: Tokens.fgMuted
+            }
+            Text {
+                text: "Print to PDF: not available — cups-pdf is missing from the archive (TASKS D16)"
+                font.pixelSize: 10; color: Tokens.fgMuted
+                wrapMode: Text.WordWrap
+                Layout.fillWidth: true
+            }
+            RowLayout {
+                spacing: 8
+                AbstractButton {
+                    Layout.preferredHeight: 26; Layout.preferredWidth: 108
+                    contentItem: Text { text: "Open CUPS\u2026"; font.pixelSize: 11; color: Tokens.fg; horizontalAlignment: Text.AlignHCenter; verticalAlignment: Text.AlignVCenter }
+                    background: Rectangle { radius: 8; color: Util.darkMode ? "#262930" : "#E8ECF4"; border.color: Tokens.glassBorder }
+                    onClicked: Drivers.openCups()
+                }
+                AbstractButton {
+                    Layout.preferredHeight: 26; Layout.preferredWidth: 84
+                    contentItem: Text { text: "Refresh"; font.pixelSize: 11; color: Tokens.fg; horizontalAlignment: Text.AlignHCenter; verticalAlignment: Text.AlignVCenter }
+                    background: Rectangle { radius: 8; color: Util.darkMode ? "#262930" : "#E8ECF4"; border.color: Tokens.glassBorder }
+                    onClicked: Drivers.refresh()
+                }
+            }
+
+            // Scanning
+            Text { text: "Scanning"; font.pixelSize: 12; font.bold: true; color: Tokens.fg }
+            RowLayout {
+                spacing: 8
+                Text {
+                    text: Drivers.scanState === "ready"
+                          ? "Document scanner ready (simple-scan)"
+                          : "No scanner tool in this build"
+                    font.pixelSize: 11; color: Tokens.fgMuted
+                    Layout.fillWidth: true
+                }
+                AbstractButton {
+                    visible: Drivers.scanState === "ready"
+                    Layout.preferredHeight: 26; Layout.preferredWidth: 84
+                    contentItem: Text { text: "Open scan\u2026"; font.pixelSize: 11; color: Tokens.fg; horizontalAlignment: Text.AlignHCenter; verticalAlignment: Text.AlignVCenter }
+                    background: Rectangle { radius: 8; color: Util.darkMode ? "#262930" : "#E8ECF4"; border.color: Tokens.glassBorder }
+                    onClicked: Drivers.launchScanner()
+                }
+            }
+
+            // Firmware
+            Text { text: "Firmware"; font.pixelSize: 12; font.bold: true; color: Tokens.fg }
+            RowLayout {
+                spacing: 8
+                Text {
+                    text: Drivers.firmwareState === "uptodate"
+                          ? "No firmware updates available"
+                          : Drivers.firmwareState === "checking"
+                            ? "Checking fwupd\u2026"
+                            : Drivers.firmwareState === "unavailable"
+                              ? "fwupd not reachable in this build"
+                              : Drivers.firmwareState + " available"
+                    font.pixelSize: 11; color: Tokens.fgMuted
+                    Layout.fillWidth: true
+                }
+                AbstractButton {
+                    Layout.preferredHeight: 26; Layout.preferredWidth: 84
+                    contentItem: Text { text: "Check"; font.pixelSize: 11; color: Tokens.fg; horizontalAlignment: Text.AlignHCenter; verticalAlignment: Text.AlignVCenter }
+                    background: Rectangle { radius: 8; color: Util.darkMode ? "#262930" : "#E8ECF4"; border.color: Tokens.glassBorder }
+                    onClicked: Drivers.refreshFirmware()
                 }
             }
         }
@@ -1300,6 +1461,36 @@ Window {
         ColumnLayout {
             spacing: 12
             Text { text: "Displays"; font.family: "Montserrat"; font.pixelSize: 20; font.weight: Font.DemiBold; color: Tokens.fg }
+
+            // D21 (W30.1/W33.4) — presentation mode, the "presentations
+            // using laptops" ask: sleep + screen-off inhibited for as long
+            // as it is on (org.freedesktop.ScreenSaver), brightness pinned
+            // to max while presenting and restored after. The state file
+            // (~/.local/state/aegis-shell/aegis/presentation) is the boot
+            // harness's file-based verdict.
+            property real savedBrightness: -1
+            GlassSwitch {
+                id: presentationSwitch
+                text: "Presentation mode — keep the screen awake"
+                font.pixelSize: 13
+                checked: Displays.presentation
+                onToggled: {
+                    Displays.setPresentation(checked)
+                    if (checked) {
+                        savedBrightness = Util.brightness >= 0
+                                         ? Util.brightness : 0.6
+                        Util.setBrightness(1.0)
+                    } else if (savedBrightness >= 0) {
+                        Util.setBrightness(savedBrightness)
+                    }
+                }
+            }
+            Text {
+                text: Displays.presentation
+                      ? "Presentation on — sleep and screen-off inhibited; brightness pinned to max"
+                      : "Off — the screen sleeps on the normal idle timer"
+                font.pixelSize: 11; color: Tokens.fgMuted
+            }
 
             RowLayout {
                 spacing: 10
@@ -1483,7 +1674,7 @@ Window {
         id: networkPane
         ColumnLayout {
             spacing: 10
-            Component.onCompleted: { Network.loadKnown(); Network.refresh() }
+            Component.onCompleted: { Network.loadKnown(); Network.refresh(); Bluetooth.refresh() }
 
             Text { text: "Network"; font.family: "Montserrat"; font.pixelSize: 20; font.weight: Font.DemiBold; color: Tokens.fg }
 
@@ -1626,6 +1817,89 @@ Window {
                 font.pixelSize: 10; color: Tokens.fgMuted
                 wrapMode: Text.WordWrap
                 Layout.fillWidth: true
+            }
+
+            // D22 (W32.3) — the Bluetooth section: the CC tile toggles the
+            // adapter power (Util.setBluetoothEnabled), this section is the
+            // device surface. A VM with no adapter says so instead of
+            // rendering a dead empty list.
+            Rectangle { Layout.fillWidth: true; Layout.preferredHeight: 1; color: Tokens.glassBorder }
+            Text { text: "Bluetooth"; font.pixelSize: 12; font.bold: true; color: Tokens.fg }
+
+            Text {
+                text: Bluetooth.state === "noctl"
+                      ? "bluetoothctl not available in this build"
+                      : Bluetooth.state === "noadapter"
+                        ? "No Bluetooth adapter — devices will appear here when one is present"
+                        : Bluetooth.state === "off"
+                          ? "Bluetooth adapter is off — use the control center tile to power it"
+                          : (Bluetooth.scanning
+                             ? "Scanning\u2026 (8 s discovery)"
+                             : Bluetooth.devices.length === 0
+                               ? "Adapter on — no devices paired yet"
+                               : Bluetooth.devices.length
+                                 + " paired device(s)")
+                font.pixelSize: 11; color: Tokens.fgMuted
+            }
+
+            Repeater {
+                model: Bluetooth.devices
+                delegate: Rectangle {
+                    Layout.fillWidth: true
+                    Layout.preferredHeight: 38
+                    radius: 8
+                    color: Util.darkMode ? "#1E2026" : "#FFFFFF"
+                    border.color: Tokens.glassBorder
+                    RowLayout {
+                        anchors { fill: parent; leftMargin: 10; rightMargin: 10 }
+                        spacing: 8
+                        Rectangle {
+                            width: 8; height: 8; radius: 4
+                            Layout.alignment: Qt.AlignVCenter
+                            color: modelData.connected ? "#28C840"
+                                                       : (Util.darkMode ? "#3A3D45" : "#C6CCD8")
+                        }
+                        Text {
+                            text: modelData.name
+                            font.pixelSize: 12; color: Tokens.fg
+                            elide: Text.ElideMiddle
+                            Layout.fillWidth: true
+                        }
+                        Rectangle {
+                            visible: modelData.connected
+                            width: 64; height: 16; radius: 4
+                            color: Util.darkMode ? "#1B2B1F" : "#E4F5E8"
+                            Text { anchors.centerIn: parent; text: "CONNECTED"; font.pixelSize: 8; font.bold: true; color: "#28C840" }
+                        }
+                        AbstractButton {
+                            Layout.preferredHeight: 24; Layout.preferredWidth: modelData.connected ? 84 : 72
+                            contentItem: Text { text: modelData.connected ? "Disconnect" : (modelData.trusted ? "Connect" : "Pair"); font.pixelSize: 11; color: "#FFFFFF"; horizontalAlignment: Text.AlignHCenter; verticalAlignment: Text.AlignVCenter }
+                            background: Rectangle { radius: 8; color: Tokens.accent }
+                            onClicked: {
+                                if (modelData.connected)
+                                    Bluetooth.disconnectDevice(modelData.mac)
+                                else if (modelData.trusted)
+                                    Bluetooth.connectDevice(modelData.mac)
+                                else
+                                    Bluetooth.pairDevice(modelData.mac)
+                            }
+                        }
+                        AbstractButton {
+                            Layout.preferredHeight: 24; Layout.preferredWidth: 64
+                            contentItem: Text { text: "Forget"; font.pixelSize: 11; color: Tokens.fg; horizontalAlignment: Text.AlignHCenter; verticalAlignment: Text.AlignVCenter }
+                            background: Rectangle { radius: 8; color: Util.darkMode ? "#262930" : "#E8ECF4"; border.color: Tokens.glassBorder }
+                            onClicked: Bluetooth.forgetDevice(modelData.mac)
+                        }
+                    }
+                }
+            }
+
+            AbstractButton {
+                visible: Bluetooth.state === "idle"
+                Layout.preferredHeight: 26; Layout.preferredWidth: 88
+                contentItem: Text { text: Bluetooth.scanning ? "Working\u2026" : "Scan"; font.pixelSize: 11; color: Tokens.fg; horizontalAlignment: Text.AlignHCenter; verticalAlignment: Text.AlignVCenter }
+                background: Rectangle { radius: 8; color: Util.darkMode ? "#262930" : "#E8ECF4"; border.color: Tokens.glassBorder }
+                onClicked: Bluetooth.startScan()
             }
         }
     }

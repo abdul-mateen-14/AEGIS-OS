@@ -1,0 +1,12 @@
+{
+    "KPlugin": {
+        "Description": "Registers the Aegis shell global shortcuts (Meta+Space launcher, Meta+S control center) through KGlobalAccel",
+        "Id": "aegis-shortcuts",
+        "License": "GPL-2.0+",
+        "Name": "Aegis Shortcuts",
+        "Version": "1.0"
+    },
+    "KPackageStructure": "KWin/Script",
+    "X-Plasma-API": "javascript",
+    "X-Plasma-MainScript": "code/main.js"
+}

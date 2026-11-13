@@ -341,6 +341,10 @@ void Util::windowListChanged(const QString &json)
     // island's auto-hide predicate. runningCmdsChanged fires alongside
     // windowTrackingChanged because every isRunning() binding just
     // potentially changed with the new ids.
+    // T13 D20 (W27) — the payload grew allIds (managed windows incl.
+    // MINIMIZED — the dock dots and activateOrLaunch must see them) and
+    // active (the active window's resourceClass). m_windowIds switches
+    // to allIds; a pre-D20 script payload falls back to the visible ids.
     const QJsonDocument doc = QJsonDocument::fromJson(json.toUtf8());
     if (!doc.isObject()) {
         m_lastJson = json;   // T13 D5 — even a bad payload is evidence
@@ -351,9 +355,12 @@ void Util::windowListChanged(const QString &json)
     const QJsonObject o = doc.object();
     m_workspaceWindows = o.value(QStringLiteral("count")).toInt();
     m_anyWindowFull = o.value(QStringLiteral("anyFull")).toBool();
+    m_activeClass = o.value(QStringLiteral("active")).toString();
     m_windowIds.clear();
-    const QJsonArray ids = o.value(QStringLiteral("ids")).toArray();
-    for (const QJsonValue &v : ids)
+    QJsonArray all = o.value(QStringLiteral("allIds")).toArray();
+    if (all.isEmpty())
+        all = o.value(QStringLiteral("ids")).toArray();
+    for (const QJsonValue &v : all)
         m_windowIds.append(v.toString());
     // T13 D5 — keep the raw payload for the harness dump
     m_lastJson = json;
@@ -361,18 +368,93 @@ void Util::windowListChanged(const QString &json)
     emit runningCmdsChanged();
 }
 
-void Util::publishDockTileMap(const QString &json)
+void Util::activateOrLaunch(const QString &cmd, const QString &launch)
+{
+    // W27 — the reviewer's ruling: "if a window with that app-id exists
+    // -> workspace.activeWindow = win / unminimize via the KWin script;
+    // else launch". The shell CANNOT call into a script (no inbound
+    // DBus, no configChanged for scripts on 6.6 — verified against
+    // scripting.cpp), so when the head is a tracked class the request
+    // rides kwinrc [Script-aegis-windowwatch] — the identical
+    // QSettings/KConfigWatcher transport the TileMap already proves —
+    // and the script's 150 ms poll unminimizes + activates. The seq
+    // makes a repeated request re-fire even when the class is unchanged.
+    // ARGUMENTED commands NEVER activate: Trash's cmd is
+    // "aegis-files --path trash:///" — head-matching it would focus the
+    // plain Files window instead of opening the trash. Only a bare cmd
+    // (head == cmd) is a re-focus candidate.
+    const QString head = cmd.section(QLatin1Char(' '), 0, 0);
+    if (!head.isEmpty() && head == cmd.trimmed()
+            && m_windowIds.contains(head)) {
+        QSettings kwinRc(QStandardPaths::writableLocation(
+                             QStandardPaths::ConfigLocation)
+                             + QStringLiteral("/kwinrc"),
+                         QSettings::IniFormat);
+        kwinRc.beginGroup(QStringLiteral("Script-aegis-windowwatch"));
+        const int seq = kwinRc.value(QStringLiteral("ActivateSeq"), 0)
+                            .toInt() + 1;
+        kwinRc.setValue(QStringLiteral("ActivateSeq"), seq);
+        kwinRc.setValue(QStringLiteral("ActivateRequest"), head);
+        kwinRc.endGroup();
+        kwinRc.sync();
+        return;
+    }
+    launch(launch.isEmpty() ? cmd : launch);
+}
+
+void Util::quitApp(const QString &head)
+{
+    // W36.2 — the dock tile menu's Quit. pkill -f on the head is coarse
+    // but real: it matches the binary path of the /opt debs and the
+    // bare-name Tier A apps alike; the windowwatch recount lands the
+    // state change within a poll tick.
+    if (head.isEmpty())
+        return;
+    QProcess::startDetached(QStringLiteral("pkill"),
+                            {QStringLiteral("-f"), head});
+    QTimer::singleShot(1200, this, [this]() {
+        emit runningCmdsChanged();
+        emit windowTrackingChanged();
+    });
+}
+
+void Util::emptyTrash()
+{
+    // W36.2 — the freedesktop Trash under the home; empty both halves
+    // (files + info). No confirm sheet in this pass: the menu item
+    // itself is the user's explicit intent.
+    const QString home = QStandardPaths::writableLocation(
+        QStandardPaths::HomeLocation);
+    const QString base = home + QStringLiteral("/.local/share/Trash/");
+    for (const QString &sub :
+         {QStringLiteral("files"), QStringLiteral("info")}) {
+        QDir trash(base + sub);
+        const QFileInfoList entries = trash.entryInfoList(
+            QDir::AllEntries | QDir::Hidden | QDir::NoDotAndDotDot);
+        for (const QFileInfo &fi : entries) {
+            if (fi.isDir())
+                QDir(fi.absoluteFilePath()).removeRecursively();
+            else
+                QFile::remove(fi.absoluteFilePath());
+        }
+    }
+}
+
+void Util::publishDockTileMap(const QString &tileMap)
 {
     // W21 — the transport into the aegis-dockzoom effect: it cannot
     // callDBus, so the tile centers ride kwinrc. KConfigWatcher fires
     // the effect's configChanged on this write; the map is read from
-    // the effect's own group (Effect-<plugin id>).
+    // the effect's own group (Effect-<plugin id>). D25 — the value is
+    // the quote-free head=cx,cy list; JSON quotes would be escaped to
+    // \" by QSettings IniFormat and KConfig flags every one of them as
+    // an invalid escape (twice per session in the guest journal).
     QSettings kwinRc(QStandardPaths::writableLocation(
                          QStandardPaths::ConfigLocation)
                          + QStringLiteral("/kwinrc"),
                      QSettings::IniFormat);
     kwinRc.beginGroup(QStringLiteral("Effect-aegis-dockzoom"));
-    kwinRc.setValue(QStringLiteral("TileMap"), json);
+    kwinRc.setValue(QStringLiteral("TileMap"), tileMap);
     kwinRc.endGroup();
     kwinRc.sync();
 }

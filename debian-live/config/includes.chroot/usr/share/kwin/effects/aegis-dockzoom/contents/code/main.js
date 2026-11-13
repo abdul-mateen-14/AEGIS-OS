@@ -19,9 +19,12 @@
 //
 // The tile map travels through config: JS effects have NO callDBus in
 // 6.6 (window scripts do), so the shell writes kwinrc
-// [Effect-aegis-dockzoom] TileMap = {"<app-id>": [cx, cy], ...} and the
-// effect re-reads it on configChanged. A window whose app id is not in
-// the map zooms from its own center (the honest fallback).
+// [Effect-aegis-dockzoom] TileMap = "aegis-files=271,712;konsole=467,712"
+// (D25 — quote-free "head=cx,cy" pairs; the old JSON rode QSettings
+// IniFormat, which escaped the quotes as \" — an invalid KConfig escape
+// the journal flagged twice per session) and the effect re-reads it on
+// configChanged. A window whose class is not in the map zooms from its
+// own center (the honest fallback).
 //
 // Documented delta against the ruling: minimize/restore has no scripted
 // hook in 6.6 (EffectsHandler exposes only windowAdded/Closed/Activated/
@@ -34,11 +37,29 @@ const TILE_SCALE = 0.3;
 let dockMap = {};
 
 function readMap() {
-    const raw = effect.readConfig("TileMap", "{}") || "{}";
-    try {
-        dockMap = JSON.parse(raw);
-    } catch (e) {
-        print("aegis-dockzoom: unparsable TileMap, keeping the previous one");
+    // D25 — quote-free "head=cx,cy;head2=cx,cy" (the JSON predecessor
+    // produced invalid KConfig escapes through QSettings IniFormat).
+    dockMap = {};
+    const raw = effect.readConfig("TileMap", "") || "";
+    if (!raw) {
+        return;
+    }
+    const items = raw.split(";");
+    for (let i = 0; i < items.length; ++i) {
+        const kv = items[i].split("=");
+        if (kv.length !== 2) {
+            continue;
+        }
+        const xy = kv[1].split(",");
+        if (xy.length !== 2) {
+            continue;
+        }
+        const x = parseInt(xy[0], 10);
+        const y = parseInt(xy[1], 10);
+        if (isNaN(x) || isNaN(y)) {
+            continue;
+        }
+        dockMap[kv[0]] = [x, y];
     }
 }
 

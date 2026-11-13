@@ -214,6 +214,34 @@ animation cannot be dock-anchored from our JS effect on 6.6.
   flips over serial (DND already has its capture), the Drivers pane
   placeholder is dead no more (D23).
 - D27 — boot run + ship v0.6.51.
+
+### Status
+
+- D20-D26 IN TREE (v0.6.51 tag next). D20: the payload carries allIds +
+  active; the 150 ms poll executor is armed in the windowwatch script
+  (marker: "aegis-windowwatch: activate poll armed"); Util
+  .activateOrLaunch writes [Script-aegis-windowwatch] (argumented cmds
+  like the Trash slot NEVER activate — head == cmd only); the dock tile
+  click rides it; squash is enabled for the minimize/restore animation.
+  D21: the presentation toggle (ScreenSaver inhibit + the state file)
+  sits first in the Displays pane. D22: BluetoothBackend + the Network
+  pane section (honest noadapter/off/empty states). D23: the Drivers
+  pane is the real inventory (pci/usb/storage/printers/scan/firmware;
+  cups-pdf stated as blocked in copy). D24: kglobalshortcutsrc pins the
+  stock dictionary (exact ids from the 6.6.0 source), aegis-shortcuts
+  registers Meta+Space/Meta+S, aegis-session starts kglobalacceld, the
+  harness types touch /tmp/aegis-xkb-ok into the focused terminal. D25:
+  TileMap is quote-free head=cx,cy pairs. D26: docs/CONTROLS.md
+  published; the dock tile menu (W36.2 New Window/Quit/Empty Trash —
+  right-click was a silent no-op) landed with Util.quitApp/emptyTrash;
+  the CC dark tile has its kdeglobals verdict. Harness additions: the
+  W27 minimize/restore payload probe, the XKB typing probe, the
+  launcher + CC shortcut captures, the Displays pane toggle click +
+  state-file grep, the Drivers pane capture, the dark tile click + token
+  grep — five NEW gate keys (w27_minimized, w27_restored, xkb_ok,
+  presentation_on, dark_flipped). QEMU qcode audit: the Meta key is
+  meta_l (there is no plain meta — verified against pc-bios/keymaps/
+  en-us), spc/slash/minus/ret/esc confirmed.
 - BATCH 1 SHIPPED (v0.6.50):
   - D1 (W24) DONE: findInstalledEntry returns the full Exec=; dockApps
     carries it as the slot's launch field (cmd stays the bare head for

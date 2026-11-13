@@ -245,8 +245,60 @@ public:
         QTimer::singleShot(300, this, &DisplaysBackend::changed);
     }
 
+    // D21 (W30.1/W33.4) — presentation mode: one toggle that (a) holds an
+    // org.freedesktop.ScreenSaver inhibit for as long as it is on (sleep
+    // and screen-off stay away — the portal routes into the compositor's
+    // idle inhibition) and (b) records the state to
+    // ~/.local/state/aegis-shell/aegis/presentation so the boot harness
+    // has a file-based verdict. Brightness rides Util from the pane (max
+    // while presenting, restored after).
+    Q_PROPERTY(bool presentation READ presentation WRITE setPresentation
+               NOTIFY presentationChanged)
+    bool presentation() const { return m_presentation; }
+
+    Q_INVOKABLE void setPresentation(bool on)
+    {
+        if (on == m_presentation)
+            return;
+        if (on) {
+            QDBusMessage msg = QDBusMessage::createMethodCall(
+                QStringLiteral("org.freedesktop.ScreenSaver"),
+                QStringLiteral("/org/freedesktop/ScreenSaver"),
+                QStringLiteral("org.freedesktop.ScreenSaver"),
+                QStringLiteral("Inhibit"));
+            msg.setArguments({QStringLiteral("aegis-shell"),
+                              QStringLiteral("presentation mode")});
+            QDBusReply<uint> reply = QDBusConnection::sessionBus().call(msg);
+            m_inhibitCookie = reply.isValid() ? reply.value() : 0u;
+        } else if (m_inhibitCookie != 0) {
+            dbusAsync(QStringLiteral("org.freedesktop.ScreenSaver"),
+                      QStringLiteral("/org/freedesktop/ScreenSaver"),
+                      QStringLiteral("org.freedesktop.ScreenSaver"),
+                      QStringLiteral("UnInhibit"),
+                      {QVariant::fromValue(m_inhibitCookie)});
+            m_inhibitCookie = 0;
+        }
+        m_presentation = on;
+        const QString path =
+            QStandardPaths::writableLocation(
+                QStandardPaths::GenericStateLocation)
+            + QStringLiteral("/aegis-shell/aegis/presentation");
+        QDir().mkpath(path.section(QLatin1Char('/'), 0, -2));
+        QFile f(path);
+        if (f.open(QIODevice::WriteOnly | QIODevice::Truncate
+                   | QIODevice::Text)) {
+            const QByteArray body = QStringLiteral(
+                "presentation=%1\ncookie=%2\n")
+                .arg(on ? QStringLiteral("on") : QStringLiteral("off"))
+                .arg(m_inhibitCookie).toUtf8();
+            f.write(body);
+        }
+        emit presentationChanged();
+    }
+
 signals:
     void changed();
+    void presentationChanged();
 
 private:
     void runKscreen(const QString &arg)
@@ -260,6 +312,10 @@ private:
     }
 
     QVariantList m_outputs;
+    // D21 — presentation mode state (session-scoped: an inhibit dies with
+    // the process, so the toggle always starts off on a fresh session)
+    bool m_presentation = false;
+    uint m_inhibitCookie = 0;
 };
 
 // ── Sound ────────────────────────────────────────────────────────────────
@@ -997,4 +1053,456 @@ private:
     };
     QString m_installingId;
     QString m_lastMessage;
+};
+
+// ── Bluetooth (T13 D22 / W32.3) ──────────────────────────────────────────
+//
+// bluetoothctl is the backend (bluez is in the ISO): show for the adapter
+// state, devices Paired + info per device for the list, one-shot
+// connect/disconnect/pair/trust/remove commands, scan on/off for
+// discovery. A VM with no Bluetooth adapter reads "noadapter" — the pane
+// says so instead of rendering an empty list.
+
+class BluetoothBackend : public QObject {
+    Q_OBJECT
+    // [{mac, name, connected, trusted}]
+    Q_PROPERTY(QVariantList devices READ devices NOTIFY changed)
+    // "noctl" (bluetoothctl missing) | "noadapter" | "off" | "idle"
+    Q_PROPERTY(QString state READ state NOTIFY changed)
+    Q_PROPERTY(bool scanning READ scanning NOTIFY changed)
+public:
+    explicit BluetoothBackend(QObject *parent = nullptr) : QObject(parent)
+    {
+        connect(&m_scanProc, &QProcess::readyReadStandardOutput, this,
+                &BluetoothBackend::readScanOutput);
+        refresh();
+    }
+
+    ~BluetoothBackend() override
+    {
+        if (m_scanProc.state() != QProcess::NotRunning)
+            m_scanProc.kill();
+    }
+
+    QVariantList devices() const { return m_devices; }
+    QString state() const { return m_state; }
+    bool scanning() const { return m_scanning; }
+
+    Q_INVOKABLE void refresh()
+    {
+        m_devices.clear();
+        const QString bt = QStandardPaths::findExecutable(
+            QStringLiteral("bluetoothctl"));
+        if (bt.isEmpty()) {
+            m_state = QStringLiteral("noctl");
+            emit changed();
+            return;
+        }
+        QProcess show;
+        show.start(bt, {QStringLiteral("show")});
+        show.waitForFinished(2500);
+        const QString out = QString::fromUtf8(show.readAllStandardOutput());
+        if (out.contains(QStringLiteral("No default controller"))) {
+            m_state = QStringLiteral("noadapter");
+            emit changed();
+            return;
+        }
+        if (!out.contains(QStringLiteral("Powered: yes"))) {
+            m_state = QStringLiteral("off");
+            emit changed();
+            return;
+        }
+        QProcess list;
+        list.start(bt, {QStringLiteral("devices"), QStringLiteral("Paired")});
+        list.waitForFinished(2500);
+        const QStringList lines = QString::fromUtf8(
+            list.readAllStandardOutput()).split(QLatin1Char('\n'));
+        for (const QString &raw : lines) {
+            const QString line = raw.trimmed();
+            if (!line.startsWith(QStringLiteral("Device ")))
+                continue;
+            // "Device 5C:EB:A6:AA:BB:CC Sony WH-1000XM4"
+            const QString mac = line.section(QLatin1Char(' '), 1, 1);
+            QVariantMap dev{
+                {QStringLiteral("mac"), mac},
+                {QStringLiteral("name"), line.section(QLatin1Char(' '), 2)},
+                {QStringLiteral("connected"), false},
+                {QStringLiteral("trusted"), false},
+            };
+            QProcess info;
+            info.start(bt, {QStringLiteral("info"), mac});
+            info.waitForFinished(2500);
+            const QString iout = QString::fromUtf8(
+                info.readAllStandardOutput());
+            dev[QStringLiteral("connected")] =
+                iout.contains(QStringLiteral("Connected: yes"));
+            dev[QStringLiteral("trusted")] =
+                iout.contains(QStringLiteral("Trusted: yes"));
+            m_devices.append(dev);
+        }
+        m_state = QStringLiteral("idle");
+        emit changed();
+    }
+
+    Q_INVOKABLE void startScan()
+    {
+        if (m_scanning)
+            return;
+        const QString bt = QStandardPaths::findExecutable(
+            QStringLiteral("bluetoothctl"));
+        if (bt.isEmpty() || m_scanProc.state() != QProcess::NotRunning)
+            return;
+        m_scanProc.start(bt, {QStringLiteral("scan"),
+                              QStringLiteral("on")});
+        m_scanning = true;
+        emit changed();
+        // eight seconds of discovery, then stop and re-read the list —
+        // the found devices ride the paired list (new devices appear
+        // untrusted) and the scan process is killed.
+        QTimer::singleShot(8000, this, [this, bt]() {
+            if (m_scanProc.state() != QProcess::NotRunning)
+                m_scanProc.kill();
+            QProcess::startDetached(bt, {QStringLiteral("scan"),
+                                         QStringLiteral("off")});
+            m_scanning = false;
+            refresh();
+        });
+    }
+
+    Q_INVOKABLE void connectDevice(const QString &mac)
+    {
+        runBt({QStringLiteral("connect"), mac});
+        QTimer::singleShot(2500, this, &BluetoothBackend::refresh);
+    }
+
+    Q_INVOKABLE void disconnectDevice(const QString &mac)
+    {
+        runBt({QStringLiteral("disconnect"), mac});
+        QTimer::singleShot(1500, this, &BluetoothBackend::refresh);
+    }
+
+    Q_INVOKABLE void pairDevice(const QString &mac)
+    {
+        runBt({QStringLiteral("pair"), mac});
+        runBt({QStringLiteral("trust"), mac});
+        QTimer::singleShot(2500, this, &BluetoothBackend::refresh);
+    }
+
+    Q_INVOKABLE void forgetDevice(const QString &mac)
+    {
+        runBt({QStringLiteral("remove"), mac});
+        QTimer::singleShot(1500, this, &BluetoothBackend::refresh);
+    }
+
+signals:
+    void changed();
+
+private:
+    void runBt(const QStringList &args)
+    {
+        const QString bt = QStandardPaths::findExecutable(
+            QStringLiteral("bluetoothctl"));
+        if (!bt.isEmpty())
+            QProcess::startDetached(bt, args);
+    }
+
+    void readScanOutput()
+    {
+        // "NEW    Device 5C:EB:A6:AA:BB:CC Sony WH-1000XM4" — append any
+        // device the scan discovers that is not listed yet.
+        const QString chunk = QString::fromUtf8(
+            m_scanProc.readAllStandardOutput());
+        const QStringList lines = chunk.split(QLatin1Char('\n'));
+        for (const QString &raw : lines) {
+            const QString line = raw.trimmed();
+            if (!line.startsWith(QStringLiteral("NEW"))
+                    && !line.startsWith(QStringLiteral("CHG")))
+                continue;
+            if (!line.contains(QStringLiteral("Device ")))
+                continue;
+            const QString after =
+                line.section(QStringLiteral("Device "), 1);
+            const QString mac = after.section(QLatin1Char(' '), 0, 0);
+            const QString name = after.section(QLatin1Char(' '), 1);
+            bool known = false;
+            for (const QVariant &v : m_devices) {
+                if (v.toMap().value(QStringLiteral("mac")) == mac) {
+                    known = true;
+                    break;
+                }
+            }
+            if (known || mac.isEmpty())
+                continue;
+            m_devices.append(QVariantMap{
+                {QStringLiteral("mac"), mac},
+                {QStringLiteral("name"),
+                 name.isEmpty() ? mac : name},
+                {QStringLiteral("connected"), false},
+                {QStringLiteral("trusted"), false},
+            });
+            emit changed();
+        }
+    }
+
+    QVariantList m_devices;
+    QString m_state = QStringLiteral("noctl");
+    bool m_scanning = false;
+    QProcess m_scanProc;
+};
+
+// ── Drivers & Firmware (T13 D23 / W33) ───────────────────────────────────
+//
+// The real inventory behind the pane that used to be the static
+// BUILT-IN placeholder list (the W37 poster child): lspci -k with the
+// "Kernel driver in use" line per device, lsusb, lsblk, lpstat print
+// queues, simple-scan presence, fwupdmgr updates (best-effort, 4 s cap,
+// async). Power & charging rides Util (it already reads
+// /sys/class/power_supply); the pane renders "AC power" honestly on VMs
+// without a battery.
+
+class DriversBackend : public QObject {
+    Q_OBJECT
+    // [{name, driver, category}] — category ∈ Graphics/Network/Audio/
+    // Storage/USB/Other
+    Q_PROPERTY(QVariantList pciDevices READ pciDevices NOTIFY changed)
+    Q_PROPERTY(QVariantList usbDevices READ usbDevices NOTIFY changed)
+    // [{name, size}]
+    Q_PROPERTY(QVariantList storageDevices READ storageDevices NOTIFY changed)
+    // [{name, state}]
+    Q_PROPERTY(QVariantList printers READ printers NOTIFY changed)
+    // "ready" (simple-scan installed) | "missing"
+    Q_PROPERTY(QString scanState READ scanState NOTIFY changed)
+    // "checking" | "uptodate" | "N updates" | "unavailable"
+    Q_PROPERTY(QString firmwareState READ firmwareState NOTIFY changed)
+public:
+    explicit DriversBackend(QObject *parent = nullptr) : QObject(parent)
+    {
+        refresh();
+        refreshFirmware();
+    }
+
+    QVariantList pciDevices() const { return m_pci; }
+    QVariantList usbDevices() const { return m_usb; }
+    QVariantList storageDevices() const { return m_storage; }
+    QVariantList printers() const { return m_printers; }
+    QString scanState() const { return m_scanState; }
+    QString firmwareState() const { return m_firmware; }
+
+    Q_INVOKABLE void refresh()
+    {
+        m_pci.clear();
+        m_usb.clear();
+        m_storage.clear();
+        m_printers.clear();
+
+        // lspci -k — device lines start at column 0, the per-device
+        // "Kernel driver in use:" line is tab-indented.
+        const QString lspci = QStandardPaths::findExecutable(
+            QStringLiteral("lspci"));
+        if (!lspci.isEmpty()) {
+            QProcess p;
+            p.start(lspci, {QStringLiteral("-k")});
+            p.waitForFinished(3000);
+            QString name;
+            QString category = QStringLiteral("Other");
+            QString driver;
+            const auto flush = [&]() {
+                if (!name.isEmpty()) {
+                    m_pci.append(QVariantMap{
+                        {QStringLiteral("name"), name},
+                        {QStringLiteral("driver"), driver},
+                        {QStringLiteral("category"), category}});
+                }
+                name.clear();
+                driver.clear();
+            };
+            const QStringList lines = QString::fromUtf8(
+                p.readAllStandardOutput()).split(QLatin1Char('\n'));
+            for (const QString &raw : lines) {
+                const QString line = raw.trimmed();
+                if (line.isEmpty())
+                    continue;
+                if (!raw.startsWith(QLatin1Char('\t'))) {
+                    flush();
+                    name = line.section(QStringLiteral(": "), 1);
+                    const QString cls = line.section(QLatin1Char(' '), 1)
+                                             .section(QStringLiteral(": "),
+                                                      0, 0);
+                    if (cls.contains(QStringLiteral("VGA"))
+                            || cls.contains(QStringLiteral("3D"))
+                            || cls.contains(QStringLiteral("Display")))
+                        category = QStringLiteral("Graphics");
+                    else if (cls.contains(QStringLiteral("Network"))
+                             || cls.contains(QStringLiteral("Ethernet"))
+                             || cls.contains(QStringLiteral("Wireless")))
+                        category = QStringLiteral("Network");
+                    else if (cls.contains(QStringLiteral("Audio")))
+                        category = QStringLiteral("Audio");
+                    else if (cls.contains(QStringLiteral("SATA"))
+                             || cls.contains(QStringLiteral("NVMe"))
+                             || cls.contains(QStringLiteral("Storage"))
+                             || cls.contains(QStringLiteral("IDE")))
+                        category = QStringLiteral("Storage");
+                    else if (cls.contains(QStringLiteral("USB")))
+                        category = QStringLiteral("USB");
+                    else
+                        category = QStringLiteral("Other");
+                } else if (line.startsWith(
+                               QStringLiteral("Kernel driver in use:"))) {
+                    driver = line.section(QStringLiteral(": "), 1);
+                }
+            }
+            flush();
+        }
+
+        const QString lsusb = QStandardPaths::findExecutable(
+            QStringLiteral("lsusb"));
+        if (!lsusb.isEmpty()) {
+            QProcess p;
+            p.start(lsusb, {});
+            p.waitForFinished(3000);
+            const QStringList lines = QString::fromUtf8(
+                p.readAllStandardOutput()).split(QLatin1Char('\n'));
+            int count = 0;
+            for (const QString &line : lines) {
+                if (!line.contains(QStringLiteral(" ID ")))
+                    continue;
+                if (count++ >= 8)
+                    break;
+                const QString rest =
+                    line.section(QStringLiteral(" ID "), 1);
+                m_usb.append(QVariantMap{
+                    {QStringLiteral("name"),
+                     rest.section(QLatin1Char(' '), 1).isEmpty()
+                         ? rest : rest.section(QLatin1Char(' '), 1)},
+                });
+            }
+        }
+
+        const QString lsblk = QStandardPaths::findExecutable(
+            QStringLiteral("lsblk"));
+        if (!lsblk.isEmpty()) {
+            QProcess p;
+            p.start(lsblk, {QStringLiteral("-d"), QStringLiteral("-n"),
+                            QStringLiteral("-o"),
+                            QStringLiteral("NAME,SIZE,TYPE")});
+            p.waitForFinished(3000);
+            const QStringList lines = QString::fromUtf8(
+                p.readAllStandardOutput()).split(QLatin1Char('\n'));
+            for (const QString &line : lines) {
+                const QStringList cols =
+                    line.trimmed().split(QRegularExpression(QStringLiteral(
+                        "\\s+")), Qt::SkipEmptyParts);
+                if (cols.size() < 3 || cols[2] != QStringLiteral("disk"))
+                    continue;
+                m_storage.append(QVariantMap{
+                    {QStringLiteral("name"), cols[0]},
+                    {QStringLiteral("size"), cols[1]},
+                });
+            }
+        }
+
+        const QString lpstat = QStandardPaths::findExecutable(
+            QStringLiteral("lpstat"));
+        if (!lpstat.isEmpty()) {
+            QProcess p;
+            p.start(lpstat, {QStringLiteral("-p")});
+            p.waitForFinished(3000);
+            const QStringList lines = QString::fromUtf8(
+                p.readAllStandardOutput()).split(QLatin1Char('\n'));
+            for (const QString &line : lines) {
+                if (!line.startsWith(QStringLiteral("printer ")))
+                    continue;
+                // "printer Foo is idle.  enabled since …"
+                m_printers.append(QVariantMap{
+                    {QStringLiteral("name"),
+                     line.section(QLatin1Char(' '), 1, 1)},
+                    {QStringLiteral("state"),
+                     line.section(QLatin1Char(' '), 3, -1)
+                         .section(QLatin1Char('.'), 0, 0).trimmed()},
+                });
+            }
+        }
+
+        m_scanState = QStandardPaths::findExecutable(
+                          QStringLiteral("simple-scan")).isEmpty()
+                          ? QStringLiteral("missing")
+                          : QStringLiteral("ready");
+        emit changed();
+    }
+
+    // Best-effort and offline-safe: a runner VM with no network still
+    // renders the section ("No updates available" or "unavailable").
+    Q_INVOKABLE void refreshFirmware()
+    {
+        const QString fwupdmgr = QStandardPaths::findExecutable(
+            QStringLiteral("fwupdmgr"));
+        if (fwupdmgr.isEmpty()) {
+            m_firmware = QStringLiteral("unavailable");
+            emit changed();
+            return;
+        }
+        m_firmware = QStringLiteral("checking");
+        emit changed();
+        QProcess *p = new QProcess(this);
+        p->setProcessChannelMode(QProcess::MergedChannels);
+        connect(p, &QProcess::finished, this,
+                [this, p](int, QProcess::ExitStatus) {
+            const QString out = QString::fromUtf8(p->readAll());
+            p->deleteLater();
+            if (out.contains(QStringLiteral("No updates available"))
+                    || out.contains(QStringLiteral("No devices with updates")))
+                m_firmware = QStringLiteral("uptodate");
+            else if (out.contains(QStringLiteral("update available"))
+                     || out.contains(QStringLiteral("Updates available"))) {
+                const int n = out.count(QStringLiteral("update available"))
+                              + out.count(QStringLiteral("Updates available"));
+                m_firmware = QStringLiteral("%1 updates")
+                                 .arg(qMax(n, 1));
+            } else
+                m_firmware = QStringLiteral("unavailable");
+            emit changed();
+        });
+        p->start(fwupdmgr, {QStringLiteral("get-updates")});
+        QTimer::singleShot(4000, p, [p]() {
+            if (p->state() == QProcess::Running)
+                p->kill();
+        });
+    }
+
+    // W33.2 — test page through CUPS (cups itself is in the ISO; the
+    // cups-pdf Print-to-PDF printer waits for an archive reintroduction
+    // — recorded in TASKS.md D16).
+    Q_INVOKABLE void printTestPage(const QString &queue)
+    {
+        const QString lp = QStandardPaths::findExecutable(
+            QStringLiteral("lp"));
+        const QString page = QStringLiteral(
+            "/usr/share/cups/data/default-testpage.pdf");
+        if (!lp.isEmpty() && QFile::exists(page))
+            QProcess::startDetached(lp, {QStringLiteral("-d"), queue,
+                                         page});
+    }
+
+    Q_INVOKABLE void openCups()
+    {
+        QProcess::startDetached(QStringLiteral("xdg-open"),
+                                {QStringLiteral("http://localhost:631")});
+    }
+
+    Q_INVOKABLE void launchScanner()
+    {
+        QProcess::startDetached(QStringLiteral("simple-scan"), {});
+    }
+
+signals:
+    void changed();
+
+private:
+    QVariantList m_pci;
+    QVariantList m_usb;
+    QVariantList m_storage;
+    QVariantList m_printers;
+    QString m_scanState = QStringLiteral("missing");
+    QString m_firmware = QStringLiteral("unavailable");
 };

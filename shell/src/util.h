@@ -119,6 +119,27 @@ public:
     Q_PROPERTY(bool anyWindowFull READ anyWindowFull NOTIFY windowTrackingChanged)
     int workspaceWindows() const { return m_workspaceWindows; }
     bool anyWindowFull() const { return m_anyWindowFull; }
+    // T13 D20 (W27) — the resourceClass of the currently ACTIVE window
+    // ("" when none or a shell surface). The harness's restore assert
+    // reads it from the payload dump.
+    Q_PROPERTY(QString activeWindowClass READ activeWindowClass NOTIFY windowTrackingChanged)
+    QString activeWindowClass() const { return m_activeClass; }
+
+    // W27 — a dock click must bring an existing window back, not spawn
+    // a second instance: when the command head matches a tracked window
+    // (minimized included), the request rides kwinrc
+    // [Script-aegis-windowwatch] ActivateRequest/ActivateSeq (scripts
+    // have no inbound DBus or configChanged on 6.6 — the 150 ms poll in
+    // the windowwatch script picks it up); otherwise the command
+    // launches normally (with the launch field's resolved Exec).
+    Q_INVOKABLE void activateOrLaunch(const QString &cmd,
+                                      const QString &launch = QString());
+
+    // W36.2 — the dock tile menu's actions. quitApp kills the app's
+    // process group by head (the same key the tracking uses); emptyTrash
+    // clears the freedesktop Trash (files + info) under the home.
+    Q_INVOKABLE void quitApp(const QString &head);
+    Q_INVOKABLE void emptyTrash();
 
     // "suspend" | "reboot" | "shutdown" via logind.
     Q_INVOKABLE void powerAction(const QString &action);
@@ -149,12 +170,14 @@ public:
     // count" ("" = the script never successfully called the slot).
     Q_INVOKABLE QString windowListRaw() const { return m_lastJson; }
 
-    // W21 — Dock.qml publishes the resting tile centers {"<cmd>": [cx, cy]}
-    // as JSON; this writes kwinrc [Effect-aegis-dockzoom] TileMap. The
+    // W21 — Dock.qml publishes the resting tile centers as the quote-free
+    // string "head=cx,cy;head2=cx,cy" (D25 — JSON is NOT usable here:
+    // QSettings IniFormat escapes the quotes as \" and KConfig rejects
+    // the escape); this writes kwinrc [Effect-aegis-dockzoom] TileMap. The
     // aegis-dockzoom effect cannot callDBus (KWin 6.6 gives callDBus to
     // window scripts, not effects), so kwinrc + KConfigWatcher is the
     // transport into the effect's readConfig("TileMap").
-    Q_INVOKABLE void publishDockTileMap(const QString &json);
+    Q_INVOKABLE void publishDockTileMap(const QString &tileMap);
 
     // ── Web shortcuts (W22 — strictly opt-in dock entries) ────────
     // Fetches the page (title + apple-touch-icon/favicon.ico/theme-color),
@@ -243,10 +266,13 @@ private:
     QTimer m_batteryTimer;
     QTimer m_linkTimer;
     QStringList m_runningCmds;
-    // W20 — the KWin-reported window state
+    // W20 — the KWin-reported window state. D20: m_windowIds carries
+    // allIds (EVERY managed window incl. minimized) so isRunning() and
+    // the dock dots stay lit for minimized apps.
     int m_workspaceWindows = 0;
     bool m_anyWindowFull = false;
     QStringList m_windowIds;
+    QString m_activeClass;
     // T13 D5 — the raw payload for the harness dump
     QString m_lastJson;
     // W22 — the fetch pipeline for opt-in web shortcuts

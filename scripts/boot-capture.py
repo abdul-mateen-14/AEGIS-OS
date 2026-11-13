@@ -1341,6 +1341,23 @@ def main():
     q.mouse_abs(W // 2, int(H * NEUTRAL_Y), W, H)
     time.sleep(1.0)
 
+    # T13 D24 (W35) — the pinned launcher shortcut: Meta+Space opens the
+    # launcher through the aegis-shortcuts KWin script + kglobalacceld
+    # (registered via registerShortcut at session start; the binding also
+    # lands in the user's kglobalshortcutsrc as file-assertable state).
+    # Escape dismisses (the launcher's own grammar).
+    try:
+        q.key("meta_l", "spc")
+        time.sleep(2.5)
+        q.shot("01c-launcher-shortcut")
+        d = diff_px(thumb(f"{OUT}/01c-launcher-shortcut.png"), home)
+        log(f"01c-launcher-shortcut: diff-vs-home={d:.1f} "
+            "(Meta+Space via the aegis-shortcuts script)")
+        q.key("esc")
+        time.sleep(1.5)
+    except Exception as e:
+        log(f"launcher shortcut capture failed: {e}")
+
     def open_app(name, cmd, wait_s=25, click_idx=None, launch_cmd=None):
         """Launch an app and capture it. Ladder (T11-D5):
         1. the session API over DBus — Util.launch on org.aegis.Shell (the
@@ -1553,16 +1570,21 @@ def main():
     # this reads the state: workspaceWindows + the window ids the KWin
     # script pushed. If the idle island hid, this names the surface the
     # script mis-counts (the v0.6.36 run: the island hid at home).
-    if serial is not None:
+    # T13 D20 — the W20 evidence dump is now a FUNCTION: the W27 probe
+    # calls it twice (after the minimize and after the dock re-click) and
+    # the verdicts parse the payload instead of eyeballing a log line.
+    def dump_window_state():
+        """The live window payload the windowwatch script pushed
+        (Util.windowListRaw). Returns the parsed dict, or None when the
+        serial console or the payload is unavailable. The shell lives on
+        the dbus-run-session bus, NOT the systemd user bus — the address
+        comes from the shell's own environ (the earlier dump grepped
+        aegis-session and matched the dbus-run-session PARENT, whose
+        environ lacks the address)."""
+        if serial is None:
+            return None
         try:
             dbg = serial.run(
-                # T13 D5 — the shell lives on the dbus-run-session bus, NOT
-                # the systemd user bus the serial console resolves by
-                # default. The address comes from the SHELL's environ (the
-                # earlier dump grepped aegis-session and matched the
-                # dbus-run-session PARENT, whose environ lacks the
-                # address). Ask for the live count AND the raw payload
-                # the windowwatch script last pushed.
                 "A=$(cat /proc/$(pgrep -f aegis-shell | head -1)/environ "
                 "2>/dev/null | tr '\\0' '\\n' | grep "
                 "^DBUS_SESSION_BUS_ADDRESS= | cut -d= -f2-); "
@@ -1570,24 +1592,66 @@ def main():
                 "echo ===AEGIS-WINDOWS===; "
                 "busctl --address=$A call org.aegis.Shell /org/aegis/Shell "
                 "org.aegis.Shell windowListRaw 2>&1; "
-                "echo WINDBG-END",
-                settle=8)
-            log("window-state dump: "
-                + dbg.strip().replace("\n", " | ")[:400])
+                "echo WINDBG-END", settle=8)
+            m = re.search(r"===AEGIS-WINDOWS===\r?\n(.*?)\r?\nWINDBG-END",
+                          dbg, re.S)
+            if not m:
+                return None
+            payload = m.group(1).strip()
+            # busctl prints string replies quoted — strip and unescape
+            if payload.startswith('"') and payload.endswith('"'):
+                payload = payload[1:-1].replace('\\"', '"')
+            return json.loads(payload)
         except Exception as e:
             log(f"window-state dump failed: {e}")
+            return None
+
+    st0 = dump_window_state()
+    if st0 is not None:
+        log("window-state dump: " + json.dumps(st0))
 
     # alt+F4 only after a window really opened: with no app window focused,
     # the close lands on the focused shell layer surface (the v0.6.5 boot
     # test lost dock -> island -> panel to exactly this cascade).
     # §1 — every open is RECORDED; a miss is a failed release (asserted below).
     opens = {}
+    w27_minimized = False
+    w27_restored = False
     if open_app("02-files", "aegis-files", click_idx=0):       # Files
         opens["files"] = True
+        # T13 D20 (W27) — the restore probe: minimize via the pinned
+        # Meta+M, dump the payload (allIds keeps the class, ids loses it,
+        # active empties), click the Files dock tile, dump again (active
+        # == aegis-files). File-based, like every other verdict.
+        try:
+            q.key("meta_l", "m")
+            time.sleep(2.5)
+            st1 = dump_window_state()
+            if st1 is not None:
+                log("w27 after minimize: " + json.dumps(st1))
+                w27_minimized = (
+                    "aegis-files" in st1.get("allIds", [])
+                    and "aegis-files" not in st1.get("ids", [])
+                    and st1.get("active", "") != "aegis-files")
+            q.mouse_abs(W // 2, int(H * NEUTRAL_Y), W, H)
+            time.sleep(0.8)
+            files_idx = tile_index.get("aegis-files", 0)
+            q.click(*tiles[files_idx], W, H)
+            time.sleep(6)
+            st2 = dump_window_state()
+            if st2 is not None:
+                log("w27 after dock click: " + json.dumps(st2))
+                w27_restored = (st2.get("active") == "aegis-files"
+                                and st2.get("count", 0) >= 1)
+            q.shot("02b-files-restored")
+            d = diff_px(thumb(f"{OUT}/02b-files-restored.png"), home)
+            log(f"02b-files-restored: diff-vs-home={d:.1f}")
+        except Exception as e:
+            log(f"w27 probe failed: {e}")
         q.key("alt", "f4"); time.sleep(5)
     if open_app("03-terminal", "konsole", wait_s=18, click_idx=1):   # Terminal
         opens["terminal"] = True
-        q.key("alt", "f4"); time.sleep(5)
+        # the terminal STAYS OPEN for the D24 typing probe below
     # T11 — the dock grew to 11 tiles (M3 apps joined after the separator):
     # Files 0, Terminal 1, Browser 2, OS 3, CoreX 4, Music 5, Calculator 6,
     # Editor 7, Monitor 8, Store 9, Settings 10, Trash 11 — config order
@@ -1610,6 +1674,37 @@ def main():
         log(f"header geometry assert crashed: {e}")
         sys.exit(1)
 
+    # T13 D24 (W35) — the typing probe, right after the T7 header assert
+    # while the terminal is still the focused window: real keystrokes over
+    # the harness keyboard channel must produce a file — the whole chain
+    # (QEMU input, Wayland/XKB layout, KWin routing, konsole focus, the
+    # shell inside) under one verdict. File-based, per the review's
+    # "keyboard keys not working" surface.
+    xkb_ok = False
+    if serial is not None:
+        try:
+            serial.run("rm -f /tmp/aegis-xkb-ok; echo XKB-CLEAN", settle=2)
+            q.click(640, 400, W, H)
+            time.sleep(1.2)
+            # q.key(*codes) is a CHORD (all down, all up) — type one
+            # character per call
+            for ch in "touch /tmp/aegis-xkb-ok":
+                code = {" ": "spc", "/": "slash", "-": "minus"}.get(ch, ch)
+                q.key(code)
+                time.sleep(0.04)
+            q.key("ret")
+            time.sleep(2.0)
+            out = serial.run("test -f /tmp/aegis-xkb-ok && echo XKB-OK "
+                             "|| echo XKB-MISS", settle=2)
+            xkb_ok = "XKB-OK" in out
+            log("xkb typing probe: "
+                + ("PASS" if xkb_ok else "FAIL — " + out.strip()[-100:]))
+        except Exception as e:
+            log(f"xkb typing probe failed: {e}")
+    if opens.get("terminal"):
+        q.key("alt", "f4")
+        time.sleep(5)
+
     # W6 review evidence — the Aegis ID pane, launched straight from the
     # serial shell ("aegis-settings 8") so no in-window clicking is needed.
     if serial:
@@ -1627,6 +1722,57 @@ def main():
             q.key("alt", "f4"); time.sleep(5)
         except Exception as e:
             log(f"aegis-id pane capture failed: {e}")
+
+    # T13 D21/D23 — the Displays and Drivers panes, launched straight from
+    # the serial shell (the 04b-aegis-id mechanism). The settings window
+    # geometry is deterministic (x190..1089, y95..733 measured on the
+    # v0.6.50 captures for BOTH the dock launch and the serial launch):
+    # pane content starts y≈157 (header 44 + margins 18), the presentation
+    # toggle is the first row (indicator at the row's left edge, x≈434,
+    # y≈207). The state file is the file-based verdict; the second click
+    # restores off so the rest of the choreography runs unchanged.
+    presentation_on = False
+    if serial is not None:
+        try:
+            serial.run("rm -f ~/.local/state/aegis-shell/aegis/presentation; "
+                       "echo PRES-CLEAN", settle=2)
+            serial.run("export XDG_RUNTIME_DIR=/run/user/$(id -u); "
+                       "WAYLAND_DISPLAY=wayland-0 nohup aegis-settings 4 "
+                       ">/tmp/aegis-settings4.err 2>&1 & echo PANE4-LAUNCHED",
+                       settle=3)
+            time.sleep(16)
+            q.shot("04l-displays")
+            d = diff_px(thumb(f"{OUT}/04l-displays.png"), home)
+            log(f"04l-displays: diff-vs-home={d:.1f}")
+            q.click(434, 207, W, H)
+            time.sleep(2.5)
+            q.shot("04l2-displays-on")
+            out = serial.run("grep presentation= "
+                             "~/.local/state/aegis-shell/aegis/presentation "
+                             "2>/dev/null; echo PRES-END", settle=2)
+            presentation_on = "presentation=on" in out
+            log("presentation state: "
+                + ("ON (file verdict)" if presentation_on
+                   else "MISSING — the toggle click did not land"))
+            q.click(434, 207, W, H)
+            time.sleep(1.5)
+            q.key("alt", "f4")
+            time.sleep(5)
+        except Exception as e:
+            log(f"displays pane capture failed: {e}")
+        try:
+            serial.run("export XDG_RUNTIME_DIR=/run/user/$(id -u); "
+                       "WAYLAND_DISPLAY=wayland-0 nohup aegis-settings 3 "
+                       ">/tmp/aegis-settings3.err 2>&1 & echo PANE3-LAUNCHED",
+                       settle=3)
+            time.sleep(16)
+            q.shot("04m-drivers")
+            d = diff_px(thumb(f"{OUT}/04m-drivers.png"), home)
+            log(f"04m-drivers: diff-vs-home={d:.1f} (W33 real inventory)")
+            q.key("alt", "f4")
+            time.sleep(5)
+        except Exception as e:
+            log(f"drivers pane capture failed: {e}")
 
     # T11 — the four M3 apps, launched over the same DBus surface and
     # captured the same way as Files/Terminal/Settings. Each open_app call
@@ -1686,6 +1832,21 @@ def main():
     d = diff_px(thumb(f"{OUT}/04j-trash.png"), home)
     log(f"04j-trash: diff-vs-home={d:.1f} (Trash slot click, "
         f"tile index {trash_idx})")
+
+    # T13 D24 (W35) — Meta+S toggles the control center through the same
+    # aegis-shortcuts script; toggled OFF again (the CC has no Escape
+    # path — the toggle IS the close), then the panel-click capture below
+    # stays the pointer-path evidence.
+    try:
+        q.key("meta_l", "s")
+        time.sleep(2.5)
+        q.shot("05c-cc-shortcut")
+        d = diff_px(thumb(f"{OUT}/05c-cc-shortcut.png"), home)
+        log(f"05c-cc-shortcut: diff-vs-home={d:.1f} (Meta+S)")
+        q.key("meta_l", "s")
+        time.sleep(1.5)
+    except Exception as e:
+        log(f"cc shortcut capture failed: {e}")
 
     q.click(W - 60, 14, W, H)            # panel right cluster -> Control Center
     time.sleep(3)
@@ -1753,6 +1914,37 @@ def main():
     except Exception as e:
         log(f"dnd toggle capture failed: {e}")
         sys.exit(1)
+
+    # T13 D26 (W37) — the dead-control verdict for the CC dark tile:
+    # click the tile center (grid geometry: sheet 348 wide anchored
+    # top-right margins 16, header 30, tiles 152x64 with 12 gaps — the
+    # Dark Mode tile is row 2 col 2, center (1172, 234); cross-checked
+    # against the measured DND knob x 1206-1222 from the v0.6.20
+    # capture), assert the kdeglobals token flipped over serial
+    # (darkMode defaults ON — the first click goes LIGHT), restore.
+    dark_flipped = False
+    if serial is not None:
+        try:
+            before = serial.run("grep ColorScheme "
+                                "~/.config/kdeglobals 2>/dev/null | head -1; "
+                                "echo TOKEN-END", settle=2)
+            q.click(1172, 234, W, H)
+            time.sleep(2.5)
+            q.shot("05c-dark-toggled")
+            after = serial.run("grep ColorScheme "
+                               "~/.config/kdeglobals 2>/dev/null | head -1; "
+                               "echo TOKEN-END", settle=2)
+            def _token(s):
+                m = re.search(r"ColorScheme=(Aegis\w+)", s)
+                return m.group(1) if m else ""
+            tb, ta = _token(before), _token(after)
+            dark_flipped = bool(tb) and bool(ta) and tb != ta
+            log(f"dark tile verdict: {tb or 'none'} -> {ta or 'none'} "
+                + ("PASS" if dark_flipped else "FAIL"))
+            q.click(1172, 234, W, H)
+            time.sleep(1.5)
+        except Exception as e:
+            log(f"dark tile probe failed: {e}")
 
     # W14 proof step — the hard assert. The brief: "keep ubuntu-text as
     # fallback until boot-capture proves the new theme". The signature
@@ -1908,6 +2100,32 @@ def main():
                     f"(rest {rest}, mag {mag}) — V1 regressed")
     except Exception as e:
         failures.append(f"magnify assert crashed: {e}")
+
+    # T13 D20/D24/D26 — the W27 restore, the XKB typing probe, the
+    # presentation toggle and the dark tile each carry a file-based or
+    # state-based verdict; a miss is a failed release like every other
+    # assert (a probe that cannot fail is not a probe).
+    if not w27_minimized:
+        failures.append("W27: after Meta+M the Files window still shows in "
+                        "the tracking payload (ids must lose it, allIds "
+                        "must keep it, active must empty) — the pinned "
+                        "Window Minimize or the payload contract broke")
+    if not w27_restored:
+        failures.append("W27: the dock Files click did not bring the "
+                        "minimized window back active — activateOrLaunch "
+                        "broke (kwinrc request transport or the script "
+                        "poll)")
+    if not xkb_ok:
+        failures.append("W35: typed keystrokes never produced "
+                        "/tmp/aegis-xkb-ok — the keyboard chain (harness "
+                        "channel, XKB layout, focus) is broken")
+    if not presentation_on:
+        failures.append("W30.1: the presentation toggle click did not "
+                        "write the state file — the toggle is dead or the "
+                        "click point drifted")
+    if not dark_flipped:
+        failures.append("W37: the CC dark tile click did not flip "
+                        "kdeglobals ColorScheme — the tile is dead")
 
     if failures:
         for f in failures:

@@ -56,6 +56,14 @@ echo "socket_ok=${SOCKET_OK:-NO}; runtime dir: $(ls "$XDG_RUNTIME_DIR" 2>/dev/nu
 
 # Session services — deliberately minimal for M1
 command -v kded6 >/dev/null 2>&1 && kded6 >/dev/null 2>&1 &
+# D24 (W35) — global shortcuts need the KGlobalAccel daemon (kglobalacceld
+# ships via plasma-workspace Depends >= 6.2.90). Without it the pinned
+# kglobalshortcutsrc dictionary is inert and the aegis-shortcuts script's
+# registerShortcut calls go nowhere. Start it like kded6: present-or-skip.
+for KGA in /usr/lib/x86_64-linux-gnu/libexec/kglobalacceld /usr/libexec/kglobalacceld; do
+    [ -x "$KGA" ] && "$KGA" >/dev/null 2>&1 &
+    break
+done
 for PORTAL in \
     /usr/libexec/xdg-desktop-portal-kde \
     /usr/lib/x86_64-linux-gnu/libexec/xdg-desktop-portal-kde; do

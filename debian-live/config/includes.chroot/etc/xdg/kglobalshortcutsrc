@@ -1,0 +1,36 @@
+# T13 D24 (W35) — the keyboard dictionary is PINNED, not assumed.
+#
+# The reviewer's W35.2: "the Table-10 dictionary currently relies on KWin
+# stock defaults — write them explicitly to kglobalshortcutsrc so they
+# can't drift with KWin versions."
+#
+# Action ids verified against the KWin 6.6.0 source:
+#   useractions.cpp  initShortcut("Window Close", ...)      — Alt+F4 stock
+#                    initShortcut("Window Minimize", ...)  — Meta+PageDown
+#                    initShortcut("Show Desktop", i18n("Peek at Desktop"))
+#   virtualdesktops.cpp addAction("Switch One Desktop to the Right/Left/
+#                    Up/Down", ..., Ctrl+Meta+arrows)
+#   overvieweffect.cpp  setObjectName("Overview"), default Meta+W
+#   tileseditoreffect.cpp setObjectName("Edit Tiles"), default Meta+T
+#
+# Format: <current shortcuts>,<default shortcuts>,<friendly name> with
+# multiple shortcuts inside a field tab-separated. kglobalacceld merges
+# per action: the CURRENT field is what activates, the DEFAULT field
+# records the stock binding (Alt+F4 stays on Window Close next to
+# Meta+Q — the boot harness closes windows with it).
+#
+# Meta+Space (launcher) and Meta+S (control center) are registered at
+# runtime by the aegis-shortcuts KWin script through KGlobalAccel; they
+# persist in the user's kglobalshortcutsrc once kglobalacceld has seen
+# them.
+
+[kwin]
+Window Close=Meta+Q	Alt+F4,None,Close Window
+Window Minimize=Meta+M,None,Minimize Window
+Show Desktop=Meta+D,None,Peek at Desktop
+Overview=Meta+W,None,Toggle Overview
+Edit Tiles=Meta+T,None,Toggle Tiles Editor
+Switch One Desktop to the Right=Ctrl+Meta+Right,None,Switch One Desktop to the Right
+Switch One Desktop to the Left=Ctrl+Meta+Left,None,Switch One Desktop to the Left
+Switch One Desktop Up=Ctrl+Meta+Up,None,Switch One Desktop Up
+Switch One Desktop Down=Ctrl+Meta+Down,None,Switch One Desktop Down

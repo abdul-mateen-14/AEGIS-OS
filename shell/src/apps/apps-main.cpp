@@ -130,6 +130,8 @@ int main(int argc, char *argv[])
     NetworkBackend network;
     UsersBackend users;
     StoreBackend store;
+    BluetoothBackend bluetooth;
+    DriversBackend drivers;
     AegisId aegisId;
     // M3 — Monitor + Editor backends
     MonitorBackend monitor;
@@ -172,6 +174,9 @@ int main(int argc, char *argv[])
     qmlRegisterSingletonInstance("Aegis.Network", 1, 0, "Network", &network);
     qmlRegisterSingletonInstance("Aegis.Users", 1, 0, "Users", &users);
     qmlRegisterSingletonInstance("Aegis.Store", 1, 0, "Store", &store);
+    // T13 D22/D23 — Bluetooth + Drivers & Firmware
+    qmlRegisterSingletonInstance("Aegis.Bluetooth", 1, 0, "Bluetooth", &bluetooth);
+    qmlRegisterSingletonInstance("Aegis.Drivers", 1, 0, "Drivers", &drivers);
     qmlRegisterSingletonInstance("Aegis.Id", 1, 0, "AegisId", &aegisId);
     // M3 — Monitor + Editor
     qmlRegisterSingletonInstance("Aegis.Monitor", 1, 0, "Monitor", &monitor);
