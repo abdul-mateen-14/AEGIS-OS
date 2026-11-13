@@ -466,7 +466,7 @@ def extract_kernel_initrd():
     iso.close()
     return "vmlinuz", "initrd.img"
 
-def start_qemu(accel, gpu):
+def start_qemu(accel, gpu, append=""):
     cmd = ["qemu-system-x86_64", *accel, "-m", "4096", "-smp", "4",
            "-device", gpu, "-display", "none",
            "-device", "qemu-xhci", "-device", "usb-tablet",
@@ -477,7 +477,7 @@ def start_qemu(accel, gpu):
            "-serial", "chardev:ser0"]
     try:
         kern, initrd = extract_kernel_initrd()
-        cmd += ["-kernel", kern, "-initrd", initrd, "-append", KERNEL_ARGS]
+        cmd += ["-kernel", kern, "-initrd", initrd, "-append", KERNEL_ARGS + append]
         log("booting kernel directly with interactive serial console")
     except Exception as e:
         log(f"kernel extraction failed ({e}) — booting via BIOS, serial log only")
@@ -524,6 +524,18 @@ def start_qemu_vmware():
     # emulates the same device (-device vmware-svga == -vga vmware), so CI
     # exercises the user's path with no Workstation. Rule going forward:
     # one boot run per hypervisor family the user demos on.
+    # W48-F2 — force a sane mode for the variant. Run-92 forensics: the
+    # emulated SVGA leaves the console in a 720x400 TEXT mode — no KMS
+    # connector ever exists (/sys/class/drm is empty, /dev/dri absent),
+    # so the ruling's video=<connector>:1280x800-32 pin has no connector
+    # name to attach to; the only mode-setting path on this device is the
+    # SeaBIOS vgabios-vmware VBE, reached through the bzImage's own
+    # real-mode setup. vga=791 pins 1024x768x16: when VBE lands,
+    # screen_info yields a sysfb simple-framebuffer, simpledrm binds
+    # card0, plymouthd owns a real DRM master and the leg upgrades itself
+    # into splash/desktop-provable; when VBE fails the boot is exactly
+    # today's text console — no risk either way. vmware_boot_check prints
+    # /sys/class/drm every run so a future binding names itself.
     chains = (["-enable-kvm", "-cpu", "host"],
               ["-accel", "tcg,thread=multi", "-cpu", "max"])
     for accel in chains:
@@ -531,31 +543,39 @@ def start_qemu_vmware():
         for p in (SOCK, SERIAL_SOCK):
             if os.path.exists(p):
                 os.remove(p)
-        proc = start_qemu(accel, "vmware-svga")
+        proc = start_qemu(accel, "vmware-svga", " vga=791")
         if proc:
             log(f"accelerator in use: {accel[0]}; gpu: vmware-svga")
             return proc
     raise RuntimeError("qemu failed to start with vmware-svga — see qemu.log")
 
 def vmware_boot_check():
-    """T15-D1 (W41) — the VMware-variant boot gate. Boots the same ISO
-    once under -device vmware-svga, asserts the mark splash on the boot
-    frames (splash_report — the same W14 signature as the virtio run)
-    and checks the guest journal: vmwgfx must be loaded (the initramfs
-    force-load list must actually cover VMware) and plymouthd must carry
-    no DRM-master / renderer failure line (the §0 headless signature).
-    Desktop-appear is asserted too — a vmwgfx guest that boots to console
-    is precisely the user's report. It does NOT run the full app
-    choreography; the virtio run stays the release-blocking gate, this
-    variant gates the W41 fix itself."""
+    """T15-D1 (W41), W48 rework — the VMware-variant boot gate. Boots the
+    same ISO once under -device vmware-svga and asserts what the emulated
+    device can PROVE: vmwgfx loaded in the guest, plymouthd carrying no
+    DRM-master/renderer failure lines, and a live serial session. Run-92
+    forensics (v0.6.58): the emulated SVGA console is a 720x400 TEXT mode
+    — vmwgfx loads but never binds (no /dev/dri at all), plymouthd paints
+    nothing (zero splash-signature frames) and the dock-gate math needs a
+    ~960 px dock the 720 px mode can never host. So per W48-F1 the
+    desktop-appear gate is a warn-only diagnostic riding the serial
+    substitutes (sddm active, kwin pgrep count, kwin's EGL/gbm/drm
+    journal lines), and a splash miss DEMOTES to a warning when the
+    guest provably has no display surface (no /dev/dri card, no /dev/fb0)
+    but stays a HARD failure when a surface existed and the mark still
+    missed. The W41 splash claim on real VMware closes on the user's
+    Workstation re-test (W41 reopen ruling), not on this lane; the
+    virtio run stays the release-blocking gate."""
     os.makedirs(OUT, exist_ok=True)
     proc = start_qemu_vmware()
     q = QMP(SOCK)
     log("QMP connected (vmware-svga)")
-    n = wait_desktop(q, proc)
+    n = wait_desktop(q, proc, timeout=360)   # W48-F1: own 6-minute budget
     desktop_ok = n >= 0
     vmwgfx_loaded = False
     plymouth_clean = None      # None = journal check never ran (serial lost)
+    display_capable = None     # None = serial never ran (probe unknown)
+    sddm_state = kwin_procs = None
     try:
         serial = Serial(SERIAL_SOCK)
         if serial.login():
@@ -563,17 +583,54 @@ def vmware_boot_check():
             out = serial.run(
                 "lsmod | grep vmwgfx | head -2; echo VMWGFX-END; "
                 "ls -la /dev/dri 2>&1 | head -4; echo DRI-END; "
+                "ls /sys/class/drm/ 2>&1; echo DRM-CLASS-END; "
+                "ls -la /dev/fb0 2>&1 | head -2; echo FB-END; "
+                "systemctl is-active sddm; echo SDDM-END; "
+                "pgrep -c kwin_wayland; echo KWIN-END; "
                 "journalctl -b --no-pager 2>/dev/null | grep -ai plymouth "
                 "| grep -aiE 'drm|master|headless|render|fail|error' "
-                "| head -12; echo PLY-JRN-END", settle=8)
+                "| head -12; echo PLY-JRN-END; "
+                "journalctl -b --no-pager 2>/dev/null | grep -ai kwin "
+                "| grep -aiE 'egl|gbm|drm' | head -8; echo KWIN-JRN-END",
+                settle=10)
             seg = out.split("VMWGFX-END")[0]
             vmwgfx_loaded = "vmwgfx" in seg
             log("vmware variant: vmwgfx "
                 + ("IS loaded" if vmwgfx_loaded
                    else "NOT loaded — the initramfs force-load missed it"))
+            if "DRI-END" in out:
+                dri = out.split("DRI-END")[0].split("VMWGFX-END")[-1].strip()
+                has_dri = ("cannot access" not in dri
+                           and "No such file" not in dri)
+            else:
+                has_dri = False
+            if "FB-END" in out:
+                fb = out.split("FB-END")[0].split("DRM-CLASS-END")[-1].strip()
+                has_fb = ("cannot access" not in fb
+                          and "No such file" not in fb)
+            else:
+                has_fb = False
+            display_capable = has_dri or has_fb
+            if "DRM-CLASS-END" in out:
+                drmcls = (out.split("DRM-CLASS-END")[0]
+                          .split("DRI-END")[-1].strip())
+                log("vmware variant: /sys/class/drm connectors: "
+                    + (drmcls.replace("\n", " ") if drmcls
+                       else "(none — the W48-F2 vga pin did not land a "
+                            "KMS mode)"))
+            if "SDDM-END" in out:
+                sddm_state = (out.split("SDDM-END")[0]
+                              .split("FB-END")[-1].strip())
+            if "KWIN-END" in out:
+                kwin_procs = (out.split("KWIN-END")[0]
+                              .split("SDDM-END")[-1].strip())
+            log("vmware variant serial substitutes: "
+                f"sddm={sddm_state} kwin_procs={kwin_procs} "
+                f"display_capable={display_capable} "
+                "(W48-F1 — diagnosed, not asserted)")
             if "PLY-JRN-END" in out:
-                jrn = out.split("PLY-JRN-END")[0]
-                jrn = jrn.split("DRI-END")[-1].strip()
+                jrn = (out.split("PLY-JRN-END")[0]
+                       .split("KWIN-END")[-1].strip())
                 plymouth_clean = len(jrn) == 0
                 if jrn:
                     log("plymouthd journal failure lines: "
@@ -581,13 +638,21 @@ def vmware_boot_check():
                 else:
                     log("plymouthd journal: no DRM-master/renderer failure "
                         "lines")
+            if "KWIN-JRN-END" in out:
+                kj = (out.split("KWIN-JRN-END")[0]
+                      .split("PLY-JRN-END")[-1].strip())
+                if kj:
+                    log("kwin drm/egl journal (diagnostic): "
+                        + kj.replace("\n", " | ")[:300])
             q.shot("vmw-desktop")
         else:
             log("serial login FAILED on the vmware variant")
     except Exception as e:
         log(f"vmware variant serial diag failed: {e}")
     if not desktop_ok:
-        log("desktop never appeared under vmware-svga — serial.log tail:")
+        log("desktop never appeared under vmware-svga (W48-F1 diagnostic "
+            "— the serial substitutes above are the authoritative read); "
+            "serial.log tail:")
         try:
             for line in list(open("serial.log"))[-40:]:
                 log("  | " + line.rstrip()[:200])
@@ -595,9 +660,6 @@ def vmware_boot_check():
             pass
     splash_ok = splash_report(OUT, n if desktop_ok else -1)
     failures = []
-    if not desktop_ok:
-        failures.append("vmware variant: the desktop never appeared under "
-                        "vmware-svga — the vmwgfx boot path is broken")
     if not vmwgfx_loaded:
         failures.append("vmware variant: vmwgfx never loaded in the guest "
                         "— the 0200 initramfs force-load list misses it")
@@ -606,8 +668,16 @@ def vmware_boot_check():
                         "DRM-master/renderer failure lines — headless boot, "
                         "the exact Screenshot (23).png console flood")
     if not splash_ok:
-        failures.append("vmware variant: the mark splash never painted on "
-                        "the vmware-svga frames — W41 NOT met")
+        if display_capable is False:
+            log("vmware variant: splash miss DEMOTED to a diagnostic — "
+                "the guest provably has no display surface (no /dev/dri "
+                "card, no /dev/fb0): the emulated SVGA leaves a 720x400 "
+                "text console and plymouthd has nothing to own. The W41 "
+                "splash claim closes on the user's real Workstation "
+                "re-test (W41 reopen ruling).")
+        else:
+            failures.append("vmware variant: the mark splash never painted "
+                            "on the vmware-svga frames — W41 NOT met")
     if failures:
         for f in failures:
             log("ASSERT FAILED: " + f)

@@ -93,12 +93,17 @@ jobs:
         run: |
           python3 scripts/boot-capture.py iso/AegisOS.iso screenshots
 
-      - name: VMware boot variant (W41)
+      - name: VMware boot variant (W41 + W48)
         # T15-D1 — the second hypervisor family. The main capture above is
-        # earned on virtio; the user demos on VMware (vmwgfx). QEMU's
-        # vmware-svga device makes the guest load vmwgfx and plymouthd must
-        # paint there too — the user's Screenshot (23).png console flood is
-        # exactly the headless-plymouthd failure this gate re-derives in CI.
+        # earned on virtio; the user demos on VMware (vmwgfx). W48 rework:
+        # this leg asserts only what the emulated device can prove (vmwgfx
+        # loaded, plymouthd journal clean, live serial session) — run-92
+        # forensics showed QEMU's vmware-svga never yields a DRM device at
+        # all (720x400 text console, no /dev/dri), so desktop-appear rides
+        # the serial substitutes as a diagnostic and a splash miss only
+        # fails hard when a display surface actually existed. The W41
+        # splash claim on real VMware closes on the user's Workstation
+        # re-test.
         run: |
           python3 scripts/boot-capture.py iso/AegisOS.iso screenshots-vmware --vmware-boot-check
 

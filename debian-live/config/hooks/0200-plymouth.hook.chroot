@@ -104,8 +104,19 @@ fi
 # (MODULES=most DOES include the drm stack) — but this hook's modinfo
 # guard resolved against the RUNNING kernel (uname) instead of the chroot
 # kernel, so every force_load silently skipped. Resolve per installed
-# kernel version; force_load copies the module AND its deps and adds it
-# to conf/modules so it loads before udev even runs.
+# kernel version. force_load in initramfs-tools 0.151 is manual_add_modules:
+# dracut-install copies the module AND its deps into the image at BUILD
+# time, and the initramfs's own module loader loads them before udev
+# coldplug — the pre-dracut conf/modules description above is obsolete
+# (same outcome, different mechanism). v0.6.59 post-mortem: the v0.6.55
+# rewrite guarded with `modinfo -q` — kmod's modinfo has NO -q option, the
+# option error made the guard false for every module on every kernel, and
+# 2>&1 + if swallowed it: the ladder never executed a single force_load
+# since inception (the shipped v0.6.58 initramfs carries no vmwgfx — the
+# splashes that did paint came from simpledrm + the upstream FRAMEBUFFER=y
+# hook, never from this ladder). The W49 assert below turns a silently
+# inert ladder into a red ISO build: a claim that is not asserted is not
+# shipped.
 cat > /usr/share/initramfs-tools/hooks/aegis-vm-gpu <<'EOF'
 #!/bin/sh
 PREREQ=""
@@ -119,11 +130,16 @@ esac
 . /usr/share/initramfs-tools/hook-functions
 # Resolve per installed kernel version — plain `modinfo` reads uname and
 # silently skips everything inside a bare build chroot (v0.6.22 lesson).
+# NO -q: kmod's modinfo has no -q option — the v0.6.55 -q guard errored
+# rc 1 for every module and silently disabled the whole ladder (v0.6.59).
+# Names refreshed against 7.0.0-43-generic's modules.dep: bochs_drm is
+# now bochs (drm/tiny/bochs.ko) and cirrus is now cirrus-qemu;
+# virtio_gpu, vmwgfx and qxl resolve unchanged.
 for KDIR in /lib/modules/*; do
     [ -d "$KDIR" ] || continue
     KVER="${KDIR##*/}"
-    for M in virtio_gpu bochs_drm bochs vmwgfx qxl cirrus; do
-        if modinfo -k "$KVER" -q -n "$M" >/dev/null 2>&1; then
+    for M in virtio_gpu bochs vmwgfx qxl cirrus-qemu; do
+        if modinfo -k "$KVER" -n "$M" >/dev/null 2>&1; then
             force_load "$M"
         fi
     done
@@ -133,4 +149,21 @@ chmod +x /usr/share/initramfs-tools/hooks/aegis-vm-gpu
 
 if [ -x /usr/sbin/update-initramfs ]; then
     update-initramfs -u
+fi
+
+# W49 — the ladder must be verifiably IN the image, not just installed.
+# v0.6.55 shipped a hook that told everyone it worked while every
+# force_load silently skipped (the modinfo -q guard); this assert makes
+# that failure class a red ISO build instead of a silent no-op. When
+# lsinitramfs lists no vmwgfx.ko for an installed kernel, abort lb build
+# here (set -e propagates the exit).
+if [ -x /usr/bin/lsinitramfs ]; then
+    for KDIR in /lib/modules/*; do
+        [ -d "$KDIR" ] || continue
+        KVER="${KDIR##*/}"
+        if ! lsinitramfs "/boot/initrd.img-$KVER" | grep -q "gpu/drm/vmwgfx/vmwgfx.ko"; then
+            echo "FATAL: initramfs for $KVER lacks vmwgfx — the aegis-vm-gpu ladder is inert" >&2
+            exit 1
+        fi
+    done
 fi

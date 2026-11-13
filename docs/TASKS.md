@@ -131,6 +131,52 @@ W45 -> W46+W47. Every fix ships with its red-able probe (W23 rule).
   chevrons, the CC sheet's exact entry motion), closes on CC open or
   a window opening (the W20-style predicate). Util.calendarOpen +
   toggleCalendar; the clock hit target is the clock box +- 8 px.
+- Boot Test run 4 = 43467934018 (v0.6.58, RED — but the verdict SPLITS,
+  and the release-blocking leg is GREEN): 41 m 38 s total, artifact read
+  (boot-test-v0.6.58, serial.log + serial-diag.txt + both capture sets).
+  Main virtio suite ran to its FINAL SUMMARY with ZERO asserts — the
+  full capture set landed (04k2-store-closed, 04n2/n3 wallpaper, 04o2
+  effects, 05d2 calendar closed, 02c-files-resized) — W38/W39/W40/W42/
+  W43/W44/W47 are CI-proven together for the first time. The red is the
+  VMware leg ONLY: it burned the full DESKTOP_TIMEOUT (1200 s) — the
+  only 20-minute sink in the tree (arithmetic forced: ~6 m setup + ~15 m
+  main + ~20.5 m vmware). Artifact forensics: (1) the emulated SVGA
+  console is a 720x400 TEXT mode — avg RGB (0,0,0) on all 83 frames;
+  (2) ZERO splash-signature frames — plymouthd painted nothing; (3)
+  serial diag: vmwgfx IS loaded (479232 bytes) but /dev/dri DOES NOT
+  EXIST — the module never binds a KMS device under QEMU's emulation, so
+  neither plymouthd nor KWin ever owns a display; (4) the plymouth
+  journal grep is EMPTY (headless is silent — no failure line to catch).
+  W41 REOPENED by the reviewer (AEGIS-v0.6.59-instructions.md) with the
+  true root cause: the aegis-vm-gpu hook guards with `modinfo -q` — -q
+  does not exist in kmod's modinfo, the option error makes the guard
+  false for EVERY module, and 2>&1 + if swallow it: force_load has never
+  executed once since inception (byte-verified in the shipped ISO's
+  initramfs: no vmwgfx, no conf/modules). Every splash ever painted came
+  from simpledrm (CONFIG_DRM_SIMPLEDRM=y) + the upstream FRAMEBUFFER=y
+  auto_add_modules, never from the ladder. No commits were made after
+  run 92; the fixes below are the first post-run-92 work.
+- v0.6.59 plan (review §3 ship order): W49 first (build-time initramfs
+  assert in the 0200 hook — a build whose initramfs lacks vmwgfx.ko
+  aborts lb build; the W23 ruling extended from captures to the image),
+  then W41-F1 (drop -q; refresh the stale names — bochs_drm is now bochs
+  and cirrus is now cirrus-qemu in 7.0.0-43-generic's modules.dep),
+  then W48-F1/F2 (the vmware leg asserts only what QEMU can prove: own
+  360 s budget instead of the 1200 s global; desktop-appear demoted to
+  a warn-only diagnostic riding the serial substitutes — sddm active,
+  kwin pgrep count, kwin's EGL/gbm/drm journal lines; a splash miss
+  DEMOTES to a warning only when the guest provably has no display
+  surface — no /dev/dri card AND no /dev/fb0 — and stays HARD when a
+  surface existed and the mark still missed; F2 pins vga=791 — the
+  emulated SVGA has no KMS connector to name in video=, so the
+  SeaBIOS vgabios-vmware VBE is the only mode path: when VBE lands,
+  screen_info yields a sysfb simple-framebuffer, simpledrm binds card0,
+  plymouthd owns a real DRM master and the leg upgrades itself into
+  splash/desktop-provable; when VBE fails the boot is exactly today's
+  text console). Expected: main green (unchanged), vmware leg green,
+  total < ~25 m; then the user re-tests in real Workstation — the W41
+  console flood closes on THEIR capture (plymouthd will own real vmwgfx
+  KMS from init-premount), not on QEMU.
 - Boot Test run 3 = 43459292270 (RED, TWO asserts — from five): Files
   CSD resize GREW 160 px (the CSD strips are proven real), the
   presentation toggle verdict recovered (wide knob scan), the effects
