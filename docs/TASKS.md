@@ -81,53 +81,68 @@ W45 -> W46+W47. Every fix ships with its red-able probe (W23 rule).
   y: (gs.height - 24) / 2 so the knob pins to the control's vertical
   center under any layout stretch; the T13-D29 knob scan is
   self-calibrating and survives the geometry change.
-- D6 TODO (W43, high) — wired-first networking. Panel: paintWired
-  RJ45 glyph in the same 16 px / 2 px round-caps family, glyph picks
-  wired when !Util.hasWifi or a wired connection is active, wifi fan
-  otherwise, dim when disconnected; Util surfaces hasWifi + wired
-  state. Settings wired row gets real substance: current IP +
-  Connected + Disconnect/Reconnect (NM Device.Disconnect /
-  AddAndActivateConnection). One honest copy line for VMs: virtual
-  machines expose NAT as wired ethernet; wifi needs a physical radio.
-  Control Center wifi tile mirrors the state. Probe: the runner is
-  ethernet-only — assert the wired row renders Connected with an IP
-  and the top bar shows the wired glyph.
-- D7 TODO (W44, fix) — window mechanics. AppWindow: 8 px edge strips,
-  16 px corner zones, a second DragHandler over the 52 px toolbar's
-  empty stretches, double-click on the titlebar toggles maximize.
-  Decorated windows: input-inject an edge drag on Konsole and assert
-  geometry changed >= 100 px; same for a Files CSD window; if the
-  decorated path is not resizable in practice, flip kwinrc to
-  BorderSize=Tiny and re-assert W10 button geometry. Keep D25 tile
-  map republish intact.
-- D8 TODO (W45, design) — glyph family unification. Extract the
-  Panel painters into a shared Glyphs.qml; Settings sidebar gets the
-  SAME geometry (16 px optical canvas, 20 px tint circle, 1.8 px
-  stroke, round caps, white ink 92%). Per-row contract per the
-  review §2 W45 list (mountain, palette, sparkles, chip, monitor,
-  speaker kept, wifi arcs, person). Recapture 04-settings.png at 1:1;
-  item closes on visual sign-off of the capture.
+- D6 DONE (W43, high) — Util gained hasWifi (sysfs wireless subtree),
+  wiredConnected/wiredIp/wiredIface (nmcli -t device status parse, the
+  first ethernet device remembered REGARDLESS of state so Reconnect has
+  a target) and disconnectWired/reconnectWired (nmcli device
+  disconnect/connect). Panel: Glyphs.wired RJ45 plug (same 16 px / 2 px
+  family), the link glyph picks wired when there is no radio or the
+  wired link is up. CC tile: label Ethernet on radio-less machines,
+  wired glyph + accent, toggles Disconnect/Reconnect. Settings wired
+  row: Connected + live IPv4 + Disconnect/Reconnect buttons + the
+  honest VM copy line. Probe rides D11 (w43 wired state verdict).
+- D7 DONE (W44, fix) — AppWindow: edges 6->8 px, corners 12->16 px,
+  a DragHandler on the 52 px toolbar (controls take their own grabs;
+  presses on empty stretches move the window), TapHandler double-click
+  on the titleband toggles maximize (macOS contract; the lights keep
+  their grabs). The decorated-window claim now has its proof: the D11
+  harness drags the Konsole right edge +160 px and asserts the
+  hairline run grew >= 100 px — a red flips kwinrc to BorderSize=Tiny
+  per the ruling. Tile map republish untouched.
+- D8 DONE in tree (W45, design) — Glyphs.qml singleton (qmldir
+  singleton, both binaries carry it): the Panel painters moved
+  VERBATIM (wifi fan, wired, battery, speaker, sliders — every tuned
+  geometry comment travels with its painter) and the Settings row set
+  joined (mountain, palette, sparkles, chip, monitor, person; wifi and
+  speaker reuse the panel painters per the review). Panel.qml
+  delegates; SettingsApp renders the rows at the approved contract
+  (20 px tint circle, 16 px optical canvas, 1.8 px stroke, white ink
+  92%). The recapture lands with the boot run; the item CLOSES on
+  visual sign-off of that capture.
 - D9.1 DONE (W46.1, first half) — StoreBackend gained liveSession (the
   /run/live/medium + /cdrom predicate) and openInstaller(); the Store
   sidebar shows the amber notice card (installs to the overlay, lost
   on reboot) with a Run installer button when liveSession is true.
-- D9.2 TODO (W46.2) — after a successful Calamares install show the
-  completion dialog (remove the ISO from the VM drive, then reboot);
-  new docs/VM-DEMO.md: VMware VM >= 24 GB disk, CD attached, CD-first
-  boot order until a disk install exists, NAT networking.
-- D10 TODO (W47) — the shell has no calendar (verified: zero hits),
-  so both interpretations get covered: (a) harden every TrafficLight
-  with a transparent 18x18 hit area, DragHandler stays passive on
-  the lights (no startSystemMove on a sub-threshold click);
-  (b) panel clock click opens a glass calendar popover (300x340
-  month grid, today accent, prev/next chevrons, closes on focus
-  loss, no traffic lights — it is a popover). The reviewer asked
-  which of the two the user hit; shipping both closes the report
-  without needing the answer.
-- D11 TODO — boot-capture probe wiring for all of the above +
-  CONTROLS.md statuses diffable for the next review. Release: tag
-  v0.6.56, Release CI, Boot Test (inputs.tag v0.6.56), captures to
-  docs/screenshots/v0.6.56/.
+- D9.2 DONE (W46.2) — the restart trap is closed from two sides:
+  (1) finish.conf's Restart now runs /usr/bin/aegis-install-finish
+  (guest-side eject of /dev/sr0 — udisksctl fallback — + sync + reboot;
+  on VMware a guest eject disconnects the ISO-backed virtual CD so the
+  firmware falls to the installed disk); (2) aegis-live-installer
+  notify-sends the completion banner through the shell's
+  org.freedesktop.Notifications ownership (libnotify-bin added).
+  docs/VM-DEMO.md documents the demo setup + the restart-truth table.
+- D10 DONE (W47) — both interpretations shipped (the reviewer's
+  either/or needs no answer): (a) TrafficLights ride transparent
+  18x18 hit targets around the unchanged 12 px circles (Row spacing
+  8 -> 2 keeps the 8 px circle gap); the grabbing MouseArea keeps the
+  titleband DragHandler passive — a light click never becomes a move;
+  (b) the glass calendar popover: panel clock click -> CalendarPopover
+  (300x340, Monday-first grid, today in the accent, prev/next
+  chevrons, the CC sheet's exact entry motion), closes on CC open or
+  a window opening (the W20-style predicate). Util.calendarOpen +
+  toggleCalendar; the clock hit target is the clock box +- 8 px.
+- D11 DONE in tree — probe wiring. QMP.drag (press-glide-release);
+  traffic_lights_triple(); the Store probe (lights triple + red-light
+  click -> payload/pixels closed); W44 resize probes (Files CSD +
+  Konsole decorated right-edge drags, hairline run must grow >= 100 px);
+  W39 toggle probes (wallpaper pane knobs 1/2 -> tokens.conf +
+  governor.conf verdicts, effects pane knob -> blurLive verdict);
+  W43 wired state verdict (ethernet:connected); W42 xdg-settings get
+  verdict; W47 calendar probe (clock click open + close, diff vs a
+  clean 05e-home-ref); virtio journal DRM-master check joins the
+  release gate (assert on BOTH variants). CONTROLS.md re-audited
+  (Store section added, the deleted dead rows marked DELETED, every
+  new control names its verdict source). Release: tag v0.6.56 next.
 
 ---
 

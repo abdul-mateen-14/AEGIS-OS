@@ -92,6 +92,25 @@ class QMP:
         self._cmd("input-send-event", {"events": [
             {"type": "btn", "data": {"down": False, "button": "left"}}]})
 
+    def drag(self, x0, y0, x1, y1, W, H, steps=14):
+        # T15-D7 (W44) — press, glide, release: the resize probes need a
+        # REAL edge drag (press on the 8 px strip, motion, release), which
+        # click() cannot express. Steps keep the motion events flowing —
+        # a teleport from press to release reads as a click-and-move.
+        self.mouse_abs(x0, y0, W, H)
+        time.sleep(0.15)
+        self._cmd("input-send-event", {"events": [
+            {"type": "btn", "data": {"down": True, "button": "left"}}]})
+        time.sleep(0.15)
+        for i in range(1, steps + 1):
+            x = x0 + (x1 - x0) * i / steps
+            y = y0 + (y1 - y0) * i / steps
+            self.mouse_abs(x, y, W, H)
+            time.sleep(0.05)
+        time.sleep(0.15)
+        self._cmd("input-send-event", {"events": [
+            {"type": "btn", "data": {"down": False, "button": "left"}}]})
+
     def key(self, *qcodes):
         down = [{"type": "key", "data": {"down": True, "key": {"type": "qcode", "data": q}}} for q in qcodes]
         self._cmd("input-send-event", {"events": down}); time.sleep(0.08)
@@ -167,6 +186,40 @@ def window_hairline(png, scan_to=260):
         if n and here - (above + below) / 2 >= 10 * n:
             return (y, run_start, run_len)
     return None
+
+def traffic_lights_triple(png, top, x0):
+    """T15-D3 (W38) — the three traffic lights inside a titleband.
+    Scans y [top, top+44], x [x0, x0+200] for the macOS hue families
+    (close #FF5F57, min #FEBC2E, max #28C840) and returns [(x, y) x3]
+    in close/min/max order, or None when any hue is missing — the
+    "cannot close / no traffic lights" report becomes a red verdict."""
+    im = Image.open(png).convert("RGB")
+    px = im.load()
+    W, H = im.size
+    y0, y1 = max(0, top), min(H, top + 44)
+    x1s = min(W, x0 + 200)
+
+    def hue_pixels(match):
+        pts = []
+        for y in range(y0, y1):
+            for x in range(max(0, x0), x1s):
+                if match(px[x, y]):
+                    pts.append((x, y))
+        return pts
+
+    out = []
+    for match in (
+        lambda p: p[0] > 200 and 60 < p[1] < 140 and 40 < p[2] < 130,
+        lambda p: p[0] > 200 and p[1] > 150 and p[2] < 130,
+        lambda p: p[0] < 130 and p[1] > 150 and p[2] < 130,
+    ):
+        pts = hue_pixels(match)
+        if len(pts) < 25:
+            return None
+        xs = sum(p[0] for p in pts) // len(pts)
+        ys = sum(p[1] for p in pts) // len(pts)
+        out.append((xs, ys))
+    return out
 
 def red_dot(png, top, x_hint):
     """T7 — the close (red) dot inside the title band: first red blob run
@@ -1744,6 +1797,10 @@ def main():
     opens = {}
     w27_minimized = False
     w27_restored = False
+    w44_files_ok = False
+    w44_terminal_ok = False
+    w38_lights_ok = False
+    w38_close_ok = False
     if open_app("02-files", "aegis-files", click_idx=0):       # Files
         opens["files"] = True
         # T13 D20 (W27) — the restore probe: minimize via the pinned
@@ -1789,6 +1846,30 @@ def main():
             log(f"02b-files-restored: diff-vs-home={d:.1f}")
         except Exception as e:
             log(f"w27 probe failed: {e}")
+        # T15-D7 (W44) — the CSD resize proof: drag the Files window's
+        # RIGHT edge +160 px and assert the top-hairline run grew >= 100 px
+        # (the 8 px strip must be a real target, not a claim).
+        try:
+            st = window_hairline(f"{OUT}/02b-files-restored.png")
+            if st:
+                top, x0, run_len = st
+                rx = x0 + run_len - 3
+                ry = min(top + 200, H - 40)
+                q.drag(rx, ry, rx + 160, ry, W, H)
+                time.sleep(2.5)
+                q.shot("02c-files-resized")
+                st2 = window_hairline(f"{OUT}/02c-files-resized.png")
+                if st2:
+                    grew = st2[2] - st[2]
+                    log(f"w44 files resize: run {st[2]} -> {st2[2]} "
+                        f"(grew {grew} px)")
+                    w44_files_ok = grew >= 100
+                else:
+                    log("w44 files resize: hairline lost after the drag")
+            else:
+                log("w44 files resize: no window hairline found")
+        except Exception as e:
+            log(f"w44 files resize probe failed: {e}")
         q.key("alt", "f4"); time.sleep(5)
     if open_app("03-terminal", "konsole", wait_s=18, click_idx=1):   # Terminal
         opens["terminal"] = True
@@ -1842,6 +1923,34 @@ def main():
                 + ("PASS" if xkb_ok else "FAIL — " + out.strip()[-100:]))
         except Exception as e:
             log(f"xkb typing probe failed: {e}")
+
+    # T15-D7 (W44.2) — the DECORATED window resize proof: the same edge
+    # drag on Konsole (aurorae band). kwinrc carries BorderSize=None and
+    # the shipped comment claims the resize-only borders still exist —
+    # this probe is that claim's proof. A red here flips the ruling to
+    # BorderSize=Tiny (review W44.2), not another silent carry-over.
+    try:
+        q.shot("03b-term-before")
+        st = window_hairline(f"{OUT}/03b-term-before.png", scan_to=200)
+        if st:
+            top, x0, run_len = st
+            rx = x0 + run_len - 3
+            ry = min(top + 220, H - 40)
+            q.drag(rx, ry, rx + 160, ry, W, H)
+            time.sleep(2.5)
+            q.shot("03b-term-resized")
+            st2 = window_hairline(f"{OUT}/03b-term-resized.png", scan_to=200)
+            if st2:
+                grew = st2[2] - st[2]
+                log(f"w44 terminal resize: run {st[2]} -> {st2[2]} "
+                    f"(grew {grew} px)")
+                w44_terminal_ok = grew >= 100
+            else:
+                log("w44 terminal resize: hairline lost after the drag")
+        else:
+            log("w44 terminal resize: no window hairline found")
+    except Exception as e:
+        log(f"w44 terminal resize probe failed: {e}")
     if opens.get("terminal"):
         q.key("alt", "f4")
         time.sleep(5)
@@ -1941,6 +2050,138 @@ def main():
         except Exception as e:
             log(f"drivers pane capture failed: {e}")
 
+    # T15-D4 (W39) — the Settings toggles are REAL: the boot gate clicks
+    # them and asserts the config/state file change (the W37 verdict
+    # pattern). Rotate-wallpapers-daily -> tokens.conf; Focus-dim and the
+    # effect rows -> the governor.conf override map (Governor.setEffect).
+    w39_rotate_ok = False
+    w39_dim_ok = False
+    w39_effects_ok = False
+    wired_ok = False
+    browser_default_ok = False
+    if serial is not None:
+        try:
+            def knob_centers(png, x0=380, x1=1100, y0=190, y1=640):
+                """white 20 px knob blobs in the pane body, clustered by
+                row (each GlassSwitch row contributes one). The scan is
+                pane-wide because the wallpaper pane stacks its switches
+                on the LEFT while the effects rows carry them on the
+                RIGHT edge of the RowLayout. The knob is pure white
+                (255) — the fg text tops out at 242."""
+                im = Image.open(png).convert("RGB")
+                px = im.load()
+                pts = [(x, y) for y in range(y0, min(y1, im.size[1]))
+                       for x in range(x0, min(x1, im.size[0]))
+                       if min(px[x, y]) > 250]
+                if not pts:
+                    return []
+                pts.sort(key=lambda p: p[1])
+                clusters = []
+                cur = [pts[0]]
+                for p in pts[1:]:
+                    if p[1] - cur[-1][1] <= 12:
+                        cur.append(p)
+                    else:
+                        clusters.append(cur)
+                        cur = [p]
+                clusters.append(cur)
+                out = []
+                for cl in clusters:
+                    if len(cl) < 50:
+                        continue
+                    xs = [p[0] for p in cl]
+                    ys = [p[1] for p in cl]
+                    out.append(((min(xs) + max(xs)) // 2,
+                                (min(ys) + max(ys)) // 2))
+                return out
+
+            def click_knob(png, idx):
+                cs = knob_centers(png)
+                log(f"w39 knobs: {cs}")
+                if idx < len(cs):
+                    q.click(cs[idx][0], cs[idx][1], W, H)
+                    time.sleep(2.5)
+                    return True
+                return False
+
+            # wallpaper pane (0): rotate daily first, focus-dim second
+            serial.run("export XDG_RUNTIME_DIR=/run/user/$(id -u); "
+                       "WAYLAND_DISPLAY=wayland-0 nohup aegis-settings 0 "
+                       ">/tmp/aegis-settings0.err 2>&1 & echo PANE0-LAUNCHED",
+                       settle=3)
+            time.sleep(16)
+            q.shot("04n-wallpaper")
+            if click_knob(f"{OUT}/04n-wallpaper.png", 0):
+                out = serial.run("grep -c '^wallpaperRotateDaily=true' "
+                                 "~/.config/aegis/tokens.conf 2>/dev/null; "
+                                 "echo ROT-END", settle=2)
+                w39_rotate_ok = out.split("ROT-END")[0].strip() == "1"
+                log("w39 rotate toggle: "
+                    + ("tokens.conf verdict PASS" if w39_rotate_ok
+                       else "FAIL — " + out.strip()[-80:]))
+                q.shot("04n2-wallpaper-on")
+                # restore off — the knob moved; re-scan
+                click_knob(f"{OUT}/04n2-wallpaper-on.png", 0)
+            if click_knob(f"{OUT}/04n-wallpaper.png", 1):
+                out = serial.run("grep -c 'wallpaperDim=true' "
+                                 "~/.config/aegis/governor.conf 2>/dev/null; "
+                                 "echo DIM-END", settle=2)
+                w39_dim_ok = out.split("DIM-END")[0].strip() == "1"
+                log("w39 focus-dim toggle: "
+                    + ("governor.conf verdict PASS" if w39_dim_ok
+                       else "FAIL — " + out.strip()[-80:]))
+                q.shot("04n3-wallpaper-dim")
+                # the dim knob is cluster index 1 (rotate row sits above
+                # it and its knob is back on the left after the restore)
+                click_knob(f"{OUT}/04n3-wallpaper-dim.png", 1)
+            q.key("alt", "f4"); time.sleep(5)
+
+            # effects pane (2): blurLive first row
+            serial.run("export XDG_RUNTIME_DIR=/run/user/$(id -u); "
+                       "WAYLAND_DISPLAY=wayland-0 nohup aegis-settings 2 "
+                       ">/tmp/aegis-settings2.err 2>&1 & echo PANE2-LAUNCHED",
+                       settle=3)
+            time.sleep(16)
+            q.shot("04o-effects")
+            if click_knob(f"{OUT}/04o-effects.png", 0):
+                out = serial.run("grep -c 'blurLive=true' "
+                                 "~/.config/aegis/governor.conf 2>/dev/null; "
+                                 "echo EFF-END", settle=2)
+                w39_effects_ok = out.split("EFF-END")[0].strip() == "1"
+                log("w39 effects toggle: "
+                    + ("governor.conf verdict PASS" if w39_effects_ok
+                       else "FAIL — " + out.strip()[-80:]))
+                q.shot("04o2-effects-toggled")
+                click_knob(f"{OUT}/04o2-effects-toggled.png", 0)
+            q.key("alt", "f4"); time.sleep(5)
+        except Exception as e:
+            log(f"w39 toggle probes failed: {e}")
+
+        # T15-D6 (W43) — the runner is ethernet-only: the wired row's
+        # substrate must really say Connected (the UI reads this state).
+        try:
+            out = serial.run(
+                "nmcli -t -f TYPE,STATE device status 2>/dev/null | "
+                "grep -c '^ethernet:connected'; echo W-OK", settle=3)
+            wired_ok = out.split("W-OK")[0].strip().startswith("1")
+            log("w43 wired state: "
+                + ("ethernet:connected PASS" if wired_ok
+                   else "FAIL — no connected ethernet in the runner"))
+        except Exception as e:
+            log(f"w43 wired probe failed: {e}")
+
+        # T15-D2 (W42) — the default browser role: xdg-settings must name
+        # the Aegis entry (the Drivers pane's Open CUPS and every web link
+        # ride this role).
+        try:
+            out = serial.run("xdg-settings get default-web-browser 2>&1; "
+                             "echo B-OK", settle=3)
+            seg = out.split("B-OK")[0].strip().lower()
+            browser_default_ok = "aegis" in seg
+            log("w42 default browser: " + (seg if seg else "(empty)"))
+        except Exception as e:
+            log(f"w42 default-browser probe failed: {e}")
+
     # T11 — the four M3 apps, launched over the same DBus surface and
     # captured the same way as Files/Terminal/Settings. Each open_app call
     # carries its own diff-vs-home assert; a window that never paints
@@ -1980,11 +2221,40 @@ def main():
         q.key("alt", "f4"); time.sleep(5)
 
     # T14 — the Store: the apt-backed app store opens with the curated
-    # catalog rendered (the diff gate proves the window; the cards carry
-    # the letter tiles in the category tints).
+    # catalog rendered (the diff gate proves the window). T15-D3 (W38) —
+    # the window rides the AppWindow anatomy now: the three traffic
+    # lights must exist in its titlebar (the user's exact report: no
+    # lights = cannot close) and the RED light must close the window —
+    # "cannot close" is a red CI verdict, not a user report.
     if open_app("04k-store", "aegis-store", wait_s=25, click_idx=9):
         opens["store"] = True
-        q.key("alt", "f4"); time.sleep(5)
+        try:
+            st = window_hairline(f"{OUT}/04k-store.png")
+            if st:
+                top, x0, run_len = st
+                tl = traffic_lights_triple(f"{OUT}/04k-store.png", top, x0)
+                w38_lights_ok = tl is not None
+                log(f"w38 store lights: "
+                    + (f"found at {tl}" if tl
+                       else "MISSING — the anatomy regressed"))
+                if tl:
+                    red_x, red_y = tl[0]
+                    q.click(red_x, red_y, W, H)
+                    time.sleep(3)
+                    q.shot("04k2-store-closed")
+                    stc = dump_window_state()
+                    closed = (stc is None
+                              or "aegis-store" not in (stc.get("ids") or []))
+                    d2 = diff_px(thumb(f"{OUT}/04k2-store-closed.png"), home)
+                    w38_close_ok = closed and d2 < 6
+                    log(f"w38 store close: payload-closed={closed} "
+                        f"diff-vs-home={d2:.1f}")
+            else:
+                log("w38 store lights: no window hairline found")
+        except Exception as e:
+            log(f"w38 store probe failed: {e}")
+        if not w38_close_ok:
+            q.key("alt", "f4"); time.sleep(5)
 
     # T13 W26 — the Trash tile must open Files AT the trash view (it used
     # to open Home because aegis-files took no path argument). The dock
@@ -2135,6 +2405,33 @@ def main():
         except Exception as e:
             log(f"dark tile probe failed: {e}")
 
+    # T15-D10 (W47) — the calendar popover: click the panel clock, the
+    # glass sheet must appear (diff-vs-home), clicking the clock again
+    # closes it. The CC sheet is toggled off first (one sheet at a time).
+    calendar_ok = False
+    drm_clean = None       # None = check never ran (serial lost)
+    try:
+        q.key("meta_l", "s")            # CC off (toggle — the CC has no
+        time.sleep(1.5)                 # Escape path)
+        # the DND block reassigned `home` to the CC-open frame — take a
+        # clean desktop reference here
+        q.shot("05e-home-ref")
+        cal_ref = thumb(f"{OUT}/05e-home-ref.png")
+        q.click(W - 108, 14, W, H)      # the panel clock
+        time.sleep(2.5)
+        q.shot("05d-calendar")
+        d = diff_px(thumb(f"{OUT}/05d-calendar.png"), cal_ref)
+        log(f"05d-calendar: diff-vs-ref={d:.1f}")
+        calendar_ok = d > 6
+        q.click(W - 108, 14, W, H)      # toggle closed
+        time.sleep(1.5)
+        q.shot("05d2-calendar-closed")
+        d2 = diff_px(thumb(f"{OUT}/05d2-calendar-closed.png"), cal_ref)
+        log(f"05d2-calendar-closed: diff-vs-ref={d2:.1f}")
+        calendar_ok = calendar_ok and d2 < 6
+    except Exception as e:
+        log(f"calendar probe failed: {e}")
+
     # W14 proof step — the hard assert. The brief: "keep ubuntu-text as
     # fallback until boot-capture proves the new theme". The signature
     # check (ink background + accent progress line / watermark pixels)
@@ -2158,9 +2455,23 @@ def main():
                 raise RuntimeError("serial login failed for the splash probe")
         out = serial.run(
             "ls -la /dev/dri 2>&1; lsmod | grep -E 'virtio_gpu|bochs' 2>&1; "
-            "journalctl -b --no-pager 2>/dev/null | grep -aiE 'plymouth|renderer' "
-            "| head -12; echo GPU-PROBE", settle=6)
-        log("gpu/plymouth probe: " + out.strip().replace("\n", " | ")[-700:])
+            "journalctl -b --no-pager 2>/dev/null | grep -ai plymouth | head -12; echo GPU-PROBE", settle=6)
+        log("gpu/plymouth probe: " + out.strip().replace("\n", " | ")[700:])
+        # T15-D1 (W41) — the journal must carry NO plymouthd DRM-master /
+        # headless signature on the release-blocking variant either (the
+        # review §0 rule: assert on BOTH variants).
+        try:
+            out2 = serial.run(
+                "journalctl -b --no-pager 2>/dev/null | grep -ai plymouth "
+                "| grep -aicE 'could not take drm master|headless|no drm'; "
+                "echo DRM-CNT", settle=6)
+            seg = out2.split("DRM-CNT")[0].strip()
+            drm_clean = seg == "0" or seg == ""
+            log("virtio journal DRM-master check: "
+                + ("clean" if drm_clean else f"FAILURE LINES ({seg})"))
+        except Exception as e:
+            drm_clean = None
+            log(f"virtio DRM-master check failed: {e}")
         serial.run("sudo plymouth quit 2>&1; pkill plymouthd 2>/dev/null; "
                    "echo OLD-QUIT", settle=3)
         serial.run("sudo plymouthd --mode=boot --debug "
@@ -2304,6 +2615,49 @@ def main():
                         "minimized window back active — activateOrLaunch "
                         "broke (kwinrc request transport or the script "
                         "poll)")
+    # T15 verdicts — every W38-W47 fix rides a red-able probe (W23 rule)
+    if not w38_lights_ok:
+        failures.append("W38: the Store titlebar carries no traffic-light "
+                        "triple — the AppWindow anatomy regressed (the "
+                        "cannot-close report is back)")
+    if not w38_close_ok:
+        failures.append("W38: the Store red light click did not close the "
+                        "window (payload or pixels unchanged)")
+    if not w44_files_ok:
+        failures.append("W44: the Files CSD right-edge drag grew the window "
+                        "by < 100 px — the 8 px resize strips are not real "
+                        "targets")
+    if not w44_terminal_ok:
+        failures.append("W44: the Konsole right-edge drag grew the window "
+                        "by < 100 px — the decorated (aurorae) resize path "
+                        "is broken; flip kwinrc to BorderSize=Tiny per the "
+                        "review ruling")
+    if not w39_rotate_ok:
+        failures.append("W39: the rotate-wallpapers toggle click wrote no "
+                        "tokens.conf key — the switch is dead or the knob "
+                        "scan missed")
+    if not w39_dim_ok:
+        failures.append("W39: the focus-dim toggle click wrote no "
+                        "governor.conf wallpaperDim key — the override "
+                        "chain is broken")
+    if not w39_effects_ok:
+        failures.append("W39: the effects-row toggle click wrote no "
+                        "governor.conf blurLive key — Governor.setEffect "
+                        "is not reachable from Settings")
+    if not wired_ok:
+        failures.append("W43: the runner has no ethernet:connected state — "
+                        "the wired-first UI has nothing to represent")
+    if not browser_default_ok:
+        failures.append("W42: xdg-settings get default-web-browser does "
+                        "not name an Aegis entry — the build-time role "
+                        "stamp did not land")
+    if not calendar_ok:
+        failures.append("W47: the clock click did not open the calendar "
+                        "popover (or the second click did not close it)")
+    if drm_clean is False:
+        failures.append("W41: the virtio journal carries plymouthd "
+                        "DRM-master/headless lines — the renderer is "
+                        "failing on the release-blocking path too")
     if not xkb_ok:
         failures.append("W35: typed keystrokes never produced "
                         "/tmp/aegis-xkb-ok — the keyboard chain (harness "

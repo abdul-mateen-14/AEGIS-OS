@@ -23,7 +23,8 @@ verdict source. "A probe that cannot fail is not a probe."
 | --- | --- | --- | --- |
 | Panel | Control Center glyph | `Util.ccOpen` toggle | WORKS — 05-control-center + 05c-cc-shortcut (Meta+S) |
 | Panel | Battery glyph + % | binds `Util.batteryPercent/onBattery/charging` (sysfs) | WORKS — VMs read "AC power" |
-| Panel | Clock | live `Qt.formatDateTime` | WORKS |
+| Panel | Clock — click | opens the glass calendar popover (`Util.toggleCalendar`, T15-D10/W47) | WORKS — 05d-calendar diff verdict (boot gate) |
+| Calendar popover | month grid + prev/next + today accent | `CalendarPopover.qml`; closes on CC open / window focus (W20-style predicate) | WORKS — same probe |
 | Dock | 12 app tiles, left click | `Util.activateOrLaunch` — restore-then-launch (W27) | WORKS — 02b-files-restored + the W27 payload verdicts |
 | Dock | Tile right click (first-party) | tile menu: New Window / Quit (running) / Empty Trash (Trash) (W36.2) | WORKS — new this cycle; pointer-probed on the next review round |
 | Dock | Tile right click (web tiles) | Remove from Dock (`Util.removeWebShortcut`, W22) | WORKS |
@@ -50,8 +51,10 @@ verdict source. "A probe that cannot fail is not a probe."
 | Pane | Control | Handler | Status |
 | --- | --- | --- | --- |
 | Wallpaper | picker grid + cards | `Util.setWallpaper` | WORKS |
+| Wallpaper | Rotate wallpapers daily | `Util.setWallpaperRotateDaily` — tokens.conf persistence + the shell's rollover cycle (T15-D4/W39.1) | WORKS — w39 rotate toggle file verdict (boot gate) |
+| Wallpaper | Focus-dim wallpaper | `Governor.setEffect("wallpaperDim")` + the Desktop.qml 18% veil (T15-D4/W39.1) | WORKS — w39 dim toggle governor.conf verdict |
 | Appearance | accent cards, dark toggle | `Util.setAccent/setDarkMode` (tokens.conf + kdeglobals) | WORKS |
-| Desktop Effects | stock effects list | kwinrc writes + KWin reconfigure | WORKS |
+| Desktop Effects | four real rows (blurLive / blurAny / motionSpring / shadowsHalf) | `Governor.setEffect` — persisted overrides ride over the tier map (T15-D4/W39.2); the tierA/tierAB/tierC/parallax rows are DELETED (they were dead) | WORKS — w39 effects toggle governor.conf verdict |
 | Drivers & Firmware | device inventory (lspci -k with per-device kernel driver, lsusb, lsblk) | `DriversBackend.refresh` (D23) | WORKS — 04m-drivers capture; empty classes render explicit empty lines, never blank |
 | Drivers & Firmware | Printing: queues, Test page, Open CUPS | `lpstat -p` / `lp -d` / xdg-open localhost:631 (D23) | WORKS; Print-to-PDF BLOCKED — cups-pdf is gone from the resolute archive (TASKS D16), the pane states it in copy |
 | Drivers & Firmware | Scanning: Open scan | `simple-scan` launcher; "ready"/"missing" state | WORKS |
@@ -62,11 +65,19 @@ verdict source. "A probe that cannot fail is not a probe."
 | Displays | per-output scale buttons | `kscreen-doctor output.<name>.scale.<s>` | WORKS |
 | Displays | Night light | kwinrc NightColor + reconfigure | WORKS |
 | Sound | sinks/sources, volume, mute, default | wpctl (PipeWire) with honest "nowpctl/nodevice" states (W30.2) | WORKS |
-| Network | wired rows (Connected / Cable connected / unplugged) | NetworkManager DeviceType 1 + Carrier (W30.3) | WORKS — the VM round's ethernet is the proof surface |
+| Network | wired rows — Connected + IP + Disconnect/Reconnect + the VM NAT copy line | `Util.disconnectWired/reconnectWired` (nmcli device) (T15-D6/W43) | WORKS — w43 wired state verdict (ethernet:connected) |
 | Network | Wi-Fi switch + networks list + WPA join sheet | nmcli / NM D-Bus; secret sheet (W32.1) | WORKS |
 | Network | Bluetooth section: adapter state, device rows, Pair/Connect/Disconnect/Forget, Scan | `BluetoothBackend` (bluetoothctl) (D22) | WORKS — "No Bluetooth adapter" is the honest VM state |
 | Users | real name rename, admin flag, avatar | AccountsService D-Bus | WORKS |
 | Aegis ID | sign in / register / kdf-params with error classification + backend-state line | `AegisId.classifyError` (W34.1) | WORKS — 04b-aegis-id capture |
+
+## Store (StoreApp.qml, T14/T15)
+
+| Surface | Control | Handler | Status |
+| --- | --- | --- | --- |
+| Window | AppWindow anatomy (traffic lights + drag + resize) | the standard anatomy (T15-D3/W38) | WORKS — w38 lights triple + red-light close verdicts (boot gate) |
+| Cards | Install/Remove buttons | `Store.install/remove` (sudo -n apt-get, streamed log) | WORKS |
+| Sidebar | live-session notice card + Run installer | `StoreBackend.liveSession` predicate + `openInstaller` (T15-D9.1/W46.1) | WORKS — the card renders only on the live medium |
 
 ## First-party apps
 
