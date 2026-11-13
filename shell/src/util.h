@@ -175,8 +175,10 @@ public:
     // QSettings IniFormat escapes the quotes as \" and KConfig rejects
     // the escape); this writes kwinrc [Effect-aegis-dockzoom] TileMap. The
     // aegis-dockzoom effect cannot callDBus (KWin 6.6 gives callDBus to
-    // window scripts, not effects), so kwinrc + KConfigWatcher is the
-    // transport into the effect's readConfig("TileMap").
+    // window scripts, not effects), so kwinrc is the transport into the
+    // effect's readConfig("TileMap") — with nudgeKWinConfig() after the
+    // write, because QSettings alone never wakes KWin's KConfigWatcher
+    // (D30) and the effect re-reads per animation (D30, effect side).
     Q_INVOKABLE void publishDockTileMap(const QString &tileMap);
 
     // ── Web shortcuts (W22 — strictly opt-in dock entries) ────────
@@ -232,6 +234,11 @@ private slots:
 
 private:
     QVariantMap defaultConfig() const;
+    // T13 D30 — fire-and-forget org.kde.KWin.reloadConfig after every
+    // kwinrc write (QSettings never emits the kconfig.notify DBus signal
+    // KConfigWatcher listens to, so KWin would otherwise never reparse —
+    // see util.cpp for the verified chain).
+    void nudgeKWinConfig();
     // W22 — writes the aegis-web-<id>.desktop launcher once the icon is
     // settled (fetched or letter-tile), then fires webShortcutAdded and
     // dockAppsChanged so the dock re-resolves with the new slot.

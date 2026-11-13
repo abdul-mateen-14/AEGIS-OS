@@ -100,6 +100,12 @@ function growFromTile(window) {
     if (effect.isGrabbed(window, Effect.WindowAddedGrabRole)) {
         return;
     }
+    // D30 — re-read the map per animation: the shell's QSettings write
+    // to kwinrc never fires the notify-based KConfigWatcher (util.cpp
+    // D30), and even the reloadConfig reparse does not emit the effect
+    // configChanged — but it DOES refresh the shared config this
+    // readConfig reads. Cheap string parse, correct tile center.
+    readMap();
     const c = tileCenter(window) || centerOf(window);
     animate({
         window: window,
@@ -123,6 +129,8 @@ function shrinkIntoTile(window) {
     if (effect.isGrabbed(window, Effect.WindowClosedGrabRole)) {
         return;
     }
+    // D30 — same per-animation re-read as growFromTile.
+    readMap();
     const c = tileCenter(window) || centerOf(window);
     animate({
         window: window,

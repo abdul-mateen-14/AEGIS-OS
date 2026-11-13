@@ -429,10 +429,11 @@ void Util::activateOrLaunch(const QString &cmd, const QString &resolved)
     // else launch". The shell CANNOT call into a script (no inbound
     // DBus, no configChanged for scripts on 6.6 — verified against
     // scripting.cpp), so when the head is a tracked class the request
-    // rides kwinrc [Script-aegis-windowwatch] — the identical
-    // QSettings/KConfigWatcher transport the TileMap already proves —
-    // and the script's 150 ms poll unminimizes + activates. The seq
-    // makes a repeated request re-fire even when the class is unchanged.
+    // rides kwinrc [Script-aegis-windowwatch] and nudgeKWinConfig()
+    // makes KWin reparse it (QSettings alone is INVISIBLE to
+    // KConfigWatcher — D30), and the script's 150 ms poll unminimizes +
+    // activates. The seq makes a repeated request re-fire even when the
+    // class is unchanged.
     // ARGUMENTED commands NEVER activate: Trash's cmd is
     // "aegis-files --path trash:///" — head-matching it would focus the
     // plain Files window instead of opening the trash. Only a bare cmd
@@ -451,6 +452,7 @@ void Util::activateOrLaunch(const QString &cmd, const QString &resolved)
         kwinRc.setValue(QStringLiteral("ActivateRequest"), head);
         kwinRc.endGroup();
         kwinRc.sync();
+        nudgeKWinConfig();
         return;
     }
     // the resolved-Exec parameter MUST NOT be named launch: it would
@@ -514,6 +516,33 @@ void Util::publishDockTileMap(const QString &tileMap)
     kwinRc.setValue(QStringLiteral("TileMap"), tileMap);
     kwinRc.endGroup();
     kwinRc.sync();
+    nudgeKWinConfig();
+}
+
+void Util::nudgeKWinConfig()
+{
+    // T13 D30 — KConfigWatcher is NOT a filesystem watcher: it subscribes
+    // to the org.kde.kconfig.notify ConfigChanged DBus signal (verified
+    // against kconfigwatcher.cpp, v6.13.0) which ONLY KConfig-based
+    // writers emit (kconfig.cpp:506 — the signal rides KConfig::sync).
+    // QSettings never sends it, so every QSettings write to kwinrc was
+    // invisible to KWin: the windowwatch script's 150 ms poll kept
+    // reading the load-time ActivateSeq (the v0.6.53 run disproved the
+    // transport live: the shell wrote the request, the script stayed at
+    // 0) and the dockzoom effect never re-read TileMap either. KWin
+    // exposes the reparse directly: org.kde.KWin.reloadConfig on the
+    // session bus runs Workspace::slotReconfigure -> kwinApp()->config()
+    // ->reparseConfiguration() (dbusinterface.cpp:48, workspace.cpp:979
+    // and 996, verified against the 6.6.0 tag) — exactly the shared
+    // config Script::config() and effect readConfig read. Fire-and-
+    // forget async: a missed call costs nothing, the next write nudges
+    // again. NOTE: the reparse does NOT emit the effects' notify-based
+    // configChanged — the dockzoom effect re-reads its map per
+    // animation (readMap() in growFromTile/shrinkIntoTile).
+    QDBusMessage call = QDBusMessage::createMethodCall(
+        QStringLiteral("org.kde.KWin"), QStringLiteral("/KWin"),
+        QStringLiteral("org.kde.KWin"), QStringLiteral("reloadConfig"));
+    QDBusConnection::sessionBus().asyncCall(call);
 }
 
 void Util::powerAction(const QString &action)

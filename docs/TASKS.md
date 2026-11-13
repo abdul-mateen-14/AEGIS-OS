@@ -325,6 +325,58 @@ animation cannot be dock-anchored from our JS effect on 6.6.
   with diffs (browser 11.9 attempt 0, os 29.5, corex 39.2 attempt 1,
   store 19.4, trash 23.8), launcher + CC shortcut captures green,
   MARK SPLASH CONFIRMED. v0.6.53 = these fixes only.
+- D30 — v0.6.53 BOOT RUN: run 43383015905, ONE assert left red, and
+  it exposed the deepest defect of the cycle. ELEVEN OF TWELVE GATES
+  GREEN, including all three D29 fixes PROVEN:
+  1. THE PARSER FIX WORKED. window-state dumps parse: home
+     {"count":0,"ids":[],"allIds":[],"active":""}; after Meta+M
+     {"count":0,"ids":[],"allIds":["aegis-files"],"active":""} —
+     W27 MINIMIZE PASSED: the D28 kglobalshortcutsrc seed WORKS
+     (Meta+M really minimizes), the payload contract (allIds keeps,
+     ids loses, active empties) is exact.
+  2. THE KNOB SCAN WORKED. presentation knob scan: (425, 358),
+     clicked, state file ON — W30.1 PASSED (the v0.6.52 modeled
+     point was 152 px off; self-calibration is immune to the pane
+     layout).
+  3. THE QSaveFile REWRITE WORKED. dark tile verdict:
+     AegisDark -> AegisLight + state file light — W37 PASSED, and
+     this also proves the v0.6.52 failure was the QSettings write
+     itself (the click had always been fine).
+  4. THE LAST RED: W27 RESTORE. The shell wrote the request (kwinrc
+     dump: ActivateRequest=aegis-files, ActivateSeq=1), the script
+     was alive (markers: "js: aegis-windowwatch: activate poll
+     armed" + "loaded" in the session log), the JS is valid against
+     the 6.6 wrapper (stackingOrder IS a Q_PROPERTY —
+     workspace_wrapper.h:66; activeWindow WRITE :34; minimized
+     WRITE window.h:397; isMatchable accepts minimized) — and the
+     window never came back (02b-files-restored diff 3.2 = no
+     window on screen). ROOT CAUSE, verified against the kconfig
+     v6.13.0 + kwin 6.6.0 sources: KConfigWatcher is NOT a
+     filesystem watcher. It subscribes to the org.kde.kconfig.notify
+     ConfigChanged DBus signal (kconfigwatcher.cpp:89-94) which ONLY
+     KConfig-based writers emit — the signal rides KConfig::sync
+     (kconfig.cpp:506-508). QSettings never sends it, so EVERY
+     QSettings write to kwinrc since v0.6.39 has been invisible to
+     KWin: the windowwatch poll kept reading the load-time
+     ActivateSeq=0, and the dockzoom effect's TileMap was equally
+     dead (the "the TileMap already proves this transport" claim in
+     the D20/D21 comments was wrong — no gate ever exercised it).
+     FIX (two halves): (a) util.cpp nudgeKWinConfig() — after every
+     kwinrc write (activateOrLaunch, publishDockTileMap) the shell
+     fires an async org.kde.KWin.reloadConfig on the session bus;
+     verified chain dbusinterface.cpp:48 -> Workspace::slotReload
+     Config -> reconfigure() -> 200 ms timer -> slotReconfigure ->
+     kwinApp()->config()->reparseConfiguration() (workspace.cpp:979,
+     996) — exactly the shared config Script::config() reads, so the
+     script's next 150 ms tick sees the new ActivateSeq.
+     (b) aegis-dockzoom main.js — readMap() now runs at the start of
+     growFromTile AND shrinkIntoTile: the reparse refreshes the
+     shared config but does NOT emit the effects' notify-based
+     configChanged (effecthandler.cpp:153 wires effect configChanged
+     to KConfigWatcher, not to reparse), so the per-animation re-read
+     is the only way the effect sees a mid-session TileMap update.
+     Stale comments corrected in util.h/util.cpp. v0.6.54 = these
+     two fixes + nothing else.
 
 ### Status
 
