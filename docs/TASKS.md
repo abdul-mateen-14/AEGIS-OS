@@ -131,6 +131,23 @@ W45 -> W46+W47. Every fix ships with its red-able probe (W23 rule).
   chevrons, the CC sheet's exact entry motion), closes on CC open or
   a window opening (the W20-style predicate). Util.calendarOpen +
   toggleCalendar; the clock hit target is the clock box +- 8 px.
+- Boot Test run 8 = 43509551579 (v0.6.59, RED — a THIRD harness defect,
+  different app, same class): main suite reached the os probe — 04h-os
+  resolved its Exec to a KERNEL LOG LINE ("[ 653.896351] dbus-daemon
+  [900]: [system] Failed to activate service 'org.bluez'...") because
+  kmsg + journald's forward-to-console lines interleave into the
+  EXEC-RES marker window on console=ttyS0, the parse took the FIRST
+  line blindly, the guard checked only "not found"/ANSI, and the DBus
+  launch launched garbage (the bus call itself succeeds — Util.launch
+  returns void, no verdict to read); attempt 0 burned 45 s on nothing,
+  the dock-click retry started the real binary (6983 alive) but lost
+  the paint race again (diff 3.4 < 6). Two fixes: (1) the resolution
+  parse filters kmsg/journal fragments (lines starting with "[" or
+  carrying the "]:" log tail are not Execs — a real Exec is a path or
+  a bare head); (2) a LIVE process with an unchanged screen now gets
+  ONE patient re-diff (40 s, fresh shot, same verdict) before a retry
+  burns — runs 5 and 8 both painted after the 45 s window and lost
+  both attempts to the race.
 - Boot Test run 7 = 43505095117 (v0.6.59, RED — but by CRASH, not by
   assert, and every hard assert PASSED): main suite GREEN again
   (capture complete, zero asserts). vmware leg: serial login OK

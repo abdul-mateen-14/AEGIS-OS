@@ -1751,6 +1751,19 @@ def main():
                 lines = [ln.strip() for ln in
                          (m.group(1).splitlines() if m else [])
                          if ln.strip()]
+                # Boot run 8 — kmsg and journald's forward-to-console lines
+                # interleave INTO the marker window (console=ttyS0 carries
+                # both), and the old parse took the FIRST line blindly:
+                # the os probe resolved its Exec to "[ 653.896351]
+                # dbus-daemon[900]: [system] Failed to activate service
+                # 'org.bluez'..." and launched THAT over DBus. A real Exec
+                # is a path or a bare head — never a bracketed kmsg stamp
+                # and never a log fragment carrying the "]:" tail.
+                lines = [ln for ln in lines
+                         if not ln.startswith("[")
+                         and "]:" not in ln
+                         and "FAILED LOGIN" not in ln
+                         and not ANSI_RE.search(ln)]
                 resolved = lines[0] if lines else ""
                 if resolved and "not found" not in resolved \
                         and not ANSI_RE.search(resolved):
@@ -1873,6 +1886,19 @@ def main():
                     log(f"{name}: liveness: "
                         + (lv.replace("\n", " | ")[-200:] if lv
                            else "no process alive"))
+                    # Boot run 8 — a LIVE process with an unchanged screen
+                    # is a slow first-paint, not a dead launch: electron
+                    # apps painted AFTER the 45 s window on runs 5 and 8
+                    # (corex / os-private-chat) and the loop burned BOTH
+                    # attempts on the race. One patient re-diff before a
+                    # retry: 40 s more, a fresh shot, the same verdict.
+                    if lv:
+                        time.sleep(40)
+                        q.shot(name)
+                        d = diff_px(thumb(f"{OUT}/{name}.png"), home)
+                        log(f"{name}: patient re-diff={d:.1f}")
+                        if d > 6:
+                            return True
                 except Exception as e:
                     log(f"{name}: liveness probe failed ({e})")
             log(f"{name} attempt {attempt + 1}: screen looks unchanged, retrying")
