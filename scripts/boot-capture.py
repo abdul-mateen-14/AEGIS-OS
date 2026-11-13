@@ -187,6 +187,35 @@ def window_hairline(png, scan_to=260):
             return (y, run_start, run_len)
     return None
 
+def drag_right_edge(q, png, out_name, W, H, home_ref=None):
+    """T15-D7 (W44) — the right-edge resize drag with the TRUE edge aim.
+    The top hairline stops 6-7 px short of the window's real right edge
+    (the r18 corners turn the stroke down), so the 8 px strip lives
+    AROUND hairline_end + 6: press at run_end + 2 first, retry at +6.
+    Returns the growth in px (0 = the drag resized nothing)."""
+    st = window_hairline(png)
+    if not st:
+        log(f"w44 {out_name}: no window hairline found")
+        return 0
+    top, x0, run_len = st
+    ry = min(top + 200, H - 40)
+    for extra in (2, 6):
+        rx = x0 + run_len + extra
+        log(f"w44 {out_name}: dragging right edge at x={rx} "
+            f"(hairline end {x0 + run_len}, y={ry})")
+        q.drag(rx, ry, rx + 160, ry, W, H)
+        time.sleep(2.5)
+        q.shot(out_name)
+        st2 = window_hairline(f"{OUT}/{out_name}.png")
+        if st2:
+            grew = st2[2] - st[2]
+            log(f"w44 {out_name}: run {st[2]} -> {st2[2]} (grew {grew} px)")
+            if grew >= 100:
+                return grew
+        else:
+            log(f"w44 {out_name}: hairline lost after the drag")
+    return 0
+
 def traffic_lights_triple(png, top, x0):
     """T15-D3 (W38) — the three traffic lights inside a titleband.
     Scans y [top, top+44], x [x0, x0+200] for the macOS hue families
@@ -402,7 +431,7 @@ def start_qemu(accel, gpu):
     cmd = ["qemu-system-x86_64", *accel, "-m", "4096", "-smp", "4",
            "-device", gpu, "-display", "none",
            "-device", "qemu-xhci", "-device", "usb-tablet",
-           "-nic", "none", "-cdrom", ISO, "-boot", "d", "-no-reboot",
+           "-nic", "user,model=virtio-net-pci", "-cdrom", ISO, "-boot", "d", "-no-reboot",
            "-qmp", f"unix:{SOCK},server,nowait",
            "-chardev", f"socket,id=ser0,path={SERIAL_SOCK},server=on,wait=off,logfile=serial.log",
            "-serial", "chardev:ser0"]
@@ -1848,26 +1877,13 @@ def main():
             log(f"w27 probe failed: {e}")
         # T15-D7 (W44) — the CSD resize proof: drag the Files window's
         # RIGHT edge +160 px and assert the top-hairline run grew >= 100 px
-        # (the 8 px strip must be a real target, not a claim).
+        # (the 8 px strip must be a real target, not a claim). The aim
+        # corrects for the corner radius: the hairline ends ~7 px short of
+        # the true edge (the first run missed the strip by 2 px).
         try:
-            st = window_hairline(f"{OUT}/02b-files-restored.png")
-            if st:
-                top, x0, run_len = st
-                rx = x0 + run_len - 3
-                ry = min(top + 200, H - 40)
-                q.drag(rx, ry, rx + 160, ry, W, H)
-                time.sleep(2.5)
-                q.shot("02c-files-resized")
-                st2 = window_hairline(f"{OUT}/02c-files-resized.png")
-                if st2:
-                    grew = st2[2] - st[2]
-                    log(f"w44 files resize: run {st[2]} -> {st2[2]} "
-                        f"(grew {grew} px)")
-                    w44_files_ok = grew >= 100
-                else:
-                    log("w44 files resize: hairline lost after the drag")
-            else:
-                log("w44 files resize: no window hairline found")
+            grew = drag_right_edge(q, f"{OUT}/02b-files-restored.png",
+                                   "02c-files-resized", W, H)
+            w44_files_ok = grew >= 100
         except Exception as e:
             log(f"w44 files resize probe failed: {e}")
         q.key("alt", "f4"); time.sleep(5)
@@ -1931,24 +1947,9 @@ def main():
     # BorderSize=Tiny (review W44.2), not another silent carry-over.
     try:
         q.shot("03b-term-before")
-        st = window_hairline(f"{OUT}/03b-term-before.png", scan_to=200)
-        if st:
-            top, x0, run_len = st
-            rx = x0 + run_len - 3
-            ry = min(top + 220, H - 40)
-            q.drag(rx, ry, rx + 160, ry, W, H)
-            time.sleep(2.5)
-            q.shot("03b-term-resized")
-            st2 = window_hairline(f"{OUT}/03b-term-resized.png", scan_to=200)
-            if st2:
-                grew = st2[2] - st[2]
-                log(f"w44 terminal resize: run {st[2]} -> {st2[2]} "
-                    f"(grew {grew} px)")
-                w44_terminal_ok = grew >= 100
-            else:
-                log("w44 terminal resize: hairline lost after the drag")
-        else:
-            log("w44 terminal resize: no window hairline found")
+        grew = drag_right_edge(q, f"{OUT}/03b-term-before.png",
+                               "03b-term-resized", W, H)
+        w44_terminal_ok = grew >= 100
     except Exception as e:
         log(f"w44 terminal resize probe failed: {e}")
     if opens.get("terminal"):
@@ -2285,7 +2286,11 @@ def main():
     except Exception as e:
         log(f"cc shortcut capture failed: {e}")
 
-    q.click(W - 60, 14, W, H)            # panel right cluster -> Control Center
+    q.click(W - 19, 14, W, H)            # panel CC glyph (the cluster's
+                                         # last item: spans W-28..W-10;
+                                         # W-60 lands in the CLOCK's hit
+                                         # area since T15-D10 — the first
+                                         # run opened the calendar here)
     time.sleep(3)
     q.shot("05-control-center")
 
