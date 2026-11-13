@@ -368,7 +368,7 @@ void Util::windowListChanged(const QString &json)
     emit runningCmdsChanged();
 }
 
-void Util::activateOrLaunch(const QString &cmd, const QString &launch)
+void Util::activateOrLaunch(const QString &cmd, const QString &resolved)
 {
     // W27 — the reviewer's ruling: "if a window with that app-id exists
     // -> workspace.activeWindow = win / unminimize via the KWin script;
@@ -399,7 +399,10 @@ void Util::activateOrLaunch(const QString &cmd, const QString &launch)
         kwinRc.sync();
         return;
     }
-    launch(launch.isEmpty() ? cmd : launch);
+    // the resolved-Exec parameter MUST NOT be named launch: it would
+    // shadow Util::launch and the call would compile as a call on a
+    // QString (the exact error the v0.6.51 Shell CI caught).
+    launch(resolved.isEmpty() ? cmd : resolved);
 }
 
 void Util::quitApp(const QString &head)

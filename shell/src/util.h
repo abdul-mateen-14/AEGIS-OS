@@ -133,7 +133,7 @@ public:
     // the windowwatch script picks it up); otherwise the command
     // launches normally (with the launch field's resolved Exec).
     Q_INVOKABLE void activateOrLaunch(const QString &cmd,
-                                      const QString &launch = QString());
+                                      const QString &resolved = QString());
 
     // W36.2 — the dock tile menu's actions. quitApp kills the app's
     // process group by head (the same key the tracking uses); emptyTrash
