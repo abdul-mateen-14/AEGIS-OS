@@ -131,6 +131,9 @@ W45 -> W46+W47. Every fix ships with its red-able probe (W23 rule).
   chevrons, the CC sheet's exact entry motion), closes on CC open or
   a window opening (the W20-style predicate). Util.calendarOpen +
   toggleCalendar; the clock hit target is the clock box +- 8 px.
+- Release status: tag v0.6.56 pushed, Release run 43442526088 GREEN
+  (ISO published), Boot Test dispatched on the runner.
+
 - CI bring-up: two compile fixes the free-runner Shell CI caught
   (the calendarOpen/setCalendarOpen accessors were referenced before
   declared; Governor.cpp needed the QDBusPendingCall include for
