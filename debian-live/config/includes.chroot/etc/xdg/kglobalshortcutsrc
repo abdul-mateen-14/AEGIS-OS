@@ -25,12 +25,12 @@
 # them.
 
 [kwin]
-Window Close=Meta+Q	Alt+F4,None,Close Window
-Window Minimize=Meta+M,None,Minimize Window
-Show Desktop=Meta+D,None,Peek at Desktop
-Overview=Meta+W,None,Toggle Overview
-Edit Tiles=Meta+T,None,Toggle Tiles Editor
-Switch One Desktop to the Right=Ctrl+Meta+Right,None,Switch One Desktop to the Right
-Switch One Desktop to the Left=Ctrl+Meta+Left,None,Switch One Desktop to the Left
-Switch One Desktop Up=Ctrl+Meta+Up,None,Switch One Desktop Up
-Switch One Desktop Down=Ctrl+Meta+Down,None,Switch One Desktop Down
+Window Close=Meta+Q	Alt+F4,none,Close Window
+Window Minimize=Meta+M,none,Minimize Window
+Show Desktop=Meta+D,none,Peek at Desktop
+Overview=Meta+W,none,Toggle Overview
+Edit Tiles=Meta+T,none,Toggle Tiles Editor
+Switch One Desktop to the Right=Ctrl+Meta+Right,none,Switch One Desktop to the Right
+Switch One Desktop to the Left=Ctrl+Meta+Left,none,Switch One Desktop to the Left
+Switch One Desktop Up=Ctrl+Meta+Up,none,Switch One Desktop Up
+Switch One Desktop Down=Ctrl+Meta+Down,none,Switch One Desktop Down

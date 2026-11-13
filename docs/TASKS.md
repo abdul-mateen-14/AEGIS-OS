@@ -214,6 +214,45 @@ animation cannot be dock-anchored from our JS effect on 6.6.
   flips over serial (DND already has its capture), the Drivers pane
   placeholder is dead no more (D23).
 - D27 — boot run + ship v0.6.51.
+- D28 — v0.6.51 BOOT RUN RED, three root causes in one artifact chain
+  (run 43361014310, failed at the T7 header assert):
+  1. THE SHORTCUT PINS WERE INVISIBLE. The harness Meta+M dumped the
+     payload with count=1, ids still carrying aegis-files — the window
+     never minimized, because Meta+M is NOT a stock KWin binding and the
+     pinned dictionary never loaded: kglobalacceld opens
+     kglobalshortcutsrc with KConfig::SimpleConfig (= 0x00, "just a
+     single config file" — verified against kconfig.h:97), so /etc/xdg/
+     is NOT in its cascade. FIX: aegis-session seeds
+     $HOME/.config/kglobalshortcutsrc from /etc/xdg before the daemon
+     starts, and the file's defaults field is lowercase "none" (the
+     daemon's keysFromString compares "none" case-sensitively and an
+     invalid default would insert an empty QKeySequence). The aegis
+     -shortcuts RUNTIME registrations were never in doubt: the launcher
+     capture diffed 23.6 vs home — Meta+Space genuinely opened the
+     launcher through KGlobalAccel.
+  2. THE ACTIVATION RACE. After the dock click the payload read active:
+     "" — the click's own focus processing undid the one-shot
+     workspace.activeWindow = w. The trailing alt+F4 then fired on NO
+     active window (kglobalacceld grabs Alt+F4 for kwin's Window Close —
+     the app-level Qt theme shortcut never sees it once the daemon
+     owns the binding), files stayed on screen, and the header assert's
+     hairline detector picked up FILES' top edge at y=105, 7 px above
+     the real terminal top at y=112 — "terminal dot drop 27.5" was the
+     wrong window's anatomy, not a caption regression (the terminal dot
+     cy is 132.5 in BOTH runs; measured on both captures).
+     FIX: the script keeps the request PENDING for ~1.2 s and re-applies
+     it every tick while the active class does not match (self-healing;
+     a foreign focus change after the settle wins). The harness dumps
+     the kwinrc request line as a diagnostic.
+  3. THE BLUEZ STALL. BluetoothBackend's constructor ran bluetoothctl
+     show on EVERY apps-main launch; with no adapter the DBus activation
+     waited toward the 25 s system-bus timeout (fwupd triggered it, the
+     journal shows the bluez service skipped on
+     ConditionPathIsDirectory=/sys/class/bluetooth). FIX: the backend
+     mirrors the unit's own condition — no /sys/class/bluetooth, no
+     bluetoothctl round trip, straight to the honest "noadapter" state.
+  Ship: v0.6.52 = the three fixes + nothing else; the choreography
+  returns to the proven path once Meta+M actually minimizes.
 
 ### Status
 

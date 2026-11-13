@@ -1098,6 +1098,18 @@ public:
             emit changed();
             return;
         }
+        // D28 — the v0.6.51 run: on a machine without an adapter,
+        // bluetoothctl show waits for the bluez DBus activation (up to
+        // the 25 s system-bus timeout — visible in the guest journal) and
+        // every apps-main launch stalled 2.5 s in this constructor. The
+        // bluez systemd unit itself gates on /sys/class/bluetooth
+        // (ConditionPathIsDirectory) — mirror exactly that check: no sysfs
+        // dir means no adapter, no bluetoothctl round trip at all.
+        if (!QDir(QStringLiteral("/sys/class/bluetooth")).exists()) {
+            m_state = QStringLiteral("noadapter");
+            emit changed();
+            return;
+        }
         QProcess show;
         show.start(bt, {QStringLiteral("show")});
         show.waitForFinished(2500);

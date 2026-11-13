@@ -60,6 +60,16 @@ command -v kded6 >/dev/null 2>&1 && kded6 >/dev/null 2>&1 &
 # ships via plasma-workspace Depends >= 6.2.90). Without it the pinned
 # kglobalshortcutsrc dictionary is inert and the aegis-shortcuts script's
 # registerShortcut calls go nowhere. Start it like kded6: present-or-skip.
+# T13 D28 — the daemon opens kglobalshortcutsrc with KConfig::SimpleConfig
+# (= no cascading, verified against kconfig.h:97): the /etc/xdg pins are
+# INVISIBLE to it. Seed the user file from the system pins before the
+# daemon starts; the aegis-shortcuts script's runtime registrations merge
+# into the same file afterwards.
+if [ -f /etc/xdg/kglobalshortcutsrc ] && [ ! -f "$HOME/.config/kglobalshortcutsrc" ]; then
+    mkdir -p "$HOME/.config"
+    cp /etc/xdg/kglobalshortcutsrc "$HOME/.config/kglobalshortcutsrc"
+    echo "kglobalshortcutsrc: seeded the user file from the system pins"
+fi
 for KGA in /usr/lib/x86_64-linux-gnu/libexec/kglobalacceld /usr/libexec/kglobalacceld; do
     [ -x "$KGA" ] && "$KGA" >/dev/null 2>&1 &
     break

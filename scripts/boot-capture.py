@@ -1638,6 +1638,20 @@ def main():
             files_idx = tile_index.get("aegis-files", 0)
             q.click(*tiles[files_idx], W, H)
             time.sleep(6)
+            # D28 diagnostic — did the shell actually write the request?
+            # The v0.6.51 run showed active:"" after the click with no
+            # visibility into the transport; this names the shell side
+            # (the file write) vs the script side (the activation).
+            if serial is not None:
+                try:
+                    req = serial.run(
+                        "grep -A3 Script-aegis-windowwatch "
+                        "~/.config/kwinrc 2>/dev/null; echo REQ-END",
+                        settle=2)
+                    log("w27 activate request: "
+                        + req.strip().replace("\n", " | ")[:220])
+                except Exception as e:
+                    log(f"w27 request dump failed: {e}")
             st2 = dump_window_state()
             if st2 is not None:
                 log("w27 after dock click: " + json.dumps(st2))

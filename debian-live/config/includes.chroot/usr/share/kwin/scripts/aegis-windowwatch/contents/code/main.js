@@ -110,9 +110,20 @@ function recount() {
 // external writes reparse). So the shell writes kwinrc
 // [Script-aegis-windowwatch] ActivateRequest/ActivateSeq (the same
 // QSettings transport the TileMap proves) and this poll picks it up.
+//
+// D28 — the v0.6.51 boot run caught the activation RACE: the dock click
+// itself clears the active window (the payload read active:"" right
+// after the click), so a one-shot activation could be undone by the
+// click's own focus processing. The request is therefore kept PENDING
+// for ~1.2 s and re-applied on every tick while the active window's
+// class does not match — self-healing, and a foreign focus change AFTER
+// the window settles is respected (the deadline ends the re-apply).
+var pendingClass = ""
+var pendingDeadline = 0
+
 function activateByClass(resourceClass) {
     if (!resourceClass)
-        return
+        return false
     var wins = workspace.stackingOrder
     for (var i = 0; i < wins.length; ++i) {
         var w = wins[i]
@@ -124,8 +135,18 @@ function activateByClass(resourceClass) {
         // workspace.activeWindow is WRITE (workspace_wrapper.h:34).
         try { w.minimized = false } catch (e) {}
         try { workspace.activeWindow = w } catch (e) {}
-        return
+        return true
     }
+    return false
+}
+
+function currentActiveClass() {
+    try {
+        if (workspace.activeWindow && workspace.activeWindow.normalWindow
+                && !isShellClass(workspace.activeWindow))
+            return String(workspace.activeWindow.resourceClass || "")
+    } catch (e) {}
+    return ""
 }
 
 var activateSeq = -1
@@ -134,11 +155,22 @@ activateTimer.interval = 150
 activateTimer.singleShot = false
 activateTimer.timeout.connect(function () {
     var seq = Number(readConfig("ActivateSeq", 0)) || 0
-    if (seq === activateSeq)
-        return
-    if (activateSeq >= 0 && seq > activateSeq)
-        activateByClass(String(readConfig("ActivateRequest", "")))
-    activateSeq = seq
+    if (seq !== activateSeq) {
+        if (activateSeq >= 0 && seq > activateSeq) {
+            pendingClass = String(readConfig("ActivateRequest", ""))
+            pendingDeadline = Date.now() + 1200
+        }
+        activateSeq = seq
+    }
+    if (pendingClass && Date.now() < pendingDeadline
+            && currentActiveClass() !== pendingClass) {
+        activateByClass(pendingClass)
+        recount()
+        if (currentActiveClass() === pendingClass)
+            pendingClass = ""
+    } else if (pendingClass) {
+        pendingClass = ""
+    }
 })
 activateTimer.start()
 print("aegis-windowwatch: activate poll armed")
