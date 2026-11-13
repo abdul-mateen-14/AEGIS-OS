@@ -1,6 +1,7 @@
 #include "util.h"
 
 #include <QColor>
+#include <QDebug>
 #include <QCryptographicHash>
 #include <QDateTime>
 #include <QDBusConnection>
@@ -19,6 +20,7 @@
 #include <QPainter>
 #include <QProcess>
 #include <QRegularExpression>
+#include <QSaveFile>
 #include <QSettings>
 #include <QStandardPaths>
 #include <QTextStream>
@@ -154,14 +156,66 @@ void Util::setDarkMode(bool dark)
     // installer's widget dialogs) read the scheme from kdeglobals, so the
     // rung swap lands there too. AegisDark / AegisLight ship in
     // /usr/share/color-schemes; GTK follows via aegis-gtk-sync.
-    const QString kg = QStandardPaths::writableLocation(
-                           QStandardPaths::HomeLocation)
-                       + QStringLiteral("/.config/kdeglobals");
-    QSettings scheme(kg, QSettings::IniFormat);
-    scheme.setValue(QStringLiteral("General/ColorScheme"),
-                    dark ? QStringLiteral("AegisDark")
-                         : QStringLiteral("AegisLight"));
-    scheme.sync();
+    //
+    // T13 D29 — the QSettings write did not land in the v0.6.52 boot run
+    // (the shell state flipped — the CC sheet re-rendered light — but
+    // ~/.config/kdeglobals still read AegisDark 2.5 s after the click).
+    // The precise QSettings failure mode is unproven (no local Qt to
+    // repro); the replacement is a deterministic QSaveFile rewrite that
+    // touches ONLY the ColorScheme line inside [General] and preserves
+    // everything else byte-for-byte (the W18 comment pins ride along).
+    // The theme state file gives the boot harness the same file-based
+    // verdict pattern the presentation toggle already uses.
+    const QString home = QStandardPaths::writableLocation(
+                             QStandardPaths::HomeLocation);
+    const QString kg = home + QStringLiteral("/.config/kdeglobals");
+    QDir(home).mkpath(QStringLiteral(".config"));
+    const QString schemeLine = QStringLiteral("ColorScheme=")
+        + (dark ? QStringLiteral("AegisDark")
+                : QStringLiteral("AegisLight"));
+    QFile in(kg);
+    QString body;
+    if (in.open(QIODevice::ReadOnly | QIODevice::Text)) {
+        QTextStream ts(&in);
+        body = ts.readAll();
+        in.close();
+    }
+    if (body.isEmpty())
+        body = QStringLiteral("[General]\n");
+    if (body.contains(QRegularExpression(
+            QStringLiteral("^ColorScheme=.*$"), QRegularExpression::MultilineOption))) {
+        body.replace(QRegularExpression(
+            QStringLiteral("^ColorScheme=.*$"), QRegularExpression::MultilineOption),
+            schemeLine);
+    } else if (body.contains(QRegularExpression(
+            QStringLiteral("^\\[General\\]\\s*$"), QRegularExpression::MultilineOption))) {
+        body.replace(QRegularExpression(
+            QStringLiteral("^\\[General\\]\\s*$"), QRegularExpression::MultilineOption),
+            QStringLiteral("[General]\n") + schemeLine);
+    } else {
+        body += QStringLiteral("\n[General]\n") + schemeLine + QStringLiteral("\n");
+    }
+    QSaveFile out(kg);
+    if (out.open(QIODevice::WriteOnly | QIODevice::Text)) {
+        out.write(body.toUtf8());
+        if (!out.commit())
+            qWarning() << "setDarkMode: kdeglobals commit failed:" << out.errorString();
+    } else {
+        qWarning() << "setDarkMode: kdeglobals open failed:" << out.errorString();
+    }
+    // file-based verdict for the boot gate (and honest diagnostics when
+    // the config write fails — the state file separates "shell applied"
+    // from "kdeglobals written" in the artifacts)
+    const QString stateDir = QStandardPaths::writableLocation(
+                                 QStandardPaths::GenericStateLocation)
+                             + QStringLiteral("/aegis-shell/aegis");
+    QDir().mkpath(stateDir);
+    QSaveFile st(stateDir + QStringLiteral("/theme"));
+    if (st.open(QIODevice::WriteOnly | QIODevice::Text)) {
+        st.write((dark ? QStringLiteral("dark\n") : QStringLiteral("light\n"))
+                     .toUtf8());
+        st.commit();
+    }
     emit darkModeChanged();
 }
 

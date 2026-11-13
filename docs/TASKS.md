@@ -135,7 +135,7 @@ W24-W37. TRIAGE against what already shipped in T12 (v0.6.35-v0.6.38):
   entry is now matched, the wrapper engaged, the sandbox flags reach
   electron.
 
-### batch 2 finish — v0.6.51 (DOING; opened 2026-11-13)
+### batch 2 finish — v0.6.51-v0.6.53 (DOING; opened 2026-11-13)
 
 The v0.6.50 green run unblocked the rest: the W20 island chain is
 proven, so W27 rides now. Everything below was verified against the
@@ -253,6 +253,78 @@ animation cannot be dock-anchored from our JS effect on 6.6.
      bluetoothctl round trip, straight to the honest "noadapter" state.
   Ship: v0.6.52 = the three fixes + nothing else; the choreography
   returns to the proven path once Meta+M actually minimizes.
+- D29 — v0.6.52 BOOT RUN RED, postmortem on run 43365428240 (four
+  assert failures, all four diagnosed against the artifacts; the rest
+  of the gate is the GREENEST EVER):
+  1. THE W27 PAIR RAN ON NO DATA. All three dump_window_state calls
+     died at "Expecting value: line 1 column 1 (char 0)" — the
+     harness parser only handled the bare-quote busctl form, but
+     busctl prints string replies as: s "{\"count\":0,...}" (the
+     TYPE LETTER first, then the string quoted with inner quotes
+     escaped — captured verbatim in the v0.6.50 raw diag). json.loads
+     failed on the leading s, dump_window_state returned None, and
+     both W27 verdicts defaulted false. The chain itself was ALIVE:
+     the island assert passed (home 27 px visible, files 0 px hidden)
+     and the activate-request kwinrc dump showed the shell writing
+     ActivateRequest=aegis-files / ActivateSeq=1 — the shell side of
+     activateOrLaunch worked on the first try. FIX: the parser strips
+     the s prefix, unquotes in the safe order (protect \\, unquote
+     \", restore \\), returns None only for a genuinely empty payload
+     (no push yet at idle home) and logs a raw excerpt when parsing
+     still fails. Whether Meta+M actually minimized stays UNKNOWN
+     until the next run reads the real payload.
+  2. THE PRESENTATION CLICK WAS 152 PX OFF. The modeled point
+     (434, 207) assumed pane content at y157, but the capture
+     (04l2-displays-on.png) puts the GlassSwitch indicator at
+     (433, 359): the AppWindow anatomy is 44 px titlebar + 52 px
+     opaque toolbar strip, and the pane body sits lower still — the
+     model missed the toolbar layer entirely. X was right (434 inside
+     the 415-452 pill), Y was never close. The click is now
+     SELF-CALIBRATING: the GlassSwitch knob is a 20 px pure-white
+     blob (255,255,255; the fg text tops out at 242 — measured), the
+     scan finds it in the indicator column, clicks it, re-scans after
+     the toggle (the knob moved to the track's right end) and clicks
+     again; fallback (433, 359) from the v0.6.52 measurement.
+  3. THE DARK TILE CLICK WAS NEVER THE PROBLEM. 05c-dark-toggled.png
+     shows Dark Mode UNCHECKED and the CC sheet re-rendered LIGHT
+     glass — the click at (1172, 234) landed and Util.setDarkMode
+     ran; 2.5 s later ~/.config/kdeglobals still read AegisDark. The
+     QSettings(kdeglobals, IniFormat) write did not land and the
+     precise failure mode is UNPROVEN (no local Qt to repro; the
+     skeleton file carries # comment lines that QSettings may not
+     treat as comments, but any successful sync would have rewritten
+     the token regardless — so the write itself did not reach disk).
+     FIX (removes the variable): util.cpp setDarkMode now does a
+     deterministic QSaveFile rewrite — read the file, replace ONLY
+     the ColorScheme line inside [General] (insert into [General]
+     when absent, append a section when the file is empty), commit
+     atomically, everything else byte-for-byte preserved (the W18
+     comment pins ride along) — and mirrors the rung into a theme
+     state file ~/.local/state/aegis-shell/aegis/theme (dark|light,
+     the same GenericStateLocation pattern as the presentation file).
+     qWarning on both failure branches.
+  4. THE GATE GREW THE MATCHING VERDICTS. The dark-tile probe now
+     rm -f's the theme file first, reads the state file after the
+     click (the shell-applied channel) and POLLS the kdeglobals
+     token up to three times (the config-write channel); both must
+     pass or the assert names which channel failed. The diag section
+     gained ===USER-KDEGLOBALS=== (ls -la + cat of ~/.config/
+     kdeglobals — ownership answers the write-permission question,
+     content answers the write). The two greps in the old probe
+     defined _token AFTER its first use (latent NameError on the
+     retry path) — fixed.
+  5. KNOWN-BENIGN, RECORDED: the click-map rebuild failed again with
+     "Coordinate 'right' is less than 'left'" — it also failed on the
+     v0.6.50 GREEN run; the config map (12 tiles) matches the guest
+     and every dock click landed, so the fallback is correct. Not
+     chased this cycle.
+  Everything else in run 43365428240 was GREEN: header geometry PASS,
+  xkb typing PASS (D28's kglobalshortcutsrc seed works — typed
+  keystrokes land in konsole), all six probes CLEAN, tint 395 /
+  monitor 801 / island 27-0 / magnify 4-28, all eleven app opens
+  with diffs (browser 11.9 attempt 0, os 29.5, corex 39.2 attempt 1,
+  store 19.4, trash 23.8), launcher + CC shortcut captures green,
+  MARK SPLASH CONFIRMED. v0.6.53 = these fixes only.
 
 ### Status
 

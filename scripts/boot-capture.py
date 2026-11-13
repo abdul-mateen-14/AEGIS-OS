@@ -654,6 +654,12 @@ def app_diag(serial):
         "echo ===COREDUMPCTL===; coredumpctl list --no-pager 2>&1 | tail -10",
         "echo ===KWINRC===; cat /etc/xdg/kwinrc 2>&1",
         "echo ===KDEGLOBALS===; cat /etc/xdg/kdeglobals 2>&1",
+        # T13 D29 — the USER kdeglobals is what setDarkMode writes and
+        # what the dark-tile gate greps; the skeleton dump above cannot
+        # answer "did the write land". Ownership in the listing answers
+        # the write-permission question too.
+        "echo ===USER-KDEGLOBALS===; ls -la ~/.config/kdeglobals 2>&1; "
+        "cat ~/.config/kdeglobals 2>&1; echo USER-KG-END",
         "echo ===SDDM-THEME===; ls /usr/share/sddm/themes/aegis/ 2>&1",
         # W20 — did KWin really load the windowwatch script? busctl asks
         # the scripting manager directly; the island auto-hide assert
@@ -1598,10 +1604,29 @@ def main():
             if not m:
                 return None
             payload = m.group(1).strip()
-            # busctl prints string replies quoted — strip and unescape
+            # T13 D29 — busctl prints string replies as: s "{...}" (the
+            # type letter, then the string QUOTED with inner quotes
+            # escaped — verified on the v0.6.50 raw diag). The v0.6.52
+            # parser only handled the bare-quote form, so every dump
+            # died at json char 0 and all three W27 verdicts ran on
+            # None. Unescape in the safe order (protect \\, unquote \",
+            # restore \\) and log a raw excerpt when parsing still
+            # fails so the next postmortem sees the reply verbatim.
+            if payload.startswith("s "):
+                payload = payload[2:].strip()
             if payload.startswith('"') and payload.endswith('"'):
-                payload = payload[1:-1].replace('\\"', '"')
-            return json.loads(payload)
+                payload = (payload[1:-1].replace("\\\\", "\x00")
+                           .replace('\\"', '"').replace("\x00", "\\"))
+            if not payload:
+                # windowListRaw empty = the script pushed nothing yet
+                # (a fresh idle home before the first window event)
+                return None
+            try:
+                return json.loads(payload)
+            except (ValueError, TypeError) as e:
+                log(f"window-state payload unparseable ({e}): "
+                    f"raw[:140]={payload[:140]!r}")
+                return None
         except Exception as e:
             log(f"window-state dump failed: {e}")
             return None
@@ -1740,11 +1765,9 @@ def main():
     # T13 D21/D23 — the Displays and Drivers panes, launched straight from
     # the serial shell (the 04b-aegis-id mechanism). The settings window
     # geometry is deterministic (x190..1089, y95..733 measured on the
-    # v0.6.50 captures for BOTH the dock launch and the serial launch):
-    # pane content starts y≈157 (header 44 + margins 18), the presentation
-    # toggle is the first row (indicator at the row's left edge, x≈434,
-    # y≈207). The state file is the file-based verdict; the second click
-    # restores off so the rest of the choreography runs unchanged.
+    # v0.6.50 captures for BOTH the dock launch and the serial launch) but
+    # the pane-internal row positions are NOT modeled anymore — the
+    # switch click is self-calibrating (knob scan below, T13 D29).
     presentation_on = False
     if serial is not None:
         try:
@@ -1758,7 +1781,32 @@ def main():
             q.shot("04l-displays")
             d = diff_px(thumb(f"{OUT}/04l-displays.png"), home)
             log(f"04l-displays: diff-vs-home={d:.1f}")
-            q.click(434, 207, W, H)
+
+            # T13 D29 — the v0.6.52 click used a modeled point (434, 207)
+            # and missed by ~150 px (the real GlassSwitch indicator sits
+            # at (433, 359) on the v0.6.52 capture — the pane body starts
+            # below the AppWindow 44 px titlebar + 52 px toolbar strip,
+            # which the model did not carry). The click is now
+            # SELF-CALIBRATING: the GlassSwitch knob is a 20 px PURE
+            # white blob (255, 255, 255 — the fg text tops out at 242)
+            # at the row's left edge; scan the indicator column, click
+            # the knob, fall back to the measured point when the scan
+            # finds nothing.
+            def knob_center(png):
+                im = Image.open(png).convert("RGB")
+                px = im.load()
+                pts = [(x, y) for y in range(180, 560)
+                       for x in range(402, 458)
+                       if min(px[x, y]) > 250]
+                if len(pts) < 60:
+                    return None
+                xs = [p[0] for p in pts]
+                ys = [p[1] for p in pts]
+                return ((min(xs) + max(xs)) // 2, (min(ys) + max(ys)) // 2)
+
+            kc = knob_center(f"{OUT}/04l-displays.png") or (433, 359)
+            log(f"presentation knob scan: {kc}")
+            q.click(kc[0], kc[1], W, H)
             time.sleep(2.5)
             q.shot("04l2-displays-on")
             out = serial.run("grep presentation= "
@@ -1768,7 +1816,10 @@ def main():
             log("presentation state: "
                 + ("ON (file verdict)" if presentation_on
                    else "MISSING — the toggle click did not land"))
-            q.click(434, 207, W, H)
+            # restore off — re-scan (the knob moved to the track's right
+            # end), fall back to the same measured point
+            kc2 = knob_center(f"{OUT}/04l2-displays-on.png") or (433, 359)
+            q.click(kc2[0], kc2[1], W, H)
             time.sleep(1.5)
             q.key("alt", "f4")
             time.sleep(5)
@@ -1934,27 +1985,49 @@ def main():
     # top-right margins 16, header 30, tiles 152x64 with 12 gaps — the
     # Dark Mode tile is row 2 col 2, center (1172, 234); cross-checked
     # against the measured DND knob x 1206-1222 from the v0.6.20
-    # capture), assert the kdeglobals token flipped over serial
-    # (darkMode defaults ON — the first click goes LIGHT), restore.
+    # capture — and PROVEN live on the v0.6.52 capture: the sheet
+    # re-rendered light and the tile went unchecked, so the CLICK is
+    # good; the v0.6.52 failure was the kdeglobals WRITE, which
+    # setDarkMode now performs as a deterministic QSaveFile rewrite
+    # (util.cpp T13 D29) and mirrors into a theme state file. The
+    # verdict is the state file (the pattern every other gate uses)
+    # PLUS the kdeglobals token polled up to three times over serial.
     dark_flipped = False
+    theme_light = False
     if serial is not None:
         try:
+            serial.run("rm -f ~/.local/state/aegis-shell/aegis/theme; "
+                       "echo THEME-CLEAN", settle=2)
             before = serial.run("grep ColorScheme "
                                 "~/.config/kdeglobals 2>/dev/null | head -1; "
                                 "echo TOKEN-END", settle=2)
             q.click(1172, 234, W, H)
             time.sleep(2.5)
             q.shot("05c-dark-toggled")
-            after = serial.run("grep ColorScheme "
-                               "~/.config/kdeglobals 2>/dev/null | head -1; "
-                               "echo TOKEN-END", settle=2)
-            def _token(s):
+            state_out = serial.run(
+                "cat ~/.local/state/aegis-shell/aegis/theme 2>/dev/null; "
+                "echo THEME-END", settle=2)
+            theme_light = "light" in state_out
+
+            def _tok(s):
                 m = re.search(r"ColorScheme=(Aegis\w+)", s)
                 return m.group(1) if m else ""
-            tb, ta = _token(before), _token(after)
+
+            after = ""
+            for _ in range(3):
+                after = serial.run("grep ColorScheme "
+                                   "~/.config/kdeglobals 2>/dev/null | head -1; "
+                                   "echo TOKEN-END", settle=2)
+                if _tok(after) != _tok(before) and _tok(after):
+                    break
+                time.sleep(1.5)
+            tb, ta = _tok(before), _tok(after)
             dark_flipped = bool(tb) and bool(ta) and tb != ta
             log(f"dark tile verdict: {tb or 'none'} -> {ta or 'none'} "
-                + ("PASS" if dark_flipped else "FAIL"))
+                + f"(state file: {'light' if theme_light else 'absent'}) "
+                + ("PASS" if dark_flipped and theme_light
+                   else "PASS on state file only" if theme_light
+                   else "FAIL"))
             q.click(1172, 234, W, H)
             time.sleep(1.5)
         except Exception as e:
@@ -2137,9 +2210,13 @@ def main():
         failures.append("W30.1: the presentation toggle click did not "
                         "write the state file — the toggle is dead or the "
                         "click point drifted")
-    if not dark_flipped:
-        failures.append("W37: the CC dark tile click did not flip "
-                        "kdeglobals ColorScheme — the tile is dead")
+    if not dark_flipped or not theme_light:
+        failures.append("W37: the dark tile verdict failed — "
+                        + ("state file missing (the shell never applied "
+                           "the toggle)" if not theme_light else
+                           "kdeglobals ColorScheme did not flip (the "
+                           "config write is still broken)")
+                        + " — see the dark tile verdict line")
 
     if failures:
         for f in failures:
