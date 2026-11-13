@@ -131,6 +131,11 @@ W45 -> W46+W47. Every fix ships with its red-able probe (W23 rule).
   chevrons, the CC sheet's exact entry motion), closes on CC open or
   a window opening (the W20-style predicate). Util.calendarOpen +
   toggleCalendar; the clock hit target is the clock box +- 8 px.
+- CI bring-up: two compile fixes the free-runner Shell CI caught
+  (the calendarOpen/setCalendarOpen accessors were referenced before
+  declared; Governor.cpp needed the QDBusPendingCall include for
+  asyncCall). Shell CI GREEN at 3ab3b7c.
+
 - D11 DONE in tree — probe wiring. QMP.drag (press-glide-release);
   traffic_lights_triple(); the Store probe (lights triple + red-light
   click -> payload/pixels closed); W44 resize probes (Files CSD +
