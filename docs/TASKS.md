@@ -15,6 +15,117 @@ cannot lose the plan.
 
 ---
 
+## T15 — v0.6.56: second real-VM round (VMware), review W38-W47 (DOING)
+
+Opened 2026-11-13 from the reviewer's AEGIS-OS UI v1.3 instructions
+(document AEGIS-v0.6.56-instructions.md, evidence base: the user's
+VMware Workstation run of v0.6.55 + repo audit at b8a6533). Every
+load-bearing line reference was re-verified against the tree before
+this entry was written; all confirmed. New W-numbering W38-W47.
+Structural lesson of the round (review §0): every green gate was
+earned on QEMU/virtio; the user demos on VMware/vmwgfx. One boot
+variant per hypervisor family from now on.
+
+Ship order (review §3): W41 -> W42 -> W38+W39+W40 -> W43+W44 ->
+W45 -> W46+W47. Every fix ships with its red-able probe (W23 rule).
+
+- D1 TODO (W41, blocker for every VM demo) — 0200-plymouth.hook.chroot
+  force-load loop: add vmwgfx qxl cirrus (loop already modinfo-guards
+  per kernel). boot-capture.py: add a second boot variant with
+  -vga vmware (QEMU emulates the VMware SVGA device, guest loads
+  vmwgfx — no Workstation needed); assert on BOTH variants: splash
+  frames non-black, no plymouthd DRM-master failure line in the
+  journal. virtio stays release-blocking; the vmware variant gates D1.
+- D2 TODO (W42, high) — aegis-electron-launch: append --no-first-run
+  --no-default-browser-check in ALL modes (VM-only --disable-gpu
+  --no-sandbox stays). 0900 hook: xdg-settings set default-web-browser
+  aegis-browser-stable.desktop after the deb block. ToS gate: the
+  gate lives in the AEGIS-BROWSER deb (external repo), not this tree —
+  download the r45 deb, locate the gate resource, neutralize it from
+  a chroot hook (accepted sentinel or resource patch), keep it honest
+  in the log. Probe: dock-launch the browser, assert main window in
+  the list, no window title contains Terms of Service, xdg-settings
+  get prints the Aegis entry, capture replaces 04g-browser.png.
+- D3 TODO (W38, high) — StoreApp.qml: replace the bare Window + hand
+  rolled 44 px band with the AppWindow anatomy (titlebar 44 + lights
+  + DragHandler + resize zones + clipped body). Real icons instead of
+  letter tiles: image://icons/<pkgs[0]> (QIcon::fromTheme provider
+  already exists in apps-main.cpp), letter tile only as fallback.
+  Probe: store opens via dock click, three traffic-light hues in the
+  titlebar strip, VLC row differs from the letter-tile capture, red
+  light click drops the window count. "Cannot close" becomes a red
+  CI verdict, not a user report.
+- D4 TODO (W39, high) — dead controls sweep. Wallpaper pane: wire
+  Rotate wallpapers daily (Util.setWallpaperRotateDaily persisted in
+  tokens.conf; shell wakes at 00:00 or session start and cycles the
+  four bundled wallpapers via the existing setWallpaper path) and
+  Focus-dim wallpaper (Governor effect key wallpaperDim; Desktop.qml
+  overlays an 18% black veil while a normal window is focused, 200 ms
+  ease). Desktop Effects: only real rows stay (motionSpring blurLive
+  blurAny shadowsHalf), checked binds live Governor state, onToggled
+  calls Governor.setEffect — needs a new Governor invokable that
+  applies user overrides over the tier map and persists them; cost
+  chips stay only on rows that toggle something; the tier-shortcut
+  rows (tierA tierAB tierC parallax) are deleted this cycle. Every
+  pane ColumnLayout gets a trailing Item Layout.fillHeight: true so
+  panes hug the top (the stretched layout is half the "not in proper
+  line" report). docs/CONTROLS.md re-audit; boot gate clicks the
+  wallpaper toggles and the effect toggles asserting config/state
+  change (W37 verdict pattern).
+- D5 TODO (W40, high) — GlassSwitch: padding 0, indicator gets
+  explicit x: 0 and y: (gs.height - 24) / 2 so the knob stays pinned
+  when a layout stretches the control; probe asserts the text ink
+  midline equals the pill midline within +-2 px on 04-settings.png.
+- D6 TODO (W43, high) — wired-first networking. Panel: paintWired
+  RJ45 glyph in the same 16 px / 2 px round-caps family, glyph picks
+  wired when !Util.hasWifi or a wired connection is active, wifi fan
+  otherwise, dim when disconnected; Util surfaces hasWifi + wired
+  state. Settings wired row gets real substance: current IP +
+  Connected + Disconnect/Reconnect (NM Device.Disconnect /
+  AddAndActivateConnection). One honest copy line for VMs: virtual
+  machines expose NAT as wired ethernet; wifi needs a physical radio.
+  Control Center wifi tile mirrors the state. Probe: the runner is
+  ethernet-only — assert the wired row renders Connected with an IP
+  and the top bar shows the wired glyph.
+- D7 TODO (W44, fix) — window mechanics. AppWindow: 8 px edge strips,
+  16 px corner zones, a second DragHandler over the 52 px toolbar's
+  empty stretches, double-click on the titlebar toggles maximize.
+  Decorated windows: input-inject an edge drag on Konsole and assert
+  geometry changed >= 100 px; same for a Files CSD window; if the
+  decorated path is not resizable in practice, flip kwinrc to
+  BorderSize=Tiny and re-assert W10 button geometry. Keep D25 tile
+  map republish intact.
+- D8 TODO (W45, design) — glyph family unification. Extract the
+  Panel painters into a shared Glyphs.qml; Settings sidebar gets the
+  SAME geometry (16 px optical canvas, 20 px tint circle, 1.8 px
+  stroke, round caps, white ink 92%). Per-row contract per the
+  review §2 W45 list (mountain, palette, sparkles, chip, monitor,
+  speaker kept, wifi arcs, person). Recapture 04-settings.png at 1:1;
+  item closes on visual sign-off of the capture.
+- D9 TODO (W46, fix + process) — live-session honesty. StoreBackend:
+  when /run/live/medium or /cdrom exists the Store sidebar shows a
+  persistent notice card (installs live in the overlay and are lost
+  on reboot) plus a button launching aegis-live-installer. After a
+  successful Calamares install show the completion dialog (remove
+  the ISO from the VM drive, then reboot). New docs/VM-DEMO.md:
+  VMware VM >= 24 GB disk, CD attached, CD-first boot order until a
+  disk install exists, NAT networking.
+- D10 TODO (W47) — the shell has no calendar (verified: zero hits),
+  so both interpretations get covered: (a) harden every TrafficLight
+  with a transparent 18x18 hit area, DragHandler stays passive on
+  the lights (no startSystemMove on a sub-threshold click);
+  (b) panel clock click opens a glass calendar popover (300x340
+  month grid, today accent, prev/next chevrons, closes on focus
+  loss, no traffic lights — it is a popover). The reviewer asked
+  which of the two the user hit; shipping both closes the report
+  without needing the answer.
+- D11 TODO — boot-capture probe wiring for all of the above +
+  CONTROLS.md statuses diffable for the next review. Release: tag
+  v0.6.56, Release CI, Boot Test (inputs.tag v0.6.56), captures to
+  docs/screenshots/v0.6.56/.
+
+---
+
 ## T14 — v0.6.42: the Store (user request) (DOING)
 
 Opened 2026-11-12 from the user ruling: "add an appstore with all the
