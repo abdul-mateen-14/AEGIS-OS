@@ -29,3 +29,4 @@ secrets/
 *.key
 __pycache__/
 debian-live/config/includes.chroot/opt/aegis-debs/
+qemu.log
