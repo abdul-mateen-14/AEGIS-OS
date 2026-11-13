@@ -217,6 +217,12 @@ animation cannot be dock-anchored from our JS effect on 6.6.
 
 ### Status
 
+- SHELL CI CAUGHT ONE (run 43357952556, red on 50f5a55): the resolved
+  Exec parameter of activateOrLaunch was named launch — it shadowed
+  Util::launch and the call compiled as a call on a QString. Renamed to
+  resolved (a8ee138); CI green on run 43358278199. Lesson: the local
+  audit checks JS and QML but not C++ — qml-guard's range does not
+  cover the shadowing class of error; the CI compile IS the C++ gate.
 - D20-D26 IN TREE (v0.6.51 tag next). D20: the payload carries allIds +
   active; the 150 ms poll executor is armed in the windowwatch script
   (marker: "aegis-windowwatch: activate poll armed"); Util
