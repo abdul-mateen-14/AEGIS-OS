@@ -132,9 +132,18 @@ Window {
                 // round caps, Tokens.fg at 90%, 18 px hit targets.
                 // Battery is always on the bar — on machines without a
                 // battery pack (the boot-test VM) it reads as AC power.
-                PanelGlyph { painter: panelRoot.paintWifi
-                             tint: Util.wifiEnabled ? panelRoot.statusTint
-                                                    : panelRoot.dimTint }
+                // T15-D6 (W43) — the link glyph picks the story the
+                // machine actually has: wired ethernet when there is no
+                // radio or the wired link is up (VMs expose NAT as
+                // ethernet — a Wi-Fi fan on those machines is a lie),
+                // the fan otherwise; dim when nothing is connected.
+                PanelGlyph { painter: (Util.hasWifi && !Util.wiredConnected)
+                                       ? panelRoot.paintWifi
+                                       : panelRoot.paintWired
+                             tint: (Util.wiredConnected
+                                    || (Util.hasWifi && Util.wifiEnabled))
+                                   ? panelRoot.statusTint
+                                   : panelRoot.dimTint }
 
                 PanelGlyph { painter: panelRoot.paintSpeaker
                              muted: Util.muted
@@ -272,6 +281,40 @@ Window {
             ctx.closePath()
             ctx.fill()
         }
+    }
+
+    // T15-D6 (W43) — wired ethernet, same 16 px optical / 2 px stroke /
+    // round caps family: an RJ45 plug — stepped body + cable nub. Ink
+    // spans y 4.5..11.5 (center 8, on the speaker/clock midline).
+    function paintWired(ctx, w, h, color) {
+        ctx.reset()
+        ctx.fillStyle = color
+        ctx.strokeStyle = color
+        ctx.lineWidth = 2
+        ctx.lineJoin = "round"
+        ctx.lineCap = "round"
+        const cx = w / 2
+        // connector body: a squared C shape — top bar down both sides,
+        // open at the bottom where the cable enters
+        ctx.beginPath()
+        ctx.moveTo(cx - 3.5, 4.5)          // top-left
+        ctx.lineTo(cx + 3.5, 4.5)
+        ctx.lineTo(cx + 3.5, 11.5)         // right side down
+        ctx.moveTo(cx - 3.5, 4.5)          // left side down
+        ctx.lineTo(cx - 3.5, 11.5)
+        ctx.stroke()
+        // the three contact pins, dropped from the top bar
+        for (const off of [-1.8, 0, 1.8]) {
+            ctx.beginPath()
+            ctx.moveTo(cx + off, 4.5)
+            ctx.lineTo(cx + off, 7.5)
+            ctx.stroke()
+        }
+        // cable nub below the body
+        ctx.beginPath()
+        ctx.moveTo(cx, 11.5)
+        ctx.lineTo(cx, 13.2)
+        ctx.stroke()
     }
 
     // Battery body — 2 px outline, level fill, bolt for charge/AC.

@@ -1719,8 +1719,9 @@ Window {
             Repeater {
                 model: Network.wired
                 delegate: Rectangle {
+                    id: wiredRow
                     Layout.fillWidth: true
-                    Layout.preferredHeight: 38
+                    Layout.preferredHeight: modelData.active ? 62 : 38
                     radius: 8
                     color: Util.darkMode ? "#1E2026" : "#FFFFFF"
                     border.color: Tokens.glassBorder
@@ -1734,16 +1735,50 @@ Window {
                                                     : (modelData.plugged ? Tokens.accent
                                                                          : (Util.darkMode ? "#3A3D45" : "#C6CCD8"))
                         }
-                        Text {
-                            text: "Wired — " + modelData.iface
-                            font.pixelSize: 12; color: Tokens.fg
+                        ColumnLayout {
+                            spacing: 2
                             Layout.fillWidth: true
+                            // T15-D6 (W43) — the row carries real substance:
+                            // iface + Connected + the live IPv4 (a row that
+                            // says only "Wired — ens160: Connected" reads
+                            // inert; the user concluded "no ethernet option"
+                            // from exactly such a row)
+                            Text {
+                                text: "Wired — " + modelData.iface
+                                      + (modelData.active
+                                         ? " · Connected · " + Util.wiredIp
+                                         : (modelData.plugged ? " · Cable connected"
+                                                              : " · Cable unplugged"))
+                                font.pixelSize: 12; color: Tokens.fg
+                                Layout.fillWidth: true
+                                elide: Text.ElideMiddle
+                            }
+                            // the honest VM line: NAT IS wired; a radio
+                            // cannot exist there — stops the "where is the
+                            // Wi-Fi toggle" hunt before it starts
+                            Text {
+                                visible: modelData.active
+                                text: "Virtual machines expose NAT as wired ethernet; Wi-Fi needs a physical radio"
+                                font.pixelSize: 10; color: Tokens.fgMuted
+                                Layout.fillWidth: true
+                                elide: Text.ElideRight
+                            }
                         }
-                        Text {
-                            text: modelData.active ? "Connected"
-                                                   : (modelData.plugged ? "Cable connected"
-                                                                        : "Cable unplugged")
-                            font.pixelSize: 11; color: Tokens.fgMuted
+                        // T15-D6 — Disconnect / Reconnect: real NM actions
+                        // (nmcli device disconnect/connect), not chrome
+                        AbstractButton {
+                            visible: modelData.active
+                            Layout.preferredHeight: 26; Layout.preferredWidth: 88
+                            contentItem: Text { text: "Disconnect"; font.pixelSize: 11; color: Tokens.fg; horizontalAlignment: Text.AlignHCenter; verticalAlignment: Text.AlignVCenter }
+                            background: Rectangle { radius: 8; color: Util.darkMode ? "#262930" : "#E8ECF4"; border.color: Tokens.glassBorder }
+                            onClicked: Util.disconnectWired(modelData.iface)
+                        }
+                        AbstractButton {
+                            visible: !modelData.active
+                            Layout.preferredHeight: 26; Layout.preferredWidth: 88
+                            contentItem: Text { text: "Reconnect"; font.pixelSize: 11; color: "#FFFFFF"; horizontalAlignment: Text.AlignHCenter; verticalAlignment: Text.AlignVCenter }
+                            background: Rectangle { radius: 8; color: Tokens.accent }
+                            onClicked: Util.reconnectWired(modelData.iface)
                         }
                     }
                 }

@@ -122,11 +122,26 @@ Window {
                             rowSpacing: 12
                             width: parent.width
 
+                            // T15-D6 (W43) — the tile tells the story the
+                            // machine actually has. A radio-less VM (NAT =
+                            // ethernet) shows the wired glyph + accent when
+                            // connected and toggles Disconnect/Reconnect —
+                            // CC and Settings agree.
                             CcTile {
-                                label: "Wi-Fi"
-                                checked: Util.wifiEnabled
-                                painter: ccRoot.paintWifi
-                                onToggled: Util.setWifiEnabled(!Util.wifiEnabled)
+                                label: Util.hasWifi ? "Wi-Fi" : "Ethernet"
+                                checked: Util.hasWifi
+                                         ? Util.wifiEnabled
+                                         : Util.wiredConnected
+                                painter: Util.hasWifi ? ccRoot.paintWifi
+                                                      : ccRoot.paintWired
+                                onToggled: {
+                                    if (Util.hasWifi)
+                                        Util.setWifiEnabled(!Util.wifiEnabled)
+                                    else if (Util.wiredConnected)
+                                        Util.disconnectWired(Util.wiredIface)
+                                    else
+                                        Util.reconnectWired(Util.wiredIface)
+                                }
                             }
                             CcTile {
                                 label: "Bluetooth"
@@ -326,6 +341,34 @@ Window {
         ctx.beginPath()
         ctx.arc(cx, cy, 1.6, 0, Math.PI * 2)
         ctx.fill()
+    }
+
+    // T15-D6 (W43) — the RJ45 plug for radio-less machines (VMs): same
+    // 1.6 px stroke family as the CC wifi fan.
+    function paintWired(ctx, w, h, color) {
+        ctx.reset()
+        ctx.strokeStyle = color
+        ctx.lineWidth = 1.6
+        ctx.lineCap = "round"
+        ctx.lineJoin = "round"
+        const cx = w / 2
+        ctx.beginPath()
+        ctx.moveTo(cx - 4.5, 3.5)
+        ctx.lineTo(cx + 4.5, 3.5)
+        ctx.lineTo(cx + 4.5, 11.5)
+        ctx.moveTo(cx - 4.5, 3.5)
+        ctx.lineTo(cx - 4.5, 11.5)
+        ctx.stroke()
+        for (const off of [-2.4, 0, 2.4]) {
+            ctx.beginPath()
+            ctx.moveTo(cx + off, 3.5)
+            ctx.lineTo(cx + off, 7.0)
+            ctx.stroke()
+        }
+        ctx.beginPath()
+        ctx.moveTo(cx, 11.5)
+        ctx.lineTo(cx, 13.5)
+        ctx.stroke()
     }
 
     function paintBluetooth(ctx, w, h, color) {

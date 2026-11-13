@@ -111,6 +111,10 @@ W45 -> W46+W47. Every fix ships with its red-able probe (W23 rule).
   /run/live/medium + /cdrom predicate) and openInstaller(); the Store
   sidebar shows the amber notice card (installs to the overlay, lost
   on reboot) with a Run installer button when liveSession is true.
+- D9.2 TODO (W46.2) — after a successful Calamares install show the
+  completion dialog (remove the ISO from the VM drive, then reboot);
+  new docs/VM-DEMO.md: VMware VM >= 24 GB disk, CD attached, CD-first
+  boot order until a disk install exists, NAT networking.
 - D10 TODO (W47) — the shell has no calendar (verified: zero hits),
   so both interpretations get covered: (a) harden every TrafficLight
   with a transparent 18x18 hit area, DragHandler stays passive on

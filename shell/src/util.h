@@ -50,6 +50,18 @@ class Util : public QObject {
     // hardware states (Control Center tiles, panel status cluster)
     Q_PROPERTY(bool wifiEnabled READ wifiEnabled NOTIFY linkStatesChanged)
     Q_PROPERTY(bool bluetoothEnabled READ bluetoothEnabled NOTIFY linkStatesChanged)
+    // T15-D6 (W43) — wired ethernet is first-class: the user demos on VMs
+    // (NAT = ethernet, no radio at all) and the panel must say so
+    Q_PROPERTY(bool hasWifi READ hasWifi NOTIFY linkStatesChanged)
+    Q_PROPERTY(bool wiredConnected READ wiredConnected NOTIFY linkStatesChanged)
+    Q_PROPERTY(QString wiredIp READ wiredIp NOTIFY linkStatesChanged)
+    Q_PROPERTY(QString wiredIface READ wiredIface NOTIFY linkStatesChanged)
+    bool hasWifi() const { return m_hasWifi; }
+    bool wiredConnected() const { return m_wiredConnected; }
+    QString wiredIp() const { return m_wiredIp; }
+    QString wiredIface() const { return m_wiredIface; }
+    Q_INVOKABLE void disconnectWired(const QString &iface);
+    Q_INVOKABLE void reconnectWired(const QString &iface);
     Q_PROPERTY(bool muted READ muted NOTIFY linkStatesChanged)
     Q_PROPERTY(qreal volume READ volume NOTIFY linkStatesChanged)
     Q_PROPERTY(qreal brightness READ brightness NOTIFY linkStatesChanged)
@@ -303,6 +315,10 @@ private:
     bool m_launcherOpen = false;
     bool m_wifiEnabled = false;
     bool m_bluetoothEnabled = false;
+    bool m_hasWifi = false;
+    bool m_wiredConnected = false;
+    QString m_wiredIp;
+    QString m_wiredIface;
     bool m_muted = false;
     qreal m_volume = 0.5;
     qreal m_brightness = -1.0;

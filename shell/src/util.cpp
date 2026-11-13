@@ -781,6 +781,65 @@ void Util::refreshLinkStates()
         m_wifiEnabled = false;
     }
 
+    // T15-D6 (W43) — wired ethernet is FIRST-CLASS. A radio exists only
+    // when a net device carries the wireless subtree; the VMs the user
+    // demos on expose NAT as plain ethernet and have none. The panel
+    // glyph and the CC tile pick the wired story from hasWifi +
+    // wiredConnected instead of painting a Wi-Fi fan that can never exist.
+    m_hasWifi = false;
+    m_wiredConnected = false;
+    m_wiredIp.clear();
+    m_wiredIface.clear();
+    const QDir net(QStringLiteral("/sys/class/net"));
+    const auto netDevs = net.entryList(QDir::NoDotAndDotDot);
+    for (const QString &dev : netDevs) {
+        if (QFileInfo::exists(net.filePath(dev)
+                              + QStringLiteral("/wireless")))
+            m_hasWifi = true;
+    }
+    if (!nmcli.isEmpty()) {
+        QProcess p;
+        p.start(nmcli, {QStringLiteral("-t"), QStringLiteral("-f"),
+                        QStringLiteral("TYPE,STATE,DEVICE"),
+                        QStringLiteral("device"), QStringLiteral("status")});
+        p.waitForFinished(1500);
+        // terse lines: ethernet:connected:ens160 (the \: escaping only
+        // appears in values that carry colons — none of these fields do)
+        QString wiredDev;
+        const QStringList rows = QString::fromUtf8(p.readAllStandardOutput())
+                                     .split(QLatin1Char('\n'), Qt::SkipEmptyParts);
+        for (const QString &ln : rows) {
+            const QStringList f = ln.split(QLatin1Char(':'));
+            if (f.size() >= 3 && f.at(0) == QStringLiteral("ethernet")) {
+                // remember the first ethernet device REGARDLESS of state —
+                // the disconnected case is exactly when Reconnect needs it
+                if (m_wiredIface.isEmpty())
+                    m_wiredIface = f.at(2);
+                if (f.at(1) == QStringLiteral("connected")) {
+                    m_wiredConnected = true;
+                    wiredDev = f.at(2);
+                    break;
+                }
+            }
+        }
+        if (m_wiredConnected && !wiredDev.isEmpty()) {
+            QProcess p2;
+            p2.start(nmcli, {QStringLiteral("-t"), QStringLiteral("-f"),
+                             QStringLiteral("IP4.ADDRESS"),
+                             QStringLiteral("device"), QStringLiteral("show"),
+                             wiredDev});
+            p2.waitForFinished(1500);
+            const QString ipOut = QString::fromUtf8(p2.readAllStandardOutput());
+            // IP4.ADDRESS[1]:192.168.x.x/24
+            const int c = ipOut.indexOf(QLatin1Char(':'));
+            if (c > 0) {
+                const QString ip = ipOut.mid(c + 1).trimmed();
+                if (!ip.isEmpty())
+                    m_wiredIp = ip;
+            }
+        }
+    }
+
     // Bluetooth — first rfkill "bluetooth" device, soft/hard blocked?
     m_bluetoothEnabled = false;
     QDir rfkill(QStringLiteral("/sys/class/rfkill"));
@@ -848,6 +907,29 @@ void Util::setWifiEnabled(bool on)
                             {QStringLiteral("radio"), QStringLiteral("wifi"),
                              on ? QStringLiteral("on") : QStringLiteral("off")});
     QTimer::singleShot(1200, this, &Util::refreshLinkStates);
+}
+
+// ── T15-D6 (W43) — wired Disconnect / Reconnect (Settings wired row) ───
+// nmcli device disconnect + connect (the stored profile is reused; NM
+// D-Bus Device.Disconnect / AddAndActivateConnection under the hood).
+void Util::disconnectWired(const QString &iface)
+{
+    if (iface.isEmpty())
+        return;
+    QProcess::startDetached(QStringLiteral("nmcli"),
+                            {QStringLiteral("device"),
+                             QStringLiteral("disconnect"), iface});
+    QTimer::singleShot(1200, this, &Util::refreshLinkStates);
+}
+
+void Util::reconnectWired(const QString &iface)
+{
+    if (iface.isEmpty())
+        return;
+    QProcess::startDetached(QStringLiteral("nmcli"),
+                            {QStringLiteral("device"),
+                             QStringLiteral("connect"), iface});
+    QTimer::singleShot(1500, this, &Util::refreshLinkStates);
 }
 
 void Util::setBluetoothEnabled(bool on)
