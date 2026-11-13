@@ -578,7 +578,11 @@ def vmware_boot_check():
     sddm_state = kwin_procs = None
     try:
         serial = Serial(SERIAL_SOCK)
-        if serial.login():
+        # cycles=10 — the vmware boot stalls minutes before settling (run
+        # 6: a ~5-minute silence between 59 s and 358 s while the
+        # displayless session thrashed); the login probe gets the room to
+        # ride out the stall and any getty respawn.
+        if serial.login(cycles=10):
             log("serial login OK (vmware variant)")
             out = serial.run(
                 "lsmod | grep vmwgfx | head -2; echo VMWGFX-END; "
@@ -747,7 +751,8 @@ class Serial:
     def send(self, text):
         self.s.send(text.encode())
 
-    def login(self, user="aegis", passwords=("aegis", "", "live", "root", "ubuntu")):
+    def login(self, user="aegis",
+              passwords=("", "aegis", "live", "root", "ubuntu"), cycles=5):
         """Open a shell on the serial console. Marker-2 trick: a real shell
         evaluates $((1+1)); a login prompt echoes it literally and logs a
         FAILED LOGIN, so a plain substring match cannot false-positive.
@@ -759,12 +764,27 @@ class Serial:
         a shell prompt is actually on screen — typed at the getty prompt it
         becomes the next USERNAME ('aegis login: echo MARKER-...') and
         every later credential lands in the wrong field until getty times
-        out 60 s later. 'aegis' is the working live password (empty fails:
-        'FAILED LOGIN 1 FOR aegis, Authentication failure' on the v0.6.14
-        run); Ctrl-U (\x15) resyncs a half-typed line before each try."""
+        out 60 s later. Ctrl-U (\x15) resyncs a half-typed line before
+        each try.
+
+        Boot run 6 (v0.6.59) — the password tuple rides the blank FIRST:
+        casper's 25adduser keeps the live user's password blank (crypt
+        hash U6aMy0wojraho) and the 0610-live-auth hook restores nullok on
+        pam_unix precisely so the BLANK password authenticates on the
+        serial getty — 'aegis' as the first candidate NEVER matched and
+        burned FAILED LOGIN 1 on every run since, and the getty's
+        post-failure pause then desynced the NEXT sends (run 6: the
+        marker trick itself became a username, FAILED LOGIN 3 FOR 'echo
+        MARKER-$((1+1))'). A failed login also counts against PAM's
+        retry cap (the getty exits after 4 — systemd respawns it), so a
+        failure now pauses 4 s (the getty's own failure pause) and a
+        PAM-exit pauses 9 s before the next cycle.
+
+        cycles bounds the outer probe loop (the vmware leg passes a
+        bigger budget — its boot stalls minutes before settling)."""
         self.buf = b""
         shell_rx = re.compile(rb"[$#] ?\r?$")
-        for _ in range(5):
+        for _ in range(cycles):
             self.buf = b""                       # fresh window per probe
             self.send("\n"); self._drain(1.5)
             if b"login:" in self.buf:
@@ -778,27 +798,41 @@ class Serial:
                 break
         if b"login:" not in self.buf and not shell_rx.search(self.buf):
             return False
-        for pw in passwords:
-            self.buf = b""                       # stale text must not match
-            self.send("\x15"); self._drain(0.4)   # Ctrl-U: kill stale input
-            self.send(user + "\n"); self._drain(2.5)
-            if b"Password" not in self.buf:
-                # no password prompt: either the shell just opened or the
-                # prompt is mid-resync — only probe with a shell prompt up
-                if shell_rx.search(self.buf):
-                    self.send("echo MARKER-$((1+1))\n"); self._drain(2.5)
-                    if (b"MARKER-2" in self.buf
-                            and b"FAILED LOGIN" not in self.buf):
-                        return True
-                continue
-            self.send(pw + "\n"); self._drain(3)
-            if (b"Login incorrect" in self.buf
-                    or b"FAILED LOGIN" in self.buf):
-                continue
-            self.send("echo MARKER-$((1+1))\n"); self._drain(2.5)
-            if (b"MARKER-2" in self.buf
-                    and b"FAILED LOGIN" not in self.buf):
-                return True
+        for _ in range(cycles):
+            for pw in passwords:
+                self.buf = b""                   # stale text must not match
+                self.send("\x15"); self._drain(0.4)  # Ctrl-U: kill stale input
+                # never type anything when the console sits at a login
+                # prompt that is NOT ours — the marker became a username
+                # exactly this way on run 6
+                self.send(user + "\n"); self._drain(2.5)
+                if b"Password" not in self.buf:
+                    # no password prompt: either the shell just opened or
+                    # the prompt is mid-resync — only probe with a shell
+                    # prompt up and no getty prompt in the window
+                    if shell_rx.search(self.buf) \
+                            and b"login:" not in self.buf:
+                        self.send("echo MARKER-$((1+1))\n"); self._drain(2.5)
+                        if (b"MARKER-2" in self.buf
+                                and b"FAILED LOGIN" not in self.buf):
+                            return True
+                    continue
+                self.send(pw + "\n"); self._drain(3)
+                if (b"Login incorrect" in self.buf
+                        or b"FAILED LOGIN" in self.buf):
+                    if b"max retries" in self.buf:
+                        # PAM gave up and the getty exited — systemd
+                        # respawns serial-getty@ttyS0; wait it out
+                        time.sleep(9)
+                    else:
+                        time.sleep(4)            # getty failure pause
+                    continue
+                self.send("echo MARKER-$((1+1))\n"); self._drain(2.5)
+                if (b"MARKER-2" in self.buf
+                        and b"FAILED LOGIN" not in self.buf):
+                    return True
+            # nothing landed this cycle — re-probe the console state from
+            # the top (the getty may have respawned into a fresh prompt)
         return False
 
     def run(self, cmd, settle=3.0):

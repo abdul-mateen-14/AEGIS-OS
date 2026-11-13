@@ -131,6 +131,35 @@ W45 -> W46+W47. Every fix ships with its red-able probe (W23 rule).
   chevrons, the CC sheet's exact entry motion), closes on CC open or
   a window opening (the W20-style predicate). Util.calendarOpen +
   toggleCalendar; the clock hit target is the clock box +- 8 px.
+- Boot Test run 6 = 43499771260 (v0.6.59, RED — but the MAIN SUITE IS
+  GREEN and the vmware leg RAN for the first time): total 27 m. Main
+  virtio suite: "capture complete" with ZERO asserts — the corex DBus
+  fix WORKED (single-quoted busctl string delivered the quoted Exec the
+  way the dock does; the window opened on attempt 0). The vmware leg
+  burned its new 360 s budget, then serial login FAILED and the leg red
+  on vmwgfx-loaded (the check needs the diag, which needs the login) +
+  splash (hard because display_capable stayed None). Artifact read:
+  (1) vga=791 WORKED at the display level — the vmware frames are now
+  1024x768 (was the 720x400 text mode); plymouthd still painted nothing
+  (renderer type 4294967295 = none — no DRM device, the QEMU limitation
+  W48 predicted); (2) the guest BOOT STALLED — serial shows a ~5-minute
+  silence between 59 s and 358 s while the displayless session thrashed;
+  (3) the login desync: the getty on ttyS0 rejected every password
+  candidate until PAM exited ("max retries; 4 > 3") and the marker trick
+  itself became a username (FAILED LOGIN 3 FOR 'echo MARKER-$((1+1))').
+  Root cause found in the repo's own design: since 4e9a079 the live
+  user's password is BLANK (casper 25adduser's U6aMy0wojraho hash) and
+  the 0610-live-auth hook restores nullok precisely so the BLANK
+  password authenticates on the serial getty — the login tuple's
+  'aegis' first candidate has NEVER matched and burned FAILED LOGIN 1
+  on every run since (the docstring's v0.6.14 note is stale), and the
+  getty's post-failure pause desyncs the next sends. login() hardened:
+  blank FIRST (the design-correct candidate), the marker probe guarded
+  against an active getty prompt, a 4 s pause after each failure (the
+  getty's own failure pause), a 9 s pause on PAM lockout (systemd
+  respawns serial-getty@ttyS0), and a cycles param — the vmware leg
+  passes 10 so the login rides out the stall. W48's assert set is still
+  awaiting its first real serial read.
 - Boot Test run 5 = 43494786079 (v0.6.59, RED — ONE assert; W41+W49
   PROVED, W48 still unverified): Release green (43490272780)
   — the W49 build-time assert PASSED, i.e. the rebuilt initramfs now
