@@ -18,6 +18,7 @@ QtObject {
 
     // M2 · Surfaces
     property ControlCenter controlCenterSurface: ControlCenter { }
+    property CalendarPopover calendarSurface: CalendarPopover { }
     property Launcher launcherSurface: Launcher { }
     property Notifications notificationsSurface: Notifications { }
     property Lock lockSurface: Lock { }

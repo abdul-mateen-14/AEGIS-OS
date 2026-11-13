@@ -418,6 +418,19 @@ void Util::setLauncherOpen(bool open)
     emit launcherOpenChanged();
 }
 
+// T15-D10 (W47) — the calendar popover state. Opening the Control Center
+// closes it (one sheet at a time — the popover itself holds the reverse
+// rule; see CalendarPopover.qml).
+void Util::setCalendarOpen(bool open)
+{
+    if (m_calendarOpen == open)
+        return;
+    m_calendarOpen = open;
+    if (open)
+        setLauncherOpen(false);
+    emit calendarOpenChanged();
+}
+
 QVariantMap Util::readConfig(const QString &path) const
 {
     QFile file(path);

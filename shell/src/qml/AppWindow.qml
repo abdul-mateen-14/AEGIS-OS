@@ -47,6 +47,22 @@ Item {
             onActiveChanged: if (active && root.window) root.window.startSystemMove()
         }
 
+        // T15-D7 (W44) — the macOS contract: double-click the titleband
+        // toggles maximize/restore. The DragHandler above only engages on
+        // a real drag (system move), so a double-tap never converts into
+        // one; the TrafficLights keep their own grabs (a click on a light
+        // never becomes a move or a maximize).
+        TapHandler {
+            acceptedButtons: Qt.LeftButton
+            onDoubleTapped: {
+                if (!root.window) return
+                if (root.window.visibility === Window.Maximized)
+                    root.window.showNormal()
+                else
+                    root.window.showMaximized()
+            }
+        }
+
         TrafficLights {
             x: 14
             anchors.verticalCenter: parent.verticalCenter
@@ -68,12 +84,21 @@ Item {
         }
     }
 
-    // 52 px opaque toolbar, hairline bottom — app content, never glass
+    // 52 px opaque toolbar, hairline bottom — app content, never glass.
+    // T15-D7 (W44) — the toolbar's EMPTY stretches drag the window (the
+    // macOS second-drag-region contract): the DragHandler sits on the
+    // toolbar itself, and every control that wants the pointer (buttons,
+    // text fields) takes its own grab first — a press that lands between
+    // controls falls through to this handler and moves the window.
     Rectangle {
         id: toolbarRow
         anchors { top: titlebar.bottom; left: parent.left; right: parent.right }
         height: 52
         color: Util.darkMode ? "#17181D" : "#F4F6FA"
+        DragHandler {
+            target: null
+            onActiveChanged: if (active && root.window) root.window.startSystemMove()
+        }
         RowLayout {
             id: toolbarContent
             anchors { fill: parent; leftMargin: 12; rightMargin: 12 }
@@ -92,30 +117,32 @@ Item {
         anchors { top: toolbarRow.bottom; left: parent.left; right: parent.right; bottom: parent.bottom }
     }
 
-    // 8 invisible resize zones, 6 px — drag to edges = half, corners = quarter
+    // 8 invisible resize zones — T15-D7 (W44): edges 8 px (was 6 — too
+    // thin a target, half of the user's "resizing needs improvement"),
+    // corners 16 px (was 12). Drag to edges = half, corners = quarter
     // (KWin resolves the actual geometry; we just hand over the edge mask).
-    MouseArea { anchors { top: parent.top; left: parent.left; right: parent.right } height: 6
+    MouseArea { anchors { top: parent.top; left: parent.left; right: parent.right } height: 8
                 cursorShape: Qt.SizeVerCursor; z: 10
                 onPressed: root.window.startSystemResize(Qt.TopEdge) }
-    MouseArea { anchors { bottom: parent.bottom; left: parent.left; right: parent.right } height: 6
+    MouseArea { anchors { bottom: parent.bottom; left: parent.left; right: parent.right } height: 8
                 cursorShape: Qt.SizeVerCursor; z: 10
                 onPressed: root.window.startSystemResize(Qt.BottomEdge) }
-    MouseArea { anchors { left: parent.left; top: parent.top; bottom: parent.bottom } width: 6
+    MouseArea { anchors { left: parent.left; top: parent.top; bottom: parent.bottom } width: 8
                 cursorShape: Qt.SizeHorCursor; z: 10
                 onPressed: root.window.startSystemResize(Qt.LeftEdge) }
-    MouseArea { anchors { right: parent.right; top: parent.top; bottom: parent.bottom } width: 6
+    MouseArea { anchors { right: parent.right; top: parent.top; bottom: parent.bottom } width: 8
                 cursorShape: Qt.SizeHorCursor; z: 10
                 onPressed: root.window.startSystemResize(Qt.RightEdge) }
-    MouseArea { anchors { top: parent.top; left: parent.left } width: 12; height: 12
+    MouseArea { anchors { top: parent.top; left: parent.left } width: 16; height: 16
                 cursorShape: Qt.SizeFDiagCursor; z: 11
                 onPressed: root.window.startSystemResize(Qt.TopEdge | Qt.LeftEdge) }
-    MouseArea { anchors { top: parent.top; right: parent.right } width: 12; height: 12
+    MouseArea { anchors { top: parent.top; right: parent.right } width: 16; height: 16
                 cursorShape: Qt.SizeBDiagCursor; z: 11
                 onPressed: root.window.startSystemResize(Qt.TopEdge | Qt.RightEdge) }
-    MouseArea { anchors { bottom: parent.bottom; left: parent.left } width: 12; height: 12
+    MouseArea { anchors { bottom: parent.bottom; left: parent.left } width: 16; height: 16
                 cursorShape: Qt.SizeBDiagCursor; z: 11
                 onPressed: root.window.startSystemResize(Qt.BottomEdge | Qt.LeftEdge) }
-    MouseArea { anchors { bottom: parent.bottom; right: parent.right } width: 12; height: 12
+    MouseArea { anchors { bottom: parent.bottom; right: parent.right } width: 16; height: 16
                 cursorShape: Qt.SizeFDiagCursor; z: 11
                 onPressed: root.window.startSystemResize(Qt.BottomEdge | Qt.RightEdge) }
 }

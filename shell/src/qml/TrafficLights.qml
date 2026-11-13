@@ -8,6 +8,15 @@ import QtQuick
 // the close/minimize hues and rendered the glyph at the circle's own color —
 // invisible. The aurorae theme (gen-aurorae-buttons.py) carries the same
 // tints so shell and decorated windows share one glyph semantic.
+//
+// T15-D10 (W47) — the "calendar traffic lights are not working" report:
+// the 12 px circle was a brutal click target, so every light now rides a
+// transparent 18×18 hit area (the macOS-sized target) and the grabbing
+// MouseArea keeps the titleband DragHandler passive — a click on a light
+// can never convert into a window move, and a fast double-click on a
+// light is two light clicks, never a maximize. The visible anatomy is
+// UNCHANGED: same 12 px circles, same 8 px circle gap (items are 18 wide,
+// so the Row spacing drops to 2), same hues.
 Row {
     id: root
 
@@ -16,7 +25,7 @@ Row {
     signal minClicked()
     signal maxClicked()
 
-    spacing: 8
+    spacing: 2
     Repeater {
         // Row has no model/delegate of its own — the Repeater provides both.
         model: [
@@ -25,20 +34,27 @@ Row {
             { hue: "#28C840", tint: "#E0FFE5", glyph: "+",     sig: "maxClicked" }
         ]
 
-        delegate: Rectangle {
-            width: 12; height: 12; radius: 6
-            color: root.focused ? modelData.hue : Qt.rgba(0.04, 0.05, 0.06, 0.3)
-            border.color: Qt.darker(modelData.hue, 1.4)
-            border.width: 1
+        delegate: Item {
+            width: 18; height: 18
 
-            Text {
+            Rectangle {
                 anchors.centerIn: parent
-                text: modelData.glyph
-                font { pixelSize: 9; bold: true }
-                color: modelData.tint
-                opacity: ma.containsMouse ? 1 : 0
-                Behavior on opacity { NumberAnimation { duration: 80 } }
+                width: 12; height: 12; radius: 6
+                color: root.focused ? modelData.hue : Qt.rgba(0.04, 0.05, 0.06, 0.3)
+                border.color: Qt.darker(modelData.hue, 1.4)
+                border.width: 1
+
+                Text {
+                    anchors.centerIn: parent
+                    text: modelData.glyph
+                    font { pixelSize: 9; bold: true }
+                    color: modelData.tint
+                    opacity: ma.containsMouse ? 1 : 0
+                    Behavior on opacity { NumberAnimation { duration: 80 } }
+                }
             }
+
+            // the click target — 18×18, centered on the 12 px dot
             MouseArea {
                 id: ma
                 anchors.fill: parent

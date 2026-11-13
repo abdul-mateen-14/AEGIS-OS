@@ -162,6 +162,20 @@ void configureSurface(QQuickWindow *win)
         layer->setExclusiveZone(0);
         layer->setKeyboardInteractivity(LayerShellQt::Window::KeyboardInteractivityOnDemand);
         layer->setScope(QStringLiteral("aegis-cc"));
+    } else if (name == QStringLiteral("calendarWindow")) {
+        // T15-D10 (W47) — the glass calendar popover: click the panel
+        // clock. Same architecture as the CC sheet (top-right, below the
+        // panel's exclusive zone) but narrower and shifted left so it
+        // hangs under the clock, not under the CC glyph.
+        auto *layer = attach(win);
+        layer->setLayer(LayerShellQt::Window::LayerTop);
+        layer->setAnchors(LayerShellQt::Window::Anchors{
+            LayerShellQt::Window::AnchorTop,
+            LayerShellQt::Window::AnchorRight});
+        layer->setMargins(QMargins(0, 40, 84, 0));
+        layer->setExclusiveZone(0);
+        layer->setKeyboardInteractivity(LayerShellQt::Window::KeyboardInteractivityOnDemand);
+        layer->setScope(QStringLiteral("aegis-calendar"));
     } else if (name == QStringLiteral("launcherWindow")) {
         // Launcher — full-screen sheet glass over the blurred desktop.
         auto *layer = attach(win);

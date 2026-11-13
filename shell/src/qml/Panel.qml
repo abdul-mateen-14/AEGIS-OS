@@ -178,6 +178,16 @@ Window {
                         triggeredOnStart: true
                         onTriggered: clock.text = Qt.formatDateTime(new Date(), "ddd d MMM  HH:mm")
                     }
+
+                    // T15-D10 (W47) — the clock is a BUTTON now: it opens the
+                    // glass calendar popover (CalendarPopover.qml). The hit
+                    // target is the clock's own box plus padding.
+                    MouseArea {
+                        id: clockHit
+                        anchors { fill: parent; margins: -8 }
+                        cursorShape: Qt.PointingHandCursor
+                        onClicked: Util.toggleCalendar()
+                    }
                 }
 
                 // Control Center glyph — accent while the sheet is open

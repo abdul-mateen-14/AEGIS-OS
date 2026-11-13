@@ -47,6 +47,8 @@ class Util : public QObject {
     Q_PROPERTY(bool locked READ locked NOTIFY lockedChanged)
     Q_PROPERTY(bool ccOpen READ ccOpen WRITE setCcOpen NOTIFY ccOpenChanged)
     Q_PROPERTY(bool launcherOpen READ launcherOpen WRITE setLauncherOpen NOTIFY launcherOpenChanged)
+    // T15-D10 (W47) — the glass calendar popover (click the panel clock)
+    Q_PROPERTY(bool calendarOpen READ calendarOpen WRITE setCalendarOpen NOTIFY calendarOpenChanged)
     // hardware states (Control Center tiles, panel status cluster)
     Q_PROPERTY(bool wifiEnabled READ wifiEnabled NOTIFY linkStatesChanged)
     Q_PROPERTY(bool bluetoothEnabled READ bluetoothEnabled NOTIFY linkStatesChanged)
@@ -173,6 +175,7 @@ public:
     // ── Shell toggles (org.aegis.Shell DBus surface for CLIs/scripts) ─
     Q_INVOKABLE void toggleControlCenter() { setCcOpen(!m_ccOpen); }
     Q_INVOKABLE void toggleLauncher() { setLauncherOpen(!m_launcherOpen); }
+    Q_INVOKABLE void toggleCalendar() { setCalendarOpen(!m_calendarOpen); }
     // W20 — pushed by the aegis-windowwatch KWin script on every
     // windowAdded/Removed/Activated. ONE JSON STRING: {"count": n,
     // "anyFull": b, "ids": [...]}. KWin's callDBus marshals JS numbers
@@ -264,7 +267,8 @@ signals:
     // W22 — addWebShortcut finished (ok=false: the URL never resolved;
     // the tile still lands with a generated letter tile when possible)
     void webShortcutAdded(bool ok, const QString &name);
-    // T15-D4 — the rotate toggle flipped (Settings wallpaper pane)
+    void calendarOpenChanged();
+    // T15-D10 — the rotate toggle flipped (Settings wallpaper pane)
     void wallpaperRotateDailyChanged();
 
 private slots:
@@ -313,6 +317,7 @@ private:
     bool m_locked = false;
     bool m_ccOpen = false;
     bool m_launcherOpen = false;
+    bool m_calendarOpen = false;
     bool m_wifiEnabled = false;
     bool m_bluetoothEnabled = false;
     bool m_hasWifi = false;

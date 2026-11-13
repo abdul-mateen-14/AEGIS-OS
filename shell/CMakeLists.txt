@@ -55,6 +55,7 @@ qt_add_resources(aegis-shell "shell"
         src/qml/Dock.qml
         src/qml/Island.qml
         src/qml/ControlCenter.qml
+        src/qml/CalendarPopover.qml
         src/qml/Launcher.qml
         src/qml/Notifications.qml
         src/qml/Lock.qml
