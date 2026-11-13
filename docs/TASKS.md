@@ -131,6 +131,24 @@ W45 -> W46+W47. Every fix ships with its red-able probe (W23 rule).
   chevrons, the CC sheet's exact entry motion), closes on CC open or
   a window opening (the W20-style predicate). Util.calendarOpen +
   toggleCalendar; the clock hit target is the clock box +- 8 px.
+- Boot Test run 43446096194 (RED at the DND gate) — the read is
+  rich: w38 store lights FOUND + red-light close TRUE (payload + 0.0
+  diff), w39 rotate + focus-dim verdicts PASS, w42 default browser
+  = aegis-browser.desktop, plymouth found card0. Three harness
+  defects, not product: (1) the W-60 CC-glyph click now lands in the
+  clock's expanded hit area (T15-D10 made the clock a button) — the
+  calendar opened in the 05-control-center capture (the popover
+  WORKS, visible with today in the accent) and the CC never opened,
+  so the DND gate saw 0.00; the click moves to W-19 (the glyph's real
+  center); (2) the W44 drags missed the 8 px strips by 1-3 px — the
+  top hairline stops ~7 px short of the true edge at the r18 corners;
+  drag_right_edge() aims at run_end + 2 with a +6 retry; (3) the
+  runner had NO NIC (-nic none) so the w43 ethernet:connected
+  substrate could not exist — start_qemu now rides
+  -nic user,model=virtio-net-pci (usermode NAT, the same story the
+  Store backend comment already documented). ISO itself untouched:
+  harness fixes ride main, the same v0.6.56 ISO gets re-tested.
+
 - Release status: tag v0.6.56 pushed, Release run 43442526088 GREEN
   (ISO published), Boot Test dispatched on the runner.
 
