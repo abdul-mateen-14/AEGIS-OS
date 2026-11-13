@@ -29,6 +29,12 @@ class Util;
 // sticky downward on battery, self-healing on AC.
 class Governor : public QObject {
     Q_OBJECT
+    // T15-D4 (W39.2) — the Settings Desktop-Effects switches call
+    // setEffect over the bus. With no Q_CLASSINFO Qt exported the
+    // invokables as the generated local.Governor interface (the exact
+    // W20 Util lesson: the Q_CLASSINFO D-Bus Interface fix) — the
+    // interface name is pinned so the app-process forward resolves.
+    Q_CLASSINFO("D-Bus Interface", "org.aegis.Governor")
     Q_PROPERTY(QString tier READ tier NOTIFY tierChanged)
     Q_PROPERTY(bool autoMode READ autoMode NOTIFY tierChanged)
     Q_PROPERTY(int fps READ fps NOTIFY metricsChanged)
@@ -55,6 +61,14 @@ public:
     Q_INVOKABLE void setTier(const QString &tier);
     Q_INVOKABLE void setAutoMode(bool auto_);
 
+    // T15-D4 (W39.2) — per-effect user switches (the Settings Desktop
+    // Effects rows are REAL now). An override rides OVER the tier map and
+    // persists across sessions; the accepted keys are the governor map
+    // plus the wallpaperDim veil key. The app process forwards the call
+    // to the shell's governor over the bus (Desktop.qml binds the shell
+    // instance) and keeps its own copy in sync for the switch UI.
+    Q_INVOKABLE void setEffect(const QString &key, bool on);
+
     // Registers the DBus service + starts the evaluators. Called once the
     // session bus exists (main.cpp, after engine load).
     void start();
@@ -79,6 +93,15 @@ private:
     bool m_autoMode = true;
     int m_fps = 60;
     QVariantMap m_effects;
+
+    // T15-D4 — per-effect user overrides (persisted) + whether this
+    // instance owns the org.aegis.Governor bus name (only the shell
+    // calls start(); the apps instance forwards writes instead of
+    // publishing)
+    QVariantMap m_overrides;
+    bool m_dbusOwned = false;
+    void loadOverrides();
+    void persistOverride(const QString &key, bool on);
 
     // frame-time ring: (timestamp ms, dt ms)
     std::deque<std::pair<qreal, qreal>> m_frames;

@@ -40,6 +40,10 @@ class Util : public QObject {
     // W4 — live wallpaper. Desktop.qml binds this; setWallpaper() persists to
     // the session prefs and forwards to the shell process over DBus.
     Q_PROPERTY(QString wallpaper READ wallpaper NOTIFY wallpaperChanged)
+    // T15-D4 (W39.1) — the "Rotate wallpapers daily" switch is REAL: the
+    // shell cycles the four bundled wallpapers at session start + at the
+    // date rollover; persisted in tokens.conf (survives reboots).
+    Q_PROPERTY(bool wallpaperRotateDaily READ wallpaperRotateDaily NOTIFY wallpaperRotateDailyChanged)
     Q_PROPERTY(bool locked READ locked NOTIFY lockedChanged)
     Q_PROPERTY(bool ccOpen READ ccOpen WRITE setCcOpen NOTIFY ccOpenChanged)
     Q_PROPERTY(bool launcherOpen READ launcherOpen WRITE setLauncherOpen NOTIFY launcherOpenChanged)
@@ -71,6 +75,8 @@ public:
     Q_INVOKABLE void setAccent(const QString &accent);
     QString wallpaper() const { return m_wallpaper; }
     Q_INVOKABLE void setWallpaper(const QString &path);
+    bool wallpaperRotateDaily() const { return m_wallpaperRotateDaily; }
+    Q_INVOKABLE void setWallpaperRotateDaily(bool on);
     // shell main.cpp marks the process that owns org.aegis.Shell on the
     // session bus. App processes (aegis-apps) leave it false: their accent/
     // wallpaper writes also go out as DBus calls to org.aegis.Shell so the
@@ -246,6 +252,8 @@ signals:
     // W22 — addWebShortcut finished (ok=false: the URL never resolved;
     // the tile still lands with a generated letter tile when possible)
     void webShortcutAdded(bool ok, const QString &name);
+    // T15-D4 — the rotate toggle flipped (Settings wallpaper pane)
+    void wallpaperRotateDailyChanged();
 
 private slots:
     void refreshBattery();
@@ -267,11 +275,23 @@ private:
     void loadAccent();
     void saveAccent() const;
     void forwardToShell(const QString &method, const QString &value) const;
+    // T15-D4 — the bool-arg forward for setWallpaperRotateDaily (the
+    // string forward cannot match a bool DBus slot — the W20 contract
+    // lesson)
+    void forwardToShellBool(const QString &method, bool value) const;
+    // T15-D4 — daily wallpaper rotation state
+    void loadRotatePrefs();
+    void saveRotatePrefs() const;
+    void rotateIfDue();
+    static QStringList bundledWallpapers();
     QString backlightDevice() const;
 
     QVariantMap m_config;
     QString m_accent = QStringLiteral("#3E8BFF");
     QString m_wallpaper;
+    bool m_wallpaperRotateDaily = false;
+    int m_rotateIndex = 0;
+    QString m_rotateDate;
     bool m_ownsDBus = false;
     int m_batteryPercent = -1;
     bool m_onBattery = false;
@@ -290,6 +310,7 @@ private:
     QString m_userInitials;
     QTimer m_batteryTimer;
     QTimer m_linkTimer;
+    QTimer m_rotateTimer;
     QStringList m_runningCmds;
     // W20 — the KWin-reported window state. D20: m_windowIds carries
     // allIds (EVERY managed window incl. minimized) so isRunning() and

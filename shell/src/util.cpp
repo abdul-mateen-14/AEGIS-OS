@@ -3,6 +3,7 @@
 #include <QColor>
 #include <QDebug>
 #include <QCryptographicHash>
+#include <QDate>
 #include <QDateTime>
 #include <QDBusConnection>
 #include <QDBusMessage>
@@ -117,6 +118,16 @@ Util::Util(QObject *parent)
         refreshBattery();
     });
     m_linkTimer.start();
+
+    // T15-D4 (W39.1) — daily wallpaper rotation. The shell instance (and
+    // only it — rotateIfDue is guarded on ownsDBus) checks once a minute;
+    // the date rollover is what triggers the cycle, so the shell "wakes
+    // at 00:00" without a midnight-exact timer and session start rotates
+    // immediately when the day changed.
+    loadRotatePrefs();
+    m_rotateTimer.setInterval(60000);
+    connect(&m_rotateTimer, &QTimer::timeout, this, &Util::rotateIfDue);
+    m_rotateTimer.start();
 }
 
 void Util::loadPrefs()
@@ -268,6 +279,98 @@ void Util::setAccent(const QString &accent)
 }
 
 // ── W4 — live wallpaper ────────────────────────────────────────────────
+
+QStringList Util::bundledWallpapers()
+{
+    // the four Settings tiles, in their pane order
+    return {
+        QStringLiteral("/usr/share/wallpapers/aegis/aurora-ink.jpg"),
+        QStringLiteral("/usr/share/wallpapers/aegis/graphite-dune.jpg"),
+        QStringLiteral("/usr/share/wallpapers/aegis/neon-coast.jpg"),
+        QStringLiteral("/usr/share/wallpapers/aegis/emerald-ridge.jpg"),
+    };
+}
+
+void Util::loadRotatePrefs()
+{
+    const QString base = QStandardPaths::writableLocation(
+                             QStandardPaths::GenericConfigLocation);
+    if (base.isEmpty())
+        return;
+    const QSettings tokens(base + QStringLiteral("/aegis/tokens.conf"),
+                           QSettings::IniFormat);
+    m_wallpaperRotateDaily =
+        tokens.value(QStringLiteral("wallpaperRotateDaily"), false).toBool();
+    m_rotateIndex = tokens.value(QStringLiteral("wallpaperRotateIndex"), 0)
+                        .toInt();
+    m_rotateDate = tokens.value(QStringLiteral("wallpaperRotateDate"))
+                       .toString();
+    rotateIfDue(); // session start counts: a day change rotates at once
+}
+
+void Util::saveRotatePrefs() const
+{
+    const QString base = QStandardPaths::writableLocation(
+                             QStandardPaths::GenericConfigLocation);
+    if (base.isEmpty())
+        return;
+    QDir(base).mkpath(QStringLiteral("aegis"));
+    QSettings tokens(base + QStringLiteral("/aegis/tokens.conf"),
+                     QSettings::IniFormat);
+    tokens.setValue(QStringLiteral("wallpaperRotateDaily"),
+                    m_wallpaperRotateDaily);
+    tokens.setValue(QStringLiteral("wallpaperRotateIndex"), m_rotateIndex);
+    tokens.setValue(QStringLiteral("wallpaperRotateDate"), m_rotateDate);
+    tokens.sync();
+}
+
+void Util::setWallpaperRotateDaily(bool on)
+{
+    if (m_wallpaperRotateDaily == on)
+        return;
+    m_wallpaperRotateDaily = on;
+    if (on) {
+        // the rotation day starts NOW — the next rollover cycles
+        m_rotateDate = QDate::currentDate().toString(Qt::ISODate);
+    }
+    saveRotatePrefs();
+    emit wallpaperRotateDailyChanged();
+    if (!m_ownsDBus)
+        forwardToShellBool(QStringLiteral("setWallpaperRotateDaily"), on);
+}
+
+void Util::rotateIfDue()
+{
+    if (!m_wallpaperRotateDaily || !m_ownsDBus)
+        return;
+    const QString today = QDate::currentDate().toString(Qt::ISODate);
+    if (today == m_rotateDate)
+        return;
+    m_rotateDate = today;
+    const QStringList list = bundledWallpapers();
+    int idx = list.indexOf(m_wallpaper); // walk from the CURRENT wallpaper
+    if (idx < 0)
+        idx = m_rotateIndex;             // custom wallpaper: use the cursor
+    idx = (idx + 1) % list.size();
+    m_rotateIndex = idx;
+    saveRotatePrefs();
+    setWallpaper(list.at(idx));
+}
+
+void Util::forwardToShellBool(const QString &method, bool value) const
+{
+    if (m_ownsDBus)
+        return;
+    const QDBusConnection bus = QDBusConnection::sessionBus();
+    if (!bus.isConnected())
+        return;
+    QDBusMessage msg = QDBusMessage::createMethodCall(
+        QStringLiteral("org.aegis.Shell"),
+        QStringLiteral("/org/aegis/Shell"),
+        QStringLiteral("org.aegis.Shell"), method);
+    msg.setArguments({value});
+    bus.asyncCall(msg);
+}
 
 void Util::setWallpaper(const QString &path)
 {

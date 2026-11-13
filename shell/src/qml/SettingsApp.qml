@@ -185,11 +185,22 @@ Window {
     // broken next to the rest of the system — "the toggles look bad".
     component GlassSwitch: Switch {
         id: gs
+        // T15-D5 (W40) — the label must sit ON the pill's midline. A
+        // replaced indicator is NOT positioned by the Control: without an
+        // explicit x/y it landed at (0,0) — the top-left — while the
+        // contentItem text was centered inside the padded content box
+        // (measured on the user's Wallpaper capture: text ~5 px low, and
+        // drifting further whenever a layout stretched the control).
+        // padding: 0 kills the box asymmetry; y pins the knob to the
+        // control's vertical center no matter how tall a layout makes it.
+        padding: 0
         spacing: 10
         indicator: Rectangle {
             implicitWidth: 40
             implicitHeight: 24
             radius: 12
+            x: 0
+            y: (gs.height - 24) / 2
             color: gs.checked ? Tokens.accent
                               : (Util.darkMode ? Qt.rgba(1, 1, 1, 0.14)
                                                : Qt.rgba(0, 0, 0, 0.12))
@@ -1120,12 +1131,22 @@ Window {
                 }
             }
             GlassSwitch {
+                // T15-D4 (W39.1) — REAL: the shell cycles the four bundled
+                // wallpapers at session start + at the date rollover; the
+                // toggle persists in tokens.conf and forwards over the bus
                 text: "Rotate wallpapers daily"
                 font.pixelSize: 13
+                checked: Util.wallpaperRotateDaily
+                onToggled: Util.setWallpaperRotateDaily(checked)
             }
             GlassSwitch {
+                // T15-D4 (W39.1) — REAL: the wallpaperDim governor override
+                // + the Desktop.qml veil (18% black while a normal window
+                // is on the workspace, 200 ms ease)
                 text: "Focus-dim wallpaper"
                 font.pixelSize: 13
+                checked: Governor.effects["wallpaperDim"] === true
+                onToggled: Governor.setEffect("wallpaperDim", checked)
             }
             Text {
                 text: Util.wallpaper
@@ -1133,6 +1154,7 @@ Window {
                 elide: Text.ElideMiddle
                 Layout.fillWidth: true
             }
+            Item { Layout.fillHeight: true }
         }
     }
 
@@ -1186,6 +1208,7 @@ Window {
                 wrapMode: Text.WordWrap
                 Layout.fillWidth: true
             }
+            Item { Layout.fillHeight: true }
         }
     }
 
@@ -1229,34 +1252,43 @@ Window {
             }
 
             Repeater {
+                // T15-D4 (W39.2) — only REAL rows stay. The old model mixed
+                // four real effect keys with tier shortcuts (tierA/tierAB/
+                // tierC) and a parallax row that never existed — six rows
+                // with NOT ONE onToggled handler, the exact "buttons are
+                // placeholders" class the W37 sweep missed. Every row now
+                // binds checked to the live governor state and toggles
+                // through Governor.setEffect (persisted overrides ride over
+                // the tier map); the cost chip rides only the row with a
+                // measured cost.
                 model: [
-                    { label: "Dock magnification",        chip: "\u22120.2 W", key: "tierA",    on: Governor.tier === "A" },
-                    { label: "Dock bounce & Glass Fold",  chip: "\u22120.1 W", key: "tierAB",   on: Governor.tier !== "C" },
-                    { label: "Window springs",            chip: "free",        key: "motionSpring", on: !!Governor.effects["motionSpring"] },
-                    { label: "Live blur & transparency",  chip: "\u22120.5 W", key: "blurLive", on: !!Governor.effects["blurLive"] },
-                    { label: "Wallpaper parallax",        chip: "\u22120.1 W", key: "off",      on: false },
-                    { label: "Dynamic Island morph",      chip: "\u22120.1 W", key: "tierC",    on: Governor.tier !== "C" }
+                    { label: "Live blur & transparency",   key: "blurLive",     chip: "\u22120.5 W" },
+                    { label: "Blur behind decorations",    key: "blurAny",      chip: "" },
+                    { label: "Window springs",             key: "motionSpring", chip: "" },
+                    { label: "Half shadows in Calm",       key: "shadowsHalf",  chip: "" }
                 ]
                 delegate: RowLayout {
                     Layout.fillWidth: true
                     Text { text: modelData.label; font.pixelSize: 13; color: Tokens.fg; Layout.fillWidth: true }
                     Rectangle {
+                        visible: modelData.chip.length > 0
                         Layout.preferredWidth: 52; Layout.preferredHeight: 20; radius: 10
                         color: Util.darkMode ? "#23252B" : "#E8ECF4"
                         Text { anchors.centerIn: parent; text: modelData.chip; font.pixelSize: 10; font.family: "Monospace"; color: Tokens.fgMuted }
                     }
                     GlassSwitch {
-                        enabled: modelData.key === "motionSpring" || modelData.key === "blurLive"
-                        checked: modelData.on
+                        checked: Governor.effects[modelData.key] === true
+                        onToggled: Governor.setEffect(modelData.key, checked)
                     }
                 }
             }
             Text {
-                text: "Tier control is live (writes the governor state the shell and KWin read). Per-effect toggles land with the governor extension — switches show current state."
+                text: "Tier control stays in the Control Center — these switches set per-effect overrides that ride over the tier and persist."
                 font.pixelSize: 11; color: Tokens.fgMuted
                 wrapMode: Text.WordWrap
                 Layout.fillWidth: true
             }
+            Item { Layout.fillHeight: true }
         }
     }
 
@@ -1452,6 +1484,7 @@ Window {
                     onClicked: Drivers.refreshFirmware()
                 }
             }
+            Item { Layout.fillHeight: true }
         }
     }
 
@@ -1583,6 +1616,7 @@ Window {
                     }
                 }
             }
+            Item { Layout.fillHeight: true }
         }
     }
 
@@ -1666,6 +1700,7 @@ Window {
                 background: Rectangle { radius: 8; color: Util.darkMode ? "#262930" : "#E8ECF4"; border.color: Tokens.glassBorder }
                 onClicked: Sound.refresh()
             }
+            Item { Layout.fillHeight: true }
         }
     }
 
@@ -1901,6 +1936,7 @@ Window {
                 background: Rectangle { radius: 8; color: Util.darkMode ? "#262930" : "#E8ECF4"; border.color: Tokens.glassBorder }
                 onClicked: Bluetooth.startScan()
             }
+            Item { Layout.fillHeight: true }
         }
     }
 
@@ -1994,6 +2030,7 @@ Window {
                 background: Rectangle { radius: 8; color: Util.darkMode ? "#262930" : "#E8ECF4"; border.color: Tokens.glassBorder }
                 onClicked: Users.refresh()
             }
+            Item { Layout.fillHeight: true }
         }
     }
 }

@@ -3,6 +3,8 @@
 #include <QDBusMessage>
 #include <QDir>
 #include <QFile>
+#include <QFileInfo>
+#include <QIcon>
 #include <QDBusObjectPath>
 #include <QDBusReply>
 #include <QObject>
@@ -775,6 +777,11 @@ class StoreBackend : public QObject {
     Q_PROPERTY(QVariantList catalog READ catalog NOTIFY catalogChanged)
     Q_PROPERTY(QString installingId READ installingId NOTIFY busyChanged)
     Q_PROPERTY(QString lastMessage READ lastMessage NOTIFY busyChanged)
+    // T15-D9 (W46) — live-session honesty: everything apt installs in a
+    // live session lands in the overlay and evaporates on reboot. The
+    // Store says so IN the UI (the notice card in the sidebar) instead of
+    // letting the user discover it in a VM restart.
+    Q_PROPERTY(bool liveSession READ liveSession CONSTANT)
 
 public:
     explicit StoreBackend(QObject *parent = nullptr) : QObject(parent)
@@ -783,6 +790,32 @@ public:
                          QStandardPaths::StateLocation)
                      + QStringLiteral("/aegis/store");
         QDir().mkpath(m_stateDir);
+    }
+
+    // The same predicate aegis-live-installer uses: the live medium is
+    // mounted at /run/live/medium (casper) or /cdrom (legacy).
+    bool liveSession() const
+    {
+        return QFileInfo::exists(QStringLiteral("/run/live/medium"))
+               || QFileInfo::exists(QStringLiteral("/cdrom"));
+    }
+
+    // T15-D3 (W38) — real app icons instead of letter tiles. The ladder
+    // from the review: package desktop-file icon when discoverable, else
+    // hicolor by package name, else the letter tile. The image provider
+    // falls back to application-x-executable — hasThemeIcon tells the QML
+    // side whether the theme REALLY carries the icon so the tile stays
+    // honest instead of rendering the generic glyph as a "real" icon.
+    Q_INVOKABLE bool hasIcon(const QString &pkg) const
+    {
+        return !pkg.isEmpty() && QIcon::hasThemeIcon(pkg);
+    }
+
+    // T15-D9 (W46) — the notice card's button hands the user to the
+    // installer (the same binary the dock/settings surface would run).
+    Q_INVOKABLE void openInstaller()
+    {
+        QProcess::startDetached(QStringLiteral("aegis-live-installer"), {});
     }
 
     QVariantList catalog() const { return m_catalog; }

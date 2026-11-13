@@ -1,6 +1,7 @@
 import QtQuick
 import QtQuick.Controls
 import Aegis.Util
+import Aegis.Governor
 import Aegis.Files
 
 // Layer::Background — the desktop canvas. M1 renders the wallpaper only;
@@ -41,6 +42,23 @@ Window {
                 || "/usr/share/wallpapers/aegis/aurora-ink.jpg"
         fillMode: Image.PreserveAspectCrop
         smooth: false
+    }
+
+    // T15-D4 (W39.1) — the Focus-dim wallpaper veil. A REAL effect now:
+    // Governor.effects["wallpaperDim"] is a settable override (the
+    // Settings switch calls Governor.setEffect) and the veil applies
+    // while any normal window is on the workspace (the same predicate
+    // the island auto-hide rides) — none when the desktop is frontmost.
+    // 18% black, 200 ms ease, per the review contract.
+    Rectangle {
+        anchors.fill: parent
+        color: "#000000"
+        visible: opacity > 0.005
+        opacity: (Governor.effects["wallpaperDim"] === true
+                  && Util.workspaceWindows > 0) ? 0.18 : 0.0
+        Behavior on opacity {
+            NumberAnimation { duration: 200; easing.type: Easing.OutCubic }
+        }
     }
 
     MouseArea {

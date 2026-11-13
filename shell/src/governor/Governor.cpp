@@ -7,6 +7,8 @@
 #include <QJsonDocument>
 #include <QJsonObject>
 #include <QQuickWindow>
+#include <QSettings>
+#include <QStandardPaths>
 #include <algorithm>
 #include <cmath>
 
@@ -17,6 +19,7 @@ Governor::Governor(Util *util, QObject *parent)
     , m_util(util)
 {
     m_clock.start();
+    loadOverrides();
     applyTier();
 
     if (m_util)
@@ -60,6 +63,7 @@ void Governor::watchWindow(QQuickWindow *window)
 
 void Governor::start()
 {
+    m_dbusOwned = true;
     QDBusConnection bus = QDBusConnection::sessionBus();
     if (bus.isConnected()) {
         bus.registerService(QStringLiteral("org.aegis.Governor"));
@@ -100,6 +104,74 @@ void Governor::setAutoMode(bool auto_)
         emit tierChanged();
         publishState();
     }
+}
+
+// ── T15-D4 (W39.2) — per-effect user overrides ────────────────────────
+// The override file rides $XDG_CONFIG_HOME/aegis/governor.conf — both
+// the shell and the apps instance read the same conf, so a switch set in
+// Settings survives sessions and agrees across processes.
+void Governor::loadOverrides()
+{
+    const QString base = QStandardPaths::writableLocation(
+                             QStandardPaths::GenericConfigLocation);
+    if (base.isEmpty())
+        return;
+    QSettings s(base + QStringLiteral("/aegis/governor.conf"),
+                QSettings::IniFormat);
+    s.beginGroup(QStringLiteral("overrides"));
+    for (const QString &key : s.childKeys())
+        m_overrides.insert(key, s.value(key).toBool());
+    s.endGroup();
+}
+
+void Governor::persistOverride(const QString &key, bool on)
+{
+    const QString base = QStandardPaths::writableLocation(
+                             QStandardPaths::GenericConfigLocation);
+    if (base.isEmpty())
+        return;
+    QDir(base).mkpath(QStringLiteral("aegis"));
+    QSettings s(base + QStringLiteral("/aegis/governor.conf"),
+                QSettings::IniFormat);
+    s.beginGroup(QStringLiteral("overrides"));
+    s.setValue(key, on);
+    s.endGroup();
+    s.sync();
+}
+
+void Governor::setEffect(const QString &key, bool on)
+{
+    // the governor map keys + the wallpaperDim veil key (W39.1). Anything
+    // else is a typo in a caller and must be rejected, not invented.
+    static const QStringList keys = {
+        QStringLiteral("blurLive"), QStringLiteral("blurAny"),
+        QStringLiteral("motionSpring"), QStringLiteral("shadowsHalf"),
+        QStringLiteral("wallpaperDim"),
+    };
+    if (!keys.contains(key))
+        return;
+    persistOverride(key, on);
+    m_overrides.insert(key, on);
+    applyTier();
+    emit tierChanged();
+    if (!m_dbusOwned) {
+        // app process: the shell's governor owns the published state and
+        // the bus name — hand the change over (async, fire-and-forget;
+        // the same contract accent/wallpaper forwards use). The local
+        // apply above keeps THIS instance's switch UI honest.
+        QDBusConnection bus = QDBusConnection::sessionBus();
+        if (bus.isConnected()) {
+            QDBusMessage msg = QDBusMessage::createMethodCall(
+                QStringLiteral("org.aegis.Governor"),
+                QStringLiteral("/org/aegis/Governor"),
+                QStringLiteral("org.aegis.Governor"),
+                QStringLiteral("setEffect"));
+            msg.setArguments({key, on});
+            bus.asyncCall(msg);
+        }
+        return;
+    }
+    publishState();
 }
 
 void Governor::evaluate()
@@ -225,6 +297,12 @@ void Governor::applyTier()
         {QStringLiteral("motionSpring"), m_tier != QStringLiteral("C")},
         {QStringLiteral("shadowsHalf"), m_tier == QStringLiteral("B")},
     };
+    // T15-D4 (W39.2) — user overrides ride OVER the tier map (a switch
+    // the user flipped wins over the tier derivation; tier changes keep
+    // working for every key the user has not overridden)
+    for (auto it = m_overrides.constBegin();
+         it != m_overrides.constEnd(); ++it)
+        m_effects.insert(it.key(), it.value());
 }
 
 void Governor::publishState()
@@ -241,11 +319,11 @@ void Governor::publishState()
     root.insert(QStringLiteral("tier"), m_tier);
     root.insert(QStringLiteral("auto"), m_autoMode);
     root.insert(QStringLiteral("fps"), m_fps);
+    // T15-D4 — every key the map actually carries (the overrides may add
+    // wallpaperDim on top of the four tier keys)
     QJsonObject effects;
-    effects.insert(QStringLiteral("blurLive"), m_effects.value(QStringLiteral("blurLive")).toBool());
-    effects.insert(QStringLiteral("blurAny"), m_effects.value(QStringLiteral("blurAny")).toBool());
-    effects.insert(QStringLiteral("motionSpring"), m_effects.value(QStringLiteral("motionSpring")).toBool());
-    effects.insert(QStringLiteral("shadowsHalf"), m_effects.value(QStringLiteral("shadowsHalf")).toBool());
+    for (auto it = m_effects.constBegin(); it != m_effects.constEnd(); ++it)
+        effects.insert(it.key(), it.value().toBool());
     root.insert(QStringLiteral("effects"), effects);
 
     QFile file(dir.filePath(QStringLiteral("governor.json")));

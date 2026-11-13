@@ -53,36 +53,34 @@ W45 -> W46+W47. Every fix ships with its red-able probe (W23 rule).
   is exactly what --no-first-run suppresses; the D11 probe (no window
   title contains Terms of Service after the dock launch) is the
   red-able verifier. Probe lands with D11.
-- D3 TODO (W38, high) — StoreApp.qml: replace the bare Window + hand
-  rolled 44 px band with the AppWindow anatomy (titlebar 44 + lights
-  + DragHandler + resize zones + clipped body). Real icons instead of
-  letter tiles: image://icons/<pkgs[0]> (QIcon::fromTheme provider
-  already exists in apps-main.cpp), letter tile only as fallback.
-  Probe: store opens via dock click, three traffic-light hues in the
-  titlebar strip, VLC row differs from the letter-tile capture, red
-  light click drops the window count. "Cannot close" becomes a red
-  CI verdict, not a user report.
-- D4 TODO (W39, high) — dead controls sweep. Wallpaper pane: wire
-  Rotate wallpapers daily (Util.setWallpaperRotateDaily persisted in
-  tokens.conf; shell wakes at 00:00 or session start and cycles the
-  four bundled wallpapers via the existing setWallpaper path) and
-  Focus-dim wallpaper (Governor effect key wallpaperDim; Desktop.qml
-  overlays an 18% black veil while a normal window is focused, 200 ms
-  ease). Desktop Effects: only real rows stay (motionSpring blurLive
-  blurAny shadowsHalf), checked binds live Governor state, onToggled
-  calls Governor.setEffect — needs a new Governor invokable that
-  applies user overrides over the tier map and persists them; cost
-  chips stay only on rows that toggle something; the tier-shortcut
-  rows (tierA tierAB tierC parallax) are deleted this cycle. Every
-  pane ColumnLayout gets a trailing Item Layout.fillHeight: true so
-  panes hug the top (the stretched layout is half the "not in proper
-  line" report). docs/CONTROLS.md re-audit; boot gate clicks the
-  wallpaper toggles and the effect toggles asserting config/state
-  change (W37 verdict pattern).
-- D5 TODO (W40, high) — GlassSwitch: padding 0, indicator gets
-  explicit x: 0 and y: (gs.height - 24) / 2 so the knob stays pinned
-  when a layout stretches the control; probe asserts the text ink
-  midline equals the pill midline within +-2 px on 04-settings.png.
+- D3 DONE (W38, high) — StoreApp.qml rewritten on the AppWindow anatomy
+  (44 px titlebar + TrafficLights + DragHandler + 8 resize zones +
+  clipped rounded body; min size 680x440). Search moved into the 52 px
+  toolbar with an installing pill. Icons: Store.hasIcon(pkg) (new
+  Q_INVOKABLE, QIcon::hasThemeIcon) picks image://icons/<pkgs[0]> when
+  the theme really carries it, letter tile in the category tint
+  otherwise — the honest ladder, no generic-glyph impostors.
+- D4 DONE (W39, high) — dead controls wired. Rotate wallpapers daily:
+  Util.wallpaperRotateDaily (tokens.conf persistence + 60 s rollover
+  check + rotate at session start; shell-only via ownsDBus; app process
+  forwards over the new forwardToShellBool — the string forward cannot
+  match a bool DBus slot, the W20 contract lesson). Focus-dim
+  wallpaper: Governor.setEffect("wallpaperDim") override + a Desktop.qml
+  18% black veil gated on workspaceWindows > 0, 200 ms ease. Desktop
+  Effects: four REAL rows (blurLive blurAny motionSpring shadowsHalf),
+  checked binds Governor.effects live, onToggled calls
+  Governor.setEffect; the tierA/tierAB/tierC/parallax rows are deleted;
+  the -0.5 W chip rides only the blurLive row. Governor gained the
+  Q_CLASSINFO D-Bus Interface pin (the W20 lesson), an overrides map
+  persisted in aegis/governor.conf that rides OVER the tier map in
+  applyTier, dynamic-key publishState, and an app-process DBus forward
+  (Desktop binds the SHELL instance). All nine pane ColumnLayouts end
+  with a trailing filler (aegisId already had one) so panes hug the
+  top. CONTROLS.md re-audit rides D11.
+- D5 DONE (W40, high) — GlassSwitch: padding 0, indicator x: 0 +
+  y: (gs.height - 24) / 2 so the knob pins to the control's vertical
+  center under any layout stretch; the T13-D29 knob scan is
+  self-calibrating and survives the geometry change.
 - D6 TODO (W43, high) — wired-first networking. Panel: paintWired
   RJ45 glyph in the same 16 px / 2 px round-caps family, glyph picks
   wired when !Util.hasWifi or a wired connection is active, wifi fan
@@ -109,14 +107,10 @@ W45 -> W46+W47. Every fix ships with its red-able probe (W23 rule).
   review §2 W45 list (mountain, palette, sparkles, chip, monitor,
   speaker kept, wifi arcs, person). Recapture 04-settings.png at 1:1;
   item closes on visual sign-off of the capture.
-- D9 TODO (W46, fix + process) — live-session honesty. StoreBackend:
-  when /run/live/medium or /cdrom exists the Store sidebar shows a
-  persistent notice card (installs live in the overlay and are lost
-  on reboot) plus a button launching aegis-live-installer. After a
-  successful Calamares install show the completion dialog (remove
-  the ISO from the VM drive, then reboot). New docs/VM-DEMO.md:
-  VMware VM >= 24 GB disk, CD attached, CD-first boot order until a
-  disk install exists, NAT networking.
+- D9.1 DONE (W46.1, first half) — StoreBackend gained liveSession (the
+  /run/live/medium + /cdrom predicate) and openInstaller(); the Store
+  sidebar shows the amber notice card (installs to the overlay, lost
+  on reboot) with a Run installer button when liveSession is true.
 - D10 TODO (W47) — the shell has no calendar (verified: zero hits),
   so both interpretations get covered: (a) harden every TrafficLight
   with a transparent 18x18 hit area, DragHandler stays passive on
