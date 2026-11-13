@@ -43,14 +43,17 @@ famous ubuntu and debian etc apps".
 
 ### Status
 
-- SHIPPED IN TREE (v0.6.42 tag next). The boot run verifies the store
-  opens with the catalog rendered. NOT in this cycle: a search-index
-  from the real archive (the catalog is curated), app detail pages,
-  update-all — recorded for a later round if the reviewer wants them.
+- SHIPPED — v0.6.42 tag, riding green ever since: the 04k-store capture
+  is in every boot run's screenshot set since v0.6.50 (the 04k-store
+  diff 19.4 in the v0.6.55 full-green run), the Store slot holds dock
+  index 9 of 12 in config.json AND the util.cpp defaultConfig mirror.
+  NOT in this cycle: a search-index from the real archive (the catalog
+  is curated), app detail pages, update-all — recorded for a later
+  round if the reviewer wants them.
 
 ---
 
-## T13 — v0.6.39-v0.6.50: VM usage round — W24-W37 (batch 1 SHIPPED, batch 2 DOING)
+## T13 — v0.6.39-v0.6.55: VM usage round — W24-W37 (batch 1 SHIPPED, batch 2 SHIPPED)
 
 Opened 2026-11-12 from the first REAL-VM usage report of v0.6.34
 (docs/REVIEW-v0.6.36-VM.md, committed verbatim — behavior evidence, not
@@ -135,7 +138,7 @@ W24-W37. TRIAGE against what already shipped in T12 (v0.6.35-v0.6.38):
   entry is now matched, the wrapper engaged, the sandbox flags reach
   electron.
 
-### batch 2 finish — v0.6.51-v0.6.53 (DOING; opened 2026-11-13)
+### batch 2 finish — v0.6.51-v0.6.55 (SHIPPED; opened 2026-11-13, green on run 43397193826)
 
 The v0.6.50 green run unblocked the rest: the W20 island chain is
 proven, so W27 rides now. Everything below was verified against the
@@ -413,9 +416,47 @@ animation cannot be dock-anchored from our JS effect on 6.6.
   self-diagnosing. The dockzoom per-animation readMap stays (it is
   correct regardless of the transport). v0.6.55 = the D30b pull
   channel only.
+- D32 — v0.6.55 BOOT RUN (run 43397193826): **FULL GATE GREEN — T13
+  batch 2 SHIPPED.** The pull channel worked end to end and the
+  session log carries the proof verbatim: "js: aegis-windowwatch:
+  activation requested: aegis-files" -> "activation done:
+  aegis-files". The payload verdicts: after Meta+M {"count":0,
+  "ids":[],"allIds":["aegis-files"],"active":""} — W27 MINIMIZED;
+  after the dock click {"count":1,"ids":["aegis-files"],
+  "allIds":["aegis-files"],"active":"aegis-files"} — W27 RESTORED
+  (unminimized AND focused). Everything else stayed green: 12 dock
+  tiles, all eleven app opens with diffs (files 20.8 / terminal
+  25.6 / settings 25.7 / music 15.6 / calculator 6.8 / editor 15.2
+  / monitor 14.5 / browser 11.9 attempt 0 / os 29.5 / corex 39.2
+  attempt 1 / store 19.4 / trash 23.8), 02b-files-restored diff
+  23.9 (the window really came back), header geometry PASS, xkb
+  typing PASS, presentation knob scan (425, 358) -> state file ON,
+  drivers pane 20.3, dark tile AegisDark -> AegisLight + state
+  file light, tint 395 / monitor 785 / island 27-0 / magnify 4-28,
+  launcher 23.6 + CC 27.5 via Meta+Space/Meta+S, MARK SPLASH
+  CONFIRMED, six probes CLEAN, "capture complete" with zero assert
+  failures, and the runner committed 47 captures to
+  docs/screenshots/v0.6.55/ (release attached with the ISO parts +
+  screenshots zip + SHA256SUMS).
+  THE CYCLE'S LESSONS, for every future kwinrc writer: QSettings
+  writes to kwinrc are invisible to KWin (KConfigWatcher is
+  notify-based, not FS-based — kconfigwatcher.cpp), so any
+  shell-to-KWin hand-off must ride a DBus channel, not a config
+  file. The pull channel (script polls Util.pendingActivate,
+  confirms activateDone) is the pattern; the kwinrc write remains
+  diagnostics-only. T13 IS CLOSED: W24-W37 all shipped and
+  gated (W30.1/W32.3/W33/W35/W36/W37 in batch 2, W24/W25/W26/W27/
+  W28/W20/W21 in batch 1).
 
 ### Status
 
+- BATCH 2 SHIPPED (v0.6.55, run 43397193826 — FULL GATE GREEN): D20-D26
+  all live, D28-D31 boot-run fixes landed (kglobalshortcutsrc seed +
+  self-heal + bluez guard; busctl s-prefix parse + knob scan + QSaveFile
+  dark write; reloadConfig nudge + per-animation TileMap; the DBus pull
+  channel for activation). W27 (activateOrLaunch + unminimize) is
+  end-to-end PROVEN — the v0.6.55 captures show the minimized Files
+  window restored AND focused from the dock tile. T13 CLOSED.
 - SHELL CI CAUGHT ONE (run 43357952556, red on 50f5a55): the resolved
   Exec parameter of activateOrLaunch was named launch — it shadowed
   Util::launch and the call compiled as a call on a QString. Renamed to
