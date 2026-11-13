@@ -441,6 +441,15 @@ void Util::activateOrLaunch(const QString &cmd, const QString &resolved)
     const QString head = cmd.section(QLatin1Char(' '), 0, 0);
     if (!head.isEmpty() && head == cmd.trimmed()
             && m_windowIds.contains(head)) {
+        // T13 D30b — hold the request for the script's pull (the 150 ms
+        // callDBus poll — the reverse of the proven push channel), keep
+        // the kwinrc write as the file-based diagnostic, self-expire so
+        // a never-activated request cannot re-fire minutes later.
+        m_pendingActivate = head;
+        QTimer::singleShot(4000, this, [this, head]() {
+            if (m_pendingActivate == head)
+                m_pendingActivate.clear();
+        });
         QSettings kwinRc(QStandardPaths::writableLocation(
                              QStandardPaths::ConfigLocation)
                              + QStringLiteral("/kwinrc"),
@@ -459,6 +468,15 @@ void Util::activateOrLaunch(const QString &cmd, const QString &resolved)
     // shadow Util::launch and the call would compile as a call on a
     // QString (the exact error the v0.6.51 Shell CI caught).
     launch(resolved.isEmpty() ? cmd : resolved);
+}
+
+void Util::activateDone(const QString &cls)
+{
+    // T13 D30b — the script confirms the window is active; only an
+    // exact class match clears (a stale confirm cannot eat a newer
+    // request).
+    if (cls == m_pendingActivate)
+        m_pendingActivate.clear();
 }
 
 void Util::quitApp(const QString &head)

@@ -102,14 +102,16 @@ function recount() {
                              allIds: allIds, active: active}))
 }
 
-// D20 (W27) — activateOrLaunch's executor. The shell has NO inbound
-// channel to scripts (no configChanged, no DBus service registration in
-// the 6.6 scripting API — verified against scripting.cpp), but scripts
-// get a constructible QTimer and a LIVE readConfig (Script::config()
-// reads kwinApp()->config(), which Options keeps KConfigWatcher'd —
-// external writes reparse). So the shell writes kwinrc
-// [Script-aegis-windowwatch] ActivateRequest/ActivateSeq (the same
-// QSettings transport the TileMap proves) and this poll picks it up.
+// D20 (W27) — activateOrLaunch's executor. The kwinrc transport is
+// GONE: KConfigWatcher only fires on the org.kde.kconfig.notify DBus
+// signal that KConfig-based writers emit (kconfigwatcher.cpp verified),
+// QSettings never sends it, and even the shell's reloadConfig reparse
+// left this poll reading the load-time ActivateSeq (the v0.6.54 run).
+// D30b — the request now rides the PROVEN channel in reverse: the
+// script CALLS the shell (callDBus pendingActivate — the exact reverse
+// of the windowListChanged push, same service, same bus, string
+// marshalling proven by every recount) and the shell holds the request
+// for 4 s; the script confirms with activateDone.
 //
 // D28 — the v0.6.51 boot run caught the activation RACE: the dock click
 // itself clears the active window (the payload read active:"" right
@@ -149,28 +151,47 @@ function currentActiveClass() {
     return ""
 }
 
-var activateSeq = -1
 var activateTimer = new QTimer()
 activateTimer.interval = 150
 activateTimer.singleShot = false
 activateTimer.timeout.connect(function () {
-    var seq = Number(readConfig("ActivateSeq", 0)) || 0
-    if (seq !== activateSeq) {
-        if (activateSeq >= 0 && seq > activateSeq) {
-            pendingClass = String(readConfig("ActivateRequest", ""))
+    if (pendingClass) {
+        if (currentActiveClass() === pendingClass) {
+            // active — either our activation landed or the user beat us
+            // to it; confirm either way so the shell clears the request
+            print("aegis-windowwatch: activation done: " + pendingClass)
+            callDBus("org.aegis.Shell", "/org/aegis/Shell",
+                     "org.aegis.Shell", "activateDone", pendingClass)
+            pendingClass = ""
+            return
+        }
+        if (Date.now() < pendingDeadline) {
+            // D28 self-heal — re-apply every tick; a foreign focus change
+            // AFTER the settle wins (the deadline ends the re-apply)
+            var ok = activateByClass(pendingClass)
+            if (!ok)
+                print("aegis-windowwatch: no matchable window for "
+                      + pendingClass)
+            recount()
+            return
+        }
+        print("aegis-windowwatch: activation deadline passed: "
+              + pendingClass)
+        pendingClass = ""
+        return
+    }
+    // no pending request — pull the shell for one (the callback is the
+    // ONLY way callDBus returns a value; a failed call leaves the
+    // callback uncalled and the poll just continues)
+    callDBus("org.aegis.Shell", "/org/aegis/Shell",
+             "org.aegis.Shell", "pendingActivate", function (cls) {
+        var c = String(cls || "")
+        if (c) {
+            print("aegis-windowwatch: activation requested: " + c)
+            pendingClass = c
             pendingDeadline = Date.now() + 1200
         }
-        activateSeq = seq
-    }
-    if (pendingClass && Date.now() < pendingDeadline
-            && currentActiveClass() !== pendingClass) {
-        activateByClass(pendingClass)
-        recount()
-        if (currentActiveClass() === pendingClass)
-            pendingClass = ""
-    } else if (pendingClass) {
-        pendingClass = ""
-    }
+    })
 })
 activateTimer.start()
 print("aegis-windowwatch: activate poll armed")

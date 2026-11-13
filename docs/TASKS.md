@@ -377,6 +377,42 @@ animation cannot be dock-anchored from our JS effect on 6.6.
      is the only way the effect sees a mid-session TileMap update.
      Stale comments corrected in util.h/util.cpp. v0.6.54 = these
      two fixes + nothing else.
+- D31 — v0.6.54 BOOT RUN (run 43389652717): STILL the one red —
+  W27 RESTORE, identical signature (payload count=0, active="",
+  02b diff 3.2) — and this killed the reloadConfig hypothesis too.
+  The nudge IS in the ISO, the script markers print once (no
+  restart — Scripting::start skips running scripts), the JS is
+  valid, busctl --user on $XDG_RUNTIME_DIR/bus finds org.kde.KWin
+  (the diag's isScriptLoaded returns b true) — and the script STILL
+  read the load-time ActivateSeq. The reparse either never ran or
+  never propagated; chasing it further is a dead end. THE FIX
+  CHANGES THE TRANSPORT (D30b): the request now rides the PROVEN
+  channel in REVERSE. Evidence chain: the script's callDBus reaches
+  org.aegis.Shell on every recount (windowListChanged — same
+  service, same bus, string marshalling proven by every payload
+  since v0.6.39), and scripting.cpp's callDBus supports a trailing
+  CALLBACK receiving the reply arguments (scripting.cpp:338-352:
+  QDBusPendingCallWatcher finished -> dbusToVariant -> JS callback).
+  So: (1) util.cpp — activateOrLaunch sets m_pendingActivate = head
+  (4 s self-expiry timer; a never-activated request cannot re-fire
+  minutes later), keeps the kwinrc write as the file-based
+  diagnostic the harness greps; new Q_INVOKABLEs pendingActivate()
+  (getter) and activateDone(cls) (clears on an exact class match —
+  a stale confirm cannot eat a newer request); ExportAllInvokables
+  (main.cpp:287) exports both automatically. (2) windowwatch
+  main.js — the 150 ms poll now PULLS: no pending -> callDBus
+  pendingActivate (callback sets pendingClass + the 1.2 s
+  self-heal deadline on a non-empty reply; an empty reply NEVER
+  clears — stale replies are harmless); pending -> if already
+  active, activateDone + clear; if inside the deadline,
+  activateByClass (unminimize + activate) every tick; past the
+  deadline, drop the request (the shell's expiry cleans the rest).
+  Diagnostic prints on every state change (requested / done /
+  no matchable window / deadline passed) — they land in the
+  session log as js: lines, so the next red run is
+  self-diagnosing. The dockzoom per-animation readMap stays (it is
+  correct regardless of the transport). v0.6.55 = the D30b pull
+  channel only.
 
 ### Status
 

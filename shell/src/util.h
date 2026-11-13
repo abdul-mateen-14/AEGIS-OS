@@ -170,6 +170,24 @@ public:
     // count" ("" = the script never successfully called the slot).
     Q_INVOKABLE QString windowListRaw() const { return m_lastJson; }
 
+    // T13 D30b — the ACTIVATION PULL channel. The kwinrc transport is
+    // dead weight for activation: KConfigWatcher only fires on the
+    // org.kde.kconfig.notify DBus signal that KConfig-based writers emit
+    // (kconfigwatcher.cpp), QSettings never sends it, and even the
+    // reloadConfig reparse left the script's poll reading the load-time
+    // ActivateSeq (the v0.6.54 run). The PROVEN channel is the reverse
+    // direction: the script's callDBus reaches org.aegis.Shell on every
+    // recount (windowListChanged — same service, same bus, string
+    // marshalling proven). So the shell HOLDS the request and the
+    // script's 150 ms poll pulls it: pendingActivate() returns the
+    // class ("" = none), activateDone(cls) clears it when the class
+    // matches (a stale confirm can never clear a newer request). The
+    // request self-expires after 4 s so a never-activated request
+    // cannot re-fire minutes later. The kwinrc write stays as the
+    // file-based diagnostic the harness greps.
+    Q_INVOKABLE QString pendingActivate() { return m_pendingActivate; }
+    Q_INVOKABLE void activateDone(const QString &cls);
+
     // W21 — Dock.qml publishes the resting tile centers as the quote-free
     // string "head=cx,cy;head2=cx,cy" (D25 — JSON is NOT usable here:
     // QSettings IniFormat escapes the quotes as \" and KConfig rejects
@@ -282,6 +300,8 @@ private:
     QString m_activeClass;
     // T13 D5 — the raw payload for the harness dump
     QString m_lastJson;
+    // T13 D30b — the activation request the script pulls (pendingActivate)
+    QString m_pendingActivate;
     // W22 — the fetch pipeline for opt-in web shortcuts
     QNetworkAccessManager *m_nam = nullptr;
 };
