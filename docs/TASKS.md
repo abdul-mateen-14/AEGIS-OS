@@ -131,6 +131,18 @@ W45 -> W46+W47. Every fix ships with its red-able probe (W23 rule).
   chevrons, the CC sheet's exact entry motion), closes on CC open or
   a window opening (the W20-style predicate). Util.calendarOpen +
   toggleCalendar; the clock hit target is the clock box +- 8 px.
+- Boot Test run 7 = 43505095117 (v0.6.59, RED — but by CRASH, not by
+  assert, and every hard assert PASSED): main suite GREEN again
+  (capture complete, zero asserts). vmware leg: serial login OK
+  (cycles=10 rode out the stall — the blank-first hardening WORKED),
+  vmwgfx IS LOADED (the W41 ladder fix proven at runtime — the module
+  the W49-verified initramfs carries now loads in the guest), plymouthd
+  journal clean, sddm active, display_capable=False (the QEMU no-DRM
+  limitation, W48's exact prediction). Then the harness CRASHED in my
+  own diagnostic dump: open("serial.log") without errors=replace hit a
+  UnicodeDecodeError on the plymouth debug stream's binary bytes — four
+  log lines after every hard assert had passed. The leg was seconds
+  from green. Fix: the dump reads errors=replace. One more dispatch.
 - Boot Test run 6 = 43499771260 (v0.6.59, RED — but the MAIN SUITE IS
   GREEN and the vmware leg RAN for the first time): total 27 m. Main
   virtio suite: "capture complete" with ZERO asserts — the corex DBus

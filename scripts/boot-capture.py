@@ -658,7 +658,11 @@ def vmware_boot_check():
             "— the serial substitutes above are the authoritative read); "
             "serial.log tail:")
         try:
-            for line in list(open("serial.log"))[-40:]:
+            # errors=replace — the vmware leg's serial.log carries binary
+            # bytes (the plymouth debug stream; run 7 died on a
+            # UnicodeDecodeError in THIS dump, four log lines after every
+            # hard assert had already passed)
+            for line in list(open("serial.log", errors="replace"))[-40:]:
                 log("  | " + line.rstrip()[:200])
         except OSError:
             pass
