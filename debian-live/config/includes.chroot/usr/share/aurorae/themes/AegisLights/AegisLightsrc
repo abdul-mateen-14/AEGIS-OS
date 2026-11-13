@@ -11,9 +11,17 @@ LeftButtons=XIA
 RightButtons=
 
 [Layout]
-BorderLeft=0
-BorderRight=0
-BorderBottom=0
+# T15-D7 (W44) — 4 px side/bottom borders (the session BorderSize=Tiny
+# clamps these to exactly 4). The W44 boot probe PROVED the old 0/44/0/0
+# declaration non-resizable (two runs of right-edge drags grew Konsole
+# 0 px — there was NO interactive margin to hit), so the decorated path
+# gets real resize handles now. The 44 px titleband, the W10 button
+# metrics and the r18 ShapeCorners corners are unchanged; the client
+# sits 4 px inside the frame on the sides/bottom (the review accepted
+# this trade verbatim).
+BorderLeft=4
+BorderRight=4
+BorderBottom=4
 BorderTop=44
 TitleEdgeTop=10
 TitleEdgeBottom=10
@@ -39,18 +47,15 @@ TitleHeight=24
 # borders().top = max(TitleHeight, ButtonHeight + ButtonMarginTop)
 #              + TitleEdgeTop + TitleEdgeBottom = 24 + 20 = 44 = shell band.
 #
-# W11 — ZERO side borders, ONE anatomy (v0.6.27; "header smaller than body"):
-#   the 6.6 v2 engine CLAMPS Border* to the session border size
-#   (decorationtheme.cpp borders(): BorderSize=Normal clamps 4..6), so the
-#   declared 12 px sides really rendered 6 px and the client sat inside a
-#   body-coloured strip while the band's arc floated inset. The session now
-#   runs BorderSize=None (etc/xdg/kwinrc) → borders 0/44/0/0: the client is
-#   flush with the window edge below the 44 px glass band — the AppWindow.qml
-#   anatomy — and all four corners round through the ShapeCorners effect
-#   (Radius=18; the frame SVG's top arcs are r18 to match). These Border*
-#   values are the honest declaration of that state; the engine zeroes them
-#   under None regardless. Side/bottom resize handles come from KWin's
-#   resize-only borders (settings largeSpacing) — windows stay resizable.
+# W11/W44 border history: the v0.6.27 zero-side ruling ("header smaller
+# than body") declared 0/44/0/0 and the session ran BorderSize=None — but
+# the T15 boot probe proved that state NON-RESIZABLE (KWin hit-tests the
+# theme-declared border margins; declared 0 = nothing to hit, whatever the
+# session size). The W44 ruling restores 4 px sides under BorderSize=Tiny:
+# the client sits 4 px inside the frame on sides/bottom, the 44 px band and
+# W10 metrics are untouched, and the drag probe re-asserts resize per run.
+# All four corners still round through the ShapeCorners effect (Radius=18;
+# the frame SVG's top arcs are r18 to match).
 ButtonWidth=12
 ButtonHeight=12
 ButtonWidthClose=12

@@ -131,6 +131,25 @@ W45 -> W46+W47. Every fix ships with its red-able probe (W23 rule).
   chevrons, the CC sheet's exact entry motion), closes on CC open or
   a window opening (the W20-style predicate). Util.calendarOpen +
   toggleCalendar; the clock hit target is the clock box +- 8 px.
+- Boot Test run 3 = 43459292270 (RED, TWO asserts — from five): Files
+  CSD resize GREW 160 px (the CSD strips are proven real), the
+  presentation toggle verdict recovered (wide knob scan), the effects
+  override verdict PASS, the calendar verdict PASS (sheet-region delta
+  8.3), DND/dark/store/dim/rotate/browser all PASS. The two reds:
+  (1) W44-decorated — run 3 carried BorderSize=Tiny but the drag
+  STILL grew 0 px: the AegisLightsrc theme declares Border*=0 and the
+  aurorae v2 engine hit-tests the THEME-DECLARED margins — the session
+  size cannot resurrect a declared zero. Fix: the theme declares
+  BorderLeft/Right/Bottom=4 (Tiny clamps to exactly 4; the 44 px band
+  and W10 metrics unchanged — the review's accepted trade); (2) W43 —
+  run 3's serial dump caught the REAL substrate: ens4 present,
+  carrier 1, NM UNMANAGED — the stock live packaging's
+  10-globally-managed-devices.conf excludes non-wifi devices; a
+  zz-aegis-manage-wired.conf resets the list (manage everything).
+  w43's parse also went marker-bounded two-call (run 3's single chain
+  lost the table). Both fixes ride the ISO -> tag v0.6.58; the drag
+  aim ladder widened to (6, 2, 10).
+
 - Boot Test run 2 = 43449648761 (RED, five asserts) — the W-19 CC
   click fixed the DND gate (diff 0.4, PASS) and the dark tile
   (AegisDark -> AegisLight PASS); the Files CSD resize WORKS (the

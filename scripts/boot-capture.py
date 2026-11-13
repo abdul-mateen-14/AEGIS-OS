@@ -235,7 +235,10 @@ def drag_right_edge(q, png, out_name, W, H, home_ref=None):
         return 0
     top, x0, run_len = st
     ry = min(top + 200, H - 40)
-    for extra in (2, 6):
+    # the interactive ring depends on the declared border size (W44: 4 px
+    # sides under Tiny) — aim ladder covers the strip and one step either
+    # side so a ±2 px frame-geometry drift cannot fool the probe
+    for extra in (6, 2, 10):
         rx = x0 + run_len + extra
         log(f"w44 {out_name}: dragging right edge at x={rx} "
             f"(hairline end {x0 + run_len}, y={ry})")
@@ -2162,21 +2165,24 @@ def main():
 
         # T15-D6 (W43) — the runner is ethernet-only: the wired row's
         # substrate must really say Connected (the UI reads this state).
-        # The dump rides the verdict so a missing NIC vs a connection
-        # that never completes is distinguishable in the log.
+        # Two marker-bounded calls (run 3's single-chain parse lost the
+        # table to the shell-integration prefixes); the NM table rides
+        # the log verbatim so a missing NIC vs an unmanaged device vs a
+        # hung connection is distinguishable.
         try:
+            tbl = serial.run("echo NM-T-START; nmcli -t device status 2>&1 "
+                             "| head -8; echo NM-T-END", settle=8)
+            m = re.search(r"NM-T-START\r?\n(.*?)\r?\nNM-T-END", tbl, re.S)
+            table = (m.group(1) if m else tbl).strip()
+            log("w43 NM table: " + table.replace("\n", " | ")[:400])
             out = serial.run(
-                "echo ===NMCLI===; nmcli -t device status 2>&1 | head -8; "
-                "echo CARRIERS; cat /sys/class/net/*/carrier 2>/dev/null; "
                 "nmcli -t -f TYPE,STATE device status 2>/dev/null | "
                 "grep -c '^ethernet:connected'; echo W-OK", settle=4)
-            seg = out.split("W-OK")[0]
-            count = seg.rsplit("\n", 2)[-2].strip() if "\n" in seg else seg.strip()
+            count = out.split("W-OK")[0].strip()
             wired_ok = count == "1"
             log("w43 wired state: "
                 + ("ethernet:connected PASS" if wired_ok
-                   else f"FAIL (count={count!r}) — NM table: "
-                   + seg.split("===NMCLI===")[-1].replace("\n", " | ")[:400]))
+                   else f"FAIL (count={count!r})"))
         except Exception as e:
             log(f"w43 wired probe failed: {e}")
 
