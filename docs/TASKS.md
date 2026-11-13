@@ -125,15 +125,95 @@ W24-W37. TRIAGE against what already shipped in T12 (v0.6.35-v0.6.38):
   monitor 717, island 27/0, magnify 4/28. Screenshots zip attached to
   the v0.6.50 release and committed to docs/screenshots/v0.6.50/.
   W24/W25/W26/W28 + the W20 island chain + W21 magnify: ALL SHIPPED AND
-  PROVEN. T14 (the Store) rides green since v0.6.42. Batch 2 progress
-  in tree and session-safe (D11-D14): Sound honest states, the wired
-  Network section, the §6 sidebar glyphs, the WPA join sheet, the Aegis
-  ID failure classification + backend-state line, the desktop
-  right-click menu, kscreen packaged. REMAINING batch 2: W30.1 UI half
-  (per-output rows/scale/presentation), W32.3 bluetooth, W33 drivers
-  pane UI, W35 XKB, W37 dead-control sweep. CoreX needed eleven boot
-  runs, two ISO reds, one session abort, and a quote — the entry is now
-  matched, the wrapper engaged, the sandbox flags reach electron.
+  PROVEN. T14 (the Store) rides green since v0.6.42 (SHIPPED — the
+  04k-store capture is in the v0.6.50 set). Batch 2 progress in tree
+  (D11-D18): Sound honest states, the wired Network section, the §6
+  sidebar glyphs, the WPA join sheet, the Aegis ID failure
+  classification + backend-state line, the desktop right-click menu,
+  kscreen packaged, the CoreX quoted-Exec fix end to end. CoreX needed
+  eleven boot runs, two ISO reds, one session abort, and a quote — the
+  entry is now matched, the wrapper engaged, the sandbox flags reach
+  electron.
+
+### batch 2 finish — v0.6.51 (DOING; opened 2026-11-13)
+
+The v0.6.50 green run unblocked the rest: the W20 island chain is
+proven, so W27 rides now. Everything below was verified against the
+KWin 6.6.0 source (github.com/KDE/kwin, tag v6.6.0) before planning:
+scripts get registerShortcut as a global (scripting.cpp:241,376,
+KGlobalAccel-backed), constructible QTimer (scripting.cpp:218),
+LIVE readConfig (Script::config() = kwinApp()->config()->group —
+Options line 86 installs KConfigWatcher on that shared config, so
+external writes reparse), workspace.activeWindow is WRITABLE and
+Window.minimized is WRITABLE (window.h:397) — but JS EFFECTS get none
+of the mutation API (scriptedeffect.cpp injects effects/effect/static
+KWin only) and expose only windowAdded/Closed/Activated to JS, so the
+activation executor MUST be the windowwatch SCRIPT and the minimize
+animation cannot be dock-anchored from our JS effect on 6.6.
+
+- D20 (W27) — activateOrLaunch: the windowwatch payload grows allIds
+  (trackable incl. MINIMIZED — ids stays visible-only for the island
+  predicate) and active (the resourceClass of workspace.activeWindow).
+  A 150 ms QTimer polls readConfig(ActivateSeq); the shell's
+  activateOrLaunch(cmd) writes kwinrc [Script-aegis-windowwatch]
+  ActivateRequest/ActivateSeq when the head is in allIds (the same
+  QSettings+KConfigWatcher transport the TileMap already proves), else
+  launches. Dock tile click switches to activateOrLaunch(cmd, launch).
+  Minimize/restore animation: enable the stock squash effect (its whole
+  purpose); the dock-anchored shrink stays blocked by the 6.6 JS API —
+  recorded, not hidden. Harness: open Files, minimize via the pinned
+  Meta+M, dump state (count drops, ids without files, allIds WITH
+  files), click the Files tile, dump again (active == aegis-files).
+- D21 (W30.1 UI half) — the Displays pane keeps its per-output rows
+  (resolution menu, scale buttons — both already shipped) and gains the
+  PRESENTATION toggle: ScreenSaver Inhibit via org.freedesktop.ScreenSaver
+  (cookie kept), brightness to max and restored, state persisted to
+  ~/.local/state/aegis-shell/aegis/presentation for a file-based
+  verdict. Harness: aegis-settings 4 capture with the toggle clicked.
+- D22 (W32.3) — BluetoothBackend: bluetoothctl show / devices Paired /
+  info per device; connect/disconnect/pair/trust one-shot commands;
+  scan best-effort; honest "No Bluetooth adapter" state (the VM round).
+  Bluetooth section at the bottom of the Network pane; the CC tile
+  keeps toggling power via Util.setBluetoothEnabled.
+- D23 (W33) — the Drivers & Firmware pane stops being the static
+  BUILT-IN placeholder list (the W37 poster child): DriversBackend with
+  lspci -k device categories + "Kernel driver in use", lsusb, lsblk,
+  lpstat print queues + test page + Open CUPS, simple-scan launcher,
+  Power & charging (UPower sysfs — Util already reads it; VMs read
+  "AC power" honestly), fwupdmgr get-updates best-effort (3 s cap),
+  Print-to-PDF shown as "not available — cups-pdf missing from the
+  archive" (D16). Every section renders an explicit empty state; never
+  blank. Harness: aegis-settings 3 capture.
+- D24 (W35) — keyboard: etc/xdg/kglobalshortcutsrc pins the stock
+  dictionary with the EXACT action ids from kwin 6.6 source (useractions
+  .cpp initShortcut + virtualdesktops.cpp addAction + overvieweffect
+  "Overview" + tileseditoreffect "Edit Tiles"): Window Close=Meta+Q
+  (Alt+F4 kept — the harness closes with it), Window Minimize=Meta+M,
+  Show Desktop=Meta+D, Overview=Meta+W, Edit Tiles=Meta+T, Switch One
+  Desktop Right/Left/Up/Down=Ctrl+Meta+arrows. A NEW kwin script
+  aegis-shortcuts registers the shell actions through
+  registerShortcut("Aegis Launcher", Meta+Space -> toggleLauncher) and
+  ("Aegis Control Center", Meta+S -> toggleControlCenter) — they land
+  in kglobalshortcutsrc as file-assertable state; aegis-session starts
+  kglobalacceld (ships via plasma-workspace Depends, kglobalacceld
+  >= 6.2.90). The typing probe: after Terminal opens the harness types
+  touch /tmp/aegis-xkb-ok RET over the keyboard channel and greps the
+  file over serial — the XKB end-to-end proof. Plus launcher/control-
+  center captures via the pinned Meta+Space/Meta+S.
+- D25 (W21 hygiene, from D15's konsole.log note) — publishDockTileMap's
+  JSON rides QSettings IniFormat which escapes the quotes as \" — an
+  INVALID KConfig escape ("Invalid escape sequence «\"»" in the guest
+  journal, twice at session start). The TileMap format becomes
+  quote-free "id=cx,cy;id2=cx,cy" — writer (util.cpp), builder (Dock
+  .qml) and reader (dockzoom main.js) change together; the warning dies
+  at the source.
+- D26 (W37) — the dead-control sweep: docs/CONTROLS.md inventories every
+  interactive control (control -> handler -> status: works / hidden /
+  not-available); anything unreal gets hidden or visibly marked; the
+  harness clicks the CC dark-mode tile and asserts the kdeglobals token
+  flips over serial (DND already has its capture), the Drivers pane
+  placeholder is dead no more (D23).
+- D27 — boot run + ship v0.6.51.
 - BATCH 1 SHIPPED (v0.6.50):
   - D1 (W24) DONE: findInstalledEntry returns the full Exec=; dockApps
     carries it as the slot's launch field (cmd stays the bare head for
