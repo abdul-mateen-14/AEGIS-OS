@@ -15,7 +15,10 @@ cannot lose the plan.
 
 ---
 
-## T15 — v0.6.56: second real-VM round (VMware), review W38-W47 (DOING)
+## T15 — v0.6.56: second real-VM round (VMware), review W38-W47 (SHIPPED;
+    W41/W48/W49 follow-up v0.6.59 from AEGIS-v0.6.59-instructions.md also
+    SHIPPED — full gate green, Boot Test run 9; W41 closes on the user's
+    real-Workstation re-test, the console flood should be gone there)
 
 Opened 2026-11-13 from the reviewer's AEGIS-OS UI v1.3 instructions
 (document AEGIS-v0.6.56-instructions.md, evidence base: the user's
@@ -131,6 +134,30 @@ W45 -> W46+W47. Every fix ships with its red-able probe (W23 rule).
   chevrons, the CC sheet's exact entry motion), closes on CC open or
   a window opening (the W20-style predicate). Util.calendarOpen +
   toggleCalendar; the clock hit target is the clock box +- 8 px.
+- Boot Test run 9 = 43513917296 (v0.6.59) — **FULL GATE GREEN**. Main
+  virtio suite: capture complete, zero asserts, 19 m — the Exec
+  resolutions came back CLEAN (the kmsg filter worked: browser
+  /usr/bin/aegis-browser-stable %U, os /opt/OSPrivateChat/
+  os-private-chat, corex the quoted /opt path) and the patient
+  re-diff rescued both late painters (04h-os re-diff 0.0 then landed
+  on the retry; 04i-corex re-diff 3.4 then landed). VMware leg: W41
+  GATE GREEN under the W48 assert set — serial login OK (blank-first +
+  cycles=10 rode out the boot stall), vmwgfx IS LOADED in the guest
+  (the W41 ladder fix proven at runtime: the module the W49-verified
+  initramfs carries loads in init-premount), plymouthd journal clean,
+  sddm active, kwin_procs=0 and display_capable=False DIAGNOSED not
+  asserted (the QEMU emulated SVGA never yields a DRM device —
+  exactly the W48 prediction), splash miss DEMOTED by the evidence
+  gate. The W41 splash claim on real VMware closes on the user's
+  Workstation re-test: the v0.6.59 initramfs now ships vmwgfx
+  (build-asserted) and loads it before plymouthd, so the console
+  flood they carried since v0.6.20 should be gone on their machine.
+  102 captures committed to docs/screenshots/v0.6.59/ by the CI
+  (a91046d). v0.6.59 IS SHIPPED: 4 boot-test iterations (runs 5-9),
+  four harness defects fixed along the way (corex DBus quoting, the
+  serial login blank-password desync, the serial.log decode crash,
+  the kmsg-polluted Exec parse), zero product regressions — every red
+  was the harness lying, the product held.
 - Boot Test run 8 = 43509551579 (v0.6.59, RED — a THIRD harness defect,
   different app, same class): main suite reached the os probe — 04h-os
   resolved its Exec to a KERNEL LOG LINE ("[ 653.896351] dbus-daemon
