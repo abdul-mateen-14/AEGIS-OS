@@ -30,6 +30,8 @@ FILES = [
     "shell/src/qml/MonitorApp.qml",
     "shell/src/qml/StoreApp.qml",
     "shell/src/qml/Tokens.qml",
+    "shell/src/qml/Glyphs.qml",
+    "shell/src/qml/CalendarPopover.qml",
     "shell/src/qml/Desktop.qml",
     "shell/src/qml/AppWindow.qml",
     "shell/src/qml/ControlCenter.qml",

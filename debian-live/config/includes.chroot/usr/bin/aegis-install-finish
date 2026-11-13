@@ -1,0 +1,19 @@
+#!/bin/sh
+# T15-D9.2 (W46.2) — the Calamares "Restart now" command.
+#
+# The VMware round's restart trap: after a successful install the user
+# rebooted with the ISO still attached and the VM's boot order still
+# CD-first — the firmware fell back to the empty virtual disk ("restart
+# shows no iso file / no bootable device"). The OS can close that trap
+# from the guest side: EJECT the live medium before rebooting. On VMware
+# a guest eject disconnects the ISO-backed virtual CD, so the firmware
+# skips it and lands on the freshly installed disk; on QEMU/other
+# hypervisors the same eject clears the drive the same way. If the eject
+# cannot run (no sr0 — USB live media) it is a no-op and the reboot
+# proceeds exactly as before.
+eject /dev/sr0 2>/dev/null \
+    || eject /dev/cdrom 2>/dev/null \
+    || udisksctl power-off -b /dev/sr0 2>/dev/null \
+    || true
+sync
+exec systemctl -i reboot

@@ -39,6 +39,11 @@ pipewire
 pipewire-pulse
 wireplumber
 
+# T15-D9.2 (W46.2) — notify-send delivers the installer completion banner
+# (the shell owns org.freedesktop.Notifications, so it renders as an
+# Aegis island banner, not a foreign toast)
+libnotify-bin
+
 # Printing & scanning — out of the box (Table 22)
 cups
 printer-driver-gutenprint

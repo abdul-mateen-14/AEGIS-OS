@@ -47,6 +47,7 @@ qt_add_resources(aegis-shell "shell"
     FILES
         src/qml/qmldir
         src/qml/Tokens.qml
+        src/qml/Glyphs.qml
         src/qml/Spring.qml
         src/qml/GlassPanel.qml
         src/qml/Main.qml
@@ -112,6 +113,7 @@ qt_add_resources(aegis-apps "apps-qml"
     FILES
         src/qml/qmldir
         src/qml/Tokens.qml
+        src/qml/Glyphs.qml
         src/qml/Spring.qml
         src/qml/GlassPanel.qml
         src/qml/AppWindow.qml

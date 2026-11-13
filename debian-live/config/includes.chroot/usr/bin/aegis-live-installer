@@ -2,7 +2,23 @@
 # Auto-starts Calamares in the live session only.
 # On an installed system /run/live/medium and /cdrom do not exist, so this
 # exits and the desktop boots clean.
+#
+# T15-D9.2 (W46.2) — after a SUCCESSFUL install the user gets the honest
+# VM hand-off message (as an Aegis island banner through the shell's
+# org.freedesktop.Notifications ownership): the ISO must leave the
+# virtual drive before the reboot, because a CD-first boot order with the
+# ISO still attached lands on the live medium again — or worse, on the
+# empty disk when the ISO is gone but the drive is still ahead of it in
+# the firmware order (docs/VM-DEMO.md carries the full demo setup).
 if [ ! -d /run/live/medium ] && [ ! -d /cdrom ]; then
     exit 0
 fi
-exec sudo -E calamares
+sudo -E calamares
+rc=$?
+if [ "$rc" -eq 0 ] && command -v notify-send >/dev/null 2>&1; then
+    notify-send -a "Aegis OS" -u critical \
+        "Installation complete" \
+        "Remove the ISO from the VM's virtual drive, then reboot. Restart now (the installer's own button) already ejects the disc from the guest side." \
+        || true
+fi
+exit "$rc"
