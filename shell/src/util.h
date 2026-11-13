@@ -64,6 +64,10 @@ class Util : public QObject {
     QString wiredIface() const { return m_wiredIface; }
     Q_INVOKABLE void disconnectWired(const QString &iface);
     Q_INVOKABLE void reconnectWired(const QString &iface);
+    // T15-D10 (W47) — calendar popover accessors (the Q_PROPERTY WRITE
+    // needs the real method; toggleCalendar is the Q_INVOKABLE face)
+    bool calendarOpen() const { return m_calendarOpen; }
+    void setCalendarOpen(bool open);
     Q_PROPERTY(bool muted READ muted NOTIFY linkStatesChanged)
     Q_PROPERTY(qreal volume READ volume NOTIFY linkStatesChanged)
     Q_PROPERTY(qreal brightness READ brightness NOTIFY linkStatesChanged)
