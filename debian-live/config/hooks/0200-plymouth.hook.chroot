@@ -122,7 +122,7 @@ esac
 for KDIR in /lib/modules/*; do
     [ -d "$KDIR" ] || continue
     KVER="${KDIR##*/}"
-    for M in virtio_gpu bochs_drm bochs; do
+    for M in virtio_gpu bochs_drm bochs vmwgfx qxl cirrus; do
         if modinfo -k "$KVER" -q -n "$M" >/dev/null 2>&1; then
             force_load "$M"
         fi

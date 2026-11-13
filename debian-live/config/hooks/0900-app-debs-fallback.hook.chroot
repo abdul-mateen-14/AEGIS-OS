@@ -35,6 +35,39 @@ if [ "$installed_any" = 1 ]; then
     apt-get install -y -f -qq >/dev/null 2>&1 || true
 fi
 
+# T15-D2 (W42) — the default browser role is wired at BUILD time. The
+# skel mimeapps.list already maps http/https/html to aegis-browser.desktop
+# (the deb ships that entry — verified on the r45 payload), but the role
+# was never stamped through xdg-settings, so `xdg-settings get` came back
+# empty and every xdg-open target outside the mapped schemes (the Drivers
+# pane's "Open CUPS" runs xdg-open http://localhost:631) had no owner —
+# the "Tools not working" report. Resolve the entry that REALLY exists
+# (r45 ships aegis-browser.desktop AND org.aegisbrowser.Aegis.desktop),
+# stamp it through xdg-settings, and re-point the skel map at it so a
+# fresh live user inherits a role that resolves.
+BROWSER_ENTRY=""
+for D in aegis-browser org.aegisbrowser.Aegis aegis-browser-stable; do
+    [ -f "/usr/share/applications/$D.desktop" ] && BROWSER_ENTRY="$D.desktop" && break
+done
+if [ -n "$BROWSER_ENTRY" ]; then
+    # chroot-root context — makes the role resolvable system-wide and
+    # keeps `xdg-settings get` (the W42 boot probe) honest
+    xdg-settings set default-web-browser "$BROWSER_ENTRY" >/dev/null 2>&1 || true
+    for M in x-scheme-handler/http x-scheme-handler/https text/html \
+             application/xhtml+xml; do
+        xdg-mime default "$BROWSER_ENTRY" "$M" >/dev/null 2>&1 || true
+    done
+    # skel: point the fresh-user map at the entry that exists (no-op when
+    # the shipped name already matches)
+    if [ -f /etc/skel/.config/mimeapps.list ]; then
+        sed -i "s|=aegis-browser\.desktop\$|=$BROWSER_ENTRY|g" \
+            /etc/skel/.config/mimeapps.list 2>/dev/null || true
+    fi
+    echo "aegis-fallback: default browser role = $BROWSER_ENTRY"
+else
+    echo "aegis-fallback: WARNING no browser desktop entry found — the default-browser role is unset"
+fi
+
 # W25 — electron/Chromium apps need the SUID helper root-owned 4755.
 # dpkg (especially from the includes path) may not preserve the mode, and
 # a non-4755 chrome-sandbox makes every electron app refuse to start.

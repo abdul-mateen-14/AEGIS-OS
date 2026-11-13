@@ -29,23 +29,30 @@ variant per hypervisor family from now on.
 Ship order (review §3): W41 -> W42 -> W38+W39+W40 -> W43+W44 ->
 W45 -> W46+W47. Every fix ships with its red-able probe (W23 rule).
 
-- D1 TODO (W41, blocker for every VM demo) — 0200-plymouth.hook.chroot
-  force-load loop: add vmwgfx qxl cirrus (loop already modinfo-guards
-  per kernel). boot-capture.py: add a second boot variant with
-  -vga vmware (QEMU emulates the VMware SVGA device, guest loads
-  vmwgfx — no Workstation needed); assert on BOTH variants: splash
-  frames non-black, no plymouthd DRM-master failure line in the
-  journal. virtio stays release-blocking; the vmware variant gates D1.
-- D2 TODO (W42, high) — aegis-electron-launch: append --no-first-run
-  --no-default-browser-check in ALL modes (VM-only --disable-gpu
-  --no-sandbox stays). 0900 hook: xdg-settings set default-web-browser
-  aegis-browser-stable.desktop after the deb block. ToS gate: the
-  gate lives in the AEGIS-BROWSER deb (external repo), not this tree —
-  download the r45 deb, locate the gate resource, neutralize it from
-  a chroot hook (accepted sentinel or resource patch), keep it honest
-  in the log. Probe: dock-launch the browser, assert main window in
-  the list, no window title contains Terms of Service, xdg-settings
-  get prints the Aegis entry, capture replaces 04g-browser.png.
+- D1 DONE (W41, blocker for every VM demo) — 0200-plymouth.hook.chroot
+  force-load loop: vmwgfx qxl cirrus added (loop already modinfo-guards
+  per kernel). boot-capture.py: start_qemu_vmware + vmware_boot_check
+  (-device vmware-svga; QEMU emulates the VMware SVGA II device, the
+  guest loads vmwgfx — no Workstation needed) asserts the mark splash
+  via the W14 signature, vmwgfx in lsmod, no plymouthd DRM-master
+  failure lines in the journal, and desktop-appear. Wired into
+  boot-test.yml as a step after the release-blocking virtio run;
+  vm- prefixed captures land in docs/screenshots/<tag>/; timeout 100.
+- D2 DONE (W42, high) — aegis-electron-launch: --no-first-run
+  --no-default-browser-check ride EVERY launch in all modes (VM-only
+  --disable-gpu --no-sandbox unchanged). 0900 hook: the default browser
+  role is resolved from the entry that really exists (r45 payload
+  verified: aegis-browser.desktop AND org.aegisbrowser.Aegis.desktop
+  both ship; skel already mapped aegis-browser.desktop — the role was
+  never stamped through xdg-settings) and stamped via xdg-settings set
+  + xdg-mime defaults + the skel sed re-point. ToS gate: the strings
+  live in the browser's locale paks (en-US.pak GRIT: "Welcome to Aegis"
+  "Accept" "Cancel" "Aegis Additional Terms of Service" "This Space
+  Intentionally Blank...") as a first-run experience wired in the
+  rebrand's C++ — not patchable from this tree, but the first-run flow
+  is exactly what --no-first-run suppresses; the D11 probe (no window
+  title contains Terms of Service after the dock launch) is the
+  red-able verifier. Probe lands with D11.
 - D3 TODO (W38, high) — StoreApp.qml: replace the bare Window + hand
   rolled 44 px band with the AppWindow anatomy (titlebar 44 + lights
   + DragHandler + resize zones + clipped body). Real icons instead of

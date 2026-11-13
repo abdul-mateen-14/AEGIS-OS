@@ -25,7 +25,7 @@ jobs:
   boot:
     name: Boot ISO and capture screenshots
     runs-on: ubuntu-latest
-    timeout-minutes: 85
+    timeout-minutes: 100
     steps:
       - uses: actions/checkout@v4
 
@@ -93,6 +93,15 @@ jobs:
         run: |
           python3 scripts/boot-capture.py iso/AegisOS.iso screenshots
 
+      - name: VMware boot variant (W41)
+        # T15-D1 — the second hypervisor family. The main capture above is
+        # earned on virtio; the user demos on VMware (vmwgfx). QEMU's
+        # vmware-svga device makes the guest load vmwgfx and plymouthd must
+        # paint there too — the user's Screenshot (23).png console flood is
+        # exactly the headless-plymouthd failure this gate re-derives in CI.
+        run: |
+          python3 scripts/boot-capture.py iso/AegisOS.iso screenshots-vmware --vmware-boot-check
+
       - name: Upload artifacts
         if: always()
         uses: actions/upload-artifact@v4
@@ -100,6 +109,7 @@ jobs:
           name: boot-test-${{ steps.tag.outputs.tag }}
           path: |
             screenshots/**
+            screenshots-vmware/**
             serial.log
             serial-diag.txt
             qemu.log
@@ -114,6 +124,9 @@ jobs:
           git config user.email "actions@users.noreply.github.com"
           mkdir -p "docs/screenshots/$TAG"
           cp screenshots/*.png "docs/screenshots/$TAG/" 2>/dev/null || true
+          for f in screenshots-vmware/*.png; do
+            [ -f "$f" ] && cp "$f" "docs/screenshots/$TAG/vm-$(basename "$f")"
+          done
           git add docs/screenshots
           if git diff --cached --quiet; then
             echo "no new screenshots to commit"

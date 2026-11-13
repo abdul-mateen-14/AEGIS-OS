@@ -7,7 +7,7 @@ If the desktop does not come up, the script logs into the guest over the
 serial console (interactive socket chardev), dumps diagnostics, and attempts
 live recovery (start SDDM / isolate graphical.target) before giving up.
 
-Usage: python3 boot-capture.py <iso> [screenshot-dir]
+Usage: python3 boot-capture.py <iso> [screenshot-dir] [--vmware-boot-check]
 """
 import json, os, re, shutil, socket, subprocess, sys, time
 
@@ -392,6 +392,108 @@ def start_qemu_with_fallback():
                 log(f"accelerator in use: {accel[0]}; gpu: {gpu}")
                 return proc
     raise RuntimeError("qemu failed to start under every accelerator — see qemu.log")
+
+def start_qemu_vmware():
+    # T15-D1 (W41) — the SECOND hypervisor family. Every green gate above
+    # was earned on virtio; the user demos on VMware Workstation, whose
+    # SVGA II device needs the vmwgfx module in the initramfs (review §0:
+    # without it plymouthd gets no DRM master and runs headless the whole
+    # boot — the user's Screenshot (23).png is exactly that console). QEMU
+    # emulates the same device (-device vmware-svga == -vga vmware), so CI
+    # exercises the user's path with no Workstation. Rule going forward:
+    # one boot run per hypervisor family the user demos on.
+    chains = (["-enable-kvm", "-cpu", "host"],
+              ["-accel", "tcg,thread=multi", "-cpu", "max"])
+    for accel in chains:
+        log(f"trying gpu=vmware-svga accelerator={accel[0]}")
+        for p in (SOCK, SERIAL_SOCK):
+            if os.path.exists(p):
+                os.remove(p)
+        proc = start_qemu(accel, "vmware-svga")
+        if proc:
+            log(f"accelerator in use: {accel[0]}; gpu: vmware-svga")
+            return proc
+    raise RuntimeError("qemu failed to start with vmware-svga — see qemu.log")
+
+def vmware_boot_check():
+    """T15-D1 (W41) — the VMware-variant boot gate. Boots the same ISO
+    once under -device vmware-svga, asserts the mark splash on the boot
+    frames (splash_report — the same W14 signature as the virtio run)
+    and checks the guest journal: vmwgfx must be loaded (the initramfs
+    force-load list must actually cover VMware) and plymouthd must carry
+    no DRM-master / renderer failure line (the §0 headless signature).
+    Desktop-appear is asserted too — a vmwgfx guest that boots to console
+    is precisely the user's report. It does NOT run the full app
+    choreography; the virtio run stays the release-blocking gate, this
+    variant gates the W41 fix itself."""
+    os.makedirs(OUT, exist_ok=True)
+    proc = start_qemu_vmware()
+    q = QMP(SOCK)
+    log("QMP connected (vmware-svga)")
+    n = wait_desktop(q, proc)
+    desktop_ok = n >= 0
+    vmwgfx_loaded = False
+    plymouth_clean = None      # None = journal check never ran (serial lost)
+    try:
+        serial = Serial(SERIAL_SOCK)
+        if serial.login():
+            log("serial login OK (vmware variant)")
+            out = serial.run(
+                "lsmod | grep vmwgfx | head -2; echo VMWGFX-END; "
+                "ls -la /dev/dri 2>&1 | head -4; echo DRI-END; "
+                "journalctl -b --no-pager 2>/dev/null | grep -ai plymouth "
+                "| grep -aiE 'drm|master|headless|render|fail|error' "
+                "| head -12; echo PLY-JRN-END", settle=8)
+            seg = out.split("VMWGFX-END")[0]
+            vmwgfx_loaded = "vmwgfx" in seg
+            log("vmware variant: vmwgfx "
+                + ("IS loaded" if vmwgfx_loaded
+                   else "NOT loaded — the initramfs force-load missed it"))
+            if "PLY-JRN-END" in out:
+                jrn = out.split("PLY-JRN-END")[0]
+                jrn = jrn.split("DRI-END")[-1].strip()
+                plymouth_clean = len(jrn) == 0
+                if jrn:
+                    log("plymouthd journal failure lines: "
+                        + jrn.replace("\n", " | ")[:400])
+                else:
+                    log("plymouthd journal: no DRM-master/renderer failure "
+                        "lines")
+            q.shot("vmw-desktop")
+        else:
+            log("serial login FAILED on the vmware variant")
+    except Exception as e:
+        log(f"vmware variant serial diag failed: {e}")
+    if not desktop_ok:
+        log("desktop never appeared under vmware-svga — serial.log tail:")
+        try:
+            for line in list(open("serial.log"))[-40:]:
+                log("  | " + line.rstrip()[:200])
+        except OSError:
+            pass
+    splash_ok = splash_report(OUT, n if desktop_ok else -1)
+    failures = []
+    if not desktop_ok:
+        failures.append("vmware variant: the desktop never appeared under "
+                        "vmware-svga — the vmwgfx boot path is broken")
+    if not vmwgfx_loaded:
+        failures.append("vmware variant: vmwgfx never loaded in the guest "
+                        "— the 0200 initramfs force-load list misses it")
+    if plymouth_clean is False:
+        failures.append("vmware variant: the journal carries plymouthd "
+                        "DRM-master/renderer failure lines — headless boot, "
+                        "the exact Screenshot (23).png console flood")
+    if not splash_ok:
+        failures.append("vmware variant: the mark splash never painted on "
+                        "the vmware-svga frames — W41 NOT met")
+    if failures:
+        for f in failures:
+            log("ASSERT FAILED: " + f)
+        log("vmware boot variant complete (FAILED — W41 gate red)")
+        q._cmd("quit")
+        sys.exit(1)
+    log("vmware boot variant complete (W41 gate green)")
+    q._cmd("quit")
 
 # ---------------- serial console ----------------
 # T13-D10 — the serial console's bash emits shell-integration OSC 3008
@@ -2229,4 +2331,7 @@ def main():
     q._cmd("quit")
 
 if __name__ == "__main__":
-    main()
+    if "--vmware-boot-check" in sys.argv:
+        vmware_boot_check()
+    else:
+        main()
