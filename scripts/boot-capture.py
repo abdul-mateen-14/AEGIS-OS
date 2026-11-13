@@ -1759,10 +1759,31 @@ def main():
                         "| grep '^DBUS_SESSION_BUS_ADDRESS=' | head -1 "
                         "| cut -d= -f2-); "
                         "busctl --user call org.aegis.Shell /org/aegis/Shell "
-                        f"org.aegis.Shell launch s \"{lc}\" 2>&1; "
+                        # Boot run 5 (v0.6.59) — the string argument rides
+                        # SINGLE quotes: the resolved Exec of a Tier B deb
+                        # may carry embedded double quotes (CoreX:
+                        # aegis-electron-launch "/opt/CoreX Terminal/
+                        # corex-terminal" %U) and a double-quoted busctl
+                        # argument terminated at the first one — busctl
+                        # answered "Too many parameters for signature." on
+                        # EVERY run since the probe shipped (run 92 green
+                        # only because attempt 1's dock click won the
+                        # first-paint race, run 59 red because it lost).
+                        # Util.launch tokenizes quotes properly — the dock
+                        # click path proves it — so the bus line now
+                        # delivers the exact same string the dock does.
+                        f"org.aegis.Shell launch s '{lc}' 2>&1; "
                         f"echo LAUNCH-{name}-OK", settle=3)
+                    # Boot run 5 — the launched check must recognize the
+                    # failure text busctl actually prints: a signature
+                    # error surfaces as "Too many parameters for
+                    # signature.", not "Call failed" — the old check read
+                    # the marker alone and attempt 0 slept 45 s on a dead
+                    # launch (the nohup ladder below exists for exactly
+                    # this and never got its chance).
                     launched = (f"LAUNCH-{name}-OK" in out
-                                and "Call failed" not in out)
+                                and "Call failed" not in out
+                                and "Too many parameters" not in out)
                     log(f"{name}: dbus launch -> " +
                         out.strip().replace("\n", " | ")[-160:])
                     # (2) nohup fallback — the launch ladder must not

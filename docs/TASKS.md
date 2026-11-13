@@ -131,6 +131,36 @@ W45 -> W46+W47. Every fix ships with its red-able probe (W23 rule).
   chevrons, the CC sheet's exact entry motion), closes on CC open or
   a window opening (the W20-style predicate). Util.calendarOpen +
   toggleCalendar; the clock hit target is the clock box +- 8 px.
+- Boot Test run 5 = 43494786079 (v0.6.59, RED — ONE assert; W41+W49
+  PROVED, W48 still unverified): Release green (43490272780)
+  — the W49 build-time assert PASSED, i.e. the rebuilt initramfs now
+  verifiably carries vmwgfx.ko (had the ladder still been inert, the
+  hook's lsinitramfs check would have aborted lb build). The vmware leg
+  NEVER RAN — the main leg's exit-1 skips the second workflow step, so
+  the W48 assert set is still unverified in CI; the re-dispatch
+  exercises it for the first time. The red is the MAIN suite, at the
+  very
+  end: corex window never opened (screen unchanged) — all late asserts
+  evaluated PASS (tint 395, monitor 815, island, magnify). Forensics
+  (job log + artifact serial): attempt 0's DBus launch died with busctl
+  "Too many parameters for signature." — the resolved CoreX Exec carries
+  embedded double quotes (aegis-electron-launch "/opt/CoreX Terminal/
+  corex-terminal" %U) and the double-quoted busctl argument terminated
+  at the first one; the launched check only looked for "Call failed" so
+  it read the dead launch as success and burned its 45 s window; attempt
+  1's dock click started the wrapper (7341 alive) but lost the
+  first-paint race (diff 3.8 < 6). Cross-check against run 92's job log:
+  the IDENTICAL "Too many parameters" line fired there too — run 92 was
+  green only because attempt 1's diff caught the paint (36.4). So the
+  corex probe has been a coin flip since it shipped; the failure class
+  is the harness, not the product, and NOT the v0.6.59 initramfs delta
+  (the extra force-loaded modules bind nothing on virtio). Fixes in
+  open_app: (1) the busctl string argument rides SINGLE quotes — Util.
+  launch tokenizes quotes properly (the dock click path proves it), so
+  the bus line now delivers the exact string the dock does; (2) the
+  launched check recognizes "Too many parameters" so a dead DBus launch
+  actually falls through to the nohup ladder. Harness-only change — the
+  v0.6.59 ISO is untouched; re-dispatch rides the same tag.
 - Boot Test run 4 = 43467934018 (v0.6.58, RED — but the verdict SPLITS,
   and the release-blocking leg is GREEN): 41 m 38 s total, artifact read
   (boot-test-v0.6.58, serial.log + serial-diag.txt + both capture sets).
