@@ -131,6 +131,27 @@ W45 -> W46+W47. Every fix ships with its red-able probe (W23 rule).
   chevrons, the CC sheet's exact entry motion), closes on CC open or
   a window opening (the W20-style predicate). Util.calendarOpen +
   toggleCalendar; the clock hit target is the clock box +- 8 px.
+- Boot Test run 2 = 43449648761 (RED, five asserts) — the W-19 CC
+  click fixed the DND gate (diff 0.4, PASS) and the dark tile
+  (AegisDark -> AegisLight PASS); the Files CSD resize WORKS (the
+  true-edge aim landed); store/dim/rotate/browser all PASS again.
+  Read: (1) the Konsole edge drag still grew 0 px at +2/+6 — the
+  BorderSize=None resize claim is FALSE, the review's prescribed
+  flip applies: kwinrc BorderSize=Tiny + config_assert needle moved
+  (this is IN the ISO -> new tag v0.6.57); (2) the effects toggle
+  clicked fine — the knob was ALREADY ON at tier A, the click wrote
+  blurLive=false and the verdict grepped for true; the verdict now
+  accepts the override KEY in either polarity; (3) the presentation
+  click missed — the old 402..458 scan column does not cover the
+  moved knob (labeled rows carry the switch after the label);
+  knob_centers went module level and the displays pane uses cluster[0];
+  (4) the calendar popover WORKED (run 1's capture proves it) but the
+  whole-frame thumb diff diluted to 1.5 — the verdict is now
+  region-scoped (sheet region delta > 2.0 open, < 2.0 closed);
+  (5) w43 still red — the w43 probe now dumps the NM table verbatim
+  (a missing NIC vs a hung connection becomes distinguishable) and
+  the NIC rides the explicit -device virtio-net-pci,netdev form.
+
 - Boot Test run 43446096194 (RED at the DND gate) — the read is
   rich: w38 store lights FOUND + red-light close TRUE (payload + 0.0
   diff), w39 rotate + focus-dim verdicts PASS, w42 default browser

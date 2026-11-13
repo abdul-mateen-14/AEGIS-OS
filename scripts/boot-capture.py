@@ -187,6 +187,42 @@ def window_hairline(png, scan_to=260):
             return (y, run_start, run_len)
     return None
 
+def knob_centers(png, x0=380, x1=1100, y0=190, y1=640):
+    """T15-D4 — white 20 px knob blobs in the pane body, clustered by row
+    (each GlassSwitch row contributes one). The scan is pane-wide because
+    the wallpaper pane stacks its switches on the LEFT while rows with a
+    label (displays Presentation, effects rows) carry them at the RowLayout
+    position after the label. The knob is pure white (255) — the fg text
+    tops out at 242. Module level: shared by the W39 toggle probes AND the
+    T13-D29 presentation click (the first run proved the old 402..458
+    scan misses the moved knob)."""
+    im = Image.open(png).convert("RGB")
+    px = im.load()
+    pts = [(x, y) for y in range(y0, min(y1, im.size[1]))
+           for x in range(x0, min(x1, im.size[0]))
+           if min(px[x, y]) > 250]
+    if not pts:
+        return []
+    pts.sort(key=lambda p: p[1])
+    clusters = []
+    cur = [pts[0]]
+    for p in pts[1:]:
+        if p[1] - cur[-1][1] <= 12:
+            cur.append(p)
+        else:
+            clusters.append(cur)
+            cur = [p]
+    clusters.append(cur)
+    out = []
+    for cl in clusters:
+        if len(cl) < 50:
+            continue
+        xs = [p[0] for p in cl]
+        ys = [p[1] for p in cl]
+        out.append(((min(xs) + max(xs)) // 2,
+                    (min(ys) + max(ys)) // 2))
+    return out
+
 def drag_right_edge(q, png, out_name, W, H, home_ref=None):
     """T15-D7 (W44) — the right-edge resize drag with the TRUE edge aim.
     The top hairline stops 6-7 px short of the window's real right edge
@@ -431,7 +467,8 @@ def start_qemu(accel, gpu):
     cmd = ["qemu-system-x86_64", *accel, "-m", "4096", "-smp", "4",
            "-device", gpu, "-display", "none",
            "-device", "qemu-xhci", "-device", "usb-tablet",
-           "-nic", "user,model=virtio-net-pci", "-cdrom", ISO, "-boot", "d", "-no-reboot",
+           "-device", "virtio-net-pci,netdev=n0", "-netdev", "user,id=n0",
+           "-cdrom", ISO, "-boot", "d", "-no-reboot",
            "-qmp", f"unix:{SOCK},server,nowait",
            "-chardev", f"socket,id=ser0,path={SERIAL_SOCK},server=on,wait=off,logfile=serial.log",
            "-serial", "chardev:ser0"]
@@ -1056,8 +1093,12 @@ def config_assert(diag_path):
          "decoration theme is not AegisLights")
     need(kwinrc, "ButtonsOnLeft=XIA",
          "ButtonsOnLeft drifted from XIA (close dot must lead on the left)")
-    need(kwinrc, "BorderSize=None",
-         "BorderSize drifted (W11 flush-client anatomy)")
+    # T15-D7 (W44) — None was PROVEN non-resizable by the edge-drag probe
+    # (two runs, 0 px growth on Konsole); the review ruling flips to Tiny
+    # (4 px strips, the 44 px titleband and W10 metrics unchanged).
+    need(kwinrc, "BorderSize=Tiny",
+         "BorderSize drifted (W44 resize ruling — Tiny after None proved "
+         "non-resizable)")
     need(kwinrc, "kwin4_effect_shapecornersEnabled=true",
          "ShapeCorners effect disabled (Table 18 r18 corners)")
     need(kwinrc, "aegis-windowwatchEnabled=true",
@@ -2000,24 +2041,15 @@ def main():
             # below the AppWindow 44 px titlebar + 52 px toolbar strip,
             # which the model did not carry). The click is now
             # SELF-CALIBRATING: the GlassSwitch knob is a 20 px PURE
-            # white blob (255, 255, 255 — the fg text tops out at 242)
-            # at the row's left edge; scan the indicator column, click
-            # the knob, fall back to the measured point when the scan
-            # finds nothing.
-            def knob_center(png):
-                im = Image.open(png).convert("RGB")
-                px = im.load()
-                pts = [(x, y) for y in range(180, 560)
-                       for x in range(402, 458)
-                       if min(px[x, y]) > 250]
-                if len(pts) < 60:
-                    return None
-                xs = [p[0] for p in pts]
-                ys = [p[1] for p in pts]
-                return ((min(xs) + max(xs)) // 2, (min(ys) + max(ys)) // 2)
-
-            kc = knob_center(f"{OUT}/04l-displays.png") or (433, 359)
-            log(f"presentation knob scan: {kc}")
+            # white blob (255, 255, 255 — the fg text tops out at 242);
+            # the shared module-level knob_centers() scans the whole pane
+            # (the first T15 run proved the old 402..458 column misses —
+            # the labeled rows carry the switch AFTER the label, and the
+            # W39.3 fillers moved every row up). Click cluster[0]: the
+            # Presentation row is the displays pane's first switch row.
+            cs = knob_centers(f"{OUT}/04l-displays.png")
+            log(f"presentation knob clusters: {cs}")
+            kc = cs[0] if cs else (433, 359)
             q.click(kc[0], kc[1], W, H)
             time.sleep(2.5)
             q.shot("04l2-displays-on")
@@ -2029,8 +2061,9 @@ def main():
                 + ("ON (file verdict)" if presentation_on
                    else "MISSING — the toggle click did not land"))
             # restore off — re-scan (the knob moved to the track's right
-            # end), fall back to the same measured point
-            kc2 = knob_center(f"{OUT}/04l2-displays-on.png") or (433, 359)
+            # end); cluster[0] again
+            cs2 = knob_centers(f"{OUT}/04l2-displays-on.png")
+            kc2 = cs2[0] if cs2 else (433, 359)
             q.click(kc2[0], kc2[1], W, H)
             time.sleep(1.5)
             q.key("alt", "f4")
@@ -2062,40 +2095,6 @@ def main():
     browser_default_ok = False
     if serial is not None:
         try:
-            def knob_centers(png, x0=380, x1=1100, y0=190, y1=640):
-                """white 20 px knob blobs in the pane body, clustered by
-                row (each GlassSwitch row contributes one). The scan is
-                pane-wide because the wallpaper pane stacks its switches
-                on the LEFT while the effects rows carry them on the
-                RIGHT edge of the RowLayout. The knob is pure white
-                (255) — the fg text tops out at 242."""
-                im = Image.open(png).convert("RGB")
-                px = im.load()
-                pts = [(x, y) for y in range(y0, min(y1, im.size[1]))
-                       for x in range(x0, min(x1, im.size[0]))
-                       if min(px[x, y]) > 250]
-                if not pts:
-                    return []
-                pts.sort(key=lambda p: p[1])
-                clusters = []
-                cur = [pts[0]]
-                for p in pts[1:]:
-                    if p[1] - cur[-1][1] <= 12:
-                        cur.append(p)
-                    else:
-                        clusters.append(cur)
-                        cur = [p]
-                clusters.append(cur)
-                out = []
-                for cl in clusters:
-                    if len(cl) < 50:
-                        continue
-                    xs = [p[0] for p in cl]
-                    ys = [p[1] for p in cl]
-                    out.append(((min(xs) + max(xs)) // 2,
-                                (min(ys) + max(ys)) // 2))
-                return out
-
             def click_knob(png, idx):
                 cs = knob_centers(png)
                 log(f"w39 knobs: {cs}")
@@ -2137,7 +2136,10 @@ def main():
                 click_knob(f"{OUT}/04n3-wallpaper-dim.png", 1)
             q.key("alt", "f4"); time.sleep(5)
 
-            # effects pane (2): blurLive first row
+            # effects pane (2): blurLive first row. The knob may already
+            # be ON (tier A runs blurLive) — clicking writes the override
+            # of the OPPOSITE polarity, so the verdict is the override
+            # KEY existing in governor.conf, not its value.
             serial.run("export XDG_RUNTIME_DIR=/run/user/$(id -u); "
                        "WAYLAND_DISPLAY=wayland-0 nohup aegis-settings 2 "
                        ">/tmp/aegis-settings2.err 2>&1 & echo PANE2-LAUNCHED",
@@ -2145,12 +2147,12 @@ def main():
             time.sleep(16)
             q.shot("04o-effects")
             if click_knob(f"{OUT}/04o-effects.png", 0):
-                out = serial.run("grep -c 'blurLive=true' "
+                out = serial.run("grep -cE '^blurLive=(true|false)' "
                                  "~/.config/aegis/governor.conf 2>/dev/null; "
                                  "echo EFF-END", settle=2)
                 w39_effects_ok = out.split("EFF-END")[0].strip() == "1"
                 log("w39 effects toggle: "
-                    + ("governor.conf verdict PASS" if w39_effects_ok
+                    + ("governor.conf override verdict PASS" if w39_effects_ok
                        else "FAIL — " + out.strip()[-80:]))
                 q.shot("04o2-effects-toggled")
                 click_knob(f"{OUT}/04o2-effects-toggled.png", 0)
@@ -2160,14 +2162,21 @@ def main():
 
         # T15-D6 (W43) — the runner is ethernet-only: the wired row's
         # substrate must really say Connected (the UI reads this state).
+        # The dump rides the verdict so a missing NIC vs a connection
+        # that never completes is distinguishable in the log.
         try:
             out = serial.run(
+                "echo ===NMCLI===; nmcli -t device status 2>&1 | head -8; "
+                "echo CARRIERS; cat /sys/class/net/*/carrier 2>/dev/null; "
                 "nmcli -t -f TYPE,STATE device status 2>/dev/null | "
-                "grep -c '^ethernet:connected'; echo W-OK", settle=3)
-            wired_ok = out.split("W-OK")[0].strip().startswith("1")
+                "grep -c '^ethernet:connected'; echo W-OK", settle=4)
+            seg = out.split("W-OK")[0]
+            count = seg.rsplit("\n", 2)[-2].strip() if "\n" in seg else seg.strip()
+            wired_ok = count == "1"
             log("w43 wired state: "
                 + ("ethernet:connected PASS" if wired_ok
-                   else "FAIL — no connected ethernet in the runner"))
+                   else f"FAIL (count={count!r}) — NM table: "
+                   + seg.split("===NMCLI===")[-1].replace("\n", " | ")[:400]))
         except Exception as e:
             log(f"w43 wired probe failed: {e}")
 
@@ -2422,18 +2431,34 @@ def main():
         # clean desktop reference here
         q.shot("05e-home-ref")
         cal_ref = thumb(f"{OUT}/05e-home-ref.png")
+        # region-scoped verdict: the 300x340 sheet is ~10% of the frame —
+        # a whole-frame thumb diff dilutes it under the threshold (the
+        # second run measured 1.5 on a WORKING popover). Diff the sheet
+        # region only (anchored right, margin 84: x W-384..W-84, y 40..380).
+        def cal_region(png):
+            im = Image.open(png).convert("RGB")
+            Wd, Hd = im.size
+            box = im.crop((Wd - 384, 40, Wd - 84, 380))
+            px = list(box.getdata())
+            n = len(px)
+            return tuple(sum(c[i] for c in px) / n for i in range(3))
+
         q.click(W - 108, 14, W, H)      # the panel clock
         time.sleep(2.5)
         q.shot("05d-calendar")
-        d = diff_px(thumb(f"{OUT}/05d-calendar.png"), cal_ref)
-        log(f"05d-calendar: diff-vs-ref={d:.1f}")
-        calendar_ok = d > 6
+        cal_open_delta = max(abs(a - b) for a, b in
+                             zip(cal_region(f"{OUT}/05d-calendar.png"),
+                                 cal_region(f"{OUT}/05e-home-ref.png")))
+        log(f"05d-calendar: sheet-region delta={cal_open_delta:.1f}")
+        calendar_ok = cal_open_delta > 2.0
         q.click(W - 108, 14, W, H)      # toggle closed
         time.sleep(1.5)
         q.shot("05d2-calendar-closed")
-        d2 = diff_px(thumb(f"{OUT}/05d2-calendar-closed.png"), cal_ref)
-        log(f"05d2-calendar-closed: diff-vs-ref={d2:.1f}")
-        calendar_ok = calendar_ok and d2 < 6
+        cal_closed_delta = max(abs(a - b) for a, b in
+                               zip(cal_region(f"{OUT}/05d2-calendar-closed.png"),
+                                   cal_region(f"{OUT}/05e-home-ref.png")))
+        log(f"05d2-calendar-closed: sheet-region delta={cal_closed_delta:.1f}")
+        calendar_ok = calendar_ok and cal_closed_delta < 2.0
     except Exception as e:
         log(f"calendar probe failed: {e}")
 

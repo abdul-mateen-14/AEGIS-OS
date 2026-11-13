@@ -8,9 +8,17 @@ BorderSizeAuto=false
 # below the 44 px glass band (the AppWindow.qml anatomy). The aurorae v2
 # engine clamps theme Border* to this size (Normal would clamp 12 → 6 and
 # leave the client inside a body-coloured strip with the band arc floating
-# inset — "the header is smaller than the body"). Resizing still works
-# through KWin's resize-only borders; corners round via ShapeCorners below.
-BorderSize=None
+# inset — "the header is smaller than the body").
+#
+# T15-D7 (W44) — the review's claim "resizing still works through KWin's
+# resize-only borders (settings largeSpacing)" had no probe behind it, and
+# the T15 boot gate PROVED it false: two runs, right-edge drags at hairline
+# end +2/+6 on Konsole grew the window 0 px under BorderSize=None. The
+# review's prescribed flip applies verbatim: BorderSize=Tiny (4 px strips;
+# the aurorae theme's own 44 px titleband and the W10 button metrics are
+# unchanged). The W44 terminal drag probe re-asserts resize per run, and
+# the T7 header assert guards the button geometry.
+BorderSize=Tiny
 
 [Effect-blur]
 BlurDecorations=true
