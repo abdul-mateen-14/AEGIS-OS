@@ -8,12 +8,17 @@ set -e
 # still showed "kscreen-doctor not available". Either the archive churn
 # ate the package (the class that ate cups-pdf) or packaging moved the
 # binary. Red the build, not the demo.
+# v0.6.60 build note: the binary ships via the libkf6screen-bin
+# DEPENDENCY of kscreen, not the kscreen package itself (dpkg -L kscreen
+# does not list it — the first ISO build caught exactly the silent
+# packaging fact this assert exists for). The honest form: the binary
+# must exist AND be dpkg-owned.
 if ! command -v kscreen-doctor >/dev/null 2>&1; then
     echo "W56 assert: kscreen-doctor missing — package 'kscreen' did not install"
     exit 1
 fi
-dpkg -L kscreen 2>/dev/null | grep -q bin/kscreen-doctor || {
-    echo "W56 assert: dpkg -L kscreen ships no bin/kscreen-doctor (packaging changed?)"
+dpkg -S "$(command -v kscreen-doctor)" >/dev/null 2>&1 || {
+    echo "W56 assert: kscreen-doctor is not owned by any dpkg package"
     exit 1
 }
 
