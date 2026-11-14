@@ -194,10 +194,12 @@ int main(int argc, char *argv[])
         QUrl(QStringLiteral("qrc:/qml/") + qmlName),
     };
     bool loaded = false;
+    QObject *rootObj = nullptr;   // the app QML root IS the Window
     for (const QUrl &src : candidates) {
         QQmlComponent component(&engine, src);
         QObject *obj = component.create();
         if (obj) {
+            rootObj = obj;
             loaded = true;
             break;
         }
@@ -207,7 +209,7 @@ int main(int argc, char *argv[])
                   src.toString().toUtf8().constData(),
                   component.errorString().toUtf8().constData());
     }
-    if (!loaded) {
+    if (!loaded || !rootObj) {
         qCritical("aegis-apps: failed to load %s", qmlName.toUtf8().constData());
         return 1;
     }
@@ -221,7 +223,7 @@ int main(int argc, char *argv[])
     const QString govDir = qEnvironmentVariable("XDG_RUNTIME_DIR",
                                                 QStringLiteral("/tmp"))
                            + QStringLiteral("/aegis");
-    const auto applyAppBlur = [&governor, &engine, govDir]() {
+    const auto applyAppBlur = [&governor, &rootObj, govDir]() {
         bool any = governor.effects()
                        .value(QStringLiteral("blurAny"))
                        .toBool();
@@ -234,15 +236,12 @@ int main(int argc, char *argv[])
             if (fx.contains(QStringLiteral("blurAny")))
                 any = fx.value(QStringLiteral("blurAny")).toBool();
         }
-        for (QObject *rootObj : engine.rootObjects()) {
-            // the app QML root IS the Window (FilesApp.qml et al.) —
-            // findChildren alone would miss it
-            if (auto *rootWin = qobject_cast<QQuickWindow *>(rootObj))
-                KWindowEffects::enableBlurBehind(rootWin, any);
-            for (QQuickWindow *win :
-                 rootObj->findChildren<QQuickWindow *>())
-                KWindowEffects::enableBlurBehind(win, any);
-        }
+        // the app QML root IS the Window (FilesApp.qml et al.) —
+        // findChildren alone would miss it
+        if (auto *rootWin = qobject_cast<QQuickWindow *>(rootObj))
+            KWindowEffects::enableBlurBehind(rootWin, any);
+        for (QQuickWindow *win : rootObj->findChildren<QQuickWindow *>())
+            KWindowEffects::enableBlurBehind(win, any);
     };
     applyAppBlur();
     QObject::connect(&governor, &Governor::tierChanged, &governor,

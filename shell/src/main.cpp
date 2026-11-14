@@ -27,6 +27,7 @@
 #include <QQuickStyle>
 #include <QQuickWindow>
 #include <QQmlApplicationEngine>
+#include <QQmlContext>
 #include <QQmlEngine>
 #include <QMargins>
 #include <QUrlQuery>
