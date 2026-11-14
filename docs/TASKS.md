@@ -15,6 +15,52 @@ cannot lose the plan.
 
 ---
 
+## T17 — v0.6.61: the island slab over windows (USER-REPORTED with a
+    screenshot) (DOING — fix in tree, ships with the v0.6.61 tag)
+
+Opened 2026-11-14 from the user's paste: a screenshot of the maximized
+Store with a flat gray rectangle hanging under the panel (x ~430-850,
+y ~30-170) — "when an app's window goes in dynamic island range why the
+section is becoming like this, fix it, it is looking ugly".
+
+- D1 DONE — root cause by luminance forensics, not guesswork. The rect
+  is EXACTLY the island window's surface (420x140 flush under the panel,
+  y 30-170 = panel 28 + margin 2). Measured on the report screenshot:
+  the rect lum 29.0 == the WALLPAPER's lum at that height (29.4, the
+  §5.3 calibration), NOT the store chrome beneath it (21.4). Mechanism:
+  W50 put the island on the shell blur list (aegisGlassRung="panel",
+  main.cpp) and KWin's blur-behind for a layer-shell surface samples
+  the BACKGROUND-layer content — the wallpaper — so the island's
+  transparent margins painted a wallpaper-colored rect OVER whatever
+  window sits beneath. Invisible over the wallpaper at home (margins ==
+  wallpaper) and over Files/Terminal chrome (lum ~28, delta 0.2-2.2 in
+  the captures) — glaring over the Store's darker chrome (delta 7.6 in
+  04k-store.png, which is why it ships "in every screenshot" with the
+  Store open). Fix: the island is the one OPAQUE instrument in the
+  shell — it is excluded from the glass rungs; blur on it never showed
+  on the capsule itself, only ever in the margins (the artifact and
+  nothing else).
+- D2 DONE (bonus, same screenshot) — the Store live-session card froze
+  too short and the "apt-backed · Ubuntu + Debian archive" caption
+  painted over the Run-installer button: the card's `height:
+  noticeColumn.height + 20` binding is CLOBBERED by the parent
+  ColumnLayout (layouts overwrite children height, destroying the
+  binding). Fix: Layout.preferredHeight: noticeColumn.implicitHeight
+  + 20 — the Layout-respecting channel that tracks the wrapped text.
+- D3 DONE — regression guard W61 in the boot harness: on the 04k-store
+  capture the island margin bands (x W/2-190..W/2-130 at y 45-75 and
+  135-165) must equal the mirror bands beside the island edges at the
+  same heights (worst |delta| <= 3.0). Validated OFFLINE against real
+  captures: the report screenshot FAILs at 7.6, our own 04k-store.png
+  FAILs at 7.6 (the bug shipped unnoticed in every Store capture),
+  02-files/03-terminal PASS at 0.2-0.4 (chrome lum == wallpaper lum,
+  invisible there). The wallpaper's own horizontal gradient is 3.2 on
+  home — the probe is store-scoped and never evaluates home.
+- Ship path: tag v0.6.61 (product change — shell C++ + QML — so a FULL
+  Release ISO rebuild), then Boot Test dispatch with inputs.tag=v0.6.61;
+  on green verify the island zone over the Store in the new captures
+  (w61 PASS in the log) and mark T17 SHIPPED.
+
 ## T16 — v0.6.60: review round 7 (W50-W60 + W58 evidence rules + the §5
     material program) (SHIPPED 2026-11-14 — Release v0.6.60 green
     (ISO 43591705757) and Boot Test run 4 (43621442104) FULL-GATE GREEN:

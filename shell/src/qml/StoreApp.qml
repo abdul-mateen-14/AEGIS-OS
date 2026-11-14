@@ -169,7 +169,14 @@ Window {
                     Rectangle {
                         visible: Store.liveSession
                         Layout.fillWidth: true
-                        height: noticeColumn.height + 20
+                        // Layout.preferredHeight, NOT a `height:` binding —
+                        // the parent ColumnLayout overwrites children's
+                        // height (destroying the binding), so the card
+                        // froze at its pre-wrap height and the caption
+                        // below painted over the Run-installer button
+                        // (user-reported on v0.6.60). implicitHeight
+                        // tracks the wrapped text as the width settles.
+                        Layout.preferredHeight: noticeColumn.implicitHeight + 20
                         radius: 12
                         color: Util.darkMode ? Qt.rgba(1, 0.72, 0.30, 0.10)
                                              : Qt.rgba(1, 0.72, 0.30, 0.16)

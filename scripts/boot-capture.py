@@ -2044,6 +2044,7 @@ def main():
     w44_terminal_ok = False
     w38_lights_ok = False
     w38_close_ok = False
+    w61_island_ok = False
     # shadow_b_ok is SET by the §5.3 left-ring probe in the terminal
     # section ABOVE — boot run 3 red on it because the T16 flag block
     # further down ran AFTER the probe and re-initialized it to False.
@@ -2546,6 +2547,52 @@ def main():
                     + (f"found at {tl}" if tl
                        else "MISSING — the anatomy regressed"))
                 if tl:
+                    # T17 W61 — the island margins must be truly
+                    # transparent over a window: the island window is
+                    # 420x140 flush under the panel, and with the
+                    # capsule idle-hidden (windows active) every pixel
+                    # of it must EQUAL the app window beneath.
+                    # v0.6.60 user-reported: blur on the island surface
+                    # painted a wallpaper-colored rect over the window
+                    # (measured on the report screenshot: the rect lum
+                    # 29.0 == the wallpaper's 29.4, not the store
+                    # chrome's 21-24 beneath — KWin samples Background-
+                    # layer content for layer-shell blur). The probe
+                    # compares the margin band against the mirror
+                    # bands beside the island edge at the same heights;
+                    # the chrome band (y 45-75) is the clean
+                    # discriminator (diff 7.6 with the slab, 0 fixed).
+                    try:
+                        im = Image.open(f"{OUT}/04k-store.png").convert("L")
+                        p61 = im.load()
+
+                        def band_lum(x0, y0, x1, y1):
+                            s = n = 0
+                            for yy in range(y0, y1):
+                                for xx in range(x0, x1):
+                                    s += p61[xx, yy]
+                                    n += 1
+                            return s / max(1, n)
+
+                        worst = 0.0
+                        for cy0, cy1 in ((45, 75), (135, 165)):
+                            inside = band_lum(W // 2 - 190, cy0,
+                                              W // 2 - 130, cy1)
+                            ref = min(
+                                band_lum(W // 2 - 280, cy0,
+                                         W // 2 - 225, cy1),
+                                band_lum(W // 2 + 225, cy0,
+                                         W // 2 + 280, cy1))
+                            worst = max(worst, abs(inside - ref))
+                        w61_island_ok = worst <= 3.0
+                        log(f"w61 island margin: worst |inside-outside| "
+                            f"delta {worst:.1f} — "
+                            + ("PASS" if w61_island_ok else
+                               "FAIL — the island margins do not match "
+                               "the window beneath (a backdrop rect "
+                               "shows through)"))
+                    except Exception as e:
+                        log(f"w61 island probe failed: {e}")
                     red_x, red_y = tl[0]
                     q.click(red_x, red_y, W, H)
                     time.sleep(3)
@@ -3163,6 +3210,11 @@ def main():
     if not w38_close_ok:
         failures.append("W38: the Store red light click did not close the "
                         "window (payload or pixels unchanged)")
+    if not w61_island_ok:
+        failures.append("W61: the island margins darken over a maximized "
+                        "window — something still paints behind the "
+                        "island surface (the blur slab is back; the "
+                        "margins must be fully transparent)")
     if not w44_files_ok:
         failures.append("W44: the Files CSD right-edge drag grew the window "
                         "by < 100 px — the 8 px resize strips are not real "

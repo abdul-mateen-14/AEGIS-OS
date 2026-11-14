@@ -254,9 +254,18 @@ void configureSurface(QQuickWindow *win)
     // fullscreen canvases). The actual KWindowEffects request is applied
     // in main() and re-applied on every Governor tier change (W57) —
     // blur follows window alpha, so the GlassPanel tint stays as-is.
+    //
+    // The ISLAND is excluded on purpose (user-reported on v0.6.60): blur
+    // manifests where alpha < 1, and the island is the one OPAQUE
+    // instrument in the shell — its ink capsule covers only a small part
+    // of the 420x140 surface and everything else is fully transparent.
+    // Blur on that surface therefore never shows on the capsule itself;
+    // it only paints the transparent margins with the blurred backdrop
+    // of whatever sits beneath — a dark slab hanging from the panel the
+    // moment a maximized app window slides into the island's range
+    // (invisible over the dark wallpaper, glaring over a window).
     if (name == QStringLiteral("panelWindow")
-        || name == QStringLiteral("dockWindow")
-        || name == QStringLiteral("islandWindow"))
+        || name == QStringLiteral("dockWindow"))
         win->setProperty("aegisGlassRung", QStringLiteral("panel"));
     else if (name == QStringLiteral("ccWindow")
              || name == QStringLiteral("calendarWindow")
