@@ -5,22 +5,26 @@
 set -e
 
 # W56 — kscreen is in the package list (W30.1), yet 04l-displays.png
-# still showed "kscreen-doctor not available". Either the archive churn
-# ate the package (the class that ate cups-pdf) or packaging moved the
-# binary. Red the build, not the demo.
-# v0.6.60 build note: the binary ships via the libkf6screen-bin
-# DEPENDENCY of kscreen, not the kscreen package itself (dpkg -L kscreen
-# does not list it — the first ISO build caught exactly the silent
-# packaging fact this assert exists for). The honest form: the binary
-# must exist AND be dpkg-owned.
+# still showed "kscreen-doctor not available". The v0.6.60 builds taught
+# the real shape: kscreen 4:6.6.5 installs fine and puts the binary on
+# PATH, but dpkg does not own the /usr/bin path entry (the first build
+# red on dpkg -L kscreen — the binary ships via the libkf6screen-bin
+# dependency; the second red on dpkg -S because the resolved path is not
+# in any files list). The assert therefore tests the SUBSTRATE THE PANE
+# ACTUALLY LOOKS UP: systembackends.h calls
+# QStandardPaths::findExecutable(name, {"/usr/bin"}) — so /usr/bin/
+# kscreen-doctor must exist and be executable. dpkg ownership rides as a
+# diagnostic line, not a gate.
 if ! command -v kscreen-doctor >/dev/null 2>&1; then
     echo "W56 assert: kscreen-doctor missing — package 'kscreen' did not install"
     exit 1
 fi
-dpkg -S "$(command -v kscreen-doctor)" >/dev/null 2>&1 || {
-    echo "W56 assert: kscreen-doctor is not owned by any dpkg package"
+if [ ! -x /usr/bin/kscreen-doctor ]; then
+    echo "W56 assert: /usr/bin/kscreen-doctor missing — the Displays pane's findExecutable substrate is empty"
     exit 1
-}
+fi
+dpkg -S /usr/bin/kscreen-doctor >/dev/null 2>&1 \
+    || echo "W56 note: the kscreen-doctor path is not dpkg-owned (postinst/symlink placement) — informational"
 
 # W54 — at least 6 of the 20 catalog packages must carry a real upstream
 # icon in the Aegis theme, or the store is letter tiles all the way down.
