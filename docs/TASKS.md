@@ -231,6 +231,13 @@ the ship order of review §4; every fix carries its red-able probe.
   fixes to main — the boot-test workflow runs boot-capture.py from the
   CHECKED-OUT REPO, not from the ISO) -> poll -> verify -> commit the
   captures to docs/screenshots/v0.6.60/ -> mark T16 SHIPPED.
+  Boot Test run 3 DISPATCHED at 2f78c4c with every D13 fix on main:
+  run 43618544285 (harness-side fixes run from the checked-out repo
+  against the existing v0.6.60 release ISO — no rebuild needed).
+  NEXT SESSION: poll actions/runs/43618544285 — green -> the captures
+  commit lands on main -> mark T16 SHIPPED and ask the user for their
+  Workstation re-test captures (W41 closure); red -> read the run log,
+  the four D13 fixes are all that stood between run 2 and green.
 - Parked (unchanged): cups-pdf blocked upstream (resolute archive);
   browser-repo traffic lights (cross-repo); W41 closes on the user's
   real-Workstation re-test.
