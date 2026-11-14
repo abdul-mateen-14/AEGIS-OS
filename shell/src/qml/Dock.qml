@@ -38,6 +38,21 @@ Window {
     property string stateName: "expanded"        // expanded | sliver | hidden
     property int hoverIndex: -1
 
+    // W52 — the exclusive zone follows the tray state so maximized
+    // windows keep the macOS contract (stop above the RESTING dock;
+    // hidden reclaims the strip). The numbers mirror main.cpp
+    // DOCK_RESERVE: tray iconSize + trayPadding*2 + dotGap, +12 for the
+    // dock window's 10 px bottom margin + the 2 px cushion.
+    function publishReserve() {
+        if (typeof AegisSurfaces === "undefined")
+            return
+        AegisSurfaces.setDockExclusiveZone(
+            stateName === "expanded"
+                ? Tokens.iconSize + Tokens.trayPadding * 2 + Tokens.dotGap + 12
+                : stateName === "sliver" ? Tokens.sliverHeight + 12 : 0)
+    }
+    onStateNameChanged: publishReserve()
+
     function targetFor(d) {
         var B = Tokens.tileWidth
         var ad = Math.abs(d)
@@ -85,7 +100,7 @@ Window {
         Util.publishDockTileMap(parts.join(";"))
     }
 
-    Component.onCompleted: publishTileMap()
+    Component.onCompleted: { publishTileMap(); publishReserve() }
     // the layer-shell configure assigns the window position AFTER the
     // component completes — republish when it lands and once later
     onXChanged: publishTileMap()
@@ -285,7 +300,10 @@ Window {
             }
         }
 
-        // Tray capsule — light Liquid Glass (the user's macOS dock look)
+        // Tray capsule — light Liquid Glass (the user's macOS dock look).
+        // §5.2 — the hero surface keeps its own wash: a 12 px vertical
+        // gradient inside the top edge, formalizing the measured 56→52
+        // top-to-bottom luminance drift (dockWash token).
         Rectangle {
             anchors.fill: parent
             radius: Tokens.trayRadius
@@ -304,6 +322,22 @@ Window {
                 }
                 height: 1
                 color: Tokens.dockGlassHighlight
+            }
+
+            Rectangle {
+                anchors {
+                    top: parent.top
+                    left: parent.left
+                    right: parent.right
+                    topMargin: 2
+                    leftMargin: Tokens.trayRadius
+                    rightMargin: Tokens.trayRadius
+                }
+                height: 12
+                gradient: Gradient {
+                    GradientStop { position: 0; color: Tokens.dockWash }
+                    GradientStop { position: 1; color: Qt.rgba(1, 1, 1, 0) }
+                }
             }
         }
 
@@ -341,6 +375,11 @@ Window {
         Menu {
             id: webMenu
             property string webId: ""
+            // §5.5 — Sheet Glass rung (radius 12 menu deviation, TASKS)
+            background: GlassPanel {
+                rung: "sheet"
+                cornerRadius: 12
+            }
             MenuItem {
                 text: "Remove from Dock"
                 onTriggered: Util.removeWebShortcut(webMenu.webId)
@@ -357,6 +396,11 @@ Window {
             property string head: ""
             property string launchCmd: ""
             dim: false
+            // §5.5 — Sheet Glass rung (radius 12 menu deviation, TASKS)
+            background: GlassPanel {
+                rung: "sheet"
+                cornerRadius: 12
+            }
             MenuItem {
                 text: "New Window"
                 onTriggered: Util.launch(tileMenu.launchCmd)

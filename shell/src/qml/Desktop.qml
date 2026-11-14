@@ -74,6 +74,13 @@ Window {
     Menu {
         id: desktopMenu
         dim: false
+        // §5.5 — menus ride the Sheet Glass rung. Radius 12 (not the
+        // sheet's 18): at menu sizes r18 reads as a bubble; 12 keeps the
+        // menu anatomy. Recorded as a deliberate rung deviation in TASKS.
+        background: GlassPanel {
+            rung: "sheet"
+            cornerRadius: 12
+        }
         MenuItem {
             text: "New Folder"
             onTriggered: newDesktopFolder()

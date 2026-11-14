@@ -1,3 +1,56 @@
+aegis-shell (1.8.0-m14) resolute; urgency=medium
+
+  * THE REAL BLUR CHANNEL (T16-W50, review round 7) - the glass blur
+    layer was entirely inert: the kwinrulesrc force-blur named in five
+    code comments does not exist (neither the file nor the KWin
+    feature). Every glass surface now requests compositor blur through
+    KWindowEffects::enableBlurBehind (org_kde_kwin_blur): the six shell
+    surfaces (main.cpp), every app chrome band (apps-main.cpp), gated
+    by Governor blurLive/blurAny and re-applied on tier changes; kwinrc
+    pins blurEnabled=true; KF6::WindowSystem links into both binaries.
+  * MATERIAL LADDER + SPECULAR EDGES (T16 §5) - Sheet Glass (ink 46%)
+    for cc/calendar/launcher/menus, Chrome Glass (ink 36%) for the
+    AppWindow titleband, Panel Glass unchanged; GlassPanel carries the
+    8 px top highlight band, per-rung hairline and bottom bounce stroke;
+    the dock tray gains the 12 px dockWash.
+  * LANE B SHADOWS (T16 §5.3.1) - the aurorae v2 shadow mechanism
+    verified against plasma/aurorae v2/decoration.cpp (shadow renders
+    when [Layout] Padding* is non-null); gen-aurorae-frame.py regenerates
+    the frames with a 24/20/24/36 gradient ring and a new unshifted
+    decoration-maximized.svgz; AegisLightsrc carries the matching
+    padding and Shadow=true.
+  * MOTION + CONTROLS (T16 §5.4/§5.5) - CC and calendar sheets enter at
+    radius 22 and settle to 18 (120 ms), CC tiles hover at 1.02 with a
+    +6% white lighten, the GlassSwitch knob rides the dock's spring
+    solver (mass 0.1 / stiffness 260 / damping 18) with a recessed
+    track and knob drop shadow, Music sliders rebuilt (4 px track,
+    12 px white knob), the Island idle dot removed, menus ride the
+    Sheet Glass rung.
+  * W51 - the dock Trash tile opens the trash view: navigateTo maps the
+    trash:// pseudo-scheme before the model sees it (FolderListModel
+    silently fell back to Home); argumented dock commands are explicit
+    fresh-launch semantics. W52 - the dock reserves its strip
+    (DOCK_RESERVE 76 via the layer exclusive zone, live-lowered for
+    sliver/hidden states; maximized windows stop above the dock).
+  * W54/W56 - build-time asserts red the ISO not the demo: kscreen-doctor
+    presence, >= 6/20 catalog icons, the blur pin; 0720-store-icons
+    extracts real upstream icons into the Aegis theme (letter tile stays
+    the honest fallback). W55 - launcher dedups on display name (the
+    browser's twin .desktop entries rendered twice), appNamesJson DBus
+    face for the gate. W53 - --test-type suppresses the VM sandbox
+    infobar. W59 - dark mode flips GTK (aegis-gtk-sync detached) and the
+    browser (GTK_THEME from prefs.json; no forced content darkening).
+  * W57 - the Desktop-Effects rows have real consumers (blurLive gates
+    shell surfaces, blurAny gates app bands, tier semantics per review
+    §5.6: Full both / Balanced shell-only / Calm none); the -0.5 W chip
+    renders only on a checked row.
+  * W58 - capture integrity: md5-distinct captures asserted, honest
+    naming (vmw-desktop only when the desktop appeared), the two v0.6.59
+    duplicate/black captures deleted; W58-style asserts ride
+    0850-build-asserts.hook.chroot.
+
+ -- Aegis Developers <dev@aegis-os.org>  Sat, 14 Nov 2026 09:20:00 +0000
+
 aegis-shell (1.7.0-m13) resolute; urgency=medium
 
   * ONE TRAFFIC-LIGHT ANATOMY, top to bottom — the review round that

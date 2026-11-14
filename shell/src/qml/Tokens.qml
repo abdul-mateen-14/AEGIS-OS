@@ -102,7 +102,12 @@ QtObject {
         generic:    { w: 300,                      h: 56,                 r: 28 }
     })
 
-    // ── Panel Glass (§3, Table 7 — dark rung; blur is KWin's job) ──
+    // ── Panel Glass (§3, Table 7 — dark rung) ────────────────────────
+    // W50 — the backdrop blur is REAL now: every glass surface requests
+    // it through KWindowEffects::enableBlurBehind (org_kde_kwin_blur),
+    // gated by Governor.blurLive / blurAny (W57). The blur amount /
+    // saturation / brightness below document the material spec the
+    // compositor's stock blur effect approximates.
     readonly property color glassTint: Qt.rgba(16/255, 16/255, 18/255, 0.52)
     readonly property color glassBorder: Qt.rgba(1, 1, 1, 0.14)   // hairline, 1 px, never scales
     readonly property color glassHighlight: Qt.rgba(1, 1, 1, 0.10)
@@ -113,6 +118,25 @@ QtObject {
     // light rung — used by M2 surfaces when Dark Mode is off (audit in M4)
     readonly property color glassTintLight: Qt.rgba(244/255, 246/255, 250/255, 0.55)
     readonly property color glassBorderLight: Qt.rgba(0, 0, 0, 0.10)
+
+    // ── Material rungs (§5.1 — one system, three rungs, no per-screen
+    // values). Blur amount / saturation / brightness per rung are the
+    // compositor's stock blur job (glassBlurPx etc. below document the
+    // spec); the tints here are what the shell paints.
+    // Sheet Glass — CC sheet, calendar popover, launcher sheet, menus.
+    // Sheets read thinner once blur lands (52% → 46%).
+    readonly property color sheetTint: Qt.rgba(16/255, 16/255, 18/255, 0.46)
+    readonly property color sheetBorder: Qt.rgba(1, 1, 1, 0.16)
+    readonly property color sheetTintLight: Qt.rgba(244/255, 246/255, 250/255, 0.50)
+    // Chrome Glass — the AppWindow 44 px titleband only. Titlebars must
+    // be MORE transparent than sheets; the window body stays opaque.
+    readonly property color chromeTint: Qt.rgba(16/255, 16/255, 18/255, 0.36)
+    readonly property color chromeBorder: Qt.rgba(1, 1, 1, 0.12)
+    readonly property color chromeTintLight: Qt.rgba(244/255, 246/255, 250/255, 0.42)
+    // dock tray — the 12 px vertical wash inside the top edge (§5.2;
+    // formalizes the measured 56→52 top-to-bottom drift)
+    readonly property color dockWash: Qt.rgba(1, 1, 1, 0.05)
+
     readonly property int glassBlurPx: 28
     readonly property real glassSaturation: 1.6
     readonly property real glassBrightness: 1.06

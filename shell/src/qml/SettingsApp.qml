@@ -85,13 +85,21 @@ Window {
         // control's vertical center no matter how tall a layout makes it.
         padding: 0
         spacing: 10
+        // §5.4 — the knob rides the dock's spring solver (mass 0.1 ·
+        // stiffness 260 · damping 18) instead of a linear slide.
+        onCheckedChanged: trackAnim.animating = true
         indicator: Rectangle {
+            id: trackRect
             implicitWidth: 40
             implicitHeight: 24
             radius: 12
             x: 0
             y: (gs.height - 24) / 2
-            color: gs.checked ? Tokens.accent
+            // §5.5 — the on-track fills at 88% so the glass still reads
+            // through; the inset top shadow makes the track look recessed
+            // into the panel rather than printed on it.
+            color: gs.checked ? Qt.rgba(Tokens.accent.r, Tokens.accent.g,
+                                        Tokens.accent.b, 0.88)
                               : (Util.darkMode ? Qt.rgba(1, 1, 1, 0.14)
                                                : Qt.rgba(0, 0, 0, 0.12))
             border.width: 1
@@ -99,15 +107,57 @@ Window {
                                      : (Util.darkMode ? Qt.rgba(1, 1, 1, 0.10)
                                                       : Qt.rgba(0, 0, 0, 0.08))
             Behavior on color { ColorAnimation { duration: 160 } }
+
+            // recessed-track inner shadow — 2 px black 18% at the top edge
             Rectangle {
-                x: gs.checked ? parent.width - width - 2 : 2
+                anchors {
+                    top: parent.top
+                    left: parent.left
+                    right: parent.right
+                }
+                height: 2
+                radius: 1
+                color: Qt.rgba(0, 0, 0, 0.18)
+                visible: gs.checked
+            }
+
+            // the knob — white r10 with a 2 px drop shadow; x is spring-
+            // driven, not Behavior-driven
+            Rectangle {
+                id: knobShadow
+                x: knob.x
+                y: knob.y + 2
+                width: 20
+                height: 20
+                radius: 10
+                color: Qt.rgba(0, 0, 0, 0.22)
+                visible: knob.visible
+            }
+            Rectangle {
+                id: knob
+                x: 2
                 anchors.verticalCenter: parent.verticalCenter
                 width: 20
                 height: 20
                 radius: 10
                 color: "#FFFFFF"
-                Behavior on x {
-                    NumberAnimation { duration: 160; easing.type: Easing.OutCubic }
+            }
+            Spring { id: knobSpring }
+            QtObject {
+                id: trackAnim
+                property bool animating: false
+            }
+            FrameAnimation {
+                running: trackAnim.animating
+                onTriggered: {
+                    knobSpring.target = gs.checked
+                            ? trackRect.width - knob.width - 2 : 2
+                    knobSpring.step(elapsedTime)
+                    knob.x = knobSpring.value
+                    if (Math.abs(knobSpring.target - knobSpring.value) < 0.25) {
+                        knob.x = knobSpring.target
+                        trackAnim.animating = false
+                    }
                 }
             }
         }
@@ -1163,7 +1213,11 @@ Window {
                     Layout.fillWidth: true
                     Text { text: modelData.label; font.pixelSize: 13; color: Tokens.fg; Layout.fillWidth: true }
                     Rectangle {
+                        // W57 — the cost chip rides only a CHECKED row: a
+                        // chip on an off switch advertised a cost nothing
+                        // was paying (the W60 class of lies).
                         visible: modelData.chip.length > 0
+                                 && Governor.effects[modelData.key] === true
                         Layout.preferredWidth: 52; Layout.preferredHeight: 20; radius: 10
                         color: Util.darkMode ? "#23252B" : "#E8ECF4"
                         Text { anchors.centerIn: parent; text: modelData.chip; font.pixelSize: 10; font.family: "Monospace"; color: Tokens.fgMuted }

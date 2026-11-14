@@ -159,10 +159,12 @@ Window {
             GradientStop { position: 1; color: Tokens.inkDeep }
         }
 
-        // ── Idle: Aegis mark 14 px + idle dot ────────────────────────
+        // ── Idle: Aegis mark 14 px ───────────────────────────────────
+        // W60 — the idle pill used to carry a 3 px accent dot of unstated
+        // meaning; an unexplained indicator reads as a bug, so it is gone
+        // and the mark is centered alone.
         Row {
             anchors.centerIn: parent
-            spacing: 7
             opacity: islandRoot.stateName === "idle" ? 1 : 0
             Behavior on opacity { CrossfadeAnim { } }
 
@@ -175,13 +177,6 @@ Window {
                 mipmap: true
                 smooth: true
                 sourceSize: Qt.size(32, 32)
-            }
-            Rectangle {
-                width: 3
-                height: 3
-                radius: 1.5
-                color: Tokens.accent
-                anchors.verticalCenter: parent.verticalCenter
             }
         }
 

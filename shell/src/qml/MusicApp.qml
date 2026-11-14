@@ -187,6 +187,37 @@ Window {
                         value: player.position
                         enabled: player.duration > 0
                         onMoved: player.position = seekBar.value
+                        // W60/§5.5 — the Basic-style 20 px knob read as an
+                        // oversized black dot on the track: 4 px glass
+                        // track with an accent fill, 12 px white knob with
+                        // a 1 px shadow ring.
+                        background: Rectangle {
+                            x: seekBar.leftPadding
+                            y: seekBar.topPadding
+                               + seekBar.availableHeight / 2 - height / 2
+                            width: seekBar.availableWidth
+                            height: 4
+                            radius: 2
+                            color: Util.darkMode ? Qt.rgba(1, 1, 1, 0.08)
+                                                 : Qt.rgba(0, 0, 0, 0.08)
+                            Rectangle {
+                                width: seekBar.visualPosition * parent.width
+                                height: parent.height
+                                radius: 2
+                                color: Tokens.accent
+                            }
+                        }
+                        handle: Rectangle {
+                            x: seekBar.leftPadding
+                               + seekBar.visualPosition
+                                 * (seekBar.availableWidth - width)
+                            y: seekBar.topPadding
+                               + seekBar.availableHeight / 2 - height / 2
+                            width: 12; height: 12; radius: 6
+                            color: "#FFFFFF"
+                            border.width: 1
+                            border.color: Qt.rgba(0, 0, 0, 0.25)
+                        }
                     }
                     Text {
                         text: win.fmtTime(player.duration)
@@ -210,6 +241,34 @@ Window {
                 from: 0; to: 1
                 value: audioOut.volume
                 onMoved: audioOut.volume = volumeBar.value
+                // W60/§5.5 — same glass slider contract as the seek bar.
+                background: Rectangle {
+                    x: volumeBar.leftPadding
+                    y: volumeBar.topPadding
+                       + volumeBar.availableHeight / 2 - height / 2
+                    width: volumeBar.availableWidth
+                    height: 4
+                    radius: 2
+                    color: Util.darkMode ? Qt.rgba(1, 1, 1, 0.08)
+                                         : Qt.rgba(0, 0, 0, 0.08)
+                    Rectangle {
+                        width: volumeBar.visualPosition * parent.width
+                        height: parent.height
+                        radius: 2
+                        color: Tokens.accent
+                    }
+                }
+                handle: Rectangle {
+                    x: volumeBar.leftPadding
+                       + volumeBar.visualPosition
+                         * (volumeBar.availableWidth - width)
+                    y: volumeBar.topPadding
+                       + volumeBar.availableHeight / 2 - height / 2
+                    width: 12; height: 12; radius: 6
+                    color: "#FFFFFF"
+                    border.width: 1
+                    border.color: Qt.rgba(0, 0, 0, 0.25)
+                }
             },
             AbstractButton {
                 Layout.preferredHeight: 28; Layout.preferredWidth: 34

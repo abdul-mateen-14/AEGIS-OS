@@ -3,9 +3,10 @@ import QtQuick.Controls
 import Aegis.Util
 
 // Launcher — the full-screen glass sheet (proposal chapter 07, Plate 4 +
-// Table 17). Blurs the live desktop 40 px behind a 48% scrim (the KWin
-// blur is forced on every aegis-shell surface via kwinrulesrc), so the
-// wallpaper remains perceptible — continuity, not a mode change.
+// Table 17). Blurs the live desktop behind a 48% scrim (the surface
+// requests the compositor blur through KWindowEffects::enableBlurBehind,
+// gated by Governor blurLive — the W50 client channel), so the wallpaper
+// remains perceptible — continuity, not a mode change.
 //
 // An 8 × 3 grid of 62 px glass tiles with 30 px icons; typing filters
 // instantly; Enter launches the first match; Esc or click-away dismisses.

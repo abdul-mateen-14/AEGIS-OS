@@ -53,12 +53,18 @@ Window {
             id: sheet
 
             anchors.fill: parent
-            radius: 22
+            // §5.4 — corner growth 22 → 18 over 120 ms on open (Sonoma
+            // "sheet unclipping"), same as the CC sheet.
+            radius: (Window.window && Window.window.visible) ? 18 : 22
+            Behavior on radius {
+                NumberAnimation { duration: 120; easing.type: Easing.OutQuad }
+            }
+            // §5.1 rung A — Sheet Glass
             color: Governor.tier === "C"
                    ? Qt.rgba(16/255, 16/255, 18/255, 0.94)
-                   : (Util.darkMode ? Tokens.glassTint : Tokens.glassTintLight)
+                   : (Util.darkMode ? Tokens.sheetTint : Tokens.sheetTintLight)
             border.width: 1
-            border.color: Util.darkMode ? Tokens.glassBorder
+            border.color: Util.darkMode ? Tokens.sheetBorder
                                         : Tokens.glassBorderLight
 
             Rectangle {
@@ -67,11 +73,14 @@ Window {
                     left: parent.left
                     right: parent.right
                     topMargin: 1
-                    leftMargin: 22
-                    rightMargin: 22
+                    leftMargin: 18
+                    rightMargin: 18
                 }
-                height: 1
-                color: Tokens.glassHighlight
+                height: 8
+                gradient: Gradient {
+                    GradientStop { position: 0; color: Qt.rgba(1, 1, 1, 0.12) }
+                    GradientStop { position: 1; color: Qt.rgba(1, 1, 1, 0.02) }
+                }
             }
 
             Column {
@@ -141,6 +150,8 @@ Window {
                 }
 
                 // ── weekday row (Monday first) ───────────────
+                // W60 — the header sat at fgMuted and nearly vanished on
+                // the glass: full fg at 80% opacity, weekends included.
                 Row {
                     width: parent.width
                     height: 20
@@ -154,8 +165,8 @@ Window {
                             horizontalAlignment: Text.AlignHCenter
                             verticalAlignment: Text.AlignVCenter
                             font { family: "Montserrat"; pixelSize: 10; weight: Font.DemiBold }
-                            color: index >= 5 ? Tokens.fgMuted : Tokens.fg
-                            opacity: 0.85
+                            color: Tokens.fg
+                            opacity: 0.8
                         }
                     }
                 }

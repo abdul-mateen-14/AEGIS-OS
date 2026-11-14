@@ -52,26 +52,37 @@ Window {
             id: sheet
 
             anchors.fill: parent
-            radius: 22
+            // §5.4 — the Sonoma "sheet unclipping" tell: the sheet enters
+            // at radius 22 and settles to the material's 18 over the first
+            // 120 ms of the window's visibility.
+            radius: (Window.window && Window.window.visible) ? 18 : 22
+            Behavior on radius {
+                NumberAnimation { duration: 120; easing.type: Easing.OutQuad }
+            }
+            // §5.1 rung A — Sheet Glass (46% ink; sheets read thinner once
+            // blur lands, W50)
             color: Governor.tier === "C"
                    ? Qt.rgba(16/255, 16/255, 18/255, 0.94)
-                   : (Util.darkMode ? Tokens.glassTint : Tokens.glassTintLight)
+                   : (Util.darkMode ? Tokens.sheetTint : Tokens.sheetTintLight)
             border.width: 1
-            border.color: Util.darkMode ? Tokens.glassBorder
+            border.color: Util.darkMode ? Tokens.sheetBorder
                                         : Tokens.glassBorderLight
 
-            // inner top highlight — the light source (§3 layer 4)
+            // §5.2 layer (1) — top highlight band, the light source
             Rectangle {
                 anchors {
                     top: parent.top
                     left: parent.left
                     right: parent.right
                     topMargin: 1
-                    leftMargin: 22
-                    rightMargin: 22
+                    leftMargin: 18
+                    rightMargin: 18
                 }
-                height: 1
-                color: Tokens.glassHighlight
+                height: 8
+                gradient: Gradient {
+                    GradientStop { position: 0; color: Qt.rgba(1, 1, 1, 0.12) }
+                    GradientStop { position: 1; color: Qt.rgba(1, 1, 1, 0.02) }
+                }
             }
 
             Column {
@@ -518,6 +529,7 @@ Window {
     // the switch carries the accent state. Narrow tiles keep the centered
     // icon-above-label look and fill with the accent when checked.
     component CcTile: Rectangle {
+        id: ccTile
         property string label
         property bool checked
         property bool wide: false
@@ -528,15 +540,29 @@ Window {
                     : ((parent ? parent.width : 320) - 12) / 2
         height: wide ? 44 : 64
         radius: 16
+        // §5.4 — tiles answer the pointer: scale 1.02 (90 ms OutQuad) and
+        // the resting glass lightens +6% white while hovered.
+        scale: tileHover.hovered ? 1.02 : 1.0
+        Behavior on scale {
+            NumberAnimation { duration: 90; easing.type: Easing.OutQuad }
+        }
         color: !wide && checked ? Tokens.accent
-                                : (Util.darkMode ? Qt.rgba(1, 1, 1, 0.07)
-                                                 : Qt.rgba(0, 0, 0, 0.05))
+                                : (Util.darkMode
+                                       ? (tileHover.hovered ? Qt.rgba(1, 1, 1, 0.13)
+                                                            : Qt.rgba(1, 1, 1, 0.07))
+                                       : (tileHover.hovered ? Qt.rgba(0, 0, 0, 0.02)
+                                                            : Qt.rgba(0, 0, 0, 0.05)))
         border.width: 1
         border.color: (!wide && checked) ? Qt.rgba(1, 1, 1, 0.25)
                                          : (Util.darkMode ? Qt.rgba(1, 1, 1, 0.10)
                                                           : Qt.rgba(0, 0, 0, 0.08))
         Behavior on color {
             ColorAnimation { duration: ccRoot.dur(Tokens.durQuick) }
+        }
+
+        HoverHandler {
+            id: tileHover
+            cursorShape: Qt.PointingHandCursor
         }
 
         // the WHOLE tile toggles — wide tiles included. The v0.6.20 boot

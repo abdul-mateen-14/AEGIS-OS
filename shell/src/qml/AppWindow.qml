@@ -27,9 +27,14 @@ Item {
         border.width: 1
     }
 
-    // 44 px Panel Glass titlebar, top corners 18 (bottom corners square)
+    // 44 px Chrome Glass titlebar (§5.1 rung C — titlebars must be MORE
+    // transparent than sheets; the body below stays opaque. The band's
+    // backdrop blur rides the app window's enableBlurBehind, W50 — it
+    // manifests only where alpha < 1), top corners 18 (bottom corners
+    // square)
     GlassPanel {
         id: titlebar
+        rung: "chrome"
         anchors { top: parent.top; left: parent.left; right: parent.right }
         height: 44
         cornerRadius: 18
@@ -39,7 +44,7 @@ Item {
         Rectangle {
             anchors { bottom: parent.bottom; bottomMargin: 1; left: parent.left; right: parent.right }
             height: 18
-            color: Util.darkMode ? Tokens.glassTint : Tokens.glassTintLight
+            color: Util.darkMode ? Tokens.chromeTint : Tokens.chromeTintLight
         }
 
         DragHandler {
