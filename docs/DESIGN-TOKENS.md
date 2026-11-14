@@ -15,7 +15,7 @@ product override. The single source of truth is
 | Label 8 px above magnifying icon top | §2.2 recipe (4) | `Dock.updateLabel()` |
 | Launch bounce y [0, −0.32B, 0, −0.12B, 0] @ 0.65 s | §2.2 recipe (5) | `bounce*`, `bounceAnim` |
 | Sliver 120×4, probe 8 px/150 ms, spring 350 ms; auto-hide 4 s | §2.2 Table 4 | `sliver*`, `idleHideMs` |
-| Glass tint ink 52% · border white 14% · highlight white 10% · blur 28/sat 1.6/bri 1.06 | §3 Table 7 | `glass*` (blur executed by KWin rules, `kwinrulesrc`) |
+| Glass tint ink 52% · border white 14% · highlight white 10% · blur 28/sat 1.6/bri 1.06 | §3 Table 7 | `glass*` (blur requested per surface via `KWindowEffects::enableBlurBehind` — `org_kde_kwin_blur` — gated by Governor `blurLive`/`blurAny`, W50/W57) |
 | Motion: 80/120/180/240/350/420 ms | §4 Table 9 | `dur*` |
 | Island spring mass 1 · stiffness 420 · damping 28; crossfade 140 ms @ 90 ms | §2.4 Table 5b | `islandSpring*`, `islandCrossfade*` |
 | Island states (Now Playing 356×96 r32, Split 132+8+108, Call 300×64, Charging 216, Aegis ID 200×56) | §2.4 Table 5b | `islandStates` |

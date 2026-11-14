@@ -65,5 +65,5 @@ desktop wallpaper, 28 px panel, floating dock, Dynamic Island top-center
 | `E: Unable to locate package linux-image-generic-hwe-26.04` | swap flavour per above |
 | `No space left on device` (CI) | the free-disk-space step is missing/failed — check `iso.yml` |
 | live-build stage cache weirdness after config edits | `bash debian-live/auto/clean` and rebuild |
-| Dock/island invisible in the live session | check `journalctl --user -u aegis-shell`; KWin blur rules live in `~/.config/kwinrulesrc` |
+| Dock/island invisible in the live session | check `journalctl --user -u aegis-shell`; glass flat (no blur) → check `[Plugins] blurEnabled=true` in kwinrc and that the shell links `KF6::WindowSystem` (W50) |
 | Shell segfault on non-Wayland (dev run under X11) | expected — layer-shell needs a Wayland compositor; run inside the session or nested `kwin_wayland` |
