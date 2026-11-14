@@ -15,6 +15,140 @@ cannot lose the plan.
 
 ---
 
+## T16 — v0.6.60: review round 7 (W50-W60 + W58 evidence rules + the §5
+    material program) (DOING — implemented in tree, ships with the
+    v0.6.60 tag; source: AEGIS-v0.6.60-instructions.md)
+
+Opened 2026-11-14 from the reviewer's round-7 audit of v0.6.59 (102
+committed captures + a two-pass pixel audit + checksum forensics).
+Headline finding: the glass blur layer was entirely inert — the
+kwinrulesrc force-blur mechanism named in five code comments does not
+exist (neither the file nor the KWin feature). Everything below follows
+the ship order of review §4; every fix carries its red-able probe.
+
+- D1 DONE (W51, P0) — the dock Trash tile opened Home: the literal
+  "trash:///" reached FolderListModel, which cannot resolve non-file
+  schemes and silently fell back. Fix: FilesApp.navigateTo maps the
+  pseudo-scheme through Files.trashUrl() (every caller covered), the
+  startup path stores the MAPPED target in history, and the
+  argumented-command ruling in Util::activateOrLaunch is now explicit
+  macOS semantics (argumented cmd ALWAYS launches fresh; bare cmd keeps
+  the W27 re-focus). Probe: Files open at Home -> dock Trash click
+  raises the window count by one (04j-trash), close all -> click ->
+  exactly one window at the trash view (04j3-trash-single).
+- D2 DONE (W52, P1) — the dock reserved no space; maximized windows slid
+  underneath (04k/04m/04i captures + the Files 13th item under the
+  fold). Fix: DOCK_RESERVE = 76 (tray 64 = iconSize 48 + trayPadding 12
+  + dotGap 4, + margin 10 + cushion 2) applied to the dockWindow layer
+  surface, with SurfaceCtl (a Q_INVOKABLE context property) letting
+  Dock.qml lower the zone live for the sliver (+12) and hidden (0)
+  states. Probe: Meta+Up on Files, the maximized bottom edge must sit
+  at or above the reserve line y=H-76 (04j1-files-maximized).
+- D3 DONE (W50, P0 — the round's foundation) — the real blur channel:
+  KWindowEffects::enableBlurBehind (org_kde_kwin_blur) on the six shell
+  glass surfaces (panel/dock/island = panel rung, cc/calendar/launcher =
+  sheet rung; desktop/notifications/lock excluded), on every app window
+  in apps-main.cpp (the AppWindow 44 px band goes glass; the opaque body
+  ignores it), gated by Governor blurLive/blurAny and re-applied on every
+  tier change. kwinrc pins [Plugins] blurEnabled=true (assert, not
+  inherit). Build chain: KF6::WindowSystem linked in both binaries,
+  libkf6windowsystem-dev in debian/control + build-shell.sh. All five
+  stale kwinrulesrc references rewritten (GlassPanel, Launcher, main.cpp,
+  DESIGN-TOKENS.md, BUILD.md). Probe: gradient energy in the CC-covered
+  region over Files text must collapse vs the pre-sheet baseline
+  (04j0/04j2 pair).
+- D4 DONE (W57, P2) — the Desktop-Effects rows got REAL consumers:
+  blurLive gates the shell surfaces (shell main.cpp), blurAny gates the
+  app chrome bands (app process reads its local governor for Settings
+  toggles + the shell's published $XDG_RUNTIME_DIR/aegis/governor.json
+  via QFileSystemWatcher for tier demotions). Tier semantics amended to
+  review §5.6 (proposal Listing 2 superseded): Full(A) = both,
+  Balanced(B) = blurLive only, Calm(C) = none. The -0.5 W cost chip now
+  renders only on a CHECKED row. Demotion toast text updated ("glass
+  went flat").
+- D5 DONE (W58, evidence) — capture integrity: the runner md5-asserts
+  every committed capture unique (ref-* frames excluded by naming), the
+  vmware leg commits vmw-desktop only when the desktop really appeared
+  (serial-only evidence otherwise — run 9's honest shape), and the two
+  v0.6.59 lies are deleted from the repo: vm-vmw-desktop.png (the black
+  frame byte-identical to all 41 vm-boot frames) and boot-22.png
+  (byte-identical to 01-home.md5 8cd7cb4f).
+- D6 DONE (W56 + W54, P2) — build asserts that red the ISO, not the
+  demo: 0850-build-asserts.hook.chroot asserts kscreen-doctor present
+  (command -v + dpkg -L), >= 6/20 catalog icons sourced, and the kwinrc
+  blurEnabled pin; 0720-store-icons.hook.chroot extracts the real
+  upstream icon for every catalog package at build time (apt-get
+  download + dpkg -x + Icon= resolution through the unpacked tree and
+  hicolor, SVG preferred) into /usr/share/icons/Aegis/apps/scalable —
+  the letter tile stays the honest fallback. Runtime probes: kscreen
+  -o output list (w56), theme icon count (w54).
+- D7 DONE (W53, P1 interim) — aegis-electron-launch appends --test-type
+  in the VM branch (suppresses the --no-sandbox infobar; the flag stays,
+  the nosuid live root needs it). The browser-repo traffic lights stay a
+  cross-repo tracker item (parked, unchanged).
+- D8 DONE (W55, P2) — a THIRD launcher dedup key on the localized
+  display name (+ head fallback): the browser's two entries with
+  different Exec heads collapsed to one tile; when both twins are
+  visible the one whose Exec actually resolves wins (the W9 predicate).
+  Util.appNamesJson (DBus face of allApps) lets the gate assert unique
+  names (w55). The launcher label already ellipsizes (verified, no
+  change).
+- D9 DONE (W59, P2) — dark mode follows through: Util.setDarkMode now
+  runs /usr/bin/aegis-gtk-sync detached (GTK 3/4 settings.ini flip on
+  the spot, not next boot) and aegis-electron-launch exports GTK_THEME
+  from the same prefs.json (explicit decision: no --force-dark-mode —
+  the chrome follows the scheme, web content stays honest). Capture
+  discipline: 05c2-dark-settled rides the dark tile probe (one patient
+  re-shot after the mid-transition frame class the audit found).
+- D10 DONE (§5 material program, the macOS-grade half) —
+  (a) material ladder in Tokens: Sheet Glass (ink 46%/border 16%) for
+  CC/calendar/launcher/menus, Chrome Glass (ink 36%/border 12%) for the
+  AppWindow titleband (more transparent than sheets — the macOS tell),
+  Panel Glass unchanged (52%/14%);
+  (b) GlassPanel specular edge system: 8 px top highlight band
+  (white 12% -> 2%), per-rung hairline, bottom inner stroke (white 6%) —
+  every GlassPanel consumer inherits; CC/calendar sheets got the band
+  inline;
+  (c) Lane B shadows: the aurorae v2 shadow mechanism VERIFIED against
+  plasma/aurorae v2/decoration.cpp (no Shadow key exists — the shadow
+  renders when [Layout] Padding* is non-null: updateShadow paints the
+  frame grown by padding, DestinationOut-erases the interior, the ring
+  is the DecorationShadow; maximized windows use the decoration-maximized
+  prefix when shipped). gen-aurorae-frame.py regenerates all three
+  frames with the ring (24/20/24/36 px, ambient 0.22 + key 0.28
+  approximated as one gradient band) and a NEW decoration-maximized.svgz
+  at the unshifted geometry; AegisLightsrc carries the matching Padding*
+  + Shadow=true. Probe: the 8 px band under the terminal bottom edge
+  must be darker than the wallpaper baseline by >= 6;
+  (d) motion: CC/calendar sheets enter at radius 22 and settle to 18
+  over 120 ms (the Sonoma unclipping tell), CcTile hover scale 1.02
+  (90 ms OutQuad) + glass lighten +6% white, GlassSwitch knob rides the
+  Spring solver (mass 0.1 · stiffness 260 · damping 18) with a recessed
+  on-track (accent 88% + 2 px inner shadow) and a 2 px knob drop shadow;
+  (e) dock hero wash: 12 px dockWash gradient inside the tray's top edge
+  (formalizes the measured 56->52 drift);
+  (f) W60 polish: Music sliders rebuilt (4 px track, accent fill, 12 px
+  white knob + 1 px shadow ring), calendar weekday header at fg 80%,
+  the Island idle pill's unstated 3 px accent dot REMOVED;
+  (g) menus (desktop context, tileMenu, webMenu) ride the Sheet Glass
+  rung at radius 12 — a deliberate deviation from the rung's 18 (r18
+  reads as a bubble at menu sizes).
+  DEFERRED to the next round, recorded honestly: §5.3.2 overlay painted
+  shadows (CC/calendar/dock/island padding rework — touches every
+  Table 17/4 metric at once) and the §5.3 Lane A org_kde_kwin_shadow
+  spike. §5.4 window open/close scale+opacity pairing was already
+  shipped by W21's dockzoom (0.3->1 + opacity, verified in its source);
+  §5.6 tier gating = D4.
+- D11 PENDING (release) — qml-guard, tag v0.6.60, Release CI ISO, Boot
+  Test dispatch, the new probes green; then ask the user for their
+  Workstation re-test captures (W41 closure) into
+  docs/screenshots/<tag>-user-vm/ per W58.
+- Parked (unchanged): cups-pdf blocked upstream (resolute archive);
+  browser-repo traffic lights (cross-repo); W41 closes on the user's
+  real-Workstation re-test.
+
+---
+
 ## T15 — v0.6.56: second real-VM round (VMware), review W38-W47 (SHIPPED;
     W41/W48/W49 follow-up v0.6.59 from AEGIS-v0.6.59-instructions.md also
     SHIPPED — full gate green, Boot Test run 9; W41 closes on the user's
