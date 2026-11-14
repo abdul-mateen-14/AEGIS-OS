@@ -16,8 +16,20 @@ cannot lose the plan.
 ---
 
 ## T16 — v0.6.60: review round 7 (W50-W60 + W58 evidence rules + the §5
-    material program) (DOING — implemented in tree, ships with the
-    v0.6.60 tag; source: AEGIS-v0.6.60-instructions.md)
+    material program) (SHIPPED 2026-11-14 — Release v0.6.60 green
+    (ISO 43591705757) and Boot Test run 4 (43621442104) FULL-GATE GREEN:
+    zero assert failures, all round-7 probes PASS — w50 blur strip
+    7.60 -> 3.37, w51 trash two-window + single, w52 reserve 719 vs
+    724, w54 icons 6 sourced, w55 27 entries dups=none, w56 Output:
+    1 Virtual-1, w58 distinctness, w38 lights found + close
+    payload-closed, w39 rotate/dim/effects, dark tile
+    AegisDark -> AegisLight, §5.3 left ring 21.1 vs 29.4 — and the
+    VMware boot variant (W41/W48 leg) green; 102 captures committed at
+    5789075 to docs/screenshots/v0.6.60/. Follow-up for the next tag:
+    export Governor.setEffect over DBus so the w50 probe upgrades from
+    the strip comparison to a causal A/B; ask the user for their own
+    Workstation captures into docs/screenshots/<tag>-user-vm/ (W41's
+    final closure). Source: AEGIS-v0.6.60-instructions.md)
 
 Opened 2026-11-14 from the reviewer's round-7 audit of v0.6.59 (102
 committed captures + a two-pass pixel audit + checksum forensics).
