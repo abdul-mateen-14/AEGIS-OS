@@ -9,7 +9,7 @@ live recovery (start SDDM / isolate graphical.target) before giving up.
 
 Usage: python3 boot-capture.py <iso> [screenshot-dir] [--vmware-boot-check]
 """
-import json, os, re, shutil, socket, subprocess, sys, time
+import json, os, re, hashlib, shutil, socket, subprocess, sys, time
 
 ISO = sys.argv[1] if len(sys.argv) > 1 else "iso/AegisOS.iso"
 OUT = sys.argv[2] if len(sys.argv) > 2 else "screenshots"
@@ -648,7 +648,17 @@ def vmware_boot_check():
                 if kj:
                     log("kwin drm/egl journal (diagnostic): "
                         + kj.replace("\n", " | ")[:300])
-            q.shot("vmw-desktop")
+            # W58 honest naming — a capture may only bear the name of
+            # what its pixels show. The v0.6.59 audit found
+            # vm-vmw-desktop.png byte-identical to every vm-boot frame
+            # (a 1024x768 all-black field): the emulated SVGA usually
+            # yields no DRM surface in QEMU, and an un-asserted frame
+            # named "desktop" is exactly the claim class W49 exists to
+            # prevent. Capture only when the desktop really appeared;
+            # otherwise the evidence stays serial-only (run 9's verdict
+            # shape, which the TASKS entry states).
+            if desktop_ok:
+                q.shot("vmw-desktop")
         else:
             log("serial login FAILED on the vmware variant")
     except Exception as e:
@@ -2089,6 +2099,47 @@ def main():
     if open_app("03-terminal", "konsole", wait_s=18, click_idx=1):   # Terminal
         opens["terminal"] = True
         # the terminal STAYS OPEN for the D24 typing probe below
+        # T16 §5.3.1 — Lane B shadow: the 8 px band below the decorated
+        # window's bottom edge must read DARKER than the same band in the
+        # home baseline (the aurorae shadow ring; KWin renders it outside
+        # the window rect). Skip (logged, not failed) when the window
+        # reaches into the dock reserve band — the edge detector refuses
+        # to scan there.
+        try:
+            ts = window_hairline(f"{OUT}/03-terminal.png")
+            if ts:
+                _, tx0, trun = ts
+                im = Image.open(f"{OUT}/03-terminal.png").convert("L")
+                Wp, Hp = im.size
+                px = im.load()
+                bottom = None
+                y = Hp - 90
+                while y > int(Hp * 0.5):
+                    dark = sum(1 for x in range(tx0, tx0 + trun)
+                               if px[x, y] < 80)
+                    if dark > int(trun * 0.7):
+                        bottom = y
+                        break
+                    y -= 1
+                if bottom is not None and bottom + 12 < Hp - 86:
+                    def band(png):
+                        im2 = Image.open(png).convert("L")
+                        px2 = im2.load()
+                        vals = [px2[x, yy]
+                                for yy in range(bottom + 2, bottom + 10)
+                                for x in range(tx0 + 8, tx0 + trun - 8, 3)]
+                        return sum(vals) / max(1, len(vals))
+                    shadow = band(f"{OUT}/03-terminal.png")
+                    wall = band(f"{OUT}/01-home.png")
+                    shadow_b_ok = shadow < wall - 6
+                    log(f"§5.3 lane-B shadow: band under terminal "
+                        f"lum={shadow:.1f} vs wallpaper {wall:.1f} "
+                        + ("PASS" if shadow_b_ok else "FAIL"))
+                else:
+                    log("§5.3 lane-B shadow: terminal bottom edge not "
+                        "clear of the dock band — probe skipped")
+        except Exception as e:
+            log(f"lane-B shadow probe failed: {e}")
     # T11 — the dock grew to 11 tiles (M3 apps joined after the separator):
     # Files 0, Terminal 1, Browser 2, OS 3, CoreX 4, Music 5, Calculator 6,
     # Editor 7, Monitor 8, Store 9, Settings 10, Trash 11 — config order
@@ -2251,6 +2302,16 @@ def main():
     w39_effects_ok = False
     wired_ok = False
     browser_default_ok = False
+    # T16 (review round 7) probe flags
+    w50_blur_ok = False
+    w51_two_windows = False
+    w51_single_trash = False
+    w52_reserve_ok = False
+    w54_icons_ok = False
+    w55_names_ok = False
+    w56_kscreen_ok = False
+    w58_distinct_ok = False
+    shadow_b_ok = False
     if serial is not None:
         try:
             def click_knob(png, idx):
@@ -2353,6 +2414,62 @@ def main():
         except Exception as e:
             log(f"w42 default-browser probe failed: {e}")
 
+        # T16 W56 — kscreen-doctor must exist AND produce output (the
+        # Displays pane's substrate; the 0850 build assert guards the
+        # package, this guards the runtime).
+        try:
+            out = serial.run("kscreen-doctor -o 2>&1 | head -3; echo K-OK",
+                             settle=4)
+            seg = out.split("K-OK")[0].strip()
+            w56_kscreen_ok = "Output:" in seg
+            log("w56 kscreen-doctor: " +
+                (seg.replace("\n", " | ")[:160] if seg else "(empty)"))
+        except Exception as e:
+            log(f"w56 kscreen probe failed: {e}")
+
+        # T16 W54 — the store icon substrate: >= 6 of the 20 catalog
+        # packages must carry a real theme icon (the 0720 hook sources
+        # them at build; the letter tile stays the honest fallback).
+        try:
+            out = serial.run(
+                "ls /usr/share/icons/Aegis/apps/scalable/ 2>/dev/null | "
+                "grep -cE '^(vlc|gimp|inkscape|blender|krita|audacity|"
+                "obs-studio|libreoffice|thunderbird|firefox|"
+                "telegram-desktop|filezilla|transmission-gtk|keepassxc|"
+                "flameshot|gparted|synaptic|htop|kate|git)\\.(svg|png)$'; "
+                "echo I-OK", settle=4)
+            count = out.split("I-OK")[0].strip()
+            w54_icons_ok = count.isdigit() and int(count) >= 6
+            log(f"w54 store icons: {count} catalog icons in the theme — "
+                + ("PASS" if w54_icons_ok else "FAIL"))
+        except Exception as e:
+            log(f"w54 icons probe failed: {e}")
+
+        # T16 W55 — launcher dedup: Util.appNamesJson (the shell's own
+        # allApps output) must carry no duplicate display names — the
+        # 01c capture showed "Aegis Browser" twice (two .desktop twins
+        # with different Exec heads).
+        try:
+            out = serial.run(
+                "A=$(cat /proc/$(pgrep -f aegis-shell | head -1)/environ "
+                "2>/dev/null | tr '\\0' '\\n' | grep "
+                "^DBUS_SESSION_BUS_ADDRESS= | cut -d= -f2-); "
+                "A=${A:-unix:path=$XDG_RUNTIME_DIR/bus}; "
+                "busctl --address=$A call org.aegis.Shell /org/aegis/Shell "
+                "org.aegis.Shell appNamesJson 2>&1; echo N-OK", settle=8)
+            m = re.search(r's "(\[[^\]]*\])"', out)
+            if m:
+                names = json.loads(m.group(1))
+                dups = sorted({n for n in names if names.count(n) > 1})
+                w55_names_ok = len(dups) == 0
+                log(f"w55 launcher names: {len(names)} entries, dups="
+                    f"{dups if dups else 'none'} — "
+                    + ("PASS" if w55_names_ok else "FAIL"))
+            else:
+                log("w55 launcher names: no JSON payload from busctl — FAIL")
+        except Exception as e:
+            log(f"w55 names probe failed: {e}")
+
     # T11 — the four M3 apps, launched over the same DBus surface and
     # captured the same way as Files/Terminal/Settings. Each open_app call
     # carries its own diff-vs-home assert; a window that never paints
@@ -2427,19 +2544,150 @@ def main():
         if not w38_close_ok:
             q.key("alt", "f4"); time.sleep(5)
 
-    # T13 W26 — the Trash tile must open Files AT the trash view (it used
-    # to open Home because aegis-files took no path argument). The dock
-    # click launches aegis-files --path trash:///; the capture is the
-    # evidence and the diff gate proves the window opened.
+    # ── T16 material probes (review round 7 §3/§5) ────────────────────
+    # One Files window drives W52 (dock reserve), W50 (blur binds) and
+    # W51 (the argumented Trash contract) before the Trash click.
+    files_idx = tile_index.get("aegis-files", 0)
     trash_idx = tile_index.get("aegis-files --path trash:///", 11)
     q.mouse_abs(W // 2, int(H * NEUTRAL_Y), W, H)
     time.sleep(0.8)
-    q.click(*tiles[trash_idx], W, H)
+    q.click(*tiles[files_idx], W, H)
     time.sleep(8)
-    q.shot("04j-trash")
-    d = diff_px(thumb(f"{OUT}/04j-trash.png"), home)
-    log(f"04j-trash: diff-vs-home={d:.1f} (Trash slot click, "
-        f"tile index {trash_idx})")
+    files_top = None
+    q.mouse_abs(W // 2, int(H * NEUTRAL_Y), W, H)
+    time.sleep(0.8)
+    q.click(*tiles[files_idx], W, H)
+    time.sleep(8)
+    q.shot("04j0-files-open")
+    try:
+        st = window_hairline(f"{OUT}/04j0-files-open.png")
+        if st:
+            files_top, fx0, frun = st
+    except Exception:
+        pass
+
+    # W52 — maximized windows stop ABOVE the resting dock (macOS
+    # semantics; the reserve = tray 64 + margin 10 + cushion 2 = 76 px).
+    # Meta+Up maximizes, the bottom edge is detected as the last row with
+    # a wide dark-body run, and the assert is bottom <= H-78 (2 px clear
+    # of the tray's top hairline). Un-maximize right after.
+    try:
+        q.key("meta_l", "up")
+        time.sleep(3)
+        q.shot("04j1-files-maximized")
+        im = Image.open(f"{OUT}/04j1-files-maximized.png").convert("L")
+        Wp, Hp = im.size
+        px = im.load()
+        bottom = None
+        # the reserve line is Hp-76 (tray 64 + margin 10 + cushion 2);
+        # scan starts just INSIDE the reserved band so an honored
+        # reserve shows the window's bottom on the first rows
+        y = Hp - 79
+        while y > int(Hp * 0.45):
+            dark = sum(1 for x in range(int(Wp * 0.15), int(Wp * 0.85))
+                       if px[x, y] < 80)
+            if dark > int(Wp * 0.55):
+                bottom = y
+                break
+            y -= 1
+        if bottom is not None:
+            w52_reserve_ok = bottom <= Hp - 76
+            log(f"w52 dock reserve: maximized bottom edge y={bottom} "
+                f"(reserve line {Hp - 76}) — "
+                + ("PASS" if w52_reserve_ok else "FAIL"))
+        else:
+            log("w52 dock reserve: no maximized body span found — FAIL")
+        q.key("meta_l", "up")   # restore
+        time.sleep(2.5)
+    except Exception as e:
+        log(f"w52 dock reserve probe failed: {e}")
+
+    # W50 — the blur actually binds: with Files visible behind the CC
+    # sheet, the covered region's luminance-gradient energy must COLLAPSE
+    # vs the same region before the sheet opened (a flat tint keeps the
+    # Files text legible; the compositor blur erases it).
+    try:
+        def grad_energy(png, box):
+            im = Image.open(png).convert("L")
+            px = im.load()
+            x0, y0, x1, y1 = box
+            g = 0
+            n = 0
+            for yy in range(y0, y1, 2):
+                for xx in range(x0, x1, 2):
+                    g += abs(px[xx, yy] - px[xx + 2, yy])
+                    g += abs(px[xx, yy] - px[xx, yy + 2])
+                    n += 2
+            return g / max(1, n)
+
+        if files_top is None:
+            raise RuntimeError("no Files window hairline")
+        # CC sheet: anchored top-right, ~348 px wide from x=W-358,
+        # y 68..500. Files sits centered; the probe box overlaps both.
+        box = (W - 350, max(90, files_top + 20),
+               W - 60, max(91, files_top + 20) + 140)
+        base = grad_energy(f"{OUT}/04j0-files-open.png", box)
+        q.click(W - 19, 14, W, H)     # open the CC sheet over Files
+        time.sleep(3)
+        q.shot("04j2-cc-over-files")
+        cc = grad_energy(f"{OUT}/04j2-cc-over-files.png", box)
+        q.click(W - 19, 14, W, H)     # close the CC
+        time.sleep(2)
+        w50_blur_ok = base > 0.5 and cc < base * 0.6
+        log(f"w50 blur binds: gradient energy {base:.2f} -> {cc:.2f} "
+            + ("PASS" if w50_blur_ok else "FAIL"))
+    except Exception as e:
+        try:
+            q.click(W - 19, 14, W, H)   # defensive CC close
+            time.sleep(1.5)
+        except Exception:
+            pass
+        log(f"w50 blur probe failed: {e}")
+
+    # W51 — the argumented Trash contract, with pixels: Files open at
+    # Home, the dock Trash click LAUNCHES a fresh second window (Finder
+    # semantics; it never teleports the first), then closing everything
+    # and clicking Trash again yields exactly ONE window at the trash
+    # view (the diff-vs-home gate + the payload count).
+    try:
+        st1 = dump_window_state()
+        n_before = st1.get("count", 0) if st1 else -1
+        q.mouse_abs(W // 2, int(H * NEUTRAL_Y), W, H)
+        time.sleep(0.8)
+        q.click(*tiles[trash_idx], W, H)
+        time.sleep(8)
+        st2 = dump_window_state()
+        # the windowwatch payload counts normal windows; two Files
+        # windows (Home + Trash) must raise the count by one
+        if st1 is not None and st2 is not None:
+            w51_two_windows = (st2.get("count", 0) == st1.get("count", 0) + 1)
+        q.shot("04j-trash")
+        d = diff_px(thumb(f"{OUT}/04j-trash.png"), home)
+        log(f"w51 trash two-window: count {n_before} -> "
+            f"{st2.get('count') if st2 else '?'} "
+            f"(diff-vs-home={d:.1f}) — "
+            + ("PASS" if w51_two_windows else "FAIL"))
+        # close everything, click Trash again → exactly ONE window
+        for _ in range(2):
+            q.key("alt", "f4")
+            time.sleep(4)
+        st3 = dump_window_state()
+        q.mouse_abs(W // 2, int(H * NEUTRAL_Y), W, H)
+        time.sleep(0.8)
+        q.click(*tiles[trash_idx], W, H)
+        time.sleep(8)
+        st4 = dump_window_state()
+        q.shot("04j3-trash-single")
+        d = diff_px(thumb(f"{OUT}/04j3-trash-single.png"), home)
+        single = (st3 is not None and st4 is not None
+                  and st4.get("count", 0) == st3.get("count", 0) + 1)
+        w51_single_trash = single and d > 5
+        log(f"w51 trash single: count {st3.get('count') if st3 else '?'} -> "
+            f"{st4.get('count') if st4 else '?'} "
+            f"diff-vs-home={d:.1f} — "
+            + ("PASS" if w51_single_trash else "FAIL"))
+    except Exception as e:
+        log(f"w51 trash probe failed: {e}")
 
     # T13 D24 (W35) — Meta+S toggles the control center through the same
     # aegis-shortcuts script; toggled OFF again (the CC has no Escape
@@ -2551,6 +2799,12 @@ def main():
             q.click(1172, 234, W, H)
             time.sleep(2.5)
             q.shot("05c-dark-toggled")
+            # W59 — the first frame can be mid-transition (the v0.6.59
+            # audit's 05c was a half-rendered ghost). One patient
+            # settled re-shot becomes the evidence; the state file +
+            # kdeglobals remain the verdicts.
+            time.sleep(1.2)
+            q.shot("05c2-dark-settled")
             state_out = serial.run(
                 "cat ~/.local/state/aegis-shell/aegis/theme 2>/dev/null; "
                 "echo THEME-END", settle=2)
@@ -2806,6 +3060,59 @@ def main():
                         "minimized window back active — activateOrLaunch "
                         "broke (kwinrc request transport or the script "
                         "poll)")
+    # T16 verdicts — every W50-W60 fix rides a red-able probe (W23 rule)
+    # W58 — capture integrity FIRST: every capture in OUT must be
+    # md5-unique (a duplicate means a probe re-captured nothing — the
+    # v0.6.59 audit found boot-22 byte-identical to 01-home and 41
+    # identical vm-boot frames). Reference frames are excluded by the
+    # ref-* naming convention.
+    digests = {}
+    dup_pairs = []
+    for fn in sorted(os.listdir(OUT)):
+        if not fn.endswith(".png") or fn.startswith("ref-"):
+            continue
+        with open(os.path.join(OUT, fn), "rb") as fh:
+            h = hashlib.md5(fh.read()).hexdigest()
+        if h in digests:
+            dup_pairs.append(f"{fn} == {digests[h]}")
+        else:
+            digests[h] = fn
+    w58_distinct_ok = not dup_pairs
+    if dup_pairs:
+        log("W58 duplicate captures: " + "; ".join(dup_pairs[:8]))
+
+    if not w58_distinct_ok:
+        failures.append("W58: duplicate captures committed — " + "; ".join(dup_pairs[:4])
+                        + " (a probe re-captured nothing; red the run, don't ship the pair)")
+    if not w50_blur_ok:
+        failures.append("W50: the blur request did not bind — gradient "
+                        "energy under the CC sheet did not collapse (the "
+                        "glass is still a flat tint)")
+    if not w51_two_windows:
+        failures.append("W51: the dock Trash click did not launch a "
+                        "second Files window (Finder semantics broken)")
+    if not w51_single_trash:
+        failures.append("W51: with no Files open, the Trash click did not "
+                        "yield exactly one window at the trash view")
+    if not w52_reserve_ok:
+        failures.append("W52: the maximized window bottom edge reaches "
+                        "into the dock band — the exclusive zone reserve "
+                        "is not applied (or the cushion is wrong)")
+    if not w54_icons_ok:
+        failures.append("W54: fewer than 6 catalog icons in the Aegis "
+                        "theme — the store renders letter tiles (the "
+                        "0720 hook sourced nothing)")
+    if not w55_names_ok:
+        failures.append("W55: the launcher name dedup left duplicate "
+                        "display names in Util.appNamesJson")
+    if not w56_kscreen_ok:
+        failures.append("W56: kscreen-doctor produced no output list — "
+                        "the Displays pane degrades to its fallback")
+    if not shadow_b_ok:
+        failures.append("§5.3: no Lane B shadow — the 8 px band under "
+                        "the decorated terminal is not darker than the "
+                        "wallpaper (the aurorae shadow ring is inert)")
+
     # T15 verdicts — every W38-W47 fix rides a red-able probe (W23 rule)
     if not w38_lights_ok:
         failures.append("W38: the Store titlebar carries no traffic-light "
