@@ -204,6 +204,33 @@ the ship order of review §4; every fix carries its red-able probe.
   fallback for the 14 packages the 0720 hook could not source (6/20
   sourced — Inkscape shows the real logo; the gate is ≥6).
   NEXT: re-tag v0.6.60 with these fixes and re-dispatch the Boot Test.
+- D13 DONE (boot run 2 read — run 43616009096 on 5863d49, red but the
+  fix column went GREEN: w39 focus-dim PASS, w39 effects PASS (the
+  spring dt/8 fix cured the vanishing knobs), §5.3 left ring PASS
+  (lum 21.1 vs 29.4 — THE LANE B SHADOW PROVEN), w38 lights found
+  (only the close-click verdict remains), w52/w51/w54/w43/header/xkb
+  PASS). Remaining four, all small, fixes IN TREE awaiting the next
+  re-tag + dispatch:
+  (1) W58: 05c2-dark-settled == 05c-dark-toggled (a settle pair is
+  identical by design) — 05c2-* excluded from the distinctness gate.
+  (2) W50: "no Files window hairline" killed the A/B probe — the strip
+  box is now anchored to the SHEET geometry (x W-350..W-330, y
+  120..320), independent of any window layout.
+  (3) W55: the same "Expecting value: char 1" parse error persisted —
+  the decoded payload head now logs for diagnosis and the parse strips
+  CR/whitespace defensively.
+  (4) W37 dark tile: "AegisDark -> AegisDark (state file: absent)" —
+  the click missed the tile once (run 1 it passed); one patient
+  re-click added before the verdicts are read.
+  NEXT SESSION: re-tag v0.6.60 (Release rebuild ~35 min, ISO from the
+  fixed shell QML is NOT needed for harness-only fixes but D13's
+  changes are all harness-side EXCEPT none — this round is
+  boot-capture.py only, so an ISO REBUILD IS NOT REQUIRED: re-tag only
+  if the shell/QML changed; otherwise dispatch the Boot Test directly
+  against the existing v0.6.60 release ISO after pushing these harness
+  fixes to main — the boot-test workflow runs boot-capture.py from the
+  CHECKED-OUT REPO, not from the ISO) -> poll -> verify -> commit the
+  captures to docs/screenshots/v0.6.60/ -> mark T16 SHIPPED.
 - Parked (unchanged): cups-pdf blocked upstream (resolute archive);
   browser-repo traffic lights (cross-repo); W41 closes on the user's
   real-Workstation re-test.

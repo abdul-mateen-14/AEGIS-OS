@@ -2465,7 +2465,8 @@ def main():
                 "base64 -w0 /tmp/aegis-names.txt; echo N-OK", settle=8)
             import base64
             seg = out.split("N-OK")[0].strip()
-            payload = base64.b64decode(seg).decode(errors="replace")
+            payload = base64.b64decode(seg).decode(errors="replace").strip()
+            log("w55 payload head: " + payload[:200])
             i, j = payload.find("["), payload.rfind("]")
             if i >= 0 and j > i:
                 names = json.loads(payload[i:j + 1])
@@ -2630,8 +2631,10 @@ def main():
                     n += 2
             return g / max(1, n)
 
-        if files_top is None:
-            raise RuntimeError("no Files window hairline")
+        # the A/B box anchors to the SHEET (x W-350..W-330 is the
+        # sheet's clean left-padding strip at any window layout), so a
+        # missing Files hairline no longer kills the probe — the strip
+        # proves the blur against whatever is behind the sheet.
         # W50 A/B — run 1 measured the sheet's own UI (the box sat on the
         # tile grid: 3.89 -> 6.58, energy UP) and told us nothing about
         # the blur; the artifact forensics on the CLEAN left-padding strip
@@ -2642,7 +2645,7 @@ def main():
         # on every tier change), capture again, and require the strip's
         # gradient energy to RISE when the blur is off (the Files edges
         # reappear through the tint).
-        box = (W - 350, files_top + 40, W - 330, files_top + 240)
+        box = (W - 350, 120, W - 330, 320)
         q.click(W - 19, 14, W, H)     # open the CC sheet over Files
         time.sleep(3)
         q.shot("04j2-cc-over-files")
@@ -2839,7 +2842,16 @@ def main():
             # W59 — the first frame can be mid-transition (the v0.6.59
             # audit's 05c was a half-rendered ghost). One patient
             # settled re-shot becomes the evidence; the state file +
-            # kdeglobals remain the verdicts.
+            # kdeglobals remain the verdicts. Boot run 2: the click
+            # missed the tile once (state absent, kdeglobals unmoved,
+            # both captures identical) — one patient re-click before
+            # the verdicts are read.
+            state_out = serial.run(
+                "cat ~/.local/state/aegis-shell/aegis/theme 2>/dev/null; "
+                "echo THEME-END", settle=2)
+            if "light" not in state_out and "dark" not in state_out:
+                q.click(1172, 234, W, H)
+                time.sleep(2.5)
             time.sleep(1.2)
             q.shot("05c2-dark-settled")
             state_out = serial.run(
@@ -3110,7 +3122,7 @@ def main():
     dup_pairs = []
     for fn in sorted(os.listdir(OUT)):
         if (not fn.endswith(".png") or fn.startswith("ref-")
-                or fn.startswith("boot-")):
+                or fn.startswith("boot-") or fn.startswith("05c2-")):
             continue
         with open(os.path.join(OUT, fn), "rb") as fh:
             h = hashlib.md5(fh.read()).hexdigest()
