@@ -403,3 +403,9 @@ int main(int argc, char *argv[])
 
     return app.exec();
 }
+
+// W52 — SurfaceCtl carries Q_OBJECT inside this translation unit; AUTOMOC
+// requires the generated moc to be pulled in here (the Shell CI red on
+// the v0.6.60 first build: "contains a Q_OBJECT macro, but does not
+// include main.moc").
+#include "main.moc"
