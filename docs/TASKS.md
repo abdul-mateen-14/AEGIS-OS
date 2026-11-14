@@ -139,10 +139,24 @@ the ship order of review §4; every fix carries its red-able probe.
   spike. §5.4 window open/close scale+opacity pairing was already
   shipped by W21's dockzoom (0.3->1 + opacity, verified in its source);
   §5.6 tier gating = D4.
-- D11 PENDING (release) — qml-guard, tag v0.6.60, Release CI ISO, Boot
-  Test dispatch, the new probes green; then ask the user for their
-  Workstation re-test captures (W41 closure) into
-  docs/screenshots/<tag>-user-vm/ per W58.
+- D11 DOING (release) — the tag-burn record for v0.6.60 (three builds:
+  the first two taught real things):
+  (1) Shell CI red 1: AUTOMOC refuses a Q_OBJECT in main.cpp without
+  `#include "main.moc"` (SurfaceCtl) — fixed.
+  (2) Shell CI red 2: QQmlEngine has NO rootObjects (that is
+  QQmlApplicationEngine; the apps host is a plain QQmlEngine over a
+  QQmlComponent loop) and main.cpp needed the QQmlContext include for
+  the context property — the blur wiring now captures the created root
+  directly. Shell CI GREEN on 866eeed (the KF6::WindowSystem link is
+  build-proven).
+  (3) Release red: the 0850 W56 assert red the ISO build — EXACTLY the
+  W49 shape working: dpkg -L kscreen lists no bin/kscreen-doctor because
+  the binary ships via the libkf6screen-bin DEPENDENCY, not the kscreen
+  package itself. The assert now checks command -v + dpkg -S ownership
+  of the resolved path. Tag re-forced to 29d03ce; Release rebuild.
+  Remaining: Release green -> Boot Test dispatch -> the round-7 probes
+  green -> then ask the user for their Workstation re-test captures
+  (W41 closure) into docs/screenshots/<tag>-user-vm/ per W58.
 - Parked (unchanged): cups-pdf blocked upstream (resolute archive);
   browser-repo traffic lights (cross-repo); W41 closes on the user's
   real-Workstation re-test.
