@@ -153,9 +153,17 @@ the ship order of review §4; every fix carries its red-able probe.
   W49 shape working: dpkg -L kscreen lists no bin/kscreen-doctor because
   the binary ships via the libkf6screen-bin DEPENDENCY, not the kscreen
   package itself. The assert now checks command -v + dpkg -S ownership
-  of the resolved path. Tag re-forced to 29d03ce; Release rebuild.
-  Remaining: Release green -> Boot Test dispatch -> the round-7 probes
-  green -> then ask the user for their Workstation re-test captures
+  of the resolved path. Tag re-forced to 9ae7107; Release run
+  43591705757 (the fourth burn) in flight at the time this entry was
+  pushed. NEXT SESSION: poll
+  actions/runs/43591705757 (fix(w56) substrate assert is on the tag) —
+  green -> dispatch Boot Test (workflow_dispatch, inputs.tag=v0.6.60),
+  poll it, verify the round-7 probes (w50 blur, w51 trash two-window,
+  w52 reserve, w54 icons, w55 names, w56 kscreen, w58 distinctness, the
+  lane-B shadow band) + the T15 assert set, then commit the captures to
+  docs/screenshots/v0.6.60/ and mark T16 SHIPPED. Red -> read the run
+  log with the ===LAUNCH-LOGS=== section and the probe log lines.
+  Afterwards ask the user for their Workstation re-test captures
   (W41 closure) into docs/screenshots/<tag>-user-vm/ per W58.
 - Parked (unchanged): cups-pdf blocked upstream (resolute archive);
   browser-repo traffic lights (cross-repo); W41 closes on the user's
