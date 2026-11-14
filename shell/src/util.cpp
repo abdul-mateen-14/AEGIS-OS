@@ -227,6 +227,16 @@ void Util::setDarkMode(bool dark)
                      .toUtf8());
         st.commit();
     }
+    // W59 — third-party apps must FOLLOW the rung, not wait for the next
+    // boot's autostart: aegis-gtk-sync (the 0810 hook's script) rewrites
+    // the gtk-3.0/gtk-4.0 settings.ini from the just-persisted prefs.json,
+    // and Chromium reads GTK_THEME at launch (aegis-electron-launch
+    // exports it from the same file). Detached — the shell never blocks
+    // on a sync script; the accent caveat stands (GTK reads tokens on
+    // next launch for apps already running).
+    const QString gtkSync = QStringLiteral("/usr/bin/aegis-gtk-sync");
+    if (QFile::exists(gtkSync))
+        QProcess::startDetached(gtkSync, QStringList());
     emit darkModeChanged();
 }
 
@@ -550,10 +560,15 @@ void Util::activateOrLaunch(const QString &cmd, const QString &resolved)
     // KConfigWatcher — D30), and the script's 150 ms poll unminimizes +
     // activates. The seq makes a repeated request re-fire even when the
     // class is unchanged.
-    // ARGUMENTED commands NEVER activate: Trash's cmd is
-    // "aegis-files --path trash:///" — head-matching it would focus the
-    // plain Files window instead of opening the trash. Only a bare cmd
-    // (head == cmd) is a re-focus candidate.
+    // W51 ruling (macOS-correct, now explicit): an ARGUMENTED command
+    // ALWAYS launches a fresh instance — Finder clicking the dock's
+    // Trash opens a NEW window AT Trash, it never teleports an existing
+    // Finder window there. Trash's cmd is "aegis-files --path
+    // trash:///": head-matching it would focus the plain Files window
+    // instead of opening the trash, and apps-main has no single-
+    // instance guard to violate, so a fresh launch just works. Only a
+    // bare cmd (head == cmd) is a re-focus candidate — the W27
+    // contract, unchanged.
     const QString head = cmd.section(QLatin1Char(' '), 0, 0);
     if (!head.isEmpty() && head == cmd.trimmed()
             && m_windowIds.contains(head)) {
@@ -1224,6 +1239,7 @@ QVariantList Util::allApps() const
     // dockApps() (not the raw config) so the Launcher wears the same W8
     // entry-resolved marks as the dock.
     const auto pinned = dockApps();
+    QStringList seenNames; // W55 — lowercase display names, hidden included
     for (const QVariant &v : pinned) {
         const QVariantMap m = v.toMap();
         if (m.value(QStringLiteral("type")).toString() == QLatin1String("separator"))
@@ -1231,6 +1247,7 @@ QVariantList Util::allApps() const
         const QString cmd = m.value(QStringLiteral("cmd")).toString();
         const QString head = cmd.section(QLatin1Char(' '), 0, 0);
         seenExecs << head;
+        seenNames << m.value(QStringLiteral("name")).toString().toLower();
         out.append(QVariantMap{
             {QStringLiteral("name"), m.value(QStringLiteral("name")).toString()},
             {QStringLiteral("icon"), m.value(QStringLiteral("icon")).toString()},
@@ -1284,9 +1301,58 @@ QVariantList Util::allApps() const
             seenExecs << head;
             if (!wm.isEmpty())
                 seenWmClasses << wm;
-            if (app.value(QStringLiteral("nodisplay")).toBool()
-                || app.value(QStringLiteral("hidden")).toBool())
+            const bool suppressed =
+                app.value(QStringLiteral("nodisplay")).toBool()
+                || app.value(QStringLiteral("hidden")).toBool();
+            // W55 — a THIRD dedup key: the localized display name. The
+            // browser ships aegis-browser.desktop AND
+            // org.aegisbrowser.Aegis.desktop whose Exec heads DIFFER
+            // (wrapper vs /opt path), so the exec and wmclass keys let
+            // both through and the launcher showed the same tile twice
+            // (01c: "Aegis Browser" ×2). Same visible name → one tile;
+            // when both twins are visible, the one whose Exec actually
+            // resolves (the W9 predicate) wins; Icon= is the tiebreak
+            // (first seen wins on a tie).
+            QString nameKey = app.value(QStringLiteral("name"))
+                                  .toString()
+                                  .toLower();
+            if (nameKey.isEmpty())
+                nameKey = head.toLower();
+            const bool execExists =
+                !QStandardPaths::findExecutable(head).isEmpty();
+            const int nameDup = seenNames.indexOf(nameKey);
+            if (nameDup < 0)
+                seenNames << nameKey;
+            if (suppressed)
                 continue;
+            if (nameDup >= 0) {
+                // a twin with this name is already staged — swap it for
+                // the newcomer only when the newcomer's binary really
+                // exists and the staged twin's does not
+                for (int i = 0; i < discovered.size(); ++i) {
+                    const QVariantMap staged = discovered.at(i);
+                    if (staged.value(QStringLiteral("name")).toString()
+                            .toLower() != nameKey)
+                        continue;
+                    const QString stagedHead =
+                        staged.value(QStringLiteral("cmd"))
+                            .toString()
+                            .section(QLatin1Char(' '), 0, 0);
+                    if (execExists
+                        && QStandardPaths::findExecutable(stagedHead)
+                               .isEmpty()) {
+                        discovered[i] = QVariantMap{
+                            {QStringLiteral("name"),
+                             app.value(QStringLiteral("name")).toString()},
+                            {QStringLiteral("icon"),
+                             app.value(QStringLiteral("icon")).toString()},
+                            {QStringLiteral("cmd"), cmd},
+                        };
+                    }
+                    break;
+                }
+                continue;
+            }
             discovered.append(QVariantMap{
                 {QStringLiteral("name"), app.value(QStringLiteral("name")).toString()},
                 {QStringLiteral("icon"), app.value(QStringLiteral("icon")).toString()},
@@ -1304,6 +1370,19 @@ QVariantList Util::allApps() const
     for (const QVariantMap &m : discovered)
         out.append(m);
     return out;
+}
+
+QString Util::appNamesJson() const
+{
+    // T16-W55 — the boot gate parses this for duplicate launcher names
+    // (the W55 .desktop twins rendered "Aegis Browser" twice). Names
+    // only: the JSON carries no exec/icon detail by design.
+    QJsonArray arr;
+    const QVariantList apps = allApps();
+    for (const QVariant &v : apps)
+        arr.append(v.toMap().value(QStringLiteral("name")).toString());
+    return QString::fromUtf8(
+        QJsonDocument(arr).toJson(QJsonDocument::Compact));
 }
 
 // ── W22 — web shortcuts (strictly opt-in dock entries) ────────────────

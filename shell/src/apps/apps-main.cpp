@@ -17,6 +17,10 @@
 // shell owns the org.aegis DBus names; the apps only read state.
 
 #include <QGuiApplication>
+#include <QColor>
+#include <QDir>
+#include <QFile>
+#include <QFileSystemWatcher>
 #include <QIcon>
 #include <QJsonDocument>
 #include <QJsonObject>
@@ -30,7 +34,8 @@
 #include <QStandardPaths>
 #include <QUrl>
 #include <QUrlQuery>
-#include <QColor>
+
+#include <KWindowEffects>
 
 #include "../util.h"
 #include "../governor/Governor.h"
@@ -206,6 +211,47 @@ int main(int argc, char *argv[])
         qCritical("aegis-apps: failed to load %s", qmlName.toUtf8().constData());
         return 1;
     }
+
+    // W50/W57 — the AppWindow 44 px chrome band goes glass: enableBlurBehind
+    // issues org_kde_kwin_blur on the window and manifests only where
+    // alpha < 1 (the opaque body ignores it). blurAny (Governor) gates
+    // the request; the local governor instance covers Settings toggles
+    // (setEffect updates it synchronously) and the shell's published
+    // state file covers tier demotions that happen shell-side.
+    const QString govDir = qEnvironmentVariable("XDG_RUNTIME_DIR",
+                                                QStringLiteral("/tmp"))
+                           + QStringLiteral("/aegis");
+    const auto applyAppBlur = [&governor, &engine, govDir]() {
+        bool any = governor.effects()
+                       .value(QStringLiteral("blurAny"))
+                       .toBool();
+        QFile f(govDir + QStringLiteral("/governor.json"));
+        if (f.open(QIODevice::ReadOnly)) {
+            const QJsonObject root =
+                QJsonDocument::fromJson(f.readAll()).object();
+            const QJsonObject fx = root.value(QStringLiteral("effects"))
+                                       .toObject();
+            if (fx.contains(QStringLiteral("blurAny")))
+                any = fx.value(QStringLiteral("blurAny")).toBool();
+        }
+        for (QObject *rootObj : engine.rootObjects()) {
+            // the app QML root IS the Window (FilesApp.qml et al.) —
+            // findChildren alone would miss it
+            if (auto *rootWin = qobject_cast<QQuickWindow *>(rootObj))
+                KWindowEffects::enableBlurBehind(rootWin, any);
+            for (QQuickWindow *win :
+                 rootObj->findChildren<QQuickWindow *>())
+                KWindowEffects::enableBlurBehind(win, any);
+        }
+    };
+    applyAppBlur();
+    QObject::connect(&governor, &Governor::tierChanged, &governor,
+                     applyAppBlur);
+    QFileSystemWatcher govWatch;
+    if (QDir(govDir).exists())
+        govWatch.addPath(govDir);
+    QObject::connect(&govWatch, &QFileSystemWatcher::directoryChanged,
+                     &governor, applyAppBlur);
 
     return app.exec();
 }

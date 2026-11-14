@@ -249,6 +249,11 @@ public:
     // config-pinned apps first, then every installed .desktop entry;
     // [{name, icon, cmd}] — identical shape to config.json "apps".
     Q_INVOKABLE QVariantList allApps() const;
+    // T16-W55 — the launcher names as one JSON array: the DBus face of
+    // allApps() that the boot gate parses for duplicate display names
+    // (QVariantList marshals over busctl into unreadable nested
+    // variants; a string survives).
+    Q_INVOKABLE QString appNamesJson() const;
 
 signals:
     void batteryChanged();

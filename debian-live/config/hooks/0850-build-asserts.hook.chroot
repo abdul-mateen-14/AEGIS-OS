@@ -1,0 +1,46 @@
+#!/bin/sh
+# W49 lesson applied to the rest of the build claims: a claim that is not
+# asserted is not shipped. Each assert here reds the ISO BUILD instead of
+# the user's demo.
+set -e
+
+# W56 — kscreen is in the package list (W30.1), yet 04l-displays.png
+# still showed "kscreen-doctor not available". Either the archive churn
+# ate the package (the class that ate cups-pdf) or packaging moved the
+# binary. Red the build, not the demo.
+if ! command -v kscreen-doctor >/dev/null 2>&1; then
+    echo "W56 assert: kscreen-doctor missing — package 'kscreen' did not install"
+    exit 1
+fi
+dpkg -L kscreen 2>/dev/null | grep -q bin/kscreen-doctor || {
+    echo "W56 assert: dpkg -L kscreen ships no bin/kscreen-doctor (packaging changed?)"
+    exit 1
+}
+
+# W54 — at least 6 of the 20 catalog packages must carry a real upstream
+# icon in the Aegis theme, or the store is letter tiles all the way down.
+PKGS="vlc gimp inkscape blender krita audacity obs-studio libreoffice \
+thunderbird firefox telegram-desktop filezilla transmission-gtk keepassxc \
+flameshot gparted synaptic htop kate git"
+count=0
+for p in $PKGS; do
+    if [ -e "/usr/share/icons/Aegis/apps/scalable/$p.svg" ] \
+       || [ -e "/usr/share/icons/Aegis/apps/scalable/$p.png" ]; then
+        count=$((count+1))
+    fi
+done
+echo "W54 assert: $count/20 catalog packages carry a theme icon"
+if [ "$count" -lt 6 ]; then
+    echo "W54 assert: fewer than 6 store icons sourced — check 0720-store-icons"
+    exit 1
+fi
+
+# W50 — the blur effect must ship enabled in our kwinrc (the shell's
+# glass rides the client channel; a disabled blur silently flat-tints
+# every surface).
+grep -q '^blurEnabled=true' /etc/xdg/kwinrc || {
+    echo "W50 assert: [Plugins] blurEnabled=true missing from /etc/xdg/kwinrc"
+    exit 1
+}
+
+echo "0850 build asserts: PASS"

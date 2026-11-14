@@ -26,7 +26,9 @@ apt-get install -y --no-install-recommends \
     build-essential cmake debhelper pkg-config \
     qt6-base-dev qt6-declarative-dev \
     libssl-dev \
-    liblayershellqtinterface-dev layer-shell-qt libpam0g-dev \
+    liblayershellqtinterface-dev layer-shell-qt \
+    libkf6windowsystem-dev \
+    libpam0g-dev \
     file
 
 echo "=== Building aegis-shell ==="

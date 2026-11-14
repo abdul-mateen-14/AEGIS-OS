@@ -22,6 +22,26 @@
 # 0900 hook (xdg-settings), so the check would never fire anyway —
 # belt and braces.
 FLAGS="--no-first-run --no-default-browser-check"
+
+# W59 — Chromium must follow the shell's dark-mode rung: the browser
+# reads GTK_THEME at launch, so export it from the same prefs.json
+# aegis-gtk-sync consumes (one source of truth, no half-dark desktop).
+# Explicit decision: content darkening is NOT forced (--force-dark-mode
+# stays off) — the chrome follows the scheme, web content stays honest.
+DARK=true
+RUNTIME="${XDG_RUNTIME_DIR:-/tmp}"
+if [ -f "$RUNTIME/aegis/prefs.json" ]; then
+    D=$(grep -o '"darkMode":[a-z]*' "$RUNTIME/aegis/prefs.json" 2>/dev/null | cut -d: -f2)
+    [ "$D" = "false" ] && DARK=false
+fi
+if [ "$DARK" = "true" ]; then
+    GTK_THEME=adw-gtk3-dark
+    [ -d /usr/share/themes/adw-gtk3 ] || GTK_THEME=Adwaita-dark
+else
+    GTK_THEME=adw-gtk3
+    [ -d /usr/share/themes/adw-gtk3 ] || GTK_THEME=Adwaita
+fi
+export GTK_THEME
 VM=0
 if [ "$AEGIS_VM_MODE" = "1" ]; then
     VM=1
@@ -32,6 +52,12 @@ elif grep -qiE 'virtualbox|vmware|qemu|kvm' /sys/class/dmi/id/product_name \
     VM=1
 fi
 if [ "$VM" = 1 ]; then
-    FLAGS="$FLAGS --disable-gpu --no-sandbox"
+    # W53 — --test-type suppresses Chromium's "unsupported command-line
+    # flag: --no-sandbox" infobar (the flag itself STAYS: the nosuid
+    # live root genuinely needs it, per the v0.6.40 run). VM-only polish;
+    # on the metal the sandbox stays on and no infobar ever appears.
+    # The real fix (traffic lights drawn in the browser's frame view)
+    # lives in the browser repo's own tracker.
+    FLAGS="$FLAGS --disable-gpu --no-sandbox --test-type"
 fi
 exec "$@" $FLAGS

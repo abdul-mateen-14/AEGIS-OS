@@ -32,6 +32,8 @@
 #include <QUrlQuery>
 #include <QColor>
 
+#include <KWindowEffects>
+
 #include <LayerShellQt/Window>
 
 #include "util.h"
@@ -91,6 +93,33 @@ LayerShellQt::Window *attach(QQuickWindow *win)
     return LayerShellQt::Window::get(win);
 }
 
+// W52 — macOS dock semantics: normal and maximized windows stop ABOVE
+// the dock; only fullscreen covers it. The reserve is the tray's resting
+// height (Tokens.iconSize 48 + trayPadding 6·2 + dotGap 4 = 64) + the
+// dock window's 10 px bottom margin + a 2 px cushion so a maximized
+// window edge sits 2 px clear of the tray hairline (the W52 probe
+// asserts window bottom ≤ dockTop − 2). The sliver/hidden states lower
+// the zone live from QML through SurfaceCtl (Dock.qml).
+constexpr int DOCK_TRAY_H = 64;        // iconSize + trayPadding*2 + dotGap
+constexpr int DOCK_BOTTOM_MARGIN = 10; // dockWindow QMargins bottom
+constexpr int DOCK_CUSHION = 2;
+constexpr int DOCK_RESERVE = DOCK_TRAY_H + DOCK_BOTTOM_MARGIN + DOCK_CUSHION;
+
+// W52 — QML drives the dock's exclusive zone with the tray state
+// (expanded DOCK_RESERVE / sliver sliverHeight+12 / hidden 0); layer-shell
+// applies a zone change live and KWin re-lays-out the maximized area.
+class SurfaceCtl : public QObject {
+    Q_OBJECT
+public:
+    Q_INVOKABLE void setDockExclusiveZone(int px)
+    {
+        if (s_dockLayer)
+            s_dockLayer->setExclusiveZone(px);
+    }
+    static LayerShellQt::Window *s_dockLayer;
+};
+LayerShellQt::Window *SurfaceCtl::s_dockLayer = nullptr;
+
 // Persistent surfaces are shown once at startup; overlay surfaces are
 // driven by QML visibility (Util.ccOpen / launcherOpen / locked /
 // Activity.bannersVisible) and surface-ify on first show.
@@ -146,8 +175,12 @@ void configureSurface(QQuickWindow *win)
         auto *layer = attach(win);
         layer->setLayer(LayerShellQt::Window::LayerTop);
         layer->setAnchors(LayerShellQt::Window::AnchorBottom);
-        layer->setMargins(QMargins(0, 0, 0, 10)); // Table 4: 10 px above bottom edge
-        layer->setExclusiveZone(0);
+        layer->setMargins(QMargins(0, 0, 0, DOCK_BOTTOM_MARGIN)); // Table 4: 10 px above bottom edge
+        // W52 — the resting dock owns its strip: maximized windows stop
+        // 2 px above the tray (the W52 probe asserts it). The sliver and
+        // hidden states lower the zone live via SurfaceCtl (Dock.qml).
+        layer->setExclusiveZone(DOCK_RESERVE);
+        SurfaceCtl::s_dockLayer = layer;
         layer->setKeyboardInteractivity(LayerShellQt::Window::KeyboardInteractivityOnDemand);
         layer->setScope(QStringLiteral("aegis-dock"));
     } else if (name == QStringLiteral("ccWindow")) {
@@ -215,6 +248,20 @@ void configureSurface(QQuickWindow *win)
         return;
     }
 
+    // W50 — the blur candidates are the shell's live glass surfaces.
+    // desktop, notifications and lock are NOT blurred (full-bleed /
+    // fullscreen canvases). The actual KWindowEffects request is applied
+    // in main() and re-applied on every Governor tier change (W57) —
+    // blur follows window alpha, so the GlassPanel tint stays as-is.
+    if (name == QStringLiteral("panelWindow")
+        || name == QStringLiteral("dockWindow")
+        || name == QStringLiteral("islandWindow"))
+        win->setProperty("aegisGlassRung", QStringLiteral("panel"));
+    else if (name == QStringLiteral("ccWindow")
+             || name == QStringLiteral("calendarWindow")
+             || name == QStringLiteral("launcherWindow"))
+        win->setProperty("aegisGlassRung", QStringLiteral("sheet"));
+
     if (isPersistent(name))
         win->show();
 }
@@ -229,7 +276,8 @@ int main(int argc, char *argv[])
 
     QGuiApplication app(argc, argv);
     QGuiApplication::setApplicationName(QStringLiteral("aegis-shell"));
-    // app_id for the whole process — KWin window rules (kwinrulesrc) match it
+    // app_id for the whole process — the aegis-windowwatch tracker and
+    // the dock TileMap both key windows by resourceClass
     QGuiApplication::setDesktopFileName(QStringLiteral("aegis-shell"));
     QQuickStyle::setStyle(QStringLiteral("Basic"));
 
@@ -261,6 +309,12 @@ int main(int argc, char *argv[])
     QQmlApplicationEngine engine;
     engine.addImageProvider(QStringLiteral("icons"), new IconProvider);
 
+    // W52 — QML → C++ surface control (the dock exclusive zone follows
+    // the tray state; see SurfaceCtl / Dock.qml publishReserve()).
+    static SurfaceCtl surfaces;
+    engine.rootContext()->setContextProperty(QStringLiteral("AegisSurfaces"),
+                                             &surfaces);
+
     // Main.qml comes from the installed QML tree first, the embedded
     // resource second. The resource was historically unreliable across
     // toolchains (Qt 6.10 + LTO builds registered the qrc tree but the
@@ -290,6 +344,31 @@ int main(int argc, char *argv[])
             governor.watchWindow(win); // frame-time feed (Listing 2)
         }
     }
+
+    // W50/W57 — the real blur channel: KWindowEffects::enableBlurBehind
+    // issues org_kde_kwin_blur on the surface (the KDE-supported client
+    // path on Wayland under KWin; stock KWin 6 has NO window-rule
+    // force-blur — the old kwinrulesrc story in the comments was
+    // fiction, TASKS T16-W50). blur follows window alpha, so the
+    // GlassPanel tint stays; the compositor does the rest. blurLive
+    // (Governor) gates the shell surfaces; re-applied on every tier /
+    // override change so the Settings Desktop-Effects rows have a REAL
+    // consumer.
+    const auto applyShellBlur = [&governor, &roots]() {
+        const bool live = governor.effects()
+                              .value(QStringLiteral("blurLive"))
+                              .toBool();
+        for (QObject *root : roots)
+            for (QQuickWindow *win :
+                 root->findChildren<QQuickWindow *>()) {
+                if (win->property("aegisGlassRung").toString().isEmpty())
+                    continue;
+                KWindowEffects::enableBlurBehind(win, live);
+            }
+    };
+    applyShellBlur();
+    QObject::connect(&governor, &Governor::tierChanged, &governor,
+                     applyShellBlur);
 
     // ── DBus: the session API ────────────────────────────────────────
     QDBusConnection bus = QDBusConnection::sessionBus();

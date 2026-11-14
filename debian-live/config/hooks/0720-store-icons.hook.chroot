@@ -1,0 +1,106 @@
+#!/bin/sh
+# W54 — the Store's letter tiles: StoreBackend::hasIcon =
+# QIcon::hasThemeIcon(pkg) is an honest ladder against the wrong
+# substrate — the Aegis theme shipped none of the catalog's upstream
+# icons, so every entry rendered as a letter tile (04k-store.png: VLC,
+# GIMP, Inkscape, Blender, Krita, OBS all as initials). This hook sources
+# the REAL upstream icon for every catalog package at build time:
+# download the candidate .deb from the same archive the build already
+# uses, unpack it, resolve the desktop entry's Icon= through the unpacked
+# tree and hicolor, install the asset into
+# /usr/share/icons/Aegis/apps/scalable/<pkg>. The runtime stays
+# deterministic and offline; anything this hook cannot source keeps the
+# honest letter tile (the ladder is unchanged — the theme gains data).
+set -u
+
+APPS=/usr/share/icons/Aegis/apps/scalable
+mkdir -p "$APPS"
+WORK=$(mktemp -d)
+trap 'rm -rf "$WORK"' EXIT
+
+# mirror of StoreBackend::m_catalog pkgs[0] (systembackends.h) — keep the
+# two lists in sync
+PKGS="vlc gimp inkscape blender krita audacity obs-studio libreoffice \
+thunderbird firefox telegram-desktop filezilla transmission-gtk keepassxc \
+flameshot gparted synaptic htop kate git"
+
+sourced=0
+total=0
+for pkg in $PKGS; do
+    total=$((total+1))
+    if [ -e "$APPS/$pkg.svg" ] || [ -e "$APPS/$pkg.png" ]; then
+        continue
+    fi
+    rm -rf "$WORK/x"
+    mkdir -p "$WORK/x"
+    cd "$WORK" || exit 0
+    apt-get download "$pkg" >/dev/null 2>&1 || continue
+    deb=$(ls -1t "${pkg}"_*.deb 2>/dev/null | head -n 1)
+    [ -n "$deb" ] || continue
+    dpkg -x "$deb" "$WORK/x" >/dev/null 2>&1 || continue
+
+    # Icon= from the package's own desktop entry — prefer the entry that
+    # IS the package (libreoffice.desktop, not libreoffice-base.desktop)
+    icon=""
+    dsk="$WORK/x/usr/share/applications/$pkg.desktop"
+    if [ -f "$dsk" ]; then
+        icon=$(sed -n 's/^Icon=//p' "$dsk" | head -n 1)
+    fi
+    if [ -z "$icon" ]; then
+        for dsk in "$WORK/x"/usr/share/applications/*.desktop; do
+            [ -f "$dsk" ] || continue
+            val=$(sed -n 's/^Icon=//p' "$dsk" | head -n 1)
+            [ -n "$val" ] || continue
+            case "$val" in
+                /*) [ -f "$val" ] && { icon="$val"; break; } ;;
+                */*) ;;                      # relative path — unusable
+                *)  icon="$val"; break ;;
+            esac
+        done
+    fi
+    [ -n "$icon" ] || continue
+
+    # resolve through the unpacked tree first, then the chroot's themes
+    # (SVG preferred — the theme dir is Type=Scalable)
+    src=""
+    for base in "$WORK/x/usr/share/icons" /usr/share/icons; do
+        for sub in hicolor/scalable/apps breeze/scalable/apps \
+                   hicolor/256x256/apps hicolor/128x128/apps \
+                   hicolor/64x64/apps hicolor/48x48/apps; do
+            if [ -f "$base/$sub/$icon.svg" ]; then
+                src="$base/$sub/$icon.svg"
+                break 2
+            fi
+        done
+    done
+    if [ -z "$src" ]; then
+        for base in "$WORK/x/usr/share/icons" /usr/share/icons; do
+            for sub in hicolor/scalable/apps hicolor/256x256/apps \
+                       hicolor/128x128/apps hicolor/64x64/apps \
+                       hicolor/48x48/apps breeze/scalable/apps; do
+                if [ -f "$base/$sub/$icon.png" ]; then
+                    src="$base/$sub/$icon.png"
+                    break 2
+                fi
+            done
+        done
+    fi
+    if [ -z "$src" ]; then
+        for cand in "$WORK/x/usr/share/pixmaps/$icon.png" \
+                    "$WORK/x/usr/share/pixmaps/$icon.xpm" \
+                    "/usr/share/pixmaps/$icon.png" \
+                    "$icon"; do
+            [ -f "$cand" ] && { src="$cand"; break; }
+        done
+    fi
+    [ -n "$src" ] || continue
+
+    case "$src" in
+        *.svg) cp -f "$src" "$APPS/$pkg.svg" ;;
+        *)     cp -f "$src" "$APPS/$pkg.png" ;;
+    esac
+    sourced=$((sourced+1))
+done
+
+echo "W54: sourced $sourced/$total upstream store icons into the Aegis theme"
+exit 0

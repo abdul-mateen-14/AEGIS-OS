@@ -24,6 +24,13 @@ BorderSize=Tiny
 BlurDecorations=true
 
 [Plugins]
+# W50 — assert our blur configuration instead of inheriting the distro
+# default: the stock blur effect MUST run, because the shell's glass now
+# rides the real client channel (KWindowEffects::enableBlurBehind →
+# org_kde_kwin_blur, requested per surface in main.cpp / apps-main.cpp).
+# There is no window-rule force-blur in stock KWin 6 — the old
+# kwinrulesrc story was fiction (TASKS T16-W50).
+blurEnabled=true
 # Table 18 — radius 18 on all four corners (0800 hook installs the effect).
 kwin4_effect_shapecornersEnabled=true
 # M3 — Mission Control: the stock Overview grid on Meta+W (all windows +

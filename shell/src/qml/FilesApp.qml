@@ -55,10 +55,13 @@ Window {
         history = [Files.homeUrl()]
         // W26 — a start location from the command line (the dock Trash
         // slot: aegis-files --path trash:///)
+        // W51 — the raw "trash:///" string must map through navigateTo
+        // (which translates the pseudo-scheme before it reaches the
+        // model) and history stores the MAPPED target, not the scheme.
         if (typeof aegisInitialPath !== "undefined"
                 && aegisInitialPath.toString().length > 0) {
             win.navigateTo(aegisInitialPath.toString())
-            history = [Files.homeUrl(), aegisInitialPath.toString()]
+            history = [Files.homeUrl(), win.current]
         }
     }
     // files.prefs synced by Aegis ID on another device — re-apply live
@@ -669,10 +672,17 @@ Window {
     // navigation — on the Window itself: every toolbar/delegate handler calls
     // win.navigateTo(...), so the function must live in win's scope.
     function navigateTo(p) {
-        history.push(p)
-        win.current = p
-        flm.folder = p
-        crumb.model = segments(p)
+        // W51 — the dock Trash slot delivers the literal "trash:///";
+        // FolderListModel cannot resolve a non-file scheme and silently
+        // lands on Home (the dock complaint that opened W51 — the
+        // sidebar's own Trash entry always worked because it goes
+        // through Files.trashUrl() directly). Map the pseudo-scheme
+        // HERE, so no caller can ever re-introduce the fallback.
+        const target = (p === "trash:///") ? Files.trashUrl() : p
+        history.push(target)
+        win.current = target
+        flm.folder = target
+        crumb.model = segments(target)
     }
 
     // W1 — paste with the overwrite prompt; conflicts first, replace second

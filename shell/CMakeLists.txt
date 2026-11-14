@@ -8,6 +8,11 @@ set(CMAKE_AUTOMOC ON)
 find_package(Qt6 REQUIRED COMPONENTS
     Core Gui Qml Quick QuickControls2 DBus Network Concurrent)
 find_package(LayerShellQt REQUIRED)
+# W50 — KWindowEffects::enableBlurBehind is the KDE-supported client blur
+# path on Wayland (org_kde_kwin_blur on the surface). KWin ships the
+# runtime lib; the dev package rides the build deps (debian/control,
+# scripts/build-shell.sh).
+find_package(KF6WindowSystem REQUIRED)
 find_package(OpenSSL REQUIRED)
 find_library(PAM_LIBRARY pam)
 
@@ -84,6 +89,7 @@ target_link_libraries(aegis-shell PRIVATE
     Qt6::QuickControls2
     Qt6::DBus
     Qt6::Network   # W22 — the web-shortcut fetch pipeline lives in Util
+    KF6::WindowSystem   # W50 — enableBlurBehind (org_kde_kwin_blur)
     ${AEGIS_LAYERSHELL_TARGET}
 )
 
@@ -135,6 +141,7 @@ target_link_libraries(aegis-apps PRIVATE
     Qt6::DBus
     Qt6::Network
     Qt6::Concurrent
+    KF6::WindowSystem   # W50 — enableBlurBehind on the chrome band
     OpenSSL::Crypto
 )
 

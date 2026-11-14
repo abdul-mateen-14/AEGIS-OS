@@ -211,7 +211,7 @@ void Governor::evaluate()
     if (batteryCalm && m_tier != QStringLiteral("C")) {
         demote(QStringLiteral("C"), QStringLiteral("battery"));
         emit toast(QStringLiteral("Calm Mode"),
-                   QStringLiteral("Battery below 20% — panels went opaque."));
+                   QStringLiteral("Battery below 20% — glass went flat."));
         return;
     }
 
@@ -287,14 +287,18 @@ void Governor::promote(const QString &to)
 
 void Governor::applyTier()
 {
-    // Listing 2 — demote(T):
-    //   blur.live     = (T == A)
-    //   blur.any      = (T != C)
+    // Listing 2 — demote(T), AMENDED by review round 7 §5.6 (W57): the
+    // tiers gate the material rungs, not the surfaces they ship on.
+    //   Full (A):     every rung blurred — sheet, panel AND chrome
+    //   Balanced (B): Sheet/Panel Glass blurred; app chrome bands tint-only
+    //   Calm (C):     no blur requests issued at all (flat tints + hairlines)
+    //   blurLive      = (T != C)
+    //   blurAny       = (T == A)
     //   motion.spring = (T != C)
-    //   shadows.half  = (T == B)
+    //   shadowsHalf   = (T == B)
     m_effects = QVariantMap{
-        {QStringLiteral("blurLive"), m_tier == QStringLiteral("A")},
-        {QStringLiteral("blurAny"), m_tier != QStringLiteral("C")},
+        {QStringLiteral("blurLive"), m_tier != QStringLiteral("C")},
+        {QStringLiteral("blurAny"), m_tier == QStringLiteral("A")},
         {QStringLiteral("motionSpring"), m_tier != QStringLiteral("C")},
         {QStringLiteral("shadowsHalf"), m_tier == QStringLiteral("B")},
     };
