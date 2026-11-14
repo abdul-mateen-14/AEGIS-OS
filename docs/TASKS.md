@@ -238,6 +238,32 @@ the ship order of review §4; every fix carries its red-able probe.
   commit lands on main -> mark T16 SHIPPED and ask the user for their
   Workstation re-test captures (W41 closure); red -> read the run log,
   the four D13 fixes are all that stood between run 2 and green.
+- D14 DONE (boot run 3 read — run 43618544285, red on FOUR, the run-2
+  fix column all green: the dark tile now PASSES (patient re-click
+  cured the missed click), w56 kscreen PASSES (wayland env), §5.3 left
+  ring PASSES in-probe, w39/w52/w51/w54/w43/header/xkb all PASS):
+  (1) §5.3 asserted FAILED although the probe PASSED — the T16 flag
+  init block sat BELOW the D16 terminal section and re-initialized
+  shadow_b_ok to False after the probe set it True. Pure order bug;
+  the init moved above the first assignment site (+ an audit that
+  proves no other flag is assigned before its init).
+  (2) W55 parse died on char 1 AGAIN — the logged payload head showed
+  busctl ESCAPES the quotes inside the string payload
+  (s "[\"Files\",...]"); the parse now unescapes before json.loads.
+  The visible head also shows "Aegis Browser" once — the full list
+  will give the real dup verdict.
+  (3) W50 A/B read 3.37 == 3.37 — org.aegis.Governor does not export
+  setEffect over DBus (the Settings app calls it IN-PROCESS); busctl
+  reached nothing. The probe reverted to the forensics-proven strip
+  comparison (base 7.97 -> sheet 4.56, gate sheet < base*0.7). The
+  DBus export of setEffect is the proper A/B upgrade and ships with
+  the next ISO tag (product change, needs a rebuild).
+  (4) W38 close read payload-closed=True diff-vs-home=8.3 and FAILED
+  on d2<6 — the panel CLOCK pixels differ between the home capture
+  and the close capture (minutes tick); window-present diffs run 23+,
+  a closed desktop reads 8-9, so the gate is now d2<12 (margin 2.5x).
+  NEXT: run 4 dispatched harness-only against the existing v0.6.60
+  ISO; on green the captures commit lands and T16 ships.
 - Parked (unchanged): cups-pdf blocked upstream (resolute archive);
   browser-repo traffic lights (cross-repo); W41 closes on the user's
   real-Workstation re-test.
