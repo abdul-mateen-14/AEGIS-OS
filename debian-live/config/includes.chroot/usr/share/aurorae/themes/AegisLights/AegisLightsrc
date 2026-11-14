@@ -5,7 +5,15 @@ TitleAlignment=Center
 TitleVerticalAlignment=Center
 UseTextShadow=false
 Animation=80
-Shadow=false
+# T16 §5.3.1 — the aurorae v2 engine (KWin 6.6, plasma/aurorae
+# decoration.cpp) has no Shadow key: the shadow renders whenever the
+# [Layout] Padding* margins are non-null (updateShadow paints the frame
+# grown by padding, erases the interior with DestinationOut, and the
+# remaining ring IS the DecorationShadow). The old Shadow=false line
+# disabled nothing; the padding below is what turns the shadow on.
+# Maximized windows keep the unshifted decoration-maximized elements
+# (no shadow ring, v0.6.27 geometry).
+Shadow=true
 DecorationPosition=Top
 LeftButtons=XIA
 RightButtons=
@@ -68,7 +76,12 @@ ButtonMarginTopMaximized=6
 # engine (decorationtheme.cpp reads only ButtonSpacing, ButtonMarginTop(Max),
 # ExplicitButtonSpacer) — horizontal placement comes from TitleEdgeLeft.
 ExplicitButtonSpacer=8
-PaddingLeft=0
-PaddingRight=0
-PaddingTop=0
-PaddingBottom=0
+# T16 §5.3.1 — the shadow ring: ambient spread 20 px + key offset-y 4 px
+# blur 32 px, as one gradient band per edge (24 left/right, 20 top,
+# 36 bottom). These MUST equal the SVG element sizes in
+# scripts/gen-aurorae-frame.py — FrameSvg derives its stretch margins
+# from the elements, and DecorationTheme::padding() reads these keys.
+PaddingLeft=24
+PaddingRight=24
+PaddingTop=20
+PaddingBottom=36
