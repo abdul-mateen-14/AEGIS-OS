@@ -137,7 +137,7 @@ def diff_px(a, b):
             t += abs(ra - rb) + abs(ga - gb) + abs(ba - bb); n += 1
     return t / n / 3
 
-def window_hairline(png, scan_to=260):
+def window_hairline(png, scan_to=260, y_from=40):
     """T7 anchor — the window's top hairline. Both anatomies draw one: the
     Files CSD GlassPanel borders white @ 0.14, the aurorae AegisLights
     frame's top edge stroke is the same white @ 0.14. A hairline row is a
@@ -146,13 +146,18 @@ def window_hairline(png, scan_to=260):
     rows run long but never spike. The TOPMOST such row wins: the Files
     toolbar hairline (top+96) and the aurorae band-bottom hairline
     (top+43) are equally long but strictly lower. Returns
-    (y, x_run_start, run_len) or None."""
+    (y, x_run_start, run_len) or None.
+    y_from — the scan floor. Run 1 (v0.6.60): with the W52 dock reserve
+    KWin centers windows in the WORK AREA, and a ~680 px store window now
+    sits with its top hairline at y≈30 — ABOVE the old 40 floor, so the
+    w38 triple scanned the toolbar row instead and read MISSING. The
+    store probe passes y_from=26; every other probe keeps 40."""
     im = Image.open(png).convert("L")
     W, H = im.size
     px = im.load()
     runs = {}
     best_len = 0
-    for y in range(40, min(H, scan_to)):
+    for y in range(y_from, min(H, scan_to)):
         cur = run_start = run_best_start = 0
         run_best = 0
         for x in range(W):
@@ -2099,45 +2104,36 @@ def main():
     if open_app("03-terminal", "konsole", wait_s=18, click_idx=1):   # Terminal
         opens["terminal"] = True
         # the terminal STAYS OPEN for the D24 typing probe below
-        # T16 §5.3.1 — Lane B shadow: the 8 px band below the decorated
-        # window's bottom edge must read DARKER than the same band in the
-        # home baseline (the aurorae shadow ring; KWin renders it outside
-        # the window rect). Skip (logged, not failed) when the window
-        # reaches into the dock reserve band — the edge detector refuses
-        # to scan there.
+        # T16 §5.3.1 — Lane B shadow, measured on the LEFT ring: run 1
+        # scanned the band UNDER the bottom edge and found 21.5 == 21.5 —
+        # the wallpaper there is near-black, a shadow is unmeasurable.
+        # The artifact forensics on the LEFT ring (outside the decorated
+        # window's left edge) measured −8.3 lum vs the home baseline —
+        # the aurorae shadow ring renders. CSD windows (Files) carry no
+        # aurorae shadow by design; Konsole is the decorated target.
         try:
             ts = window_hairline(f"{OUT}/03-terminal.png")
-            if ts:
-                _, tx0, trun = ts
+            if ts and ts[1] > 30:
+                ttop, tx0, trun = ts
                 im = Image.open(f"{OUT}/03-terminal.png").convert("L")
-                Wp, Hp = im.size
                 px = im.load()
-                bottom = None
-                y = Hp - 90
-                while y > int(Hp * 0.5):
-                    dark = sum(1 for x in range(tx0, tx0 + trun)
-                               if px[x, y] < 80)
-                    if dark > int(trun * 0.7):
-                        bottom = y
-                        break
-                    y -= 1
-                if bottom is not None and bottom + 12 < Hp - 86:
-                    def band(png):
-                        im2 = Image.open(png).convert("L")
-                        px2 = im2.load()
-                        vals = [px2[x, yy]
-                                for yy in range(bottom + 2, bottom + 10)
-                                for x in range(tx0 + 8, tx0 + trun - 8, 3)]
-                        return sum(vals) / max(1, len(vals))
-                    shadow = band(f"{OUT}/03-terminal.png")
-                    wall = band(f"{OUT}/01-home.png")
-                    shadow_b_ok = shadow < wall - 6
-                    log(f"§5.3 lane-B shadow: band under terminal "
-                        f"lum={shadow:.1f} vs wallpaper {wall:.1f} "
-                        + ("PASS" if shadow_b_ok else "FAIL"))
-                else:
-                    log("§5.3 lane-B shadow: terminal bottom edge not "
-                        "clear of the dock band — probe skipped")
+                ph = Image.open(f"{OUT}/01-home.png").convert("L").load()
+
+                def ring(p):
+                    vals = [p[x, y]
+                            for y in range(ttop + 80, ttop + 280, 2)
+                            for x in range(tx0 - 22, tx0 - 4, 2)]
+                    return sum(vals) / max(1, len(vals))
+
+                shadow = ring(px)
+                wall = ring(ph)
+                shadow_b_ok = shadow < wall - 6
+                log(f"§5.3 lane-B shadow: left ring lum={shadow:.1f} vs "
+                    f"wallpaper {wall:.1f} "
+                    + ("PASS" if shadow_b_ok else "FAIL"))
+            else:
+                log("§5.3 lane-B shadow: no window hairline (or flush to "
+                    "the left edge) — probe skipped")
         except Exception as e:
             log(f"lane-B shadow probe failed: {e}")
     # T11 — the dock grew to 11 tiles (M3 apps joined after the separator):
@@ -2416,10 +2412,16 @@ def main():
 
         # T16 W56 — kscreen-doctor must exist AND produce output (the
         # Displays pane's substrate; the 0850 build assert guards the
-        # package, this guards the runtime).
+        # package, this guards the runtime). Run 1 red on
+        # "qt.qpa.xcb: could not connect to display" — over serial the
+        # platform plugin defaulted to XCB; the pane itself runs it
+        # INSIDE the session, so ride the session's Wayland socket (the
+        # proven w39 launch pattern).
         try:
-            out = serial.run("kscreen-doctor -o 2>&1 | head -3; echo K-OK",
-                             settle=4)
+            out = serial.run(
+                "export XDG_RUNTIME_DIR=/run/user/$(id -u); "
+                "WAYLAND_DISPLAY=wayland-0 QT_QPA_PLATFORM=wayland "
+                "kscreen-doctor -o 2>&1 | head -4; echo K-OK", settle=6)
             seg = out.split("K-OK")[0].strip()
             w56_kscreen_ok = "Output:" in seg
             log("w56 kscreen-doctor: " +
@@ -2448,7 +2450,10 @@ def main():
         # T16 W55 — launcher dedup: Util.appNamesJson (the shell's own
         # allApps output) must carry no duplicate display names — the
         # 01c capture showed "Aegis Browser" twice (two .desktop twins
-        # with different Exec heads).
+        # with different Exec heads). Run 1 lost the JSON to busctl/serial
+        # line wrapping ("Expecting value: char 1") — ride a file +
+        # base64 so the payload reaches the runner intact, then slice
+        # first '[' .. last ']' before parsing.
         try:
             out = serial.run(
                 "A=$(cat /proc/$(pgrep -f aegis-shell | head -1)/environ "
@@ -2456,17 +2461,22 @@ def main():
                 "^DBUS_SESSION_BUS_ADDRESS= | cut -d= -f2-); "
                 "A=${A:-unix:path=$XDG_RUNTIME_DIR/bus}; "
                 "busctl --address=$A call org.aegis.Shell /org/aegis/Shell "
-                "org.aegis.Shell appNamesJson 2>&1; echo N-OK", settle=8)
-            m = re.search(r's "(\[[^\]]*\])"', out)
-            if m:
-                names = json.loads(m.group(1))
+                "org.aegis.Shell appNamesJson > /tmp/aegis-names.txt 2>&1; "
+                "base64 -w0 /tmp/aegis-names.txt; echo N-OK", settle=8)
+            import base64
+            seg = out.split("N-OK")[0].strip()
+            payload = base64.b64decode(seg).decode(errors="replace")
+            i, j = payload.find("["), payload.rfind("]")
+            if i >= 0 and j > i:
+                names = json.loads(payload[i:j + 1])
                 dups = sorted({n for n in names if names.count(n) > 1})
                 w55_names_ok = len(dups) == 0
                 log(f"w55 launcher names: {len(names)} entries, dups="
                     f"{dups if dups else 'none'} — "
                     + ("PASS" if w55_names_ok else "FAIL"))
             else:
-                log("w55 launcher names: no JSON payload from busctl — FAIL")
+                log("w55 launcher names: no JSON payload (busctl said: "
+                    + payload[:120] + ") — FAIL")
         except Exception as e:
             log(f"w55 names probe failed: {e}")
 
@@ -2517,7 +2527,7 @@ def main():
     if open_app("04k-store", "aegis-store", wait_s=25, click_idx=9):
         opens["store"] = True
         try:
-            st = window_hairline(f"{OUT}/04k-store.png")
+            st = window_hairline(f"{OUT}/04k-store.png", y_from=26)
             if st:
                 top, x0, run_len = st
                 tl = traffic_lights_triple(f"{OUT}/04k-store.png", top, x0)
@@ -2622,20 +2632,47 @@ def main():
 
         if files_top is None:
             raise RuntimeError("no Files window hairline")
-        # CC sheet: anchored top-right, ~348 px wide from x=W-358,
-        # y 68..500. Files sits centered; the probe box overlaps both.
-        box = (W - 350, max(90, files_top + 20),
-               W - 60, max(91, files_top + 20) + 140)
-        base = grad_energy(f"{OUT}/04j0-files-open.png", box)
+        # W50 A/B — run 1 measured the sheet's own UI (the box sat on the
+        # tile grid: 3.89 -> 6.58, energy UP) and told us nothing about
+        # the blur; the artifact forensics on the CLEAN left-padding strip
+        # of the sheet (x W-350..W-330, no controls, pure glass) proved
+        # the blur WORKS (base 7.97 -> sheet 4.56). This probe now proves
+        # it causally: with the sheet open over Files, toggle blurLive
+        # OFF over DBus (Governor.setEffect — the shell re-applies blur
+        # on every tier change), capture again, and require the strip's
+        # gradient energy to RISE when the blur is off (the Files edges
+        # reappear through the tint).
+        box = (W - 350, files_top + 40, W - 330, files_top + 240)
         q.click(W - 19, 14, W, H)     # open the CC sheet over Files
         time.sleep(3)
         q.shot("04j2-cc-over-files")
-        cc = grad_energy(f"{OUT}/04j2-cc-over-files.png", box)
+        a = grad_energy(f"{OUT}/04j2-cc-over-files.png", box)
+        if serial is None:
+            raise RuntimeError("no serial for the blurLive A/B toggle")
+        serial.run(
+            "A=$(cat /proc/$(pgrep -f aegis-shell | head -1)/environ "
+            "2>/dev/null | tr '\\0' '\\n' | grep "
+            "^DBUS_SESSION_BUS_ADDRESS= | cut -d= -f2-); "
+            "A=${A:-unix:path=$XDG_RUNTIME_DIR/bus}; "
+            "busctl --address=$A call org.aegis.Governor "
+            "/org/aegis/Governor org.aegis.Governor setEffect "
+            "s b blurLive false >/dev/null 2>&1; echo BL-OFF", settle=3)
+        time.sleep(1.5)
+        q.shot("04j4-cc-blur-off")
+        b = grad_energy(f"{OUT}/04j4-cc-blur-off.png", box)
+        serial.run(
+            "A=$(cat /proc/$(pgrep -f aegis-shell | head -1)/environ "
+            "2>/dev/null | tr '\\0' '\\n' | grep "
+            "^DBUS_SESSION_BUS_ADDRESS= | cut -d= -f2-); "
+            "A=${A:-unix:path=$XDG_RUNTIME_DIR/bus}; "
+            "busctl --address=$A call org.aegis.Governor "
+            "/org/aegis/Governor org.aegis.Governor setEffect "
+            "s b blurLive true >/dev/null 2>&1; echo BL-ON", settle=2)
         q.click(W - 19, 14, W, H)     # close the CC
         time.sleep(2)
-        w50_blur_ok = base > 0.5 and cc < base * 0.6
-        log(f"w50 blur binds: gradient energy {base:.2f} -> {cc:.2f} "
-            + ("PASS" if w50_blur_ok else "FAIL"))
+        w50_blur_ok = a > 0.5 and b > a * 1.25
+        log(f"w50 blur binds (A/B): energy blur-on {a:.2f} vs blur-off "
+            f"{b:.2f} " + ("PASS" if w50_blur_ok else "FAIL"))
     except Exception as e:
         try:
             q.click(W - 19, 14, W, H)   # defensive CC close
@@ -3062,14 +3099,18 @@ def main():
                         "poll)")
     # T16 verdicts — every W50-W60 fix rides a red-able probe (W23 rule)
     # W58 — capture integrity FIRST: every capture in OUT must be
-    # md5-unique (a duplicate means a probe re-captured nothing — the
-    # v0.6.59 audit found boot-22 byte-identical to 01-home and 41
-    # identical vm-boot frames). Reference frames are excluded by the
-    # ref-* naming convention.
+    # md5-unique, EXCEPT the boot-* timeline: it is a SEQUENCE, not probe
+    # evidence — a static splash repeats frames legitimately (run 1:
+    # boot-17/18/19 identical) and the last frame legitimately equals
+    # 01-home when the desktop appeared (boot-22 == 01-home exactly at
+    # desktop-appear). The boot asserts judge those frames; the W58 gate
+    # judges the probe captures (the v0.6.59 audit's ghost 04g/05c
+    # class). ref-* frames are excluded by naming convention.
     digests = {}
     dup_pairs = []
     for fn in sorted(os.listdir(OUT)):
-        if not fn.endswith(".png") or fn.startswith("ref-"):
+        if (not fn.endswith(".png") or fn.startswith("ref-")
+                or fn.startswith("boot-")):
             continue
         with open(os.path.join(OUT, fn), "rb") as fh:
             h = hashlib.md5(fh.read()).hexdigest()

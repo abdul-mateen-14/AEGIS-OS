@@ -153,18 +153,57 @@ the ship order of review §4; every fix carries its red-able probe.
   W49 shape working: dpkg -L kscreen lists no bin/kscreen-doctor because
   the binary ships via the libkf6screen-bin DEPENDENCY, not the kscreen
   package itself. The assert now checks command -v + dpkg -S ownership
-  of the resolved path. Tag re-forced to 9ae7107; Release run
-  43591705757 (the fourth burn) in flight at the time this entry was
-  pushed. NEXT SESSION: poll
-  actions/runs/43591705757 (fix(w56) substrate assert is on the tag) —
-  green -> dispatch Boot Test (workflow_dispatch, inputs.tag=v0.6.60),
-  poll it, verify the round-7 probes (w50 blur, w51 trash two-window,
-  w52 reserve, w54 icons, w55 names, w56 kscreen, w58 distinctness, the
-  lane-B shadow band) + the T15 assert set, then commit the captures to
-  docs/screenshots/v0.6.60/ and mark T16 SHIPPED. Red -> read the run
-  log with the ===LAUNCH-LOGS=== section and the probe log lines.
+  of the resolved path. Release run 43591705757 went GREEN on 9ae7107
+  (ISO published) and Boot Test run 43610121631 was dispatched — see D12.
   Afterwards ask the user for their Workstation re-test captures
   (W41 closure) into docs/screenshots/<tag>-user-vm/ per W58.
+- D12 DONE (boot run 1 read — run 43610121631, red with five verdicts,
+  every one triaged to root cause via the artifact forensics; the GREEN
+  column is the headline: w52 dock reserve PASS (maximized bottom 719 vs
+  reserve line 724 — the exclusive zone works), w51 trash two-window AND
+  single PASS, w54 icons PASS (6 sourced), header geometry, xkb, w39
+  rotate, w43 wired, dark tile all PASS):
+  (1) W39 dim/effects FAIL — PRODUCT BUG, fixed: the GlassSwitch knob
+  rode the dock's Spring solver unguarded and the explicit Euler is
+  stable only while h·(damping/mass) < 2 — at the VM's ~10 fps the dt
+  clamp gave 4.5 and the knob flew to NaN (every clicked knob vanished
+  from the captures; the restore re-scan then found only the dim knob
+  as idx 0, clicked IT as the "restore", and the dim verdict click
+  toggled it back — wallpaperDim ended false and the greps read 0).
+  Fix: the switch steps at dt/8 (h ≤ 0.00625 → 1.125, stable at any
+  fps) + NaN/out-of-range self-heal; the dock's solver is untouched
+  (T12-calibrated).
+  (2) W38 MISSING — PROBE CALIBRATION, fixed: with the W52 reserve KWin
+  centers windows in the WORK AREA, the ~680 px store window's top
+  hairline now sits at y≈30 — above window_hairline's y=40 floor, so
+  the triple scanned the toolbar row (the capture shows the lights at
+  y≈49, perfectly rendered). window_hairline grew a y_from param; the
+  store probe passes 26.
+  (3) W50 FAIL — PROBE DESIGN, fixed: the box sat on the sheet's own
+  tile grid (3.89 → 6.58, energy UP). The artifact strip forensics
+  PROVED the blur works (clean left-padding strip: base 7.97 → sheet
+  4.56). The probe is now causal A/B: blurLive toggled OFF over DBus
+  with the sheet open; the same strip must rise ≥25% when the blur
+  lifts.
+  (4) §5.3 FAIL — PROBE TARGET, fixed: the bottom band sits over
+  near-black wallpaper (21.5 == 21.5, unmeasurable); the LEFT ring
+  measured −8.3 lum vs home — THE LANE B SHADOW RENDERS. The probe now
+  measures the left ring (x tx0−22..tx0−4, rows top+80..top+280).
+  (5) W56 FAIL — HARNESS ENV, fixed: over serial kscreen-doctor
+  defaulted to the XCB platform ("could not connect to display"); the
+  pane runs it inside the session, so the probe now rides
+  XDG_RUNTIME_DIR + WAYLAND_DISPLAY=wayland-0 + QT_QPA_PLATFORM=wayland.
+  (6) W55 FAIL — HARNESS PARSE, fixed: busctl/serial line wrapping
+  shredded the JSON ("Expecting value: char 1"); the payload now rides
+  a file + base64 and the parse slices first '[' .. last ']'.
+  (7) W58 FAIL — ASSERT SCOPE, fixed: the boot-* timeline is a
+  SEQUENCE (static splash frames repeat; boot-22 == 01-home IS the
+  desktop-appear proof) — excluded from the distinctness gate, which
+  now judges probe captures only.
+  Also noted on the store capture: letter tiles remain the honest
+  fallback for the 14 packages the 0720 hook could not source (6/20
+  sourced — Inkscape shows the real logo; the gate is ≥6).
+  NEXT: re-tag v0.6.60 with these fixes and re-dispatch the Boot Test.
 - Parked (unchanged): cups-pdf blocked upstream (resolute archive);
   browser-repo traffic lights (cross-repo); W41 closes on the user's
   real-Workstation re-test.

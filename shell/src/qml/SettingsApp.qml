@@ -152,8 +152,21 @@ Window {
                 onTriggered: {
                     knobSpring.target = gs.checked
                             ? trackRect.width - knob.width - 2 : 2
-                    knobSpring.step(elapsedTime)
-                    knob.x = knobSpring.value
+                    // Boot run 1 (v0.6.60): the solver's explicit Euler is
+                    // stable only while h · (damping/mass) < 2 — at the
+                    // VM's ~10 fps the dt clamp (h = 0.025) gave 4.5 and
+                    // the knob flew to NaN (every clicked knob vanished
+                    // from the captures; the w39 restore click then hit
+                    // the wrong row and overwrote the verdict key). The
+                    // switch steps at dt/8 (h ≤ 0.00625 → 1.125, stable
+                    // at any fps); the dock keeps its own solver untouched
+                    // (T12-calibrated).
+                    knobSpring.step(elapsedTime / 8.0)
+                    var v = knobSpring.value
+                    var hi = trackRect.width - knob.width - 2
+                    if (!(v >= 2) || !(v <= hi))
+                        v = knobSpring.target   // NaN guard + self-heal
+                    knob.x = v
                     if (Math.abs(knobSpring.target - knobSpring.value) < 0.25) {
                         knob.x = knobSpring.target
                         trackAnim.animating = false
