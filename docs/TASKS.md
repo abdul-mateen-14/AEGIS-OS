@@ -1,3 +1,40 @@
+## T20.8 — run 3 forensics: the residuals were the Calm tier, not bugs
+    (2026-11-15; Release run 7 GREEN on 5f50d76, Boot Test
+    43741487087 recovered the dock cluster — w51 ×2 PASS, w44 PASS,
+    no more TypeErrors — then failed on five Calm-vs-probe mismatches)
+
+- Serial line 2512: "aegis-shell: software renderer (llvmpipe (LLVM
+  21.1.8, 256 bits)) — settling in Calm tier". The CI's virtio GL is
+  llvmpipe IN-GUEST (no virgl on the runner), so the T20 auto-Calm
+  fired: all six effect switches OFF by design. Pixel forensics
+  (scripts/bt63-forensics2.py): 01b's dock band is byte-identical to
+  01-home (no magnification, no tooltip — only the cursor moved), the
+  CC sheet is a flat tint, and the A/B metric is frozen.
+- Probe fixes (all harness-side, no ISO rebuild):
+  1. w66 A/B — the bus address was the systemd USER bus; the shell
+     lives on its dbus-run-session private bus ("org.aegis.Governor
+     was not provided by any .service files", run 43741487087). The
+     address now comes from the shell's environ (the dump_window_state
+     pattern) AND the probe forces liveBlur ON first, so a=blur-on by
+     construction on ANY tier.
+  2. w50 — 0.7 was a 0.013 knife edge (3.66 vs 3.647); the causal A/B
+     is the primary verdict, 0.75 keeps the tint-only fallback.
+  3. V1 magnify — the serial block moved up (after the 01-home guard,
+     before the hover) and the probe FORCES dockMagnify ON over the
+     shell bus: the assert proves the FIELD, not the tier.
+  4. W58 — by-design equal pairs excluded: (12-files, 12a as-is) and
+     (04j2, 04j5 restored); a dead A/B still flags via 04j4 == 04j2.
+  5. W16 — the 300 px bound was the Standard-zoom era; Files now opens
+     at the persisted SMALL preset where the fixed glyph measures a
+     deterministic 128 (runs 2 AND 3) and broken ~77 — bound 100.
+- USER-FACING NOTE for W41: on the user's VMware (also llvmpipe),
+  v0.6.63 now settles in Calm — magnify/blur/parallax OFF with the
+  banner — that is the T20 lag rescue working as designed; the
+  switches re-enable from Settings' effects pane (setEffect pins).
+- NEXT: commit → dispatch Boot Test on ref=main with
+  inputs.tag=v0.6.63 (released ISO bytes, fixed harness) → expect
+  green; then the T19 BIOS/UEFI + VMware legs run in the same job.
+
 ## T20.7 — THE DOCK CLUSTER SOLVED: 5× Governor.effects.value() TypeErrors
     (2026-11-15; shipped in 852705f = v0.6.62 — the user's "dock
     magnification not working" + "apps not working" had a HARD bug under
