@@ -1,3 +1,29 @@
+## T20.14 — v0.6.63 SHIPPED (2026-11-15, Boot Test 43762890564 GREEN)
+- Run 9: main leg CLEAN (w66 state contract off->conf false PASS /
+  on->conf true PASS, pixel A/B correctly skipped on wayland, zero
+  asserts), VMware W41 gate green (splash miss demoted to diagnostic
+  per W48-F1 — the emulated SVGA has no display surface; the claim
+  closes on the user's real Workstation re-test),
+  iso-boot BIOS (SeaBIOS) desktop at boot-26 PASS, iso-boot UEFI
+  (OVMF) desktop at boot-32 PASS. Captures committed (cafe0a0),
+  screenshots zip attached to the release.
+- Release v0.6.63 assets complete: ISO part-00/part-01, SHA256SUMS,
+  screenshots zip. SHIPPED.
+- The three harness fixes that got runs 7-9 green: T20.12 (the
+  off-verdict must precede the restore — persistOverride replaces the
+  key), T20.12b (the --iso-boot branch needs its own OUT mkdir — runs
+  4-7 never reached this leg, so the bug was latent), and T20.13
+  (closing the Store restores the exact pre-Store frame —
+  byte-equality by design; W38 owns the close assertion).
+- T21 stays OPEN: the Wayland blur consumer (KWin script keyed on the
+  aegisGlassRung window property). The w66 pixel rung activates on x11
+  sessions; on wayland the state contract is the authoritative read.
+- W41 ruling for the user: on VMware (llvmpipe) v0.6.63 settles in
+  Calm — magnify/blur/parallax OFF + the banner — that IS the lag
+  rescue working; the v0.6.62 dock-magnification crash and the dead
+  dock clicks are FIXED; switches re-enable from Settings' Desktop
+  Effects pane.
+
 ## T20.10 — the hybrid blur verdict ships (2026-11-15)
 - The T20.9 (c) fix implemented: the w66 probe now gates on the session
   type read from the shell's environ — the STATE contract (the
