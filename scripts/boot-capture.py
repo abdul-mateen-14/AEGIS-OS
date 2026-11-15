@@ -3518,7 +3518,15 @@ def main():
     # still catches a dead A/B: with blur stuck, 04j4 (the OFF half)
     # equals 04j2 and stays flagged.
     ok_dups = {("12-files.png", "12a-files-small.png"),
-               ("04j2-cc-over-files.png", "04j5-cc-blur-restored.png")}
+               ("04j2-cc-over-files.png", "04j5-cc-blur-restored.png"),
+               # T20.13 — closing the Store restores the exact CoreX view
+               # that was open behind it (the idle compositor
+               # re-renders nothing): byte-equality here is the DESIGNED
+               # clean-close outcome, and the close itself is already
+               # asserted by W38 (window-state absence + diff-vs-home).
+               # Timing-flap: run 8 hit it only because both frames
+               # landed inside one clock minute (43760209461).
+               ("04i-corex.png", "04k2-store-closed.png")}
     # T20.9 — on Wayland the blur toggle CANNOT move pixels (the
     # KWindowEffects consumer is X11-only), so the 04j2/04j4 pair is
     # by-design equal there too. On X11 the pair stays judged: equality
