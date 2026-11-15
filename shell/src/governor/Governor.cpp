@@ -142,12 +142,18 @@ void Governor::persistOverride(const QString &key, bool on)
 
 void Governor::setEffect(const QString &key, bool on)
 {
-    // the governor map keys + the wallpaperDim veil key (W39.1). Anything
-    // else is a typo in a caller and must be rejected, not invented.
+    // W66 — the proposal's six effect keys + the wallpaperDim veil key
+    // (W39.1, its row lives in the Wallpaper pane) + shadowsHalf (the
+    // Balanced tier's half-shadow rung, no row of its own). The old
+    // blurLive/blurAny/motionSpring names are retired by the remap —
+    // the Settings app calls setEffect in-process and over DBus with
+    // the six names. Anything else is a typo in a caller and must be
+    // rejected, not invented.
     static const QStringList keys = {
-        QStringLiteral("blurLive"), QStringLiteral("blurAny"),
-        QStringLiteral("motionSpring"), QStringLiteral("shadowsHalf"),
-        QStringLiteral("wallpaperDim"),
+        QStringLiteral("dockMagnify"), QStringLiteral("dockBounce"),
+        QStringLiteral("windowSprings"), QStringLiteral("liveBlur"),
+        QStringLiteral("wallpaperParallax"), QStringLiteral("islandMorph"),
+        QStringLiteral("shadowsHalf"), QStringLiteral("wallpaperDim"),
     };
     if (!keys.contains(key))
         return;
@@ -287,19 +293,27 @@ void Governor::promote(const QString &to)
 
 void Governor::applyTier()
 {
-    // Listing 2 — demote(T), AMENDED by review round 7 §5.6 (W57): the
-    // tiers gate the material rungs, not the surfaces they ship on.
-    //   Full (A):     every rung blurred — sheet, panel AND chrome
-    //   Balanced (B): Sheet/Panel Glass blurred; app chrome bands tint-only
-    //   Calm (C):     no blur requests issued at all (flat tints + hairlines)
-    //   blurLive      = (T != C)
-    //   blurAny       = (T == A)
-    //   motion.spring = (T != C)
-    //   shadowsHalf   = (T == B)
+    // Listing 2 — demote(T), remapped by the v0.6.62 instructions (W66)
+    // to the proposal's six effect keys:
+    //   Full (A):     all six on — the machine pays for everything
+    //   Balanced (B): springs + blur + magnify (the tier map's own rule)
+    //   Calm (C):     none — flat tints, static wallpaper, no solver
+    //   dockMagnify       = (T != C)
+    //   dockBounce        = (T == A)
+    //   windowSprings     = (T != C)
+    //   liveBlur          = (T != C)   (the old blurLive; blurAny — the
+    //                      app-chrome band — rides the same key now)
+    //   wallpaperParallax = (T == A)
+    //   islandMorph       = (T == A)
+    //   shadowsHalf       = (T == B)   (unchanged, no row of its own)
     m_effects = QVariantMap{
-        {QStringLiteral("blurLive"), m_tier != QStringLiteral("C")},
-        {QStringLiteral("blurAny"), m_tier == QStringLiteral("A")},
-        {QStringLiteral("motionSpring"), m_tier != QStringLiteral("C")},
+        {QStringLiteral("dockMagnify"), m_tier != QStringLiteral("C")},
+        {QStringLiteral("dockBounce"), m_tier == QStringLiteral("A")},
+        {QStringLiteral("windowSprings"), m_tier != QStringLiteral("C")},
+        {QStringLiteral("liveBlur"), m_tier != QStringLiteral("C")},
+        {QStringLiteral("wallpaperParallax"),
+         m_tier == QStringLiteral("A")},
+        {QStringLiteral("islandMorph"), m_tier == QStringLiteral("A")},
         {QStringLiteral("shadowsHalf"), m_tier == QStringLiteral("B")},
     };
     // T15-D4 (W39.2) — user overrides ride OVER the tier map (a switch

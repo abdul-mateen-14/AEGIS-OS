@@ -1,6 +1,7 @@
 import QtQuick
 import QtQuick.Controls
 import Aegis.Util
+import Aegis.Governor
 
 // Floating dock — a real liquid tray, packed macOS-tight (§2.2, Table 4).
 //
@@ -54,6 +55,10 @@ Window {
     onStateNameChanged: publishReserve()
 
     function targetFor(d) {
+        // W66 — the dock-magnification switch: off = the field is flat,
+        // every tile keeps its resting width under the pointer.
+        if (Governor.effects.value("dockMagnify", true) !== true)
+            return Tokens.tileWidth
         var B = Tokens.tileWidth
         var ad = Math.abs(d)
         if (ad >= Tokens.magFalloff * B)
@@ -503,7 +508,11 @@ Window {
                     }
 
                     function launch() {
-                        bounceAnim.restart()
+                        // W66 — the dock bounce & Glass Fold switch: off
+                        // = the tile launches without the two-hop bounce.
+                        if (Governor.effects.value("dockBounce", true)
+                                === true)
+                            bounceAnim.restart()
                         // W27 — a dock click brings an existing window
                         // back (activateOrLaunch falls through to a
                         // normal launch otherwise; argumented cmds like

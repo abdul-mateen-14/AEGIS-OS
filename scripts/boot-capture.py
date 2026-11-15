@@ -2313,6 +2313,14 @@ def main():
     w55_names_ok = False
     w56_kscreen_ok = False
     w58_distinct_ok = False
+    # T18 (review round 8) probe flags
+    w63_disc_ok = False
+    w64_small_ok = False
+    w64_std_ok = False
+    w64_large_ok = False
+    w64_count_ok = False
+    w64_rows_ok = False
+    w66_ab_ok = False
     if serial is not None:
         try:
             def click_knob(png, idx):
@@ -2331,6 +2339,70 @@ def main():
                        settle=3)
             time.sleep(16)
             q.shot("04n-wallpaper")
+
+            # T18 W63 — the sidebar glyphs are BARE location tints: no
+            # filled tint discs anywhere in the pane-rows region (the
+            # reviewer-owned W45 correction). Detector: in the glyph
+            # column (window x +8..+40, below the Aegis ID rail, above
+            # the dock) any tint-hue blob whose widest horizontal run
+            # exceeds 8 px is a filled disc — stroke glyphs never exceed
+            # ~6 px. Calibrated on the v0.6.60 capture: 12 tint blobs,
+            # widest run 16 px (FAIL) pre-fix.
+            try:
+                stw = window_hairline(f"{OUT}/04n-wallpaper.png")
+                sx0 = stw[1] if stw else 200
+                stop = stw[0] if stw else 150
+                w63_px = Image.open(
+                    f"{OUT}/04n-wallpaper.png").convert("RGB").load()
+                tints = [(0x8B, 0x5C, 0xF6), (0x3E, 0x8B, 0xFF),
+                         (0x28, 0xC8, 0x40), (0xFF, 0x9F, 0x0A),
+                         (0x5B, 0x8B, 0xFF), (0xFA, 0x2D, 0x48),
+                         (0x4A, 0xC8, 0xC8), (0x6E, 0x7B, 0xFF)]
+                w63_mask = set()
+                for yy in range(stop + 90, min(stop + 550, H - 160)):
+                    for xx in range(sx0 + 8, sx0 + 41):
+                        r, g, b = w63_px[xx, yy]
+                        for tr, tg, tb in tints:
+                            if (abs(r - tr) <= 40 and abs(g - tg) <= 40
+                                    and abs(b - tb) <= 40):
+                                w63_mask.add((xx, yy))
+                                break
+                seen63 = set()
+                worst_run = 0
+                for p63 in w63_mask:
+                    if p63 in seen63:
+                        continue
+                    stack63, comp63 = [p63], set()
+                    while stack63:
+                        q63 = stack63.pop()
+                        if q63 in seen63 or q63 not in w63_mask:
+                            continue
+                        seen63.add(q63)
+                        comp63.add(q63)
+                        stack63 += [(q63[0] + 1, q63[1]),
+                                    (q63[0] - 1, q63[1]),
+                                    (q63[0], q63[1] + 1),
+                                    (q63[0], q63[1] - 1)]
+                    if len(comp63) < 25:
+                        continue
+                    rows63 = {}
+                    for xx, yy in comp63:
+                        rows63.setdefault(yy, []).append(xx)
+                    for xs63 in rows63.values():
+                        xs63.sort()
+                        run63 = best63 = 1
+                        for a63, b63 in zip(xs63, xs63[1:]):
+                            run63 = run63 + 1 if b63 - a63 == 1 else 1
+                            best63 = max(best63, run63)
+                        worst_run = max(worst_run, best63)
+                w63_disc_ok = worst_run <= 8
+                log("w63 sidebar glyphs: widest tint run "
+                    f"{worst_run}px — "
+                    + ("PASS (bare glyphs, no discs)" if w63_disc_ok
+                       else "FAIL — a filled tint disc is back"))
+            except Exception as e:
+                log(f"w63 disc probe failed: {e}")
+
             if click_knob(f"{OUT}/04n-wallpaper.png", 0):
                 out = serial.run("grep -c '^wallpaperRotateDaily=true' "
                                  "~/.config/aegis/tokens.conf 2>/dev/null; "
@@ -2366,10 +2438,16 @@ def main():
                        settle=3)
             time.sleep(16)
             q.shot("04o-effects")
+            # W66 — the pane is the six-key remap; row 0 is dockMagnify.
+            # The verdict is ANY of the six keys getting an override line
+            # in governor.conf (the knob's polarity is state-dependent).
             if click_knob(f"{OUT}/04o-effects.png", 0):
-                out = serial.run("grep -cE '^blurLive=(true|false)' "
-                                 "~/.config/aegis/governor.conf 2>/dev/null; "
-                                 "echo EFF-END", settle=2)
+                out = serial.run(
+                    "grep -cE '^(dockMagnify|dockBounce|windowSprings|"
+                    "liveBlur|wallpaperParallax|islandMorph)="
+                    "(true|false)' "
+                    "~/.config/aegis/governor.conf 2>/dev/null; "
+                    "echo EFF-END", settle=2)
                 w39_effects_ok = out.split("EFF-END")[0].strip() == "1"
                 log("w39 effects toggle: "
                     + ("governor.conf override verdict PASS" if w39_effects_ok
@@ -2616,6 +2694,113 @@ def main():
         if not w38_close_ok:
             q.key("alt", "f4"); time.sleep(5)
 
+    # ── T18 W64 — Files icon size presets ─────────────────────────────
+    # The three presets switch live (Ctrl+1/2/3, Small is the default):
+    # the card-band detector reads the first grid column's strip (the
+    # card background is lum >= 31 on a ~25 body — calibrated on the
+    # v0.6.60 capture: card 84, pitch 121 at Standard, x=420). Asserts:
+    # card heights 56/84/116 (+-2), every Home item visible at Small
+    # (label clusters == the serial `ls ~ | wc -l` count), and the
+    # /usr/bin grid at Small spanning >= 8 rows (ceil(items/columns)
+    # from the serial count and row-1 label clusters).
+    if open_app("12-files", "aegis-files", wait_s=25, click_idx=0):
+        opens["files64"] = True
+        try:
+            stw = window_hairline(f"{OUT}/12-files.png")
+            wx0 = stw[1] if stw else 90
+            wtop = stw[0] if stw else 150
+
+            def w64_metrics(png, strip_cx):
+                """card bands + label clusters in the grid area."""
+                im = Image.open(png).convert("L")
+                p64 = im.load()
+                xs = list(range(strip_cx - 3, strip_cx + 4))
+                bands64 = []
+                run64 = None
+                for yy in range(wtop + 60, min(wtop + 560, H - 150)):
+                    v = max(p64[x, yy] for x in xs)
+                    if v >= 31:
+                        run64 = [yy, yy] if run64 is None else [run64[0], yy]
+                    else:
+                        if run64 and run64[1] - run64[0] >= 30:
+                            bands64.append(run64)
+                        run64 = None
+                if run64 and run64[1] - run64[0] >= 30:
+                    bands64.append(run64)
+                gx0, gx1 = wx0 + 230, W - 100
+                clusters64 = 0
+                for b64 in bands64:
+                    y64a, y64b = b64[1] + 3, b64[1] + 22
+                    cols64 = [1 if any(p64[x, yy] >= 90
+                                       for yy in range(y64a, min(y64b, H - 1)))
+                              else 0 for x in range(gx0, gx1)]
+                    c64 = 0
+                    prev64 = 0
+                    for v64 in cols64:
+                        if v64 and not prev64:
+                            c64 += 1
+                        prev64 = v64
+                    clusters64 += c64
+                return ([b[1] - b[0] + 1 for b in bands64], clusters64)
+
+            out = serial.run("ls -1 ~ 2>/dev/null | wc -l; echo CNT-OK",
+                             settle=3)
+            home_total = int(out.split("CNT-OK")[0].strip().split()[-1])
+            log(f"w64 home items (serial): {home_total}")
+
+            # the fresh window opens at the persisted preset (Small on a
+            # clean image) — capture it as-is
+            q.shot("12a-files-small")
+            hs, cl_s = w64_metrics(f"{OUT}/12a-files-small.png",
+                                   wx0 + 260)
+            w64_small_ok = any(abs(h - 56) <= 2 for h in hs)
+            w64_count_ok = (cl_s == home_total and home_total > 0)
+            log(f"w64 small: cards {hs} clusters {cl_s}/{home_total} — "
+                + ("PASS" if w64_small_ok and w64_count_ok else "FAIL"))
+
+            q.key("ctrl", "2"); time.sleep(2.5)
+            q.shot("12b-files-standard")
+            hm, _ = w64_metrics(f"{OUT}/12b-files-standard.png", wx0 + 276)
+            w64_std_ok = any(abs(h - 84) <= 2 for h in hm)
+            log(f"w64 standard: cards {hm} — "
+                + ("PASS" if w64_std_ok else "FAIL"))
+
+            q.key("ctrl", "3"); time.sleep(2.5)
+            q.shot("12c-files-large")
+            hl, _ = w64_metrics(f"{OUT}/12c-files-large.png", wx0 + 292)
+            w64_large_ok = any(abs(h - 116) <= 2 for h in hl)
+            log(f"w64 large: cards {hl} — "
+                + ("PASS" if w64_large_ok else "FAIL"))
+            q.key("ctrl", "1"); time.sleep(2)   # back to the default
+
+            # the /usr/bin grid at Small: items from serial, columns from
+            # row 1's label clusters -> ceil >= 8 rows
+            serial.run("export XDG_RUNTIME_DIR=/run/user/$(id -u); "
+                       "WAYLAND_DISPLAY=wayland-0 nohup aegis-files "
+                       "--path /usr/bin >/tmp/aegis-files64.err 2>&1 "
+                       "& echo UB-LAUNCHED", settle=3)
+            time.sleep(9)
+            q.shot("12d-files-usrbin")
+            stw2 = window_hairline(f"{OUT}/12d-files-usrbin.png")
+            ub_x0 = stw2[1] if stw2 else wx0
+            out = serial.run("ls -1 /usr/bin 2>/dev/null | wc -l; "
+                             "echo UBCNT-OK", settle=3)
+            ub_total = int(out.split("UBCNT-OK")[0].strip().split()[-1])
+            _, ub_cols = w64_metrics(f"{OUT}/12d-files-usrbin.png",
+                                     ub_x0 + 260)
+            w64_rows_ok = (ub_cols > 0 and ub_total > 0 and
+                           -(-ub_total // ub_cols) >= 8)
+            log(f"w64 usrbin rows: {ub_total} items / {ub_cols} cols = "
+                f"{-(-ub_total // ub_cols) if ub_cols else '?'} — "
+                + ("PASS" if w64_rows_ok else "FAIL"))
+            q.key("alt", "f4"); time.sleep(4)   # close the /usr/bin window
+        except Exception as e:
+            log(f"w64 preset probes failed: {e}")
+            try:
+                q.key("alt", "f4"); time.sleep(3)
+            except Exception:
+                pass
+
     # ── T16 material probes (review round 7 §3/§5) ────────────────────
     # One Files window drives W52 (dock reserve), W50 (blur binds) and
     # W51 (the argumented Trash contract) before the Trash click.
@@ -2692,26 +2877,51 @@ def main():
                     n += 2
             return g / max(1, n)
 
-        # W50 — the blur request must REALLY bind at runtime. The strip
-        # (x W-350..W-330, y 120..320) is the sheet's clean left-padding
-        # glass at any window layout: with the sheet open over Files the
-        # blur collapses the strip's gradient energy (run 1 artifact
-        # forensics on this exact geometry: bare Files 7.97 -> sheet
-        # 4.56). The DBus A/B (setEffect blurLive toggle) waits for a
-        # Governor DBus export — the Settings app calls setEffect
-        # IN-PROCESS today, so busctl reached nothing and run 3's A/B
-        # read 3.37 == 3.37; that upgrade ships with the next ISO tag.
+        # W50/W66 — the blur request must REALLY bind at runtime, proven
+        # CAUSALLY now: the strip (x W-350..W-330, y 120..320) is the
+        # sheet's clean left-padding glass; toggle liveBlur OFF over DBus
+        # (org.aegis.Governor.setEffect — exported via ExportAllInvokables
+        # since T16; run 3's A/B failed on ENV plumbing, not on the
+        # export: the serial shell needs XDG_RUNTIME_DIR exported exactly
+        # like the w55 probe does), require the strip's gradient energy
+        # to RISE when the blur is off (the Files edges reappear through
+        # the tint), then back ON and require it to collapse again.
         box = (W - 350, 120, W - 330, 320)
         base = grad_energy(f"{OUT}/04j0-files-open.png", box)
         q.click(W - 19, 14, W, H)     # open the CC sheet over Files
         time.sleep(3)
         q.shot("04j2-cc-over-files")
-        sheet = grad_energy(f"{OUT}/04j2-cc-over-files.png", box)
+        a = grad_energy(f"{OUT}/04j2-cc-over-files.png", box)
+        if serial is None:
+            raise RuntimeError("no serial for the liveBlur A/B toggle")
+        env_pre = ("export XDG_RUNTIME_DIR=/run/user/$(id -u); "
+                   "A=${XDG_RUNTIME_DIR:+unix:path=$XDG_RUNTIME_DIR/bus}; ")
+        out = serial.run(
+            env_pre +
+            "busctl --address=$A call org.aegis.Governor "
+            "/org/aegis/Governor org.aegis.Governor setEffect "
+            "s b liveBlur false 2>&1; echo BL-OFF", settle=3)
+        log("w66 busctl off: " + out.split("BL-OFF")[0].strip()[-100:])
+        time.sleep(1.5)
+        q.shot("04j4-cc-blur-off")
+        b = grad_energy(f"{OUT}/04j4-cc-blur-off.png", box)
+        out = serial.run(
+            env_pre +
+            "busctl --address=$A call org.aegis.Governor "
+            "/org/aegis/Governor org.aegis.Governor setEffect "
+            "s b liveBlur true 2>&1; echo BL-ON", settle=3)
+        log("w66 busctl on: " + out.split("BL-ON")[0].strip()[-100:])
+        time.sleep(1.5)
+        q.shot("04j5-cc-blur-restored")
+        c = grad_energy(f"{OUT}/04j5-cc-blur-restored.png", box)
         q.click(W - 19, 14, W, H)     # close the CC
         time.sleep(2)
-        w50_blur_ok = base > 0.5 and sheet < base * 0.7
+        w66_ab_ok = (a > 0.5 and b > a * 1.25 and c < a * 1.2 + 1.0)
+        log(f"w66 blur A/B (causal): on {a:.2f} -> off {b:.2f} -> "
+            f"restored {c:.2f} " + ("PASS" if w66_ab_ok else "FAIL"))
+        w50_blur_ok = w66_ab_ok or (base > 0.5 and a < base * 0.7)
         log(f"w50 blur binds: strip energy base {base:.2f} -> sheet "
-            f"{sheet:.2f} " + ("PASS" if w50_blur_ok else "FAIL"))
+            f"{a:.2f} " + ("PASS" if w50_blur_ok else "FAIL"))
     except Exception as e:
         try:
             q.click(W - 19, 14, W, H)   # defensive CC close
@@ -3215,6 +3425,26 @@ def main():
                         "window — something still paints behind the "
                         "island surface (the blur slab is back; the "
                         "margins must be fully transparent)")
+    if not w63_disc_ok:
+        failures.append("W63: a filled tint disc sits behind the Settings "
+                        "sidebar glyphs — the W45 circle is superseded; "
+                        "the glyphs must be bare location tints")
+    if not (w64_small_ok and w64_std_ok and w64_large_ok):
+        failures.append("W64: the Files icon presets do not render at "
+                        "56/84/116 px cards — the segmented control or "
+                        "the size bindings regressed")
+    if not w64_count_ok:
+        failures.append("W64: at Small not every Home item is visible "
+                        "above the dock reserve (label clusters != the "
+                        "serial item count)")
+    if not w64_rows_ok:
+        failures.append("W64: the /usr/bin grid at Small spans < 8 rows "
+                        "(ceil(items/columns) from the serial count and "
+                        "row-1 label clusters)")
+    if not w66_ab_ok:
+        failures.append("W66: the liveBlur DBus toggle did not move the "
+                        "blur strip metric (the causal A/B is dead — "
+                        "setEffect or the blur re-apply chain broke)")
     if not w44_files_ok:
         failures.append("W44: the Files CSD right-edge drag grew the window "
                         "by < 100 px — the 8 px resize strips are not real "

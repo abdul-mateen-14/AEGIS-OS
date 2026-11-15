@@ -216,16 +216,17 @@ int main(int argc, char *argv[])
 
     // W50/W57 — the AppWindow 44 px chrome band goes glass: enableBlurBehind
     // issues org_kde_kwin_blur on the window and manifests only where
-    // alpha < 1 (the opaque body ignores it). blurAny (Governor) gates
-    // the request; the local governor instance covers Settings toggles
-    // (setEffect updates it synchronously) and the shell's published
-    // state file covers tier demotions that happen shell-side.
+    // alpha < 1 (the opaque body ignores it). liveBlur (Governor, the
+    // W66 six-key remap of the old blurAny) gates the request; the
+    // local governor instance covers Settings toggles (setEffect updates
+    // it synchronously) and the shell's published state file covers tier
+    // demotions that happen shell-side.
     const QString govDir = qEnvironmentVariable("XDG_RUNTIME_DIR",
                                                 QStringLiteral("/tmp"))
                            + QStringLiteral("/aegis");
     const auto applyAppBlur = [&governor, &rootObj, govDir]() {
         bool any = governor.effects()
-                       .value(QStringLiteral("blurAny"))
+                       .value(QStringLiteral("liveBlur"))
                        .toBool();
         QFile f(govDir + QStringLiteral("/governor.json"));
         if (f.open(QIODevice::ReadOnly)) {
@@ -233,8 +234,8 @@ int main(int argc, char *argv[])
                 QJsonDocument::fromJson(f.readAll()).object();
             const QJsonObject fx = root.value(QStringLiteral("effects"))
                                        .toObject();
-            if (fx.contains(QStringLiteral("blurAny")))
-                any = fx.value(QStringLiteral("blurAny")).toBool();
+            if (fx.contains(QStringLiteral("liveBlur")))
+                any = fx.value(QStringLiteral("liveBlur")).toBool();
         }
         // the app QML root IS the Window (FilesApp.qml et al.) —
         // findChildren alone would miss it

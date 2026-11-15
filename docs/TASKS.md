@@ -15,6 +15,82 @@ cannot lose the plan.
 
 ---
 
+## T18 — v0.6.62: review round 8 (W62-W66) (DOING — implemented in tree,
+    ships with the v0.6.62 tag; source: AEGIS-v0.6.62-instructions.md)
+
+Opened 2026-11-15 from the reviewer's round-8 audit (v0.6.61 verified in
+full; the Settings-circle spec correction owned by the reviewer) + the
+user's three reports (bold fonts · icon circles · Files icon sizes).
+
+- D1 DONE (W62, P1) — the bold sweep: 34 instances classified against
+  the proposal's weight map. KEPT bold: the seven 8 px micro-caps
+  badges (THIS DEVICE/DEFAULT/NOW/KNOWN/CONNECTED/ADMIN/YOU). 12 px
+  headers/labels and chip glyphs -> Font.Medium (500, the maximum
+  emphasis). 13 px card/model/value names -> 400. The conditional
+  isThis bold -> Font.Medium-when-active. The LINT BUDGET probe rides
+  shell-ci (scripts/qml-weight-lint.py: SettingsApp <= 8, FilesApp
+  <= 1, every other QML <= 1) — the regression class is now
+  un-shippable. Interpretation recorded: the Files dialog TITLES
+  (Rename / Replace items? / Open With) went Medium (headers), the
+  props filename went 400 (a value name).
+- D2 DONE (W63, P1) — the 20 px tint discs are GONE from the Settings
+  sidebar: bare 18 px optical boxes painted with modelData.tint (the
+  Files place-row pattern the proposal blesses). The Aegis ID rail was
+  VERIFIED present against the exact chapter-06 spec (38 px avatar,
+  account name, chevron, first row, pane 8, Local account fallback) —
+  no code needed, only its account-name weight from W62. The CC live
+  tier badge is BACK (T8 retired the debug chip; the proposal's
+  "updates live" clause stands): binds Governor.tier/autoMode live and
+  deep-links the Desktop Effects pane via the existing
+  "aegis-settings 2" argv channel. PROBE: the W63 disc detector in the
+  boot harness (tint-hue blobs in the glyph column; widest horizontal
+  run > 8 px = a filled disc — stroke glyphs never exceed ~6 px);
+  calibrated offline on the v0.6.60 capture: 12 blobs, widest run
+  16 px (FAIL pre-fix).
+- D3 DONE (W64, P1) — Files icon size presets: Small 28/56/68x92
+  (DEFAULT — the user's taste rules; the proposal fixes no grid size),
+  Standard 44/84/100x121 (the plates), Large 64/116/132x152. Three-way
+  segmented control at the toolbar's right end + Ctrl+1/2/3; persisted
+  through the files.prefs channel (Aegis ID sync follows the user).
+  PROBES: the card-band detector (calibrated: card 84 / pitch 121 at
+  Standard read exactly on the v0.6.60 capture), three captures with
+  card-height asserts (+-2), the every-item-visible assert at Small
+  (label clusters == the serial `ls ~ | wc -l` count), and the
+  /usr/bin grid at Small spanning >= 8 rows (ceil(items/columns), both
+  from real counts).
+- D4 DONE (W66, P2) — the effects pane is the proposal's six switches
+  (dockMagnify / dockBounce / windowSprings / liveBlur /
+  wallpaperParallax / islandMorph), each bound to a REAL owner: the
+  dock magnify field's targetFor, the launch bounce, the GlassSwitch
+  knob spring (the only in-window spring — AppWindow has none; the
+  reviewer's "AppWindow springs" assumption was off, recorded here),
+  the shell+app blur requests, a NEW real wallpaper Ken-Burns breath
+  (scale 1.00 <-> 1.045 over 30 s each way — the wallpaper was a
+  static Image; the switch needed a real effect to own), and the
+  Island solver (off = geometry snaps). Tier semantics: Full = all six;
+  Balanced = springs+blur+magnify; Calm = none; shadowsHalf and the
+  wallpaperDim veil stay outside the six. The chip watts are the
+  design's rank estimates (blur's -0.5 W established in-tree), pending
+  a real power rig — flagged, not passed off as measurements.
+  THE DBUS FACT CORRECTED: setEffect was ALREADY exported
+  (ExportAllInvokables, Governor.cpp start()); run 3's A/B died on ENV
+  plumbing (the serial shell never exported XDG_RUNTIME_DIR — the w55
+  probe does and works). The causal A/B is RESTORED with the env fix:
+  toggle liveBlur over DBus with the sheet open, require the strip
+  energy to rise, toggle back, require it to collapse. The old
+  blurLive/blurAny/motionSpring names are retired everywhere.
+- D5 DONE (W65) — the icon-language clause recorded in
+  docs/DESIGN-TOKENS.md (no filled tint circles outside the plate-9
+  dock squircles and CC tile fills; desktop icons when they land in M2
+  ship bare plate-9 squircles).
+- D6 DONE — the lint gained the W66 check (the pane's row model must
+  be EXACTLY the six proposal keys) beside the W62 bold budgets; both
+  green on the swept tree.
+- NEXT: commits per the ship order (theme / W64 / W66), tag v0.6.62,
+  Release ISO, Boot Test (the full gate now also carries W61's live
+  run on the v0.6.61 dispatch + W62-W66's first live runs), then ask
+  for the user's Workstation captures (W41) again with this build.
+
 ## T17 — v0.6.61: the island slab over windows (USER-REPORTED with a
     screenshot) (DOING — fix in tree, ships with the v0.6.61 tag)
 

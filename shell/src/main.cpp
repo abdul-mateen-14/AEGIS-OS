@@ -360,13 +360,13 @@ int main(int argc, char *argv[])
     // path on Wayland under KWin; stock KWin 6 has NO window-rule
     // force-blur — the old kwinrulesrc story in the comments was
     // fiction, TASKS T16-W50). blur follows window alpha, so the
-    // GlassPanel tint stays; the compositor does the rest. blurLive
-    // (Governor) gates the shell surfaces; re-applied on every tier /
-    // override change so the Settings Desktop-Effects rows have a REAL
-    // consumer.
+    // GlassPanel tint stays; the compositor does the rest. liveBlur
+    // (Governor, the W66 six-key name for the old blurLive) gates the
+    // shell surfaces; re-applied on every tier / override change so the
+    // Settings Desktop-Effects rows have a REAL consumer.
     const auto applyShellBlur = [&governor, &roots]() {
         const bool live = governor.effects()
-                              .value(QStringLiteral("blurLive"))
+                              .value(QStringLiteral("liveBlur"))
                               .toBool();
         for (QObject *root : roots)
             for (QQuickWindow *win :

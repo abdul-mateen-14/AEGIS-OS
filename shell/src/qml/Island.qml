@@ -118,6 +118,15 @@ Window {
         running: Math.abs(wSpring.target - wSpring.value) > 0.05
                  || Math.abs(hSpring.target - hSpring.value) > 0.05
         onTriggered: {
+            // W66 — the Dynamic Island morph switch: off = the geometry
+            // snaps straight to every new state (no solver time), the
+            // capsule still reaches every shape and size it has.
+            if (Governor.effects.value("islandMorph", true) !== true) {
+                wSpring.value = wSpring.target
+                hSpring.value = hSpring.target
+                stop()
+                return
+            }
             wSpring.step(frameTime)
             hSpring.step(frameTime)
         }

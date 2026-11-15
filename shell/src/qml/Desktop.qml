@@ -42,6 +42,30 @@ Window {
                 || "/usr/share/wallpapers/aegis/aurora-ink.jpg"
         fillMode: Image.PreserveAspectCrop
         smooth: false
+        // W66 — the wallpaper parallax: the aurora breathes with a slow
+        // Ken-Burns zoom (scale 1.00 ↔ 1.045, 30 s each way, InOutSine)
+        // over a 4% overscan so the desktop has depth. The Desktop
+        // Effects switch owns it — off pins the exact static fill.
+        property bool parallaxOn:
+            Governor.effects.value("wallpaperParallax", true) === true
+        property real kbScale: 1.0
+        transformOrigin: Image.Center
+        scale: parallaxOn ? kbScale : 1.0
+        SequentialAnimation {
+            id: kenBurns
+            running: wallpaper.parallaxOn
+            loops: Animation.Infinite
+            NumberAnimation {
+                target: wallpaper; property: "kbScale"
+                from: 1.0; to: 1.045; duration: 30000
+                easing.type: Easing.InOutSine
+            }
+            NumberAnimation {
+                target: wallpaper; property: "kbScale"
+                from: 1.045; to: 1.0; duration: 30000
+                easing.type: Easing.InOutSine
+            }
+        }
     }
 
     // T15-D4 (W39.1) — the Focus-dim wallpaper veil. A REAL effect now:
