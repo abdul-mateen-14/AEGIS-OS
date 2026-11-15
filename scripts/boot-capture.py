@@ -3025,6 +3025,11 @@ def main():
         time.sleep(1.5)
         q.shot("04j4-cc-blur-off")
         b = grad_energy(f"{OUT}/04j4-cc-blur-off.png", box)
+        # T20.12 — the off-verdict must be taken NOW: persistOverride
+        # REPLACES the key, and the restore below writes liveBlur=true
+        # before the greps ran (run 43751806236 red a true-off by
+        # checking the conf after the restore).
+        off_state = conf_says("false")
         out = set_blur(True)
         log("w66 busctl on: " + (out.split("BL-SET")[0].strip()[-100:]
                                  or "(silent = success for a void method)"))
@@ -3033,7 +3038,6 @@ def main():
         c = grad_energy(f"{OUT}/04j5-cc-blur-restored.png", box)
         q.click(W - 19, 14, W, H)     # close the CC
         time.sleep(2)
-        off_state = conf_says("false")
         on_state = conf_says("true")
         w66_state_ok = off_state and on_state
         log(f"w66 blur state contract: off->conf false "
