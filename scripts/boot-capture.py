@@ -3008,25 +3008,26 @@ def main():
             o = serial.run(f"grep -c '^liveBlur={val}' "
                            "~/.config/aegis/governor.conf 2>/dev/null; "
                            f"echo CONF-{val.upper()}", settle=2)
-            segs = o.split(f"CONF-{val.upper()}")
-            body = segs[1] if len(segs) > 1 else o
-            return body.strip() == "1"
+            # T20.11 — the console does NOT echo commands (the w39
+            # pattern relies on it): the count sits in segment [0],
+            # BEFORE the marker; segment [1] is the shell PROMPT. The
+            # T20.10 reply-tail "fix" grabbed the prompt and red a
+            # green contract (run 43748940497).
+            return o.split(f"CONF-{val.upper()}")[0].strip() == "1"
 
         set_blur(True)
         time.sleep(2.5)
         q.shot("04j2-cc-over-files")
         a = grad_energy(f"{OUT}/04j2-cc-over-files.png", box)
         out = set_blur(False)
-        log("w66 busctl off: " + (out.split("BL-SET")[1].strip()[-100:]
-                                  if len(out.split("BL-SET")) > 1
-                                  else out.strip()[-100:] or "(silent)"))
+        log("w66 busctl off: " + (out.split("BL-SET")[0].strip()[-100:]
+                                  or "(silent = success for a void method)"))
         time.sleep(1.5)
         q.shot("04j4-cc-blur-off")
         b = grad_energy(f"{OUT}/04j4-cc-blur-off.png", box)
         out = set_blur(True)
-        log("w66 busctl on: " + (out.split("BL-SET")[1].strip()[-100:]
-                                 if len(out.split("BL-SET")) > 1
-                                 else out.strip()[-100:] or "(silent)"))
+        log("w66 busctl on: " + (out.split("BL-SET")[0].strip()[-100:]
+                                 or "(silent = success for a void method)"))
         time.sleep(1.5)
         q.shot("04j5-cc-blur-restored")
         c = grad_energy(f"{OUT}/04j5-cc-blur-restored.png", box)
@@ -3519,7 +3520,13 @@ def main():
     # by-design equal there too. On X11 the pair stays judged: equality
     # still catches a dead toggle chain.
     if not W66_PIXEL_AB["applicable"]:
-        ok_dups.add(("04j2-cc-over-files.png", "04j4-cc-blur-off.png"))
+        # T20.11 — on an idle wayland compositor the whole 04j blur
+        # family is by-design equal (nothing re-renders; run
+        # 43748940497's 04j5 == 04j4 pair differed from 04j2 only by
+        # the status-bar clock crossing a minute). All three pairs are
+        # excluded; on x11 none of them are.
+        ok_dups.update({("04j2-cc-over-files.png", "04j4-cc-blur-off.png"),
+                        ("04j4-cc-blur-off.png", "04j5-cc-blur-restored.png")})
     for fn in sorted(os.listdir(OUT)):
         if (not fn.endswith(".png") or fn.startswith("ref-")
                 or fn.startswith("boot-") or fn.startswith("05c2-")):
