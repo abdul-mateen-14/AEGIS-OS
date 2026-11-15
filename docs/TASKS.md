@@ -1,3 +1,20 @@
+## T20.5 — run 4/5 "missing pipewire" SOLVED: dpkg-query arch qualifiers
+    (2026-11-15; the gate was right about the grep, wrong about the
+    format)
+
+- dpkg-query -W's binary:Package prints ARCH-QUALIFIED names for
+  Multi-Arch: SAME packages — proven locally (libc6:amd64 here) and by
+  apt-cache (pipewire IS Multi-Arch: same; so is shim-signed, the NEXT
+  member that would have failed). arch:all and M-A:foreign packages
+  print plain names, which is why the first 15 members passed. The
+  manifest line is pipewire:amd64 — the gate's ^pkg[[:space:]/] can
+  never match a qualifier.
+- Fix: the gate now matches ^pkg(:arch)?[[:space:]/] AND collects ALL
+  misses per pass (one cycle reveals every gap, diagnostics dumped per
+  miss). Run 5 (43732113392) cancelled mid-flight — redundant with the
+  fix.
+- NEXT: run 6 on the re-pushed tag → expect gate PASS → Boot Test.
+
 ## T20.3 — v0.6.63 release engineering: three red Release runs (2026-11-15)
     (run 1 43716765325 dead on software-render probe members; run 2
     43722506060 dead on the W62 lint's absolute QML_DIR + the MonitorApp

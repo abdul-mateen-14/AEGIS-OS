@@ -198,16 +198,12 @@ if [ -z "$MANIFEST" ]; then
 fi
 echo "production gate against: $MANIFEST"
 echo "manifest stats: $(wc -l < "$MANIFEST") lines; first: $(head -1 "$MANIFEST" | cut -c1-80); last: $(tail -1 "$MANIFEST" | cut -c1-80)"
-miss() {
-    echo "ERROR: production set missing '$1' from the ISO manifest"
-    echo "--- diagnostics: unanchored grep '$1':"
-    grep -n "$1" "$MANIFEST" | head -5 || true
-    echo "--- diagnostics: manifest head 3 / tail 3:"
-    head -3 "$MANIFEST"; echo ...; tail -3 "$MANIFEST"
-    echo "--- diagnostics: neighborhood of the missing name (first letter):"
-    grep -nE "^${1:0:1}" "$MANIFEST" | head -10 || true
-    exit 1
-}
+# T20.5 — dpkg-query -W's binary:Package prints ARCH-QUALIFIED names for
+# Multi-Arch: same packages (libc6:amd64, pipewire:amd64, shim-signed:amd64)
+# while plain names come out for arch:all and non-M-A packages — run 4/5's
+# "missing pipewire" was the qualifier, not a missing install. The gate
+# accepts the optional :arch suffix and collects ALL misses before exiting.
+MISSES=""
 for pkg in linux-firmware intel-microcode amd64-microcode \
            firmware-sof-signed alsa-ucm-conf \
            open-vm-tools open-vm-tools-desktop spice-vdagent \
@@ -215,10 +211,23 @@ for pkg in linux-firmware intel-microcode amd64-microcode \
            ntfs-3g exfatprogs calamares os-prober \
            plymouth pipewire network-manager bluez cups fwupd \
            grub-efi-amd64-signed shim-signed; do
-    grep -qE "^${pkg}[[:space:]/]" "$MANIFEST" \
-        || miss "$pkg"
-    echo "  ok: $pkg"
+    if ! grep -qE "^${pkg}(:[^[:space:]]+)?[[:space:]/]" "$MANIFEST"; then
+        echo "MISS: $pkg"
+        MISSES="$MISSES $pkg"
+    else
+        echo "  ok: $pkg"
+    fi
 done
+if [ -n "$MISSES" ]; then
+    for pkg in $MISSES; do
+        echo "--- diagnostics: unanchored grep '$pkg':"
+        grep -n "$pkg" "$MANIFEST" | head -5 || true
+    done
+    echo "--- diagnostics: manifest head 3 / tail 3:"
+    head -3 "$MANIFEST"; echo ...; tail -3 "$MANIFEST"
+    echo "ERROR: production set missing:$MISSES from the ISO manifest"
+    exit 1
+fi
 echo "production gate PASS"
 # The container runs as root; the workflow's verify step re-writes the
 # checksum as the runner user, so the file must be writable by everyone.
