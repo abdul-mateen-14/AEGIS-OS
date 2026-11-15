@@ -1980,6 +1980,10 @@ def main():
     class _WDS:
         n = 0
 
+    _wds = _WDS()   # T20.6 — the nonce counter: the T20 commit added the
+                    # _wds.n reads but never the instantiation; the FIRST
+                    # dump_window_state call died on NameError (run 43734285035)
+
     def dump_window_state():
         """The live window payload the windowwatch script pushed
         (Util.windowListRaw). Returns the parsed dict, or None when the

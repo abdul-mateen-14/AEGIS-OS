@@ -1,3 +1,26 @@
+## T20.6 — run 6: Release GREEN (gate PASS) but Boot Test red on a
+    one-line harness NameError (2026-11-15)
+
+- Release run 43732425459 (tag on 0622269): the T20.5 arch-qualifier
+  fix closed the production gate — v0.6.63 ISO built, gate PASS, assets
+  attached. The chain poller auto-dispatched Boot Test run
+  43734285035.
+- Boot Test died 2.5 min in at the FIRST dump_window_state call:
+  NameError: _wds is not defined — the T20 commit (46b181c) added the
+  nonce reads (_wds.n += 1) but never instantiated _wds = _WDS().
+  First boot test carrying the T20 harness code; v0.6.62's predates it.
+- Everything before the crash was HEALTHY: gpu probe settled virtio-vga
+  + KVM, desktop at t=41s (boot-22 val=66), 01-home/01b/01c captured,
+  serial login + 5 fixture seeds OK. Two cosmetic notes from the log:
+  the click map rebuild fell back to the config map ("Coordinate
+  'right' is less than 'left'" — dock_geometry on the 01-home shot),
+  and boot-17..21 read black frames (transition dip) before boot-22.
+- Fix: instantiate _wds. Verification strategy — the ISO is already
+  built and released; instead of a 20-min Release rebuild, push the
+  harness fix to main and dispatch Boot Test on ref=main with
+  inputs.tag=v0.6.63 (downloads the released ISO bytes, runs the fixed
+  harness). Tag stays at 0622269.
+
 ## T20.5 — run 4/5 "missing pipewire" SOLVED: dpkg-query arch qualifiers
     (2026-11-15; the gate was right about the grep, wrong about the
     format)
