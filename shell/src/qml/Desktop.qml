@@ -46,8 +46,12 @@ Window {
         // Ken-Burns zoom (scale 1.00 ↔ 1.045, 30 s each way, InOutSine)
         // over a 4% overscan so the desktop has depth. The Desktop
         // Effects switch owns it — off pins the exact static fill.
+        // T20 — the fallback is OFF: a full-screen rescale every frame
+        // is the most expensive thing the shell can do, and an
+        // unloaded governor (or a surface reading before publishState)
+        // must never start one. The tier map turns it on at Full.
         property bool parallaxOn:
-            Governor.effects.value("wallpaperParallax", true) === true
+            Governor.effects.value("wallpaperParallax", false) === true
         property real kbScale: 1.0
         transformOrigin: Image.Center
         scale: parallaxOn ? kbScale : 1.0

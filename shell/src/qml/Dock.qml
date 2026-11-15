@@ -589,7 +589,11 @@ Window {
             Text {
                 id: nameText
                 anchors.centerIn: parent
-                color: Tokens.fg
+                // T20 — the bubble is the macOS black tooltip in BOTH
+                // modes; its text rides the bubble, not the theme fg
+                // (dark ink on the near-black plate was unreadable in
+                // light mode).
+                color: "#FFFFFF"
                 font {
                     family: "Montserrat"
                     pixelSize: 11

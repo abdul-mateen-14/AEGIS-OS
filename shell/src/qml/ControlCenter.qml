@@ -60,9 +60,14 @@ Window {
                 NumberAnimation { duration: 120; easing.type: Easing.OutQuad }
             }
             // §5.1 rung A — Sheet Glass (46% ink; sheets read thinner once
-            // blur lands, W50)
+            // blur lands, W50). T20 — the Calm rung is flat AND opaque
+            // (no compositor blur in tier C), but "flat" never means
+            // "dark in light mode": the plate swaps with darkMode or the
+            // ink text rides on ink glass (the v0.6.62 report: the CC
+            // unreadable in light mode with Calm on).
             color: Governor.tier === "C"
-                   ? Qt.rgba(16/255, 16/255, 18/255, 0.94)
+                   ? (Util.darkMode ? Qt.rgba(16/255, 16/255, 18/255, 0.94)
+                                    : Qt.rgba(244/255, 246/255, 250/255, 0.94))
                    : (Util.darkMode ? Tokens.sheetTint : Tokens.sheetTintLight)
             border.width: 1
             border.color: Util.darkMode ? Tokens.sheetBorder

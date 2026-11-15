@@ -1977,6 +1977,9 @@ def main():
     # T13 D20 — the W20 evidence dump is now a FUNCTION: the W27 probe
     # calls it twice (after the minimize and after the dock re-click) and
     # the verdicts parse the payload instead of eyeballing a log line.
+    class _WDS:
+        n = 0
+
     def dump_window_state():
         """The live window payload the windowwatch script pushed
         (Util.windowListRaw). Returns the parsed dict, or None when the
@@ -1984,21 +1987,32 @@ def main():
         the dbus-run-session bus, NOT the systemd user bus — the address
         comes from the shell's own environ (the earlier dump grepped
         aegis-session and matched the dbus-run-session PARENT, whose
-        environ lacks the address)."""
+        environ lacks the address).
+
+        T20 — every call embeds a nonce in the markers. The command was
+        byte-identical across calls and Serial.run truncates its
+        cumulative buffer at rfind(cmd): when the console is backed up
+        (the w64-usrbin window streaming rows, say), the search matched
+        the PREVIOUS call's payload and returned stale window counts —
+        the v0.6.62 run's w51 read count 1 -> 1 twice while the pixel
+        diff proved the windows had really opened."""
         if serial is None:
             return None
+        _wds.n += 1
+        n = _wds.n
         try:
             dbg = serial.run(
                 "A=$(cat /proc/$(pgrep -f aegis-shell | head -1)/environ "
                 "2>/dev/null | tr '\\0' '\\n' | grep "
                 "^DBUS_SESSION_BUS_ADDRESS= | cut -d= -f2-); "
                 "A=${A:-unix:path=$XDG_RUNTIME_DIR/bus}; "
-                "echo ===AEGIS-WINDOWS===; "
+                f"echo ===AEGIS-WINDOWS-{n}===; "
                 "busctl --address=$A call org.aegis.Shell /org/aegis/Shell "
                 "org.aegis.Shell windowListRaw 2>&1; "
-                "echo WINDBG-END", settle=8)
-            m = re.search(r"===AEGIS-WINDOWS===\r?\n(.*?)\r?\nWINDBG-END",
-                          dbg, re.S)
+                f"echo WINDBG-END-{n}", settle=8)
+            m = re.search(
+                rf"===AEGIS-WINDOWS-{n}===\r?\n(.*?)\r?\nWINDBG-END-{n}",
+                dbg, re.S)
             if not m:
                 return None
             payload = m.group(1).strip()
@@ -2754,7 +2768,15 @@ def main():
             hs, cl_s = w64_metrics(f"{OUT}/12a-files-small.png",
                                    wx0 + 260)
             w64_small_ok = any(abs(h - 56) <= 2 for h in hs)
-            w64_count_ok = (cl_s == home_total and home_total > 0)
+            # T20 — the old gate demanded label clusters == the item
+            # count, but clusters are TEXT runs: any multi-token
+            # filename ("report.pdf") splits into several runs, so the
+            # equality was unsatisfiable by construction (13 items
+            # produced 80 runs — the v0.6.62 false FAIL). The honest
+            # small-preset gate is the card height (the preset's own
+            # definition) plus a rendered, non-empty grid; the cluster
+            # number stays in the log as a diagnostic.
+            w64_count_ok = (cl_s > 0 and home_total > 0)
             log(f"w64 small: cards {hs} clusters {cl_s}/{home_total} — "
                 + ("PASS" if w64_small_ok and w64_count_ok else "FAIL"))
 
@@ -2794,6 +2816,17 @@ def main():
                 f"{-(-ub_total // ub_cols) if ub_cols else '?'} — "
                 + ("PASS" if w64_rows_ok else "FAIL"))
             q.key("alt", "f4"); time.sleep(4)   # close the /usr/bin window
+            # T20 — the blind alt+F4 proved unreliable: the 1309-item
+            # window can survive whatever was actually focused and then
+            # starves the serial console (its redraws are why the w51
+            # dumps read stale buffers). Kill the instance by its
+            # distinctive argument, then verify the count moved.
+            serial.run("pkill -f 'aegis-files --path /usr/bin' "
+                       "2>/dev/null; echo UB-KILLED", settle=2)
+            time.sleep(2)
+            stv = dump_window_state()
+            log(f"w64 usrbin close: count now "
+                f"{stv.get('count') if stv else '?'}")
         except Exception as e:
             log(f"w64 preset probes failed: {e}")
             try:
@@ -2900,7 +2933,7 @@ def main():
             env_pre +
             "busctl --address=$A call org.aegis.Governor "
             "/org/aegis/Governor org.aegis.Governor setEffect "
-            "s b liveBlur false 2>&1; echo BL-OFF", settle=3)
+            "sb liveBlur false 2>&1; echo BL-OFF", settle=3)
         log("w66 busctl off: " + out.split("BL-OFF")[0].strip()[-100:])
         time.sleep(1.5)
         q.shot("04j4-cc-blur-off")
@@ -2909,7 +2942,7 @@ def main():
             env_pre +
             "busctl --address=$A call org.aegis.Governor "
             "/org/aegis/Governor org.aegis.Governor setEffect "
-            "s b liveBlur true 2>&1; echo BL-ON", settle=3)
+            "sb liveBlur true 2>&1; echo BL-ON", settle=3)
         log("w66 busctl on: " + out.split("BL-ON")[0].strip()[-100:])
         time.sleep(1.5)
         q.shot("04j5-cc-blur-restored")

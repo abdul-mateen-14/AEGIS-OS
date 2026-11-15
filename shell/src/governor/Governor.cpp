@@ -195,14 +195,22 @@ void Governor::evaluate()
     qreal span = 0.0;
     if (!m_frames.empty()) {
         span = m_frames.back().first - m_frames.front().first;
-        for (const auto &f : m_frames) {
-            if (f.second > 0.5 && f.second < 1000.0) { // skip stalls
+            for (const auto &f : m_frames) {
+                if (f.second > 0.5 && f.second < 3000.0) { // skip stalls
                 sum += f.second;
                 ++count;
             }
         }
     }
-    const bool active = count >= 24 && span >= 1200.0;
+    // T20 — the frame feed must not starve on slow machines. The old
+    // gates (24 frames in the window, anything over 1 s skipped as a
+    // stall) meant a software-rendered session produced too few
+    // "valid" frames to ever register as active — the tier machine
+    // sat at Full while the UI thread drowned (the v0.6.62 VMware
+    // report: everything laggy, nothing clickable). 8 frames in the
+    // 2.5 s window is still a real render cadence, and a 3 s frame is
+    // evidence of a struggling compositor, not of an idle one.
+    const bool active = count >= 8 && span >= 1200.0;
     const qreal avg = count > 0 ? sum / count : 0.0;
 
     const int newFps = active && avg > 0.0 ? int(std::round(1000.0 / avg)) : m_fps;

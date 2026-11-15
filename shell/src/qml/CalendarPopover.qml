@@ -59,9 +59,12 @@ Window {
             Behavior on radius {
                 NumberAnimation { duration: 120; easing.type: Easing.OutQuad }
             }
-            // §5.1 rung A — Sheet Glass
+            // §5.1 rung A — Sheet Glass (T20 — the Calm rung swaps with
+            // darkMode exactly like the CC sheet; dark ink on the dark
+            // flat plate was unreadable in light mode)
             color: Governor.tier === "C"
-                   ? Qt.rgba(16/255, 16/255, 18/255, 0.94)
+                   ? (Util.darkMode ? Qt.rgba(16/255, 16/255, 18/255, 0.94)
+                                    : Qt.rgba(244/255, 246/255, 250/255, 0.94))
                    : (Util.darkMode ? Tokens.sheetTint : Tokens.sheetTintLight)
             border.width: 1
             border.color: Util.darkMode ? Tokens.sheetBorder

@@ -1,3 +1,58 @@
+## T20 — v0.6.62 VMware session report: lag, dead effects, light-mode
+    breakage (USER-REPORTED with a splash capture)
+    (SHIPPED in tree — every cause fixed; v0.6.63 carries it. The boot
+    side is PROVEN working on real VMware: the user's capture shows the
+    mark + progress bar — the W41 ladder held.)
+
+The user re-tested v0.6.62 on VMware Workstation: boot works now, but
+the session lags (wallpaper "never fully loads"), apps do not open,
+dock magnification is dead, the control center has color/text
+breakage in light mode, and the Bluetooth-HUD/Calm toggles do
+nothing.
+
+- D1 CONFIRMED APP-SIDE (the lag) — Desktop.qml's W66 Ken-Burns
+  parallax rescales the FULL-SCREEN wallpaper every frame, forever,
+  and its binding defaulted TRUE on any fresh boot. On the user's VM
+  (software rendering) that saturates the UI thread: clicks queue,
+  apps "don't open", toggles feel dead, the wallpaper "takes long".
+  Two fixes: the fallback default is now FALSE (the tier map owns it)
+  and the SHELL detects software renderers (llvmpipe/softpipe/swrast
+  via the scene-graph renderer string) 1.5 s after start and settles
+  in Calm with a banner — sticky, setTier pins autoMode off.
+- D2 CONFIRMED GOVERNOR-SIDE (why the tier machine never rescued the
+  session) — the frame feed starved on slow machines: 24 frames
+  required in the 2.5 s window and any frame over 1 s skipped as a
+  stall meant a struggling compositor produced no "valid" frames, so
+  evaluate() never demoted. Gates now: 8 frames, stall bound 3 s.
+- D3 CONFIRMED QML-SIDE (light mode + Calm = unreadable) — the tier-C
+  flat rung in ControlCenter.qml and CalendarPopover.qml painted the
+  DARK plate unconditionally while Tokens.fg swaps to ink in light
+  mode: dark text on dark glass. Both swap with darkMode now. The
+  dock tooltip had the inverse bug (black bubble, theme-fg text):
+  its text is white in both modes, the macOS look.
+- D4 CONFIRMED HARNESS-SIDE (all three v0.6.62 CI FAILs were probe
+  bugs — subagent forensics) — w51's "count 1 -> 1": dump_window_state
+  sent byte-identical commands over a cumulative serial buffer and
+  rfind matched the PREVIOUS payload (the windows really opened — the
+  pixel diff proved it); now every dump carries a nonce in its
+  markers. w66's A/B "3.60 -> 3.60 -> 3.60": the busctl signature was
+  "s b" (space) — busctl rejected every toggle with "Too many
+  parameters for signature"; now "sb". w64-small's "clusters 80/13":
+  clusters are TEXT runs (multi-token filenames split), the equality
+  with the item count was unsatisfiable by construction; the honest
+  gate is card height + a rendered grid, clusters stay as a
+  diagnostic. The w64-usrbin window's blind alt+F4 close is now
+  pkill-by-argument + a verified count (its 1309-item redraws were
+  the serial backlog that triggered the stale dumps).
+- D5 — the effect knobs themselves were NEVER broken: the Settings
+  toggles run in-process (synchronous), only the CI's busctl path was
+  malformed. The user's "magnify/calm dead" is D1's saturation, and
+  should recover with the Calm settlement + the fixed default.
+- NEXT: v0.6.63 tag → Release → Boot Test (first run of the T19
+  BIOS/UEFI ISO-chain legs + all fixed probes); the user re-tests on
+  VMware (expect: responsive session, working magnify, readable
+  light-mode CC with Calm on, and the software-render banner).
+
 
 ## T19 — production hardware enablement: "every kind of device"
     (DOING — build-level shipped in tree; real-silicon items wait on the
