@@ -197,6 +197,17 @@ if [ -z "$MANIFEST" ]; then
     exit 1
 fi
 echo "production gate against: $MANIFEST"
+echo "manifest stats: $(wc -l < "$MANIFEST") lines; first: $(head -1 "$MANIFEST" | cut -c1-80); last: $(tail -1 "$MANIFEST" | cut -c1-80)"
+miss() {
+    echo "ERROR: production set missing '$1' from the ISO manifest"
+    echo "--- diagnostics: unanchored grep '$1':"
+    grep -n "$1" "$MANIFEST" | head -5 || true
+    echo "--- diagnostics: manifest head 3 / tail 3:"
+    head -3 "$MANIFEST"; echo ...; tail -3 "$MANIFEST"
+    echo "--- diagnostics: neighborhood of the missing name (first letter):"
+    grep -nE "^${1:0:1}" "$MANIFEST" | head -10 || true
+    exit 1
+}
 for pkg in linux-firmware intel-microcode amd64-microcode \
            firmware-sof-signed alsa-ucm-conf \
            open-vm-tools open-vm-tools-desktop spice-vdagent \
@@ -205,7 +216,7 @@ for pkg in linux-firmware intel-microcode amd64-microcode \
            plymouth pipewire network-manager bluez cups fwupd \
            grub-efi-amd64-signed shim-signed; do
     grep -qE "^${pkg}[[:space:]/]" "$MANIFEST" \
-        || { echo "ERROR: production set missing '$pkg' from the ISO manifest"; exit 1; }
+        || miss "$pkg"
     echo "  ok: $pkg"
 done
 echo "production gate PASS"

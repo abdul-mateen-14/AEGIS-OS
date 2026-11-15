@@ -17,9 +17,20 @@
   config root, chroot.packages.live, binary/packages.txt) with a
   maxdepth-4 find as the net; the dpkg-query -W format (name<TAB>
   version) matches the existing ^pkg[[:space:]/] grep unchanged.
-- NEXT: commit + re-push the moved v0.6.63 tag → Release run 4 →
-  Boot Test dispatch (BIOS/UEFI legs, fixed probes w51/w64/w66,
-  captures) → user's VMware re-test (W41).
+- Run 4 (43729187908, tag on e3cc9a8): the manifest fix WORKED — the
+  gate now reads /work/debian-live/binary/live/filesystem.packages
+  (LB_INITRAMFS=live-boot, INITFS=live; casper falls to the live-boot
+  default in live-build 20250505) — and hit the gate's FIRST REAL
+  finding: production set missing 'pipewire'. The build log CONTRADICTS
+  it: pipewire set up at 15:29:25, "already the newest" at 15:30:03,
+  zero Removing/autoremove lines, dpkg-query -W runs at the chroot end.
+  The manifest content is the unknown — run 5 carries diagnostics
+  (manifest line count + head/tail + unanchored grep + the alpha
+  neighborhood of the missing name) so the failure output pins the
+  truth.
+- NEXT: run 5 (diagnostic) → if the manifest really lacks pipewire,
+  chase the writer; if the diagnostics expose a gate/format bug, fix
+  the gate. Either way the ISO builds fine.
 
 ## T20 — v0.6.62 VMware session report: lag, dead effects, light-mode
     breakage (USER-REPORTED with a splash capture)
