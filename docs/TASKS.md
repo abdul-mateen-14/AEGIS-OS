@@ -1,3 +1,26 @@
+## T20.3 — v0.6.63 release engineering: three red Release runs (2026-11-15)
+    (run 1 43716765325 dead on software-render probe members; run 2
+    43722506060 dead on the W62 lint's absolute QML_DIR + the MonitorApp
+    bold budget — 66ef03f; run 3 43723014949 dead at the T19 production
+    gate on its FIRST release exposure)
+
+- Root cause of run 3: the gate looked for the chroot manifest at
+  binary/packages.txt (find -maxdepth 2 -name 'packages*'), but
+  live-build 20250505's binary_manifest writes the dpkg-query list to
+  binary/${INITFS}/filesystem.packages (INITFS=boot for casper —
+  depth 3) plus ${LB_IMAGE_NAME}-${ARCH}.packages at the config root.
+  The ISO itself built fine (2.8 GB, bootable, checksummed). Nothing
+  regressed: v0.6.62 shipped from 852705f, BEFORE the gate existed —
+  this is the gate's first release and it failed on first contact.
+- Fix: build-iso.sh now probes every known manifest name
+  (binary/{boot,casper,live}/filesystem.packages, *.packages at the
+  config root, chroot.packages.live, binary/packages.txt) with a
+  maxdepth-4 find as the net; the dpkg-query -W format (name<TAB>
+  version) matches the existing ^pkg[[:space:]/] grep unchanged.
+- NEXT: commit + re-push the moved v0.6.63 tag → Release run 4 →
+  Boot Test dispatch (BIOS/UEFI legs, fixed probes w51/w64/w66,
+  captures) → user's VMware re-test (W41).
+
 ## T20 — v0.6.62 VMware session report: lag, dead effects, light-mode
     breakage (USER-REPORTED with a splash capture)
     (SHIPPED in tree — every cause fixed; v0.6.63 carries it. The boot

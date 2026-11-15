@@ -169,9 +169,28 @@ sha256sum "$ISO" | tee "$ISO.sha256"
 # live-build manifest (dpkg --list of the chroot) must carry it — a
 # miss means a package name rotted in the archive and the release
 # fails HERE, not on some refurbished laptop in the field.
-MANIFEST="$(ls -1 "$ROOT/debian-live/binary/packages.txt" 2>/dev/null | head -1 || true)"
+# Manifest discovery. live-build 20250505 (binary_manifest) writes the
+# dpkg-query list of the built chroot to binary/${INITFS}/filesystem.packages
+# (INITFS=boot for casper — depth 3, NOT binary/packages.txt) and a copy to
+# ${LB_IMAGE_NAME}-${ARCH}.packages at the config root; older builds drop
+# binary/packages.txt. Probe every known name, then a wide find as the net.
+MANIFEST=""
+for cand in \
+    "$ROOT/debian-live/binary/boot/filesystem.packages" \
+    "$ROOT/debian-live/binary/casper/filesystem.packages" \
+    "$ROOT/debian-live/binary/live/filesystem.packages" \
+    "$ROOT/debian-live"/*.packages \
+    "$ROOT/debian-live/chroot.packages.live" \
+    "$ROOT/debian-live/binary/packages.txt"; do
+    if [ -f "$cand" ]; then
+        MANIFEST="$cand"
+        break
+    fi
+done
 if [ -z "$MANIFEST" ]; then
-    MANIFEST="$(find "$ROOT/debian-live" -maxdepth 2 -name 'packages*' -type f 2>/dev/null | head -1)"
+    MANIFEST="$(find "$ROOT/debian-live" -maxdepth 4 -type f \
+        \( -name 'filesystem.packages' -o -name '*.packages' \
+           -o -name 'chroot.packages*' -o -name 'packages*' \) 2>/dev/null | head -1)"
 fi
 if [ -z "$MANIFEST" ]; then
     echo "ERROR: no live-build package manifest found — cannot run the production gate"
