@@ -1,3 +1,39 @@
+## T20.9 — run 4: every fix VERIFIED except the blur's Wayland consumer
+    (2026-11-15; Boot Test 43744749562 on b2165c7 + released ISO: exactly
+    ONE red left, and its root is a shell design gap, not a probe bug)
+
+- VERIFIED GREEN this run: V1 magnify rest 4 -> magnified 28 px (the
+  T20.8 forced-switch pattern + the environ bus address WORK —
+  dockMagnify setEffect reached the governor in the Calm session and the
+  field rendered), W16 tint 128 >= 100, w50 via the 0.75 fallback, w51
+  x2, w44, w61/w63/w64/w52/w39/w43/w54/w55. The T20.8 probe fixes are
+  all confirmed good.
+- THE LAST RED: w66 A/B frozen (on 3.66 -> off 3.66 -> restored 3.66),
+  04j4 byte-IDENTICAL to 04j2 (full-frame diff = zero pixels). The
+  session is Calm (serial 2516, llvmpipe), and liveBlur's ONLY consumer
+  is KWindowEffects::enableBlurBehind (main.cpp applyShellBlur) — an
+  X11-only call that is a NO-OP on the kwin_wayland session. setEffect
+  reaches the governor (proven by dockMagnify), tierChanged fires,
+  applyShellBlur runs — and enableBlurBehind does nothing on Wayland.
+  The glass tint still darkens the strip (w50's fallback passed), so
+  the blur channel has never rendered a pixel on Wayland-era CI.
+- Also noted: the w66 busctl log line is self-blinded — split("BL-SET")[0]
+  grabs the pre-echo buffer (the echoed command contains the marker);
+  the reply sits in [-1]. Log the tail next round.
+- OPTIONS for the next round (NOT implemented yet):
+  a. SHELL: give liveBlur a real Wayland consumer — e.g., a KWin script
+     or the aegis-dockzoom-style JS effect keyed on a window property
+     (aegisGlassRung) toggling the Blur effect per-window, or forceBlur
+     semantics. This is the honest fix and needs a new Release build.
+  b. PROBE: verify the STATE contract instead of pixels (persistOverride
+     lands in governor.conf — the w39 pattern) and make the pixel A/B
+     X11-only. Cheap but stops proving the visual.
+  c. HYBRID: state assert always + pixel A/B when the platform supports
+     it. RECOMMENDED as the immediate step; (a) as the T21 follow-up.
+- NEXT: implement (c) probe-side (no ISO rebuild) -> Boot Test ->
+  expect green -> v0.6.63 SHIPPED; open T21 for the Wayland blur
+  consumer. Then W41 (user's VMware re-test — see T20.8's note).
+
 ## T20.8 — run 3 forensics: the residuals were the Calm tier, not bugs
     (2026-11-15; Release run 7 GREEN on 5f50d76, Boot Test
     43741487087 recovered the dock cluster — w51 ×2 PASS, w44 PASS,
