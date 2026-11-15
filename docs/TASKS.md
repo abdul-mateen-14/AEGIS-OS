@@ -1,3 +1,22 @@
+## T20.10 — the hybrid blur verdict ships (2026-11-15)
+- The T20.9 (c) fix implemented: the w66 probe now gates on the session
+  type read from the shell's environ — the STATE contract (the
+  persistOverride lines: off->conf liveBlur=false, on->conf
+  liveBlur=true, the w39 grep pattern) is asserted on every platform;
+  the pixel A/B runs only on x11, and on wayland it logs a SKIP with
+  the T21 pointer. W58 consults W66_PIXEL_AB: on wayland the
+  04j2/04j4 pair is by-design equal (no consumer exists); on x11 it
+  stays judged. The busctl log lines now print the reply segment.
+- KEY REALIZATION RECORDED: busctl prints NOTHING on success for a
+  void method — run 4's empty "w66 busctl off/on" lines were silent
+  SUCCESSes, not failures (dockMagnify's forced switch rendered, so
+  the bus path was already proven). The frozen metric was purely the
+  X11-only consumer; the state contract should have been green in
+  run 4 already.
+- NEXT: commit -> Boot Test ref=main inputs.tag=v0.6.63 (no ISO
+  rebuild) -> green = v0.6.63 SHIPPED. T21 stays open for the Wayland
+  blur consumer (needs a Release build).
+
 ## T20.9 — run 4: every fix VERIFIED except the blur's Wayland consumer
     (2026-11-15; Boot Test 43744749562 on b2165c7 + released ISO: exactly
     ONE red left, and its root is a shell design gap, not a probe bug)

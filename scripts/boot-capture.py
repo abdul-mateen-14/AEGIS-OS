@@ -15,6 +15,10 @@ ISO = sys.argv[1] if len(sys.argv) > 1 else "iso/AegisOS.iso"
 OUT = sys.argv[2] if len(sys.argv) > 2 else "screenshots"
 SOCK = "/tmp/aegis-qmp.sock"
 SERIAL_SOCK = "/tmp/aegis-serial.sock"
+# T20.9 — set by the w66 probe: the pixel blur A/B is only meaningful on
+# X11 (KWindowEffects::enableBlurBehind is a no-op on kwin_wayland); the
+# W58 duplicate gate consults this before judging the 04j2/04j4 pair.
+W66_PIXEL_AB = {"applicable": False, "session": "unknown"}
 ABS_MAX = 0x7FFF          # QMP abs input range for absolute pointer devices
 DESKTOP_TIMEOUT = 1200    # KVM boots in ~3 min; TCG needs more
 NEUTRAL_Y = 0.30          # pointer parking spot (screen fraction) — away from the dock
@@ -2981,25 +2985,71 @@ def main():
                 f"sb liveBlur {'true' if on else 'false'} 2>&1; echo BL-SET",
                 settle=3)
 
+        # T20.9 — platform gate. Run 4 proved setEffect REACHES the
+        # governor over the environ bus (dockMagnify's forced switch
+        # rendered 4->28 px) yet liveBlur moved no pixels, and 04j4 was
+        # byte-identical to 04j2: liveBlur's only consumer is
+        # KWindowEffects::enableBlurBehind (main.cpp applyShellBlur),
+        # which is X11-only and a NO-OP on the kwin_wayland session.
+        # So: the STATE contract (the persistOverride lines in
+        # governor.conf) is asserted on every platform, and the pixel
+        # A/B only where a consumer exists (X11). The Wayland blur
+        # consumer is T21's shell-side work.
+        st_out = serial.run(
+            "tr '\\0' '\\n' < /proc/$(pgrep -f aegis-shell | head -1)"
+            "/environ 2>/dev/null | grep ^XDG_SESSION_TYPE=; echo ST-OK",
+            settle=3)
+        session_type = ("x11" if "XDG_SESSION_TYPE=x11" in st_out
+                        else "wayland")
+        W66_PIXEL_AB["applicable"] = session_type == "x11"
+        W66_PIXEL_AB["session"] = session_type
+
+        def conf_says(val):
+            o = serial.run(f"grep -c '^liveBlur={val}' "
+                           "~/.config/aegis/governor.conf 2>/dev/null; "
+                           f"echo CONF-{val.upper()}", settle=2)
+            segs = o.split(f"CONF-{val.upper()}")
+            body = segs[1] if len(segs) > 1 else o
+            return body.strip() == "1"
+
         set_blur(True)
         time.sleep(2.5)
         q.shot("04j2-cc-over-files")
         a = grad_energy(f"{OUT}/04j2-cc-over-files.png", box)
         out = set_blur(False)
-        log("w66 busctl off: " + out.split("BL-SET")[0].strip()[-100:])
+        log("w66 busctl off: " + (out.split("BL-SET")[1].strip()[-100:]
+                                  if len(out.split("BL-SET")) > 1
+                                  else out.strip()[-100:] or "(silent)"))
         time.sleep(1.5)
         q.shot("04j4-cc-blur-off")
         b = grad_energy(f"{OUT}/04j4-cc-blur-off.png", box)
         out = set_blur(True)
-        log("w66 busctl on: " + out.split("BL-SET")[0].strip()[-100:])
+        log("w66 busctl on: " + (out.split("BL-SET")[1].strip()[-100:]
+                                 if len(out.split("BL-SET")) > 1
+                                 else out.strip()[-100:] or "(silent)"))
         time.sleep(1.5)
         q.shot("04j5-cc-blur-restored")
         c = grad_energy(f"{OUT}/04j5-cc-blur-restored.png", box)
         q.click(W - 19, 14, W, H)     # close the CC
         time.sleep(2)
-        w66_ab_ok = (a > 0.5 and b > a * 1.25 and c < a * 1.2 + 1.0)
-        log(f"w66 blur A/B (causal): on {a:.2f} -> off {b:.2f} -> "
-            f"restored {c:.2f} " + ("PASS" if w66_ab_ok else "FAIL"))
+        off_state = conf_says("false")
+        on_state = conf_says("true")
+        w66_state_ok = off_state and on_state
+        log(f"w66 blur state contract: off->conf false "
+            f"{'PASS' if off_state else 'FAIL'} / on->conf true "
+            f"{'PASS' if on_state else 'FAIL'} (session {session_type})")
+        if W66_PIXEL_AB["applicable"]:
+            w66_pixel_ok = (a > 0.5 and b > a * 1.25 and c < a * 1.2 + 1.0)
+            w66_ab_ok = w66_state_ok and w66_pixel_ok
+            log(f"w66 blur pixel A/B (x11): on {a:.2f} -> off {b:.2f} -> "
+                f"restored {c:.2f} "
+                + ("PASS" if w66_pixel_ok else "FAIL"))
+        else:
+            w66_ab_ok = w66_state_ok
+            log(f"w66 blur pixel A/B: SKIPPED ({session_type} — "
+                "KWindowEffects::enableBlurBehind is X11-only; the "
+                "Wayland consumer is T21) "
+                f"[frames on/off/restored: {a:.2f}/{b:.2f}/{c:.2f}]")
         # T20.8 — 0.7 was a knife edge on the run-2/3 wallpaper (3.66 vs
         # the 3.647 bound — a 0.013 miss); the causal A/B above is the
         # primary verdict now, 0.75 keeps the tint-only fallback sane.
@@ -3464,6 +3514,12 @@ def main():
     # equals 04j2 and stays flagged.
     ok_dups = {("12-files.png", "12a-files-small.png"),
                ("04j2-cc-over-files.png", "04j5-cc-blur-restored.png")}
+    # T20.9 — on Wayland the blur toggle CANNOT move pixels (the
+    # KWindowEffects consumer is X11-only), so the 04j2/04j4 pair is
+    # by-design equal there too. On X11 the pair stays judged: equality
+    # still catches a dead toggle chain.
+    if not W66_PIXEL_AB["applicable"]:
+        ok_dups.add(("04j2-cc-over-files.png", "04j4-cc-blur-off.png"))
     for fn in sorted(os.listdir(OUT)):
         if (not fn.endswith(".png") or fn.startswith("ref-")
                 or fn.startswith("boot-") or fn.startswith("05c2-")):
@@ -3542,9 +3598,13 @@ def main():
                         "(ceil(items/columns) from the serial count and "
                         "row-1 label clusters)")
     if not w66_ab_ok:
-        failures.append("W66: the liveBlur DBus toggle did not move the "
-                        "blur strip metric (the causal A/B is dead — "
-                        "setEffect or the blur re-apply chain broke)")
+        failures.append("W66: the liveBlur toggle contract broke (the "
+                        "governor.conf override did not follow the DBus "
+                        "setEffect calls"
+                        + (" — and the pixel A/B moved nothing on x11)"
+                           if W66_PIXEL_AB["applicable"]
+                           else f" on session {W66_PIXEL_AB['session']}"
+                           ) + ")")
     if not w44_files_ok:
         failures.append("W44: the Files CSD right-edge drag grew the window "
                         "by < 100 px — the 8 px resize strips are not real "
