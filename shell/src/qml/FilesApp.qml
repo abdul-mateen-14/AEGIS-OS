@@ -34,21 +34,49 @@ Window {
     // cut/copy clipboard selection (paths), held by the Files singleton
     property var clipSelection: []
 
+    // W64 — icon size presets (glyph / card / cell). Small is the
+    // DEFAULT — the user's taste is the ruling and the proposal fixes
+    // no grid size; Standard keeps the proposal plates honest; Large
+    // serves media-heavy folders. Persisted through the files.prefs
+    // channel (Aegis ID device sync follows the user for free).
+    readonly property var sizePresets: [
+        { glyph: 28, card: 56,  cellW: 68,  cellH: 92,  radius: 12 },
+        { glyph: 44, card: 84,  cellW: 100, cellH: 121, radius: 18 },
+        { glyph: 64, card: 116, cellW: 132, cellH: 152, radius: 25 }
+    ]
+    property int sizePreset: 0
+
+    function setSizePreset(i) {
+        const clamped = Math.min(2, Math.max(0, i))
+        if (clamped === win.sizePreset)
+            return
+        win.sizePreset = clamped
+        win.savePrefs()
+    }
+
     function applyPrefs(json) {
         const p = JSON.parse(json || "{}")
         if (typeof p.gridMode === "boolean") win.gridMode = p.gridMode
         if (typeof p.sortKey === "string") win.sortKey = p.sortKey
         if (typeof p.sortReversed === "boolean") win.sortReversed = p.sortReversed
         if (typeof p.showHidden === "boolean") win.showHidden = p.showHidden
+        if (typeof p.sizePreset === "number")
+            win.sizePreset = Math.min(2, Math.max(0, p.sizePreset))
     }
     function savePrefs() {
         Files.saveViewPrefs(JSON.stringify({
             gridMode: win.gridMode,
             sortKey: win.sortKey,
             sortReversed: win.sortReversed,
-            showHidden: win.showHidden
+            showHidden: win.showHidden,
+            sizePreset: win.sizePreset
         }))
     }
+
+    // W64 — Ctrl+1/2/3 switch the icon size preset
+    Shortcut { sequence: "Ctrl+1"; onActivated: win.setSizePreset(0) }
+    Shortcut { sequence: "Ctrl+2"; onActivated: win.setSizePreset(1) }
+    Shortcut { sequence: "Ctrl+3"; onActivated: win.setSizePreset(2) }
 
     Component.onCompleted: {
         applyPrefs(Files.loadViewPrefs())
@@ -164,6 +192,42 @@ Window {
                 }
                 onClicked: { win.gridMode = !win.gridMode; win.savePrefs() }
             },
+            // W64 — icon size presets: Small / Standard / Large as a
+            // three-way segmented control at the right end of the
+            // toolbar (Ctrl+1/2/3 do the same).
+            Rectangle {
+                Layout.preferredWidth: 96; Layout.preferredHeight: 28
+                Layout.alignment: Qt.AlignVCenter
+                radius: 8
+                color: Util.darkMode ? "#1B1D23" : "#FFFFFF"
+                border.color: Tokens.glassBorder
+                Row {
+                    anchors.fill: parent
+                    Repeater {
+                        model: 3
+                        delegate: AbstractButton {
+                            id: segBtn
+                            required property int index
+                            width: 32; height: 28
+                            property bool active: win.sizePreset === index
+                            background: Rectangle {
+                                radius: 6
+                                color: segBtn.active
+                                       ? (Util.darkMode ? "#2E3138" : "#D7DEEC")
+                                       : "transparent"
+                            }
+                            contentItem: Text {
+                                text: ["S", "M", "L"][segBtn.index]
+                                font { pixelSize: 11; weight: Font.Medium }
+                                color: segBtn.active ? Tokens.fg : Tokens.fgMuted
+                                horizontalAlignment: Text.AlignHCenter
+                                verticalAlignment: Text.AlignVCenter
+                            }
+                            onClicked: win.setSizePreset(segBtn.index)
+                        }
+                    }
+                }
+            },
             // search — filters the current folder
             TextField {
                 id: search
@@ -231,7 +295,7 @@ Window {
                     Item { height: 8 }
                     Text {
                         text: "Devices"
-                        font { pixelSize: 11; bold: true }
+                        font { pixelSize: 11; weight: Font.Medium }
                         color: Tokens.fgMuted
                         leftPadding: 10
                     }
@@ -341,14 +405,16 @@ Window {
                 GridView {
                     id: grid
                     anchors.fill: parent
-                    // W15 — plate 7 metrics: 20 px content margins, 16 px
-                    // gutters (cellWidth = 84 card + 16), one consistent
-                    // row gap (cellHeight = 84 card + 6 + 15 label + 16).
+                    // W15 — plate 7 metrics became W64 presets: the cell
+                    // math derives from the size preset (Small default —
+                    // the user's taste), gutters and the row gap keep
+                    // their 16/6 rhythm at every size.
                     anchors.margins: 20
                     anchors.bottomMargin: 48
                     visible: win.gridMode
                     model: flm
-                    cellWidth: 100; cellHeight: 121
+                    cellWidth: win.sizePresets[win.sizePreset].cellW
+                    cellHeight: win.sizePresets[win.sizePreset].cellH
                     clip: true
 
                     delegate: Item {
@@ -357,9 +423,14 @@ Window {
                         // §8.1 — one sniffed call per card; the tint drives
                         // the hover hairline (folders blue, PDFs red, …)
                         property var meta: Files.fileMeta(filePath)
+                        // W64 — the preset this card renders at
+                        readonly property var pre:
+                            win.sizePresets[win.sizePreset]
 
                         Rectangle {
-                            width: 84; height: 84; radius: 18
+                            width: gridCard.pre.card
+                            height: gridCard.pre.card
+                            radius: gridCard.pre.radius
                             anchors.horizontalCenter: parent.horizontalCenter
                             anchors.top: parent.top
                             color: Util.darkMode ? "#20222A" : "#FFFFFF"
@@ -374,11 +445,18 @@ Window {
                                         + (gridCard.meta.tintable
                                            ? "?tint=" + encodeURIComponent(gridCard.meta.tint)
                                            : "")
-                                sourceSize: "44x44"; width: 44; height: 44
+                                sourceSize: gridCard.pre.glyph + "x"
+                                            + gridCard.pre.glyph
+                                width: gridCard.pre.glyph
+                                height: gridCard.pre.glyph
                             }
                         }
                         Text {
-                            anchors { top: parent.top; topMargin: 90; left: parent.left; right: parent.right }
+                            anchors {
+                                top: parent.top
+                                topMargin: gridCard.pre.card + 6
+                                left: parent.left; right: parent.right
+                            }
                             text: fileName
                             elide: Text.ElideMiddle
                             horizontalAlignment: Text.AlignHCenter
@@ -497,7 +575,7 @@ Window {
                     Column {
                         anchors { fill: parent; margins: 12 }
                         spacing: 10
-                        Text { text: "Rename"; font.pixelSize: 13; font.bold: true; color: Tokens.fg }
+                        Text { text: "Rename"; font.pixelSize: 13; font.weight: Font.Medium; color: Tokens.fg }
                         TextField {
                             id: input
                             width: parent.width; font.pixelSize: 13
@@ -522,7 +600,7 @@ Window {
                     Column {
                         anchors { fill: parent; margins: 12 }
                         spacing: 10
-                        Text { text: "Replace items?"; font.pixelSize: 13; font.bold: true; color: Tokens.fg }
+                        Text { text: "Replace items?"; font.pixelSize: 13; font.weight: Font.Medium; color: Tokens.fg }
                         Text {
                             width: parent.width
                             font.pixelSize: 12; color: Tokens.fgMuted
@@ -572,7 +650,7 @@ Window {
                     Column {
                         anchors { fill: parent; margins: 14 }
                         spacing: 8
-                        Text { text: propsSheet.info.name || ""; font.pixelSize: 13; font.bold: true; color: Tokens.fg; elide: Text.ElideMiddle; width: parent.width }
+                        Text { text: propsSheet.info.name || ""; font.pixelSize: 13; color: Tokens.fg; elide: Text.ElideMiddle; width: parent.width }
                         Grid {
                             columns: 2
                             width: parent.width
@@ -617,7 +695,7 @@ Window {
                     Column {
                         anchors { fill: parent; margins: 14 }
                         spacing: 8
-                        Text { text: "Open With"; font.pixelSize: 13; font.bold: true; color: Tokens.fg }
+                        Text { text: "Open With"; font.pixelSize: 13; font.weight: Font.Medium; color: Tokens.fg }
                         Text {
                             text: nameOf(openWithSheet.target) || ""
                             font.pixelSize: 11; color: Tokens.fgMuted
