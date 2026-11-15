@@ -1,0 +1,35 @@
+# Aegis OS — production hardware enablement (T19, the "every kind of
+# device" work order: bare metal new or refurbished, dual boot, any VM).
+# All four archive components are enabled in auto/config, so the
+# non-free firmware blobs below install offline on the ISO.
+#
+# CPU microcode — bare metal stability and security: without these the
+# installer's target runs silicon-side errata unmitigated on Intel and
+# AMD CPUs alike (refurbished hardware is the whole point of the
+# matrix, and microcode updates ride the earliest boot stage).
+intel-microcode
+amd64-microcode
+
+# Modern Intel laptop audio — Sound Open Firmware. Most 2019+ laptops
+# (the refurbished class) expose HDA through snd_sof and ship NO usable
+# audio device without the signed SOF firmware + the UCM profiles.
+firmware-sof-signed
+alsa-ucm-conf
+
+# Hypervisor guest tools — resolution, clipboard, time sync, graceful
+# shutdown. The kernel's vmwgfx/virtio/vboxvideo KMS drives already give
+# every VM a display; these packages give each hypervisor's integration
+# suite. All four families are no-ops on the hardware they don't match.
+open-vm-tools
+open-vm-tools-desktop
+spice-vdagent
+qemu-guest-agent
+virtualbox-guest-utils
+virtualbox-guest-x11
+
+# Dual-boot and removable media — the kernel has ntfs3 built in, but
+# ntfsfix and the userspace repair tools still speak the old driver, and
+# exFAT USB sticks (the default of every modern camera and many UEFI
+# media) need exfatprogs for mkfs/fsck in the installer and live session.
+ntfs-3g
+exfatprogs

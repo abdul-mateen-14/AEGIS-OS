@@ -3506,8 +3506,86 @@ def main():
     log("capture complete")
     q._cmd("quit")
 
+def start_qemu_iso(uefi):
+    """T19 — boot the ISO AS-IS through its own bootloader chain:
+    SeaBIOS -> isolinux on the BIOS leg, OVMF -> the standalone GRUB ESP
+    on the UEFI leg. NO -kernel/-initrd extraction: the direct-boot path
+    used everywhere else in this harness never exercises the chain, so
+    bare-metal boot confidence has always rested on nothing."""
+    cmd = ["qemu-system-x86_64", "-enable-kvm", "-cpu", "host",
+           "-m", "4096", "-smp", "4",
+           "-device", "virtio-vga", "-display", "none",
+           "-device", "qemu-xhci", "-device", "usb-tablet",
+           "-device", "virtio-net-pci,netdev=n0", "-netdev", "user,id=n0",
+           "-cdrom", ISO, "-boot", "d", "-no-reboot",
+           "-qmp", f"unix:{SOCK},server,nowait",
+           "-chardev", f"socket,id=ser0,path={SERIAL_SOCK},server=on,wait=off,logfile=serial.log",
+           "-serial", "chardev:ser0"]
+    if uefi:
+        ovmf = None
+        vars_src = None
+        for cand, cand_vars in (
+                ("/usr/share/OVMF/OVMF_CODE.fd",
+                 "/usr/share/OVMF/OVMF_VARS.fd"),
+                ("/usr/share/ovmf/OVMF.fd", None)):
+            if os.path.exists(cand):
+                ovmf, vars_src = cand, cand_vars
+                break
+        if not ovmf:
+            log("UEFI: no OVMF firmware found on the runner — FAIL "
+                "(the ovmf package must be installed)")
+            return None
+        if vars_src:
+            shutil.copyfile(vars_src, "OVMF_VARS.local.fd")
+            cmd += ["-drive", "if=pflash,format=raw,readonly=on,file="
+                    + ovmf,
+                    "-drive", "if=pflash,format=raw,file=OVMF_VARS.local.fd"]
+        else:
+            cmd += ["-bios", ovmf]
+        log("UEFI: booting the ISO chain under OVMF")
+    else:
+        log("BIOS: booting the ISO chain under SeaBIOS")
+    log("qemu: " + " ".join(cmd))
+    qf = open("qemu.log", "w")
+    proc = subprocess.Popen(cmd, stdout=qf, stderr=subprocess.STDOUT)
+    time.sleep(3)
+    if proc.poll() is not None:
+        log(f"qemu exited immediately (rc={proc.returncode}); qemu.log:")
+        try:
+            for line in open("qemu.log"):
+                log("  | " + line.rstrip())
+        except OSError:
+            pass
+        return None
+    return proc
+
+
+def iso_boot_check(uefi):
+    """T19 leg — the desktop must appear from the ISO's own bootloader
+    chain within the normal desktop timeout. Serial stays attached for
+    diagnostics (console=ttyS0 rides the ISO append lines)."""
+    proc = start_qemu_iso(uefi)
+    if proc is None:
+        return 1
+    q = QMP(SOCK)
+    log("QMP connected")
+    n = wait_desktop(q, proc)
+    mode = "UEFI (OVMF)" if uefi else "BIOS (SeaBIOS)"
+    if n >= 0:
+        log(f"iso-boot {mode}: desktop from the ISO chain at "
+            f"boot-{n:02d} — PASS")
+        return 0
+    log(f"iso-boot {mode}: desktop never appeared from the ISO chain "
+        "— FAIL")
+    return 1
+
+
 if __name__ == "__main__":
     if "--vmware-boot-check" in sys.argv:
         vmware_boot_check()
+    elif "--iso-boot" in sys.argv:
+        i = sys.argv.index("--iso-boot")
+        mode = sys.argv[i + 1] if i + 1 < len(sys.argv) else "bios"
+        sys.exit(iso_boot_check(mode == "uefi"))
     else:
         main()

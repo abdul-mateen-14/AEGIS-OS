@@ -163,6 +163,33 @@ fi
 ls -lh "$ISO"
 file "$ISO"
 sha256sum "$ISO" | tee "$ISO.sha256"
+
+# T19 — the production gate: the "every kind of device" work order
+# promises the full hardware-enablement set in EVERY shipped ISO. The
+# live-build manifest (dpkg --list of the chroot) must carry it — a
+# miss means a package name rotted in the archive and the release
+# fails HERE, not on some refurbished laptop in the field.
+MANIFEST="$(ls -1 "$ROOT/debian-live/binary/packages.txt" 2>/dev/null | head -1 || true)"
+if [ -z "$MANIFEST" ]; then
+    MANIFEST="$(find "$ROOT/debian-live" -maxdepth 2 -name 'packages*' -type f 2>/dev/null | head -1)"
+fi
+if [ -z "$MANIFEST" ]; then
+    echo "ERROR: no live-build package manifest found — cannot run the production gate"
+    exit 1
+fi
+echo "production gate against: $MANIFEST"
+for pkg in linux-firmware intel-microcode amd64-microcode \
+           firmware-sof-signed alsa-ucm-conf \
+           open-vm-tools open-vm-tools-desktop spice-vdagent \
+           qemu-guest-agent virtualbox-guest-utils \
+           ntfs-3g exfatprogs calamares os-prober \
+           plymouth pipewire network-manager bluez cups fwupd \
+           grub-efi-amd64-signed shim-signed; do
+    grep -qE "^${pkg}[[:space:]/]" "$MANIFEST" \
+        || { echo "ERROR: production set missing '$pkg' from the ISO manifest"; exit 1; }
+    echo "  ok: $pkg"
+done
+echo "production gate PASS"
 # The container runs as root; the workflow's verify step re-writes the
 # checksum as the runner user, so the file must be writable by everyone.
 chmod 666 "$ISO.sha256" 2>/dev/null || true

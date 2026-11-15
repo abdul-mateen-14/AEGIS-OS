@@ -55,8 +55,9 @@ jobs:
             sleep 10
             [ "$attempt" = 3 ] && exit 1
           done
-          sudo apt-get install -y -qq qemu-system-x86 >/dev/null
+          sudo apt-get install -y -qq qemu-system-x86 ovmf >/dev/null
           qemu-system-x86_64 --version | head -1
+          ls -la /usr/share/OVMF/OVMF_CODE.fd || echo "no OVMF_CODE.fd"
           # KVM exists on public-repo runners but is often root-only; make it
           # usable so the boot runs in minutes instead of ~30. The capture
           # script still falls back to TCG automatically if this fails.
@@ -107,6 +108,24 @@ jobs:
         run: |
           python3 scripts/boot-capture.py iso/AegisOS.iso screenshots-vmware --vmware-boot-check
 
+      - name: ISO chain boot — BIOS (T19)
+        # T19 — the firmware-family legs. Every boot test before this
+        # booted the kernel DIRECTLY (-kernel extracted from the ISO),
+        # which never exercised the isolinux chain: bare-metal BIOS
+        # confidence rested on the v0.6.14-era ldlinux fix alone. This
+        # leg boots the ISO as-is under SeaBIOS and requires the desktop.
+        run: |
+          python3 scripts/boot-capture.py iso/AegisOS.iso screenshots-isobios --iso-boot bios
+
+      - name: ISO chain boot — UEFI (T19)
+        # The UEFI leg: OVMF loads the standalone GRUB ESP (grub-mkstandalone
+        # + El Torito EFI entry + isohybrid --uefi). A miss here means the
+        # shipped USB stick fails on every modern UEFI machine — the exact
+        # "new device without an OS" class of the production matrix.
+        run: |
+          python3 scripts/boot-capture.py iso/AegisOS.iso screenshots-isouefi --iso-boot uefi
+
+
       - name: Upload artifacts
         if: always()
         uses: actions/upload-artifact@v4
@@ -115,6 +134,8 @@ jobs:
           path: |
             screenshots/**
             screenshots-vmware/**
+            screenshots-isobios/**
+            screenshots-isouefi/**
             serial.log
             serial-diag.txt
             qemu.log
@@ -127,10 +148,22 @@ jobs:
           TAG="${{ steps.tag.outputs.tag }}"
           git config user.name "aegis-ci"
           git config user.email "actions@users.noreply.github.com"
+          # workflow_dispatch on a TAG ref checks out detached HEAD —
+          # git commit dies with "not currently on a branch" (v0.6.61 run
+          # 43684001683 died exactly there after a clean 50-minute boot).
+          # Plant a local branch first so the same step works whether the
+          # checkout is main or a tag.
+          git checkout -B "captures/$TAG"
           mkdir -p "docs/screenshots/$TAG"
           cp screenshots/*.png "docs/screenshots/$TAG/" 2>/dev/null || true
           for f in screenshots-vmware/*.png; do
             [ -f "$f" ] && cp "$f" "docs/screenshots/$TAG/vm-$(basename "$f")"
+          done
+          for f in screenshots-isobios/*.png; do
+            [ -f "$f" ] && cp "$f" "docs/screenshots/$TAG/bios-$(basename "$f")"
+          done
+          for f in screenshots-isouefi/*.png; do
+            [ -f "$f" ] && cp "$f" "docs/screenshots/$TAG/uefi-$(basename "$f")"
           done
           git add docs/screenshots
           if git diff --cached --quiet; then
@@ -142,7 +175,7 @@ jobs:
             # on top of origin/main before pushing, or the capture push
             # is rejected (v0.6.33 run 43134801060 died exactly there).
             git pull --rebase origin main
-            git push
+            git push origin HEAD:main
           fi
 
       - name: Attach screenshots zip to the release

@@ -1,0 +1,35 @@
+#!/bin/sh
+# T19 — first-boot GPU driver enablement for the NVIDIA class. The live
+# session and the installed desktop run on nouveau out of the box, but
+# every modern NVIDIA card (Turing and later) only gets real
+# acceleration from the packaged proprietary driver. ubuntu-drivers
+# picks the right variant for the detected chip; on machines without an
+# NVIDIA card this unit is a fast no-op. Logs land in
+# /var/log/aegis-drivers.log for the user-report loop.
+set -u
+LOG=/var/log/aegis-drivers.log
+exec >>"$LOG" 2>&1
+echo "=== aegis-drivers $(date -Is) ==="
+
+/usr/bin/lspci -nn 2>/dev/null | grep -qi '10de:' || {
+    echo "no NVIDIA hardware — nothing to do"
+    exit 0
+}
+echo "NVIDIA hardware detected"
+
+# a network is required to fetch the driver; the unit runs after
+# network-online.target, but be defensive about DNS/apt state
+for i in 1 2 3 4 5; do
+    if timeout 30 apt-get update -qq; then
+        break
+    fi
+    sleep 15
+done
+timeout 30 apt-get update -qq || { echo "apt indexes unavailable — will retry next boot"; exit 0; }
+
+if ubuntu-drivers install --gpgpu; then
+    echo "driver install succeeded — disabling this unit"
+    systemctl disable aegis-drivers.service || true
+else
+    echo "ubuntu-drivers failed — will retry next boot"
+fi

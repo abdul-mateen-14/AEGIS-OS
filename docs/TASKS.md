@@ -1,3 +1,68 @@
+
+## T19 — production hardware enablement: "every kind of device"
+    (DOING — build-level shipped in tree; real-silicon items wait on the
+    user's hardware. Source: the user's mandate — bare metal new or
+    refurbished without an OS, dual boot, VMware and any VM.)
+
+Opened 2026-11-15. The user cannot run their VMware re-test yet (W41
+stays open on their side) and asked for the production-complete device
+matrix instead.
+
+- D1 DONE — the audit. The ISO already carried the heavy production
+  pieces (linux-firmware, HWE kernel, hybrid BIOS+UEFI ISO with the
+  v0.6.14 ldlinux fix, Calamares + os-prober, shim-signed chain for the
+  INSTALLED system, plymouth ladder) and missed: CPU microcode, Intel
+  SOF audio firmware, every hypervisor's guest tools, NTFS/exFAT
+  userspace, dual-boot menu entries, and — the biggest finding — CI
+  NEVER TESTED THE ISO'S OWN BOOTLOADER CHAIN (the boot test boots the
+  kernel directly with -kernel extraction; the isolinux/GRUB-as-shipped
+  path had zero coverage since day one).
+- D2 DONE — the production package set: aegis-production.list.chroot
+  (intel-microcode, amd64-microcode, firmware-sof-signed, alsa-ucm-conf,
+  open-vm-tools + -desktop, spice-vdagent, qemu-guest-agent,
+  virtualbox-guest-utils + -x11, ntfs-3g, exfatprogs), all four archive
+  components already enabled in auto/config. GATED: build-iso.sh now
+  fails the release if ANY of the production set (plus installer,
+  Secure Boot chain, pipewire/NetworkManager/bluez/cups/fwupd) is
+  missing from the live-build manifest.
+- D3 DONE — dual boot: bootloader.conf carried ARCH-style kernel paths
+  (/boot/vmlinuz-linux — files that do not exist on an Ubuntu target);
+  replaced with the Calamares 3.3 discovery schema (kernelSearchPath +
+  kernelPattern, verified against upstream master). GRUB 2.06+ skips
+  os-prober unless GRUB_DISABLE_OS_PROBER=false: new
+  shellprocess@grub-os-prober lands the opt-in in the target's
+  /etc/default/grub BEFORE grubcfg/bootloader run grub-mkconfig. The
+  installed GRUB takes its own NVRAM entry — Windows' boot entry is
+  never clobbered.
+- D4 DONE — NVIDIA: the live session runs nouveau (honest limit:
+  display-only on Turing+); the installed system gets a first-boot
+  aegis-drivers.service that detects an NVIDIA card over lspci, runs
+  ubuntu-drivers install --gpgpu with apt retries, self-disables on
+  success and logs to /var/log/aegis-drivers.log. No-card machines are
+  a fast no-op.
+- D5 DONE — the ISO-chain CI legs: boot-capture.py --iso-boot bios
+  (SeaBIOS -> isolinux chain, no kernel extraction) and --iso-boot uefi
+  (OVMF -> the standalone GRUB ESP) both require the desktop within the
+  normal timeout; the ISO append lines now carry console=ttyS0,115200n8
+  so the serial stays diagnosable on real machines too; ovmf joins the
+  runner deps; the legs join the artifacts + capture commits (bios-/
+  uefi- prefixed).
+- D6 DONE — docs/PRODUCTION-MATRIX.md: the device-by-device table with
+  what CI proves, what the image ships, and the four honest limits
+  (live-media Secure Boot unsigned, the -security pocket gap, BitLocker
+  resizing, real-silicon claims closing only on the user's hardware).
+- D7 DONE — the boot-test commit step died on tag-dispatched runs
+  (detached HEAD: v0.6.61 run 43684001683 captured a full 50-minute
+  boot, then "fatal: not currently on a branch" at the commit). The
+  step now plants captures/$TAG first and pushes HEAD:main — every
+  future tag run commits its captures.
+- NEXT: the next tag (v0.6.63 with the reviewer's round-9 work) carries
+  all of this; the v0.6.62 run validates the W62-W66 probes (its
+  captures commit through the NEW step — dispatch-time caveat: it
+  checked out the v0.6.62 tag's workflow, so its commit step still has
+  the detached-HEAD bug and its captures land via a manual commit from
+  the run artifacts).
+
 # TASKS — Aegis OS work orders
 
 This file is the cross-session memory. Every task gets a number; the status
