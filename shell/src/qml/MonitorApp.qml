@@ -265,27 +265,27 @@ Window {
                         spacing: 8
                         Text {
                             text: "Name"
-                            font { pixelSize: 10; bold: true }
+                            font.pixelSize: 10
                             color: Tokens.fgMuted
                             Layout.preferredWidth: 260
                             elide: Text.ElideRight
                         }
                         Text {
                             text: "PID"
-                            font { pixelSize: 10; bold: true }
+                            font.pixelSize: 10
                             color: Tokens.fgMuted
                             Layout.preferredWidth: 70
                         }
                         Text {
                             text: "CPU"
-                            font { pixelSize: 10; bold: true }
+                            font.pixelSize: 10
                             color: Tokens.fgMuted
                             Layout.preferredWidth: 60
                             horizontalAlignment: Text.AlignRight
                         }
                         Text {
                             text: "Memory"
-                            font { pixelSize: 10; bold: true }
+                            font.pixelSize: 10
                             color: Tokens.fgMuted
                             Layout.preferredWidth: 80
                             horizontalAlignment: Text.AlignRight
@@ -293,7 +293,7 @@ Window {
                         Item { Layout.fillWidth: true }
                         Text {
                             text: "State"
-                            font { pixelSize: 10; bold: true }
+                            font.pixelSize: 10
                             color: Tokens.fgMuted
                             Layout.preferredWidth: 40
                         }

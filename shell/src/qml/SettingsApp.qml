@@ -396,7 +396,7 @@ Window {
             Column {
                 anchors { fill: parent; margins: 12 }
                 spacing: 10
-                Text { text: "Full name"; font.pixelSize: 13;; color: Tokens.fg }
+                Text { text: "Full name"; font.pixelSize: 13; color: Tokens.fg }
                 TextField {
                     id: userRenameInput
                     width: parent.width; font.pixelSize: 13
@@ -458,7 +458,7 @@ Window {
             Column {
                 anchors { fill: parent; margins: 14 }
                 spacing: 10
-                Text { text: wifiJoin.ssid; font.pixelSize: 13;; color: Tokens.fg; elide: Text.ElideMiddle; width: parent.width }
+                Text { text: wifiJoin.ssid; font.pixelSize: 13; color: Tokens.fg; elide: Text.ElideMiddle; width: parent.width }
                 Text { text: "Password"; font.pixelSize: 11; color: Tokens.fgMuted }
                 TextField {
                     id: wifiJoinInput
@@ -895,7 +895,7 @@ Window {
                         id: idSyncCol
                         anchors { left: parent.left; right: parent.right; top: parent.top; margins: 14 }
                         spacing: 10
-                        Text { text: "Sync"; font.pixelSize: 13;; color: Tokens.fg }
+                        Text { text: "Sync"; font.pixelSize: 13; color: Tokens.fg }
                         RowLayout {
                             spacing: 10
                             AbstractButton {
@@ -962,7 +962,7 @@ Window {
                         id: idDevCol
                         anchors { left: parent.left; right: parent.right; top: parent.top; margins: 14 }
                         spacing: 0
-                        Text { text: "Devices"; font.pixelSize: 13;; color: Tokens.fg; bottomPadding: 8 }
+                        Text { text: "Devices"; font.pixelSize: 13; color: Tokens.fg; bottomPadding: 8 }
                         Text {
                             visible: AegisId.devices.length === 0
                             text: "No devices yet — this one appears the moment you sign in."
@@ -1544,7 +1544,7 @@ Window {
                     }
                     RowLayout {
                         Layout.fillWidth: true
-                        Text { text: outCard.modelData.name; font.pixelSize: 13;; color: Tokens.fg }
+                        Text { text: outCard.modelData.name; font.pixelSize: 13; color: Tokens.fg }
                         Text {
                             text: outCard.modelData.current
                             font.pixelSize: 11; color: Tokens.fgMuted

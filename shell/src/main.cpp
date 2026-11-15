@@ -26,7 +26,9 @@
 #include <QQuickImageProvider>
 #include <QQuickStyle>
 #include <QQuickWindow>
-#include <QSGRendererInterface>
+#include <QOffscreenSurface>
+#include <QOpenGLContext>
+#include <QOpenGLFunctions>
 #include <QTimer>
 #include <QQmlApplicationEngine>
 #include <QQmlContext>
@@ -410,40 +412,44 @@ int main(int argc, char *argv[])
     // per-frame effects eat the UI thread and the whole session feels
     // dead: the v0.6.62 VMware report was exactly this — the wallpaper
     // "never finishing", apps not opening, every toggle inert. The
-    // renderer string settles once the scene graph is up; demote to
-    // Calm (sticky — setTier pins autoMode off and there is no C→B
-    // path) and tell the user why.
-    QTimer::singleShot(1500, &app, [&governor, &activity, roots]() {
-        for (QObject *root : roots)
-            for (QQuickWindow *win :
-                 root->findChildren<QQuickWindow *>()) {
-                auto *ri = win->rendererInterface();
-                if (!ri)
-                    continue;
-                const QVariant r = ri->getResource(
-                    win, QSGRendererInterface::RendererResource);
-                const QString renderer = r.toString();
-                if (renderer.contains(QStringLiteral("llvmpipe"),
-                                      Qt::CaseInsensitive)
-                    || renderer.contains(QStringLiteral("softpipe"),
-                                         Qt::CaseInsensitive)
-                    || renderer.contains(QStringLiteral("swrast"),
-                                         Qt::CaseInsensitive)
-                    || renderer.contains(QStringLiteral("software"),
-                                         Qt::CaseInsensitive)) {
-                    qInfo("aegis-shell: software renderer (%s) — "
-                          "settling in Calm tier",
-                          renderer.toUtf8().constData());
-                    governor.setTier(QStringLiteral("C"));
-                    activity.showBanner(
-                        QStringLiteral("Aegis OS"),
-                        QStringLiteral("preferences-system"),
-                        QStringLiteral("Software rendering"),
-                        QStringLiteral("Calm tier enabled so the "
-                                       "desktop stays responsive."));
-                    return;
-                }
-            }
+    // renderer string is read from a transient offscreen context
+    // (portable across every Qt 6 — the scene-graph RendererResource
+    // enum does not exist on all builds and red the first v0.6.63
+    // release run); demote to Calm (sticky — setTier pins autoMode
+    // off and there is no C→B path) and tell the user why. If the
+    // probe cannot make a context, stay put: never punish a machine
+    // for a failed diagnostic.
+    QTimer::singleShot(1500, &app, [&governor, &activity]() {
+        QOpenGLContext ctx;
+        QOffscreenSurface surf;
+        surf.setFormat(ctx.requestedFormat());
+        surf.create();
+        ctx.create();
+        if (!ctx.makeCurrent(&surf))
+            return;
+        const char *r = reinterpret_cast<const char *>(
+            ctx.functions()->glGetString(GL_RENDERER));
+        const QString renderer
+            = r ? QString::fromLatin1(r) : QString();
+        ctx.doneCurrent();
+        const bool software =
+            renderer.contains(QStringLiteral("llvmpipe"),
+                              Qt::CaseInsensitive)
+            || renderer.contains(QStringLiteral("softpipe"),
+                                 Qt::CaseInsensitive)
+            || renderer.contains(QStringLiteral("swrast"),
+                                 Qt::CaseInsensitive);
+        if (!software)
+            return;
+        qInfo("aegis-shell: software renderer (%s) — settling in "
+              "Calm tier", renderer.toUtf8().constData());
+        governor.setTier(QStringLiteral("C"));
+        activity.showBanner(
+            QStringLiteral("Aegis OS"),
+            QStringLiteral("preferences-system"),
+            QStringLiteral("Software rendering"),
+            QStringLiteral("Calm tier enabled so the desktop stays "
+                           "responsive."));
     });
 
     // Governor battery demotion → Calm Mode toast

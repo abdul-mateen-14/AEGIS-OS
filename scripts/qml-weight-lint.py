@@ -12,7 +12,12 @@ import os
 import re
 import sys
 
-QML_DIR = "/home/z/my-project/work/AEGIS-OS/shell/src/qml"
+# T20 — resolve the QML root from THIS script's location (scripts/ sits
+# at the repo root); a sandbox-absolute path broke Shell CI the first
+# time a runner executed it.
+QML_DIR = os.path.join(
+    os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
+    "shell", "src", "qml")
 BUDGETS = {"SettingsApp.qml": 8, "FilesApp.qml": 1}
 DEFAULT = 1
 BOLD = re.compile(r"(?<!Demi)bold:\s*true|(?<!Demi)font\.bold:")
