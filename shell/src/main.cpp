@@ -422,7 +422,6 @@ int main(int argc, char *argv[])
     QTimer::singleShot(1500, &app, [&governor, &activity]() {
         QOpenGLContext ctx;
         QOffscreenSurface surf;
-        surf.setFormat(ctx.requestedFormat());
         surf.create();
         ctx.create();
         if (!ctx.makeCurrent(&surf))
