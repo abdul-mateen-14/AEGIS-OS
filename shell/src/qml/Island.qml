@@ -121,7 +121,9 @@ Window {
             // W66 — the Dynamic Island morph switch: off = the geometry
             // snaps straight to every new state (no solver time), the
             // capsule still reaches every shape and size it has.
-            if (Governor.effects.value("islandMorph", true) !== true) {
+            // T20.7 — QVariantMap bracket access: morph ON unless the
+            // map explicitly says false (value() threw on every call).
+            if (Governor.effects["islandMorph"] === false) {
                 wSpring.value = wSpring.target
                 hSpring.value = hSpring.target
                 stop()

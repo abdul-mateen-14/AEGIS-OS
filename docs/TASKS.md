@@ -1,3 +1,36 @@
+## T20.7 — THE DOCK CLUSTER SOLVED: 5× Governor.effects.value() TypeErrors
+    (2026-11-15; shipped in 852705f = v0.6.62 — the user's "dock
+    magnification not working" + "apps not working" had a HARD bug under
+    the lag)
+
+- Boot Test run 43735579630 (released ISO bytes + fixed harness) died on
+  a nine-assert cluster, every member dock-interactive: w66 blur A/B
+  dead, w51 Trash ×2 dead, W27 re-focus dead, os/corex never opened,
+  magnify clearance rest 4 = mag 4, 01b == 01-home. The log spammed
+  Dock.qml:60 TypeError: Property 'value' of object
+  [object V4ReferenceObject] is not a function.
+- Mechanism: Governor.effects is a Q_PROPERTY(QVariantMap) — in QML a
+  plain JS object, no .value() method. The W66 commit wrote
+  Governor.effects.value("dockMagnify", true) (5 call sites: Dock.qml
+  targetFor + tile.launch, Island.qml islandMorph, Desktop.qml
+  wallpaperParallax, SettingsApp.qml windowSprings). targetFor's throw
+  killed the magnify field; the throw in tile.launch ABORTED the
+  function BEFORE Util.activateOrLaunch — every dock click was dead.
+  That is the user's v0.6.62 report with a mechanism, not just lag-feel.
+- Fix (all 5 sites, defaults preserved): bracket access — the four
+  default-true switches read === false / !== false (ON unless the map
+  explicitly says false); wallpaperParallax stays === true (T20's
+  falls-back-to-off). qml-guard PASS, zero value() sites remain.
+- Residuals from run 2 to watch on the re-run (possibly consequences,
+  possibly separate): w66 blur A/B metric (setEffect path — conf
+  verdicts passed, so the toggle chain itself may be fine), W16 PDF
+  tint 128 px < 300 (seeds landed, Files rendered — timing?), w44 drag
+  < 100 px, W58 duplicate captures (04j1==04j0, 04j4==04j2, 04j5==04j2
+  — likely downstream of the dead A/B), click-map rebuild fallback
+  ("Coordinate 'right' is less than 'left'" on dock_geometry).
+- NEXT: commit → re-tag v0.6.63 → Release run 7 (the ISO must carry the
+  fixed shell .deb) → Boot Test via the chain poller.
+
 ## T20.6 — run 6: Release GREEN (gate PASS) but Boot Test red on a
     one-line harness NameError (2026-11-15)
 

@@ -57,7 +57,12 @@ Window {
     function targetFor(d) {
         // W66 — the dock-magnification switch: off = the field is flat,
         // every tile keeps its resting width under the pointer.
-        if (Governor.effects.value("dockMagnify", true) !== true)
+        // T20.7 — effects is a QVariantMap: bracket access, and the
+        // switch is ON unless the map explicitly says false (the
+        // value() idiom threw on every evaluation — V4ReferenceObject
+        // has no .value() — which killed targetFor and the magnify
+        // field entirely).
+        if (Governor.effects["dockMagnify"] === false)
             return Tokens.tileWidth
         var B = Tokens.tileWidth
         var ad = Math.abs(d)
@@ -510,8 +515,12 @@ Window {
                     function launch() {
                         // W66 — the dock bounce & Glass Fold switch: off
                         // = the tile launches without the two-hop bounce.
-                        if (Governor.effects.value("dockBounce", true)
-                                === true)
+                        // T20.7 — QVariantMap bracket access; ON unless
+                        // explicitly false. The value() idiom THREW here,
+                        // aborting this function BEFORE activateOrLaunch:
+                        // every dock click (Trash, re-focus, os/corex)
+                        // was dead on v0.6.62 — the user's report.
+                        if (Governor.effects["dockBounce"] !== false)
                             bounceAnim.restart()
                         // W27 — a dock click brings an existing window
                         // back (activateOrLaunch falls through to a

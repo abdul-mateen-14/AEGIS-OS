@@ -155,8 +155,10 @@ Window {
                     // W66 — the window-springs switch: off = the knob
                     // snaps to its slot (no solver time at all; the
                     // spring's only consumer in a window is this knob).
-                    if (Governor.effects.value("windowSprings", true)
-                            !== true) {
+                    // T20.7 — QVariantMap bracket access: springs ON
+                    // unless explicitly false (value() threw on every
+                    // toggle evaluation).
+                    if (Governor.effects["windowSprings"] === false) {
                         knob.x = knobSpring.target
                         trackAnim.animating = false
                         stop()

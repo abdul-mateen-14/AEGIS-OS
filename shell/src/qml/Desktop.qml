@@ -51,7 +51,7 @@ Window {
         // unloaded governor (or a surface reading before publishState)
         // must never start one. The tier map turns it on at Full.
         property bool parallaxOn:
-            Governor.effects.value("wallpaperParallax", false) === true
+            Governor.effects["wallpaperParallax"] === true
         property real kbScale: 1.0
         transformOrigin: Image.Center
         scale: parallaxOn ? kbScale : 1.0
