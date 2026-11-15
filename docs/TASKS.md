@@ -157,7 +157,16 @@ user's three reports (bold fonts · icon circles · Files icon sizes).
   for the user's Workstation captures (W41) again with this build.
 
 ## T17 — v0.6.61: the island slab over windows (USER-REPORTED with a
-    screenshot) (DOING — fix in tree, ships with the v0.6.61 tag)
+    screenshot) (SHIPPED — v0.6.61 Boot Test run 43684001683: W61 live
+    PASS at island-margin delta 0.0 over the maximized Store; every
+    probe on the run green — w50 blur 7.60->3.37, w51 both trash paths,
+    w52 reserve 719 vs 724, w54 six icons, w55 27/0 dups, the VMware
+    W48 gate green with the splash miss demoted to a diagnostic per the
+    W41 ruling. The captures commit from the run artifact itself: the
+    step died on the detached-HEAD tag-dispatch bug (fatal: not
+    currently on a branch) AFTER a clean 50-minute boot — the workflow
+    fix (captures/$TAG + push HEAD:main) is in 6388bd3 for every future
+    tag run.)
 
 Opened 2026-11-14 from the user's paste: a screenshot of the maximized
 Store with a flat gray rectangle hanging under the panel (x ~430-850,
