@@ -3738,6 +3738,12 @@ def iso_boot_check(uefi):
     proc = start_qemu_iso(uefi)
     if proc is None:
         return 1
+    # T20.12b — the --iso-boot branch short-circuits main(), which owns
+    # the OUT mkdir everywhere else; without it QEMU's screendump fails
+    # on EVERY frame ("failed to open file .../boot-00.ppm") and the
+    # desktop-wait spins blind for the full DESKTOP_TIMEOUT (run 7's
+    # 20 silent minutes, 43754443763).
+    os.makedirs(OUT, exist_ok=True)
     q = QMP(SOCK)
     log("QMP connected")
     n = wait_desktop(q, proc)
