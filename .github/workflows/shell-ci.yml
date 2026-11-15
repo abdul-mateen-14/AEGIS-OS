@@ -21,6 +21,9 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
+      - name: W62 weight lint — the bold budget
+        run: python3 scripts/qml-weight-lint.py
+
       - name: Build inside ubuntu:resolute (Qt 6 + LayerShellQt)
         run: bash scripts/ci/run-in-container.sh bash scripts/build-shell.sh
 

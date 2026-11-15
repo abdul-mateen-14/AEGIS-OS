@@ -55,3 +55,11 @@ contract: they answer while a shell surface holds focus, and via
 
 ### v1.3 (proposal baseline)
 - Everything else unchanged from the 29-page spec.
+
+### W65 — the icon-language clause (v0.6.62)
+No filled tint circles anywhere outside the plate-9 dock squircles and
+the Control Center tile fills: sidebar glyphs are bare location tints
+(W63), launcher tiles are glass plates, Store letter tiles keep the
+category tint until a real upstream icon replaces them, and desktop
+icons (when they land in M2) ship bare plate-9 squircles with no added
+circle plates — third-party icons normalized by the shell.

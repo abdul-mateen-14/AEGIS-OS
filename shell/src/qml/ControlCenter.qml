@@ -299,6 +299,36 @@ Window {
                             }
                         }
                     }
+
+                    // W63 companion — the live tier badge (chapter 06:
+                    // "the tier badge in Control Center updates live").
+                    // T8 retired the old TIER chip + governor popover as
+                    // debug chrome, but the proposal's clause stands: the
+                    // badge binds Governor.tier / Governor.autoMode (live
+                    // on tierChanged) and clicking deep-links the Desktop
+                    // Effects pane ("aegis-settings 2"), where every
+                    // effect key has its row (W66).
+                    Text {
+                        anchors.right: parent.right
+                        anchors.verticalCenter: parent.verticalCenter
+                        text: "TIER " + Governor.tier
+                              + (Governor.autoMode ? "" : " · PINNED")
+                        color: Tokens.fgMuted
+                        font {
+                            family: "Montserrat"; pixelSize: 10
+                            weight: Font.Medium
+                        }
+
+                        MouseArea {
+                            anchors.fill: parent
+                            anchors.margins: -6
+                            cursorShape: Qt.PointingHandCursor
+                            onClicked: {
+                                Util.ccOpen = false
+                                Util.launch("aegis-settings 2")
+                            }
+                        }
+                    }
                 }
             }
         }

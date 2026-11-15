@@ -152,6 +152,16 @@ Window {
                 onTriggered: {
                     knobSpring.target = gs.checked
                             ? trackRect.width - knob.width - 2 : 2
+                    // W66 — the window-springs switch: off = the knob
+                    // snaps to its slot (no solver time at all; the
+                    // spring's only consumer in a window is this knob).
+                    if (Governor.effects.value("windowSprings", true)
+                            !== true) {
+                        knob.x = knobSpring.target
+                        trackAnim.animating = false
+                        stop()
+                        return
+                    }
                     // Boot run 1 (v0.6.60): the solver's explicit Euler is
                     // stable only while h · (damping/mass) < 2 — at the
                     // VM's ~10 fps the dt clamp (h = 0.025) gave 4.5 and
@@ -268,7 +278,7 @@ Window {
                                     text: AegisId.signedIn
                                           ? Util.userInitials
                                           : "\u25CB"
-                                    font { pixelSize: 14; bold: true }
+                                    font { pixelSize: 14; weight: Font.Medium }
                                     color: "#FFFFFF"
                                 }
                             }
@@ -277,7 +287,7 @@ Window {
                                 spacing: 0
                                 Text {
                                     text: AegisId.signedIn ? AegisId.email : Util.userName
-                                    font.pixelSize: 12; font.bold: true; color: Tokens.fg
+                                    font.pixelSize: 12; font.weight: Font.Medium; color: Tokens.fg
                                     elide: Text.ElideMiddle
                                     Layout.maximumWidth: 130
                                 }
@@ -306,23 +316,26 @@ Window {
                             }
                             contentItem: RowLayout {
                                 spacing: 10
-                                // T15-D8 (W45) — the 20 px tint circle with
-                                // the 16 px optical glyph box, white ink at
-                                // 92% — the approved family's geometry
-                                Rectangle {
-                                    width: 20; height: 20; radius: 10
+                                // W63 — bare location-tinted glyphs: the
+                                // 20 px tint disc came from the v0.6.56
+                                // W45 spec (reviewer-owned correction) and
+                                // the proposal says three times what ships
+                                // instead — chapter 06 "location-tinted
+                                // glyph", the Files caption "colored sidebar
+                                // glyphs", chapter 09 "tints its sidebar
+                                // glyphs by location". Files' place rows
+                                // (18 px tinted images, no circle) are the
+                                // blessed pattern; here the same idea with
+                                // the painted glyph family: bare 18 px
+                                // optical box, modelData.tint as the color.
+                                Canvas {
+                                    width: 18; height: 18
                                     Layout.alignment: Qt.AlignVCenter
                                     Layout.leftMargin: 10
-                                    color: modelData.tint
-                                    opacity: 0.9
-                                    Canvas {
-                                        anchors.centerIn: parent
-                                        width: 16; height: 16
-                                        onPaint: win.paintPaneGlyph(
-                                            modelData.glyph,
-                                            getContext("2d"), width, height,
-                                            Qt.rgba(1, 1, 1, 0.92))
-                                    }
+                                    onPaint: win.paintPaneGlyph(
+                                        modelData.glyph,
+                                        getContext("2d"), width, height,
+                                        modelData.tint)
                                 }
                                 Text { text: modelData.label; font.pixelSize: 13; color: Tokens.fg; Layout.alignment: Qt.AlignVCenter }
                                 Item { Layout.fillWidth: true }
@@ -383,7 +396,7 @@ Window {
             Column {
                 anchors { fill: parent; margins: 12 }
                 spacing: 10
-                Text { text: "Full name"; font.pixelSize: 13; font.bold: true; color: Tokens.fg }
+                Text { text: "Full name"; font.pixelSize: 13;; color: Tokens.fg }
                 TextField {
                     id: userRenameInput
                     width: parent.width; font.pixelSize: 13
@@ -445,7 +458,7 @@ Window {
             Column {
                 anchors { fill: parent; margins: 14 }
                 spacing: 10
-                Text { text: wifiJoin.ssid; font.pixelSize: 13; font.bold: true; color: Tokens.fg; elide: Text.ElideMiddle; width: parent.width }
+                Text { text: wifiJoin.ssid; font.pixelSize: 13;; color: Tokens.fg; elide: Text.ElideMiddle; width: parent.width }
                 Text { text: "Password"; font.pixelSize: 11; color: Tokens.fgMuted }
                 TextField {
                     id: wifiJoinInput
@@ -610,7 +623,7 @@ Window {
                 ColumnLayout {
                     anchors { fill: parent; margins: 12 }
                     spacing: 6
-                    Text { text: "Recovery key — shown once"; font.pixelSize: 12; font.bold: true; color: "#FF9F0A" }
+                    Text { text: "Recovery key — shown once"; font.pixelSize: 12; font.weight: Font.Medium; color: "#FF9F0A" }
                     Text {
                         text: "Write it down and keep it safe. There is no server-side password recovery — this is the only offline backup for the sync vault."
                         font.pixelSize: 11; color: Tokens.fg
@@ -619,7 +632,7 @@ Window {
                     }
                     Text {
                         text: AegisId.recoveryKey
-                        font { pixelSize: 16; family: "Monospace"; bold: true }
+                        font { pixelSize: 16; family: "Monospace"; weight: Font.Medium }
                         color: Tokens.fg
                     }
                     AbstractButton {
@@ -797,13 +810,13 @@ Window {
                                     Text {
                                         anchors.centerIn: parent
                                         text: modelData.t
-                                        font { pixelSize: 11; bold: true }
+                                        font { pixelSize: 11; weight: Font.Medium }
                                         color: "#FFFFFF"
                                     }
                                 }
                                 ColumnLayout {
                                     spacing: 1
-                                    Text { text: modelData.label; font.pixelSize: 12; font.bold: true; color: Tokens.fg }
+                                    Text { text: modelData.label; font.pixelSize: 12; font.weight: Font.Medium; color: Tokens.fg }
                                     Text { text: modelData.note; font.pixelSize: 10; color: Tokens.fgMuted }
                                 }
                             }
@@ -882,7 +895,7 @@ Window {
                         id: idSyncCol
                         anchors { left: parent.left; right: parent.right; top: parent.top; margins: 14 }
                         spacing: 10
-                        Text { text: "Sync"; font.pixelSize: 13; font.bold: true; color: Tokens.fg }
+                        Text { text: "Sync"; font.pixelSize: 13;; color: Tokens.fg }
                         RowLayout {
                             spacing: 10
                             AbstractButton {
@@ -949,7 +962,7 @@ Window {
                         id: idDevCol
                         anchors { left: parent.left; right: parent.right; top: parent.top; margins: 14 }
                         spacing: 0
-                        Text { text: "Devices"; font.pixelSize: 13; font.bold: true; color: Tokens.fg; bottomPadding: 8 }
+                        Text { text: "Devices"; font.pixelSize: 13;; color: Tokens.fg; bottomPadding: 8 }
                         Text {
                             visible: AegisId.devices.length === 0
                             text: "No devices yet — this one appears the moment you sign in."
@@ -980,7 +993,7 @@ Window {
                                             text: modelData.platform === "linux" ? "L"
                                                   : modelData.platform === "android" ? "A"
                                                   : modelData.platform === "macos" ? "M" : "\u25CB"
-                                            font { pixelSize: 12; bold: true }
+                                            font { pixelSize: 12; weight: Font.Medium }
                                             color: modelData.isThis ? "#FFFFFF" : Tokens.fg
                                         }
                                     }
@@ -988,7 +1001,7 @@ Window {
                                         spacing: 1
                                         RowLayout {
                                             spacing: 6
-                                            Text { text: modelData.name; font.pixelSize: 12; font.bold: modelData.isThis; color: Tokens.fg }
+                                            Text { text: modelData.name; font.pixelSize: 12; font.weight: modelData.isThis ? Font.Medium : Font.Normal; color: Tokens.fg }
                                             Rectangle {
                                                 visible: modelData.isThis
                                                 width: 64; height: 16; radius: 4
@@ -1136,7 +1149,7 @@ Window {
                         }
                         contentItem: Text {
                             text: modelData.label
-                            font.pixelSize: 13; font.bold: true
+                            font.pixelSize: 13;
                             color: modelData.dark ? "#F2F4F8" : "#101216"
                             horizontalAlignment: Text.AlignHCenter; verticalAlignment: Text.AlignVCenter
                         }
@@ -1216,11 +1229,23 @@ Window {
                 // through Governor.setEffect (persisted overrides ride over
                 // the tier map); the cost chip rides only the row with a
                 // measured cost.
+                // W66 — the pane is the proposal's six switches (chapter
+                // 06): "a Full / Balanced / Calm segmented control on
+                // top, then six switches — dock magnification, dock
+                // bounce & Glass Fold, window springs, live blur &
+                // transparency, wallpaper parallax, and the Dynamic
+                // Island morph — each with its measured cost printed as
+                // a mono chip on the right". The chip rides only a
+                // CHECKED row (the W60 rule); the watt figures are the
+                // design's rank estimates (blur's −0.5 W is the
+                // established in-tree figure), pending a real power rig.
                 model: [
-                    { label: "Live blur & transparency",   key: "blurLive",     chip: "\u22120.5 W" },
-                    { label: "Blur behind decorations",    key: "blurAny",      chip: "" },
-                    { label: "Window springs",             key: "motionSpring", chip: "" },
-                    { label: "Half shadows in Calm",       key: "shadowsHalf",  chip: "" }
+                    { label: "Dock magnification",       key: "dockMagnify",       chip: "\u22120.2 W" },
+                    { label: "Dock bounce & Glass Fold", key: "dockBounce",        chip: "\u22120.1 W" },
+                    { label: "Window springs",           key: "windowSprings",     chip: "\u22120.2 W" },
+                    { label: "Live blur & transparency", key: "liveBlur",          chip: "\u22120.5 W" },
+                    { label: "Wallpaper parallax",       key: "wallpaperParallax", chip: "\u22120.2 W" },
+                    { label: "Dynamic Island morph",     key: "islandMorph",       chip: "\u22120.1 W" }
                 ]
                 delegate: RowLayout {
                     Layout.fillWidth: true
@@ -1270,7 +1295,7 @@ Window {
 
             // Power & charging — Util reads /sys/class/power_supply; a VM
             // without a battery reads "AC power" honestly.
-            Text { text: "Power"; font.pixelSize: 12; font.bold: true; color: Tokens.fg }
+            Text { text: "Power"; font.pixelSize: 12; font.weight: Font.Medium; color: Tokens.fg }
             Text {
                 text: Util.onBattery
                       ? "Battery — " + Util.batteryPercent + "%"
@@ -1281,7 +1306,7 @@ Window {
 
             // Device inventory — categories with the kernel driver where
             // resolvable; zero devices renders the explicit empty line.
-            Text { text: "Device inventory"; font.pixelSize: 12; font.bold: true; color: Tokens.fg }
+            Text { text: "Device inventory"; font.pixelSize: 12; font.weight: Font.Medium; color: Tokens.fg }
             Repeater {
                 model: ["Graphics", "Network", "Audio", "Storage"]
                 delegate: ColumnLayout {
@@ -1291,7 +1316,7 @@ Window {
                     spacing: 4
                     Text {
                         text: pciCat.cat
-                        font { pixelSize: 11; bold: true }
+                        font { pixelSize: 11; weight: Font.Medium }
                         color: Tokens.fgMuted
                     }
                     Repeater {
@@ -1318,7 +1343,7 @@ Window {
             }
             Text {
                 text: "USB"
-                font { pixelSize: 11; bold: true }
+                font { pixelSize: 11; weight: Font.Medium }
                 color: Tokens.fgMuted
             }
             Repeater {
@@ -1337,7 +1362,7 @@ Window {
             }
             Text {
                 text: "Storage"
-                font { pixelSize: 11; bold: true }
+                font { pixelSize: 11; weight: Font.Medium }
                 color: Tokens.fgMuted
             }
             Repeater {
@@ -1355,7 +1380,7 @@ Window {
 
             // Printing — real CUPS queues; the buttons act (test page
             // through lp, the CUPS web UI at localhost:631).
-            Text { text: "Printing"; font.pixelSize: 12; font.bold: true; color: Tokens.fg }
+            Text { text: "Printing"; font.pixelSize: 12; font.weight: Font.Medium; color: Tokens.fg }
             Repeater {
                 model: Drivers.printers
                 delegate: RowLayout {
@@ -1402,7 +1427,7 @@ Window {
             }
 
             // Scanning
-            Text { text: "Scanning"; font.pixelSize: 12; font.bold: true; color: Tokens.fg }
+            Text { text: "Scanning"; font.pixelSize: 12; font.weight: Font.Medium; color: Tokens.fg }
             RowLayout {
                 spacing: 8
                 Text {
@@ -1422,7 +1447,7 @@ Window {
             }
 
             // Firmware
-            Text { text: "Firmware"; font.pixelSize: 12; font.bold: true; color: Tokens.fg }
+            Text { text: "Firmware"; font.pixelSize: 12; font.weight: Font.Medium; color: Tokens.fg }
             RowLayout {
                 spacing: 8
                 Text {
@@ -1519,7 +1544,7 @@ Window {
                     }
                     RowLayout {
                         Layout.fillWidth: true
-                        Text { text: outCard.modelData.name; font.pixelSize: 13; font.bold: true; color: Tokens.fg }
+                        Text { text: outCard.modelData.name; font.pixelSize: 13;; color: Tokens.fg }
                         Text {
                             text: outCard.modelData.current
                             font.pixelSize: 11; color: Tokens.fgMuted
@@ -1586,7 +1611,7 @@ Window {
             spacing: 12
             Text { text: "Sound"; font.family: "Montserrat"; font.pixelSize: 20; font.weight: Font.DemiBold; color: Tokens.fg }
 
-            Text { text: "Output"; font.pixelSize: 12; font.bold: true; color: Tokens.fg }
+            Text { text: "Output"; font.pixelSize: 12; font.weight: Font.Medium; color: Tokens.fg }
             Repeater {
                 model: Sound.sinks
                 delegate: ColumnLayout {
@@ -1632,7 +1657,7 @@ Window {
                 }
             }
 
-            Text { text: "Input"; font.pixelSize: 12; font.bold: true; color: Tokens.fg }
+            Text { text: "Input"; font.pixelSize: 12; font.weight: Font.Medium; color: Tokens.fg }
             Repeater {
                 model: Sound.sources
                 delegate: Text {
@@ -1853,7 +1878,7 @@ Window {
             // device surface. A VM with no adapter says so instead of
             // rendering a dead empty list.
             Rectangle { Layout.fillWidth: true; Layout.preferredHeight: 1; color: Tokens.glassBorder }
-            Text { text: "Bluetooth"; font.pixelSize: 12; font.bold: true; color: Tokens.fg }
+            Text { text: "Bluetooth"; font.pixelSize: 12; font.weight: Font.Medium; color: Tokens.fg }
 
             Text {
                 text: Bluetooth.state === "noctl"
@@ -1962,7 +1987,7 @@ Window {
                             Text {
                                 anchors.centerIn: parent
                                 text: (modelData.realName || modelData.userName).slice(0, 1).toUpperCase()
-                                font { pixelSize: 13; bold: true }
+                                font { pixelSize: 13; weight: Font.Medium }
                                 color: "#FFFFFF"
                             }
                         }
@@ -1970,7 +1995,7 @@ Window {
                             spacing: 0
                             Text {
                                 text: modelData.realName || modelData.userName
-                                font { pixelSize: 12; bold: true }
+                                font { pixelSize: 12; weight: Font.Medium }
                                 color: Tokens.fg
                             }
                             Text { text: modelData.userName; font.pixelSize: 10; color: Tokens.fgMuted }
