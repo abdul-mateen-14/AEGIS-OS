@@ -3048,6 +3048,16 @@ def main():
         log(f"w66 blur state contract: off->conf false "
             f"{'PASS' if off_state else 'FAIL'} / on->conf true "
             f"{'PASS' if on_state else 'FAIL'} (session {session_type})")
+        # T21 v0.6.65 — the shell's blurlog records every applyShellBlur
+        # invocation (timestamp live=N, reset/skip rung WxH). Cat the
+        # tail so the run itself splits "lambda never ran / ran with the
+        # wrong live / ran and KF6 ate it" — no extra diag needed.
+        bl = serial.run("cat $XDG_RUNTIME_DIR/aegis/blurlog 2>/dev/null "
+                        "| tail -14; echo BLURLOG-END", settle=2)
+        body = bl.split("BLURLOG-END")[0].strip()
+        log("w66 blurlog tail:\n" + "\n".join(
+            "  | " + ln for ln in body.splitlines()[-14:]) if body
+            else "  | (blurlog missing)")
         # T21 — the pixel A/B is the universal end-to-end proof now: the
         # shell sends the full window rect, so KWin renders the blur on
         # wayland too. The thresholds are the T20.8 x11-tuned ones (blur
@@ -3912,6 +3922,12 @@ echo T21DIAGDONE
         f"-> off {e2:.2f} -> on {e3:.2f} "
         + ("RENDERED (band moved)" if abs(e1 - e0) > 0.08 else
            "NO RENDER on toggle"))
+    bl = serial.run("cat $XDG_RUNTIME_DIR/aegis/blurlog 2>/dev/null "
+                    "| tail -16; echo BLURLOG-END", settle=2)
+    body = bl.split("BLURLOG-END")[0].strip()
+    log("t21 blurlog tail:\n" + "\n".join(
+        "  | " + ln for ln in body.splitlines()[-16:]) if body
+        else "  | (blurlog missing)")
 
     b64 = base64.b64encode(probe.encode()).decode()
     serial.run(f"echo {b64} | base64 -d > /tmp/t21-diag.sh", settle=3)

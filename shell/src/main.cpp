@@ -36,6 +36,9 @@
 #include <QMargins>
 #include <QUrlQuery>
 #include <QColor>
+#include <QDir>
+#include <QFile>
+#include <QDateTime>
 
 #include <KWindowEffects>
 
@@ -378,20 +381,72 @@ int main(int argc, char *argv[])
     // newer ext_background_effect_manager_v1 path maps an empty region
     // to "cover the whole window" — KWin 6.6 does not advertise it.)
     // Plasma panels work because plasmashell passes an explicit
-    // region. Pass the full window rect; the tierChanged re-apply
-    // refreshes it (the glass surfaces are fixed-size).
-    const auto applyShellBlur = [&governor, &roots]() {
+    // region. Pass the full window rect.
+    //
+    // T21 round 2 — diag 6/8 proved blur RENDERS at a startup commit
+    // (the wallpaper band under the traced region smoothed 1.80 -> 1.29)
+    // while runtime toggles change nothing (band flat at 1.24 through
+    // on/off/on). KWin's unset handling and the Governor's override
+    // merge are both source-verified correct, so the remaining break is
+    // KF6-side state (an early-return against a stale registration —
+    // e.g. after a QPA integration re-init the WindowEffects instance's
+    // m_blurRegions no longer knows our windows). Force the reset cycle
+    // on every REAL state change: unset first (clears KWin even when
+    // KF6 forgets), then re-create when turning on; skip entirely when
+    // nothing changed (tierChanged also fires for other effect keys).
+    // The aegisBlurApplied property is our own last-state tracker —
+    // unknown (first call) forces the cycle.
+    //
+    // T21 blurlog — every invocation appends to $XDG_RUNTIME_DIR/aegis/
+    // blurlog: the timestamp, the live value, and per window whether it
+    // applied or skipped. The diag harness cats it over serial to split
+    // "lambda never ran / ran with wrong state / ran and KF6 ate it".
+    const auto blurLog = [](const QString &line) {
+        const QString dirPath = qEnvironmentVariable("XDG_RUNTIME_DIR",
+                                                     QStringLiteral("/tmp"))
+                                + QStringLiteral("/aegis");
+        QDir().mkpath(dirPath);
+        QFile f(dirPath + QStringLiteral("/blurlog"));
+        if (f.open(QIODevice::WriteOnly | QIODevice::Append)) {
+            f.write(QString::number(QDateTime::currentMSecsSinceEpoch())
+                        .toUtf8()
+                    + ' '
+                    + line.toUtf8()
+                    + '\n');
+        }
+    };
+    const auto applyShellBlur = [&governor, &roots, &blurLog]() {
         const bool live = governor.effects()
                               .value(QStringLiteral("liveBlur"))
                               .toBool();
+        blurLog(QStringLiteral("apply live=%1").arg(live));
         for (QObject *root : roots)
             for (QQuickWindow *win :
                  root->findChildren<QQuickWindow *>()) {
-                if (win->property("aegisGlassRung").toString().isEmpty())
+                const QString rung =
+                    win->property("aegisGlassRung").toString();
+                if (rung.isEmpty())
                     continue;
-                KWindowEffects::enableBlurBehind(
-                    win, live,
-                    QRegion(0, 0, win->width(), win->height()));
+                const QVariant lastV = win->property("aegisBlurApplied");
+                const bool last = lastV.isValid() ? lastV.toBool() : !live;
+                if (lastV.isValid() && last == live) {
+                    blurLog(QStringLiteral("skip %1 %2x%3")
+                                .arg(rung)
+                                .arg(win->width())
+                                .arg(win->height()));
+                    continue;
+                }
+                blurLog(QStringLiteral("reset %1 %2x%3 live=%4")
+                            .arg(rung)
+                            .arg(win->width())
+                            .arg(win->height())
+                            .arg(live));
+                KWindowEffects::enableBlurBehind(win, false, QRegion());
+                if (live)
+                    KWindowEffects::enableBlurBehind(
+                        win, true,
+                        QRegion(0, 0, win->width(), win->height()));
+                win->setProperty("aegisBlurApplied", live);
             }
     };
     applyShellBlur();
