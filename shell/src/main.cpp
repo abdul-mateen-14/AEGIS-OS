@@ -462,6 +462,14 @@ int main(int argc, char *argv[])
                     BlurManager::instance().apply(win, live, region);
                 else
                     KWindowEffects::enableBlurBehind(win, live, region);
+                // T21 v0.6.67 — bt66 proved the blur REQUESTS go out
+                // (channel=direct in the blurlog, zero warnings) yet the
+                // frames stay byte-identical while the SAME channel
+                // renders at startup: KWin re-renders a window's backdrop
+                // only when that window DAMAGES — and the idle glass
+                // surfaces never repaint, so a runtime blur change is
+                // invisible until the next client frame. Schedule one.
+                win->update();
                 win->setProperty("aegisBlurApplied", live);
             }
     };

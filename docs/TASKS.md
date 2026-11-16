@@ -1,3 +1,31 @@
+## T21 STEP 7 — the direct channel WORKS but the frames never change: DAMAGE (2026-11-16, v0.6.66 bt66)
+- v0.6.66 (ed84b07) shipped the direct org_kde_kwin_blur channel. Two CI
+  configure rounds were needed (qt6-base-private-dev for the qpa headers;
+  GuiPrivate as an EXPLICIT find_package component — Debian ships the
+  private target as a standalone config package). Shell CI green,
+  Release published (part-00/01 + SHA256SUMS).
+- Boot Test 43883300056 FAILED the w66 pixel rung AGAIN (on 3.66 ->
+  off 3.66 -> restored 3.66; state contract PASS) — but the blurlog
+  now reads `apply live=0 channel=direct` / `apply live=1
+  channel=direct` with the full reset list and ZERO aegis-blur
+  warnings (no "no wl_surface", no "create returned NULL", no "no
+  blur global"). The direct protocol requests GO OUT.
+- The decisive fact: the SAME direct channel applied the STARTUP blur
+  this run (every line channel=direct) and the base strip still reads
+  3.66 = the blurred state. So: requests render at startup (first
+  frames) and are invisible at runtime. Mechanism (bt66 + diag 6/8 all
+  consistent): KWin re-renders a window's backdrop only when that
+  window is in the paint list, i.e. when the client DAMAGES; the idle
+  glass surfaces never repaint, so a runtime blur change — KF6's or
+  ours — is invisible until the next client frame. (On x11 the kwin
+  property notify path forces the repaint, which is why the x11 A/B
+  passed historically.)
+- FIX IMPLEMENTED (v0.6.67, commit on main, UNTAGGED): applyShellBlur
+  calls win->update() after the channel apply — one QQuick frame =
+  wl_surface commit with damage = KWin prepaint = blur region re-read.
+  NEXT SESSION: verify Shell CI green on the push, tag v0.6.67, push
+  the tag (release.yml publishes), Boot Test, read the w66 rung.
+
 ## T21 DIAGNOSED — the runtime calls are EATEN inside KF6 (2026-11-16, v0.6.65 bt65 run 1)
 - v0.6.65 (5deebce) shipped the blurlog + forced-reset cycle. Boot Test
   43867453879 FAILED the pixel rung again (on 3.66 -> off 3.66 ->
