@@ -1,4 +1,45 @@
-## T21 CLOSED — the Wayland blur consumer (2026-11-16, v0.6.64)
+## T21 REOPENED — the region fix shipped; the runtime toggle still no-ops (2026-11-16, v0.6.64 + diag 6-8)
+- The v0.6.64 empty-region fix (c0a5dca) is REAL and verified: diag 6
+  (43826865945) shows wl_region#64.add(0,0,1280,340) now preceding
+  set_region in the WAYLAND_DEBUG trace, and — the breakthrough —
+  BLUR RENDERS on kwin_wayland: the wallpaper band under the traced
+  region SMOOTHED (gradient energy 1.80 -> 1.29) with a hard luminance
+  step at the region's bottom edge (y=360 lum 47 -> y=364 lum 62).
+- BUT bt64 run 1 (43821502377) FAILED the now-universal pixel rung:
+  on 3.66 -> off 3.66 -> restored 3.66, full-frame diff bbox None —
+  the runtime busctl toggles change NOTHING on screen, while the state
+  contract passes (conf follows). Diag 8 (43830643673, clean: main
+  instance only, toggles FIRST) confirms: base 1.24 -> on 1.24 -> off
+  1.24 -> on 1.24 — AND the base 1.24 = the SMOOTHED value: blur was
+  ALREADY ON at boot on the main instance (its startup commit renders),
+  and no toggle moves it.
+- Eliminated this round: (a) KWin-side unset handling is CORRECT
+  (src/wayland/blur.cpp unset -> setBlur(QPointer<>()) -> blurChanged;
+  updateBlurRegion's else branch erases m_windows); (b) the Governor
+  merge is CORRECT (applyTier inserts false overrides too — Governor.cpp
+  330-332); (c) the Governor path is complete (setEffect ->
+  persistOverride -> m_overrides.insert -> applyTier -> emit
+  tierChanged -> publishState). (d) KF6's runtime ON early-returns on an
+  identical region (windoweffects.cpp 425-427) — but the OFF path
+  (remove + unset) is protocol-correct on paper.
+- THE REMAINING BREAK is inside the shell's runtime applyShellBlur ->
+  KF6 -> compositor chain and is only observable with shell
+  instrumentation. NEXT (v0.6.65): add a file-log to applyShellBlur
+  (append timestamp + live + per-window rung/w/h to
+  $XDG_RUNTIME_DIR/aegis/blurlog on every tierChanged invocation) so a
+  diag can cat it over serial and split "the lambda never ran / ran
+  with wrong state / ran and KF6 ate it". Also verify WHERE the boot's
+  liveBlur=true comes from (pre-settle tier timing vs the settle's
+  demotion also failing to unset visually — boot-22's sharp 1.80 band
+  suggests the settle's demotion DID unset correctly once).
+- NOTE: the island overlay window is 1280x340 and the menu bar 1920x28
+  on a 1280x800 screen (stale QScreen geometry at shell startup; the
+  whole-window blur region inherits it) — a real geometry bug to fix
+  alongside.
+- Diag harness + t21-diag.yml stay as the standing forensics tool; the
+  runtime-toggle A/B now runs FIRST (clean, main instance only).
+
+## T21 (first round) — the Wayland blur consumer (2026-11-16, v0.6.64)
 - Root cause found by the T21 diagnostic chain (5 diag boots,
   t21-diag.yml, runs 43810538046/43811870784/43813001944/43814350773/
   43815867123): EVERY KWin-side gate is green — the KF6 KWayland
