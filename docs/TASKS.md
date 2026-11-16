@@ -1,3 +1,44 @@
+## T21 DIAGNOSED — the runtime calls are EATEN inside KF6 (2026-11-16, v0.6.65 bt65 run 1)
+- v0.6.65 (5deebce) shipped the blurlog + forced-reset cycle. Boot Test
+  43867453879 FAILED the pixel rung again (on 3.66 -> off 3.66 ->
+  restored 3.66, state contract PASS) — but the blurlog now PROVES the
+  split: the applyShellBlur lambda RAN at runtime with the correct live
+  values and called enableBlurBehind(false/true) for EVERY glass window
+  (reset sheet 1280x800/300x340/348x446 + panel 1280x340/1280x28, live
+  0 and 1, timestamps 1794833555668/1794833563346) — and the frames
+  stayed byte-identical, INCLUDING the panels whose startup blur had
+  rendered (the runtime unset did NOT clear the band).
+- So: every runtime org_kde_kwin_blur request (unset AND create) is
+  silently eaten between KWindowEffects::enableBlurBehind and the
+  compositor, while the startup commit renders (diag 6/8). The leading
+  mechanism: the shell's QPA/KF6 WindowEffects instance got re-created
+  (screen change at ~30 s — the stale-QScreen geometry bug, menu bar
+  1920x28 on a 1280x800 screen) and the NEW instance's
+  QWaylandClientExtensionTemplate managers are lazily-initialized and
+  NOT yet active when the runtime calls arrive: installBlur's
+  `if (!m_blurManager->isActive()) return;` eats create, and
+  enableBlurBehind(false)'s `if (!m_blurRegions.remove(window)) return;`
+  eats unset (the new instance's map is empty). The startup call ran on
+  the fresh instance where both gates were open.
+- NEXT (v0.6.66): bypass KF6 in the shell — implement the tiny protocol
+  directly (a QWaylandClientExtensionTemplate wrapping
+  org_kde_kwin_blur_manager v1 in the shell: bind global 71,
+  create(surface), set_region(wl_region with the window rect), commit,
+  unset — the exact sequence diag 5's WAYLAND_DEBUG trace proved
+  working), constructed at shell startup so it is active for the whole
+  process lifetime; applyShellBlur calls it instead of KWindowEffects.
+  The blurlog stays as the proof channel (log create/unset round-trips).
+  Also refresh win->width() at apply time (the geometry bug rides the
+  same apply).
+- Instrumentation notes: the blurlog rides $XDG_RUNTIME_DIR/aegis/
+  blurlog; harness w66 + diag A/B print its tail. The sheet rungs are
+  1280x800 (fullscreen), 300x340, 348x446 + panels 1280x340/1280x28.
+- Release-process lesson: iso.yml's workflow_dispatch has NO inputs
+  (they are workflow_call-only) — dispatching it directly can never
+  publish a release; the release comes from release.yml on the tag
+  push (run 43858769750 got concurrency-cancelled by a same-ref manual
+  ISO dispatch and had to be re-run).
+
 ## T21 REOPENED — the region fix shipped; the runtime toggle still no-ops (2026-11-16, v0.6.64 + diag 6-8)
 - The v0.6.64 empty-region fix (c0a5dca) is REAL and verified: diag 6
   (43826865945) shows wl_region#64.add(0,0,1280,340) now preceding
