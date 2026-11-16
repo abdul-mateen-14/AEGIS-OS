@@ -3842,18 +3842,26 @@ echo "== gl-log =="
 journalctl --no-pager -b 2>/dev/null | grep -iE "compositing|opengl|egl|blur" | tail -12
 echo "== kwayland plugin deps =="
 ldd /usr/lib/*/qt6/plugins/kf6/kwindowsystem/KF6WindowSystemKWaylandPlugin.so 2>/dev/null | grep -E "not found" || echo "no missing deps"
-echo "== second shell instance under WAYLAND_DEBUG (conf carries liveBlur=true, so its startup applyShellBlur attempts blur) =="
+echo "== second shell under WAYLAND_DEBUG (T21 REGION-FIX CHECK: wl_region.add rects must now precede set_region) =="
 export WAYLAND_DISPLAY=wayland-0
 export XDG_RUNTIME_DIR=/run/user/$(id -u)
 export WAYLAND_DEBUG=1
 nohup aegis-shell >/tmp/shell-debug.log 2>&1 &
 sleep 12
 pgrep -x aegis-shell | wc -l
-echo "== blur trace (bind/create/set_region or absence) =="
-grep -E "org_kde_kwin_blur|background_effect" /tmp/shell-debug.log | head -16
-echo "== trace sanity =="
-grep -c "wl_registry" /tmp/shell-debug.log
-wc -l /tmp/shell-debug.log
+echo "== blur trace: bind/create/set_region/commit =="
+grep -E "org_kde_kwin_blur" /tmp/shell-debug.log | head -10
+echo "== region adds (the fix: rects must precede set_region) =="
+grep -E "wl_region#[0-9]+\.add" /tmp/shell-debug.log | head -6
+echo "== region creations =="
+grep -cE "create_region" /tmp/shell-debug.log
+echo "== kwin stderr destination =="
+KW=$(pgrep -f kwin_wayland | head -1)
+readlink /proc/$KW/fd/1 2>/dev/null
+readlink /proc/$KW/fd/2 2>/dev/null
+echo "== journal sanity + kwin blur/shader warnings =="
+journalctl -b --no-pager 2>/dev/null | wc -l
+journalctl -b --no-pager 2>/dev/null | grep -iE "kwin|blur|shader|failed" | tail -14
 echo T21DIAGDONE
 """
     b64 = base64.b64encode(probe.encode()).decode()
