@@ -6,7 +6,7 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_AUTOMOC ON)
 
 find_package(Qt6 REQUIRED COMPONENTS
-    Core Gui Qml Quick QuickControls2 DBus Network Concurrent)
+    Core Gui GuiPrivate Qml Quick QuickControls2 DBus Network Concurrent)
 find_package(LayerShellQt REQUIRED)
 # W50 — KWindowEffects::enableBlurBehind is the KDE-supported client blur
 # path on Wayland (org_kde_kwin_blur on the surface). KWin ships the
