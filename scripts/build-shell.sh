@@ -27,6 +27,7 @@ apt-get install -y --no-install-recommends \
     qt6-base-dev qt6-declarative-dev \
     libssl-dev \
     libwayland-dev \
+    qt6-base-private-dev \
     liblayershellqtinterface-dev layer-shell-qt \
     libkf6windowsystem-dev \
     libpam0g-dev \
