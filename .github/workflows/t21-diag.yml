@@ -1,0 +1,88 @@
+name: T21 Diag
+
+# T21 — a THROWAWAY diagnostics boot: boots the published release ISO
+# once on the production path and interrogates the blur chain over the
+# serial console (KF6 platform plugins on the runtime, the shell's QPA,
+# KWin's loaded/active effect registry over the environ bus, the kwinrc
+# the session actually has, and the compositor's GL story). The w66 A/B
+# proved the DBus->governor->conf contract green and the pixels dead on
+# wayland; this run pins WHICH stage is dead so the fix lands on
+# evidence, not archaeology. No asserts — the exit code only reflects
+# desktop-appear.
+
+on:
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Release tag to diagnose (empty = latest)'
+        required: false
+        default: ''
+
+permissions:
+  contents: read
+
+concurrency:
+  group: t21-diag
+  cancel-in-progress: true
+
+jobs:
+  diag:
+    name: Boot ISO and run T21 blur diagnostics
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Resolve release tag
+        id: tag
+        run: |
+          TAG="${{ github.event.inputs.tag }}"
+          if [ -z "$TAG" ]; then
+            TAG=$(curl -s "https://api.github.com/repos/${{ github.repository }}/releases/latest" \
+              | python3 -c "import json,sys;print(json.load(sys.stdin)['tag_name'])")
+          fi
+          echo "tag=$TAG" >> "$GITHUB_OUTPUT"
+          echo "Diagnosing: $TAG"
+
+      - name: Install QEMU + Pillow
+        run: |
+          sudo rm -f /etc/resolv.conf
+          printf "nameserver 1.1.1.1\nnameserver 8.8.8.8\n" | sudo tee /etc/resolv.conf >/dev/null
+          for attempt in 1 2 3; do
+            sudo apt-get update -qq || true
+            apt-cache show qemu-system-x86 >/dev/null 2>&1 && break
+            sleep 10
+            [ "$attempt" = 3 ] && exit 1
+          done
+          sudo apt-get install -y -qq qemu-system-x86 >/dev/null
+          qemu-system-x86_64 --version | head -1
+          sudo chmod 666 /dev/kvm 2>/dev/null || true
+          pip install -q pillow pycdlib
+
+      - name: Download, reassemble and verify ISO
+        run: |
+          TAG="${{ steps.tag.outputs.tag }}"; VER="${TAG#v}"
+          BASE="https://github.com/${{ github.repository }}/releases/download/$TAG"
+          mkdir -p iso && cd iso
+          curl -sL --retry 3 -o SHA256SUMS "$BASE/SHA256SUMS"
+          grep -qE '^[0-9a-f]{64} ' SHA256SUMS
+          for P in part-00 part-01; do
+            curl -sL --retry 3 -O "$BASE/AegisOS-$VER-amd64.iso.$P"
+            [ "$(stat -c%s "AegisOS-$VER-amd64.iso.$P" 2>/dev/null || echo 0)" -gt 100000000 ]
+          done
+          cat "AegisOS-$VER-amd64.iso.part-00" "AegisOS-$VER-amd64.iso.part-01" > AegisOS.iso
+          sha256sum -c SHA256SUMS
+
+      - name: T21 blur-chain diagnostics boot
+        run: |
+          python3 scripts/boot-capture.py iso/AegisOS.iso screenshots-diag --diagnostic-boot
+
+      - name: Upload diagnostics
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: t21-diag
+          path: |
+            screenshots-diag/**
+            serial.log
+            qemu.log

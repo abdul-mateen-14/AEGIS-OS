@@ -3765,6 +3765,75 @@ def iso_boot_check(uefi):
     return 1
 
 
+def diagnostic_boot():
+    """T21 — boots the production path once and interrogates the blur
+    chain over the serial console, then exits (no capture suite). The
+    w66 A/B proved the DBus->governor->conf contract green and the
+    pixels dead on wayland; this mode pins WHICH stage is dead:
+    (a) the KF6 KWindowSystem wayland platform plugin missing at
+    runtime, (b) KWin's Blur effect not actually loaded/active, or
+    (c) the hint arriving and being consumed but invisible to the
+    strip metric. Informational only — it exits 0 when the desktop
+    appears and the probes ran."""
+    os.makedirs(OUT, exist_ok=True)
+    proc = start_qemu_with_fallback()
+    q = QMP(SOCK)
+    log("QMP connected")
+    n = wait_desktop(q, proc)
+    if n < 0:
+        log("desktop never appeared — diagnostics aborted (FAIL)")
+        return 1
+    time.sleep(8)
+    serial = Serial(SERIAL_SOCK)
+    if not serial.login():
+        log("serial login FAILED — diagnostics aborted (FAIL)")
+        return 1
+
+    def run(label, cmd):
+        out = serial.run(cmd, settle=3)
+        log(f"t21 {label}: " + out.strip()[-220:])
+
+    # (a) the KF6 platform plugins on the runtime (KF6WindowSystem
+    # KWayland/X11Plugin — Debian ships them inside libkf6windowsystem6)
+    run("plugins", "ls /usr/lib/*/qt6/plugins/kf6/kwindowsystem/ "
+                   "2>/dev/null | tr '\\n' ' '; echo T21PLUG")
+    # (b1) the shell's QPA platform + session type
+    run("shell-qpa",
+        "tr '\\0' '\\n' < /proc/$(pgrep -f aegis-shell | head -1)/environ "
+        "2>/dev/null | grep -E '^(QT_QPA_PLATFORM|XDG_SESSION_TYPE)='; "
+        "echo T21QPA")
+    # (b2) KWin's effect registry over the shell's environ bus —
+    # org.kde.KWin rides the same dbus-run-session bus as
+    # org.aegis.Governor (the T20.8 ADDRESS recipe).
+    buscmd = ("A=$(cat /proc/$(pgrep -f aegis-shell | head -1)/environ "
+              "2>/dev/null | tr '\\0' '\\n' | grep "
+              "^DBUS_SESSION_BUS_ADDRESS= | cut -d= -f2-); "
+              "A=${A:-unix:path=$XDG_RUNTIME_DIR/bus}; ")
+    run("kwin-loaded",
+        buscmd + "busctl --address=$A call org.kde.KWin /Effects "
+                 "org.kde.KWin.Effects loadedEffects 2>&1; echo T21LOADED")
+    run("kwin-active",
+        buscmd + "busctl --address=$A call org.kde.KWin /Effects "
+                 "org.kde.KWin.Effects activeEffects 2>&1; echo T21ACTIVE")
+    # (b3) kwinrc as the session actually has it
+    run("kwinrc", "grep -A6 '^\\[Plugins\\]' /etc/xdg/kwinrc 2>/dev/null; "
+                  "echo T21CONF")
+    # (c) the compositor's own GL/compositing story (kwin logs ride the
+    # serial console via journald forward_to_console)
+    run("gl-log", "journalctl --no-pager -b 2>/dev/null | grep -iE "
+                  "'compositing|OpenGL|EGL|blur' | tail -12; echo T21GL")
+    # harness-local serial.log grep: kwindowsystem categories surface here
+    try:
+        for line in open("serial.log", errors="replace"):
+            if re.search(r"kwindoweffects|kf\.kwindowsystem|blur", line, re.I):
+                log("  serial.log | " + line.strip()[:180])
+    except OSError:
+        pass
+    q.shot("t21-desktop")
+    log("t21 diagnostics complete")
+    return 0
+
+
 if __name__ == "__main__":
     if "--vmware-boot-check" in sys.argv:
         vmware_boot_check()
@@ -3772,5 +3841,7 @@ if __name__ == "__main__":
         i = sys.argv.index("--iso-boot")
         mode = sys.argv[i + 1] if i + 1 < len(sys.argv) else "bios"
         sys.exit(iso_boot_check(mode == "uefi"))
+    elif "--diagnostic-boot" in sys.argv:
+        sys.exit(diagnostic_boot())
     else:
         main()
