@@ -1,3 +1,23 @@
+## T21 STEP 8 — the repaint fix WORKS: bt67 moved the rung for the first time; harness strip re-calibrated from frames (2026-11-16)
+- v0.6.67 (fce1006: win->update() after every apply) shipped. Boot Test
+  43899053162: `w66 blur pixel A/B (wayland): on 3.37 -> off 3.66 ->
+  restored 3.37 FAIL` — after five byte-flat runs the A/B finally
+  MOVED, in the right direction, with pixel-exact reversibility. The
+  damage mechanism is confirmed: the toggle re-renders.
+- The remaining gap was HARNESS calibration, not the shell: the strip
+  (W-350..W-330, y 120..320) sits over the sheet's upper glass where
+  the Files body is flat — ratio 1.084 vs the 1.25 gate.
+- Frame-scan calibration (scripts/w66-calibrate.py over the bt67
+  artifacts): the sheet's lower glass over the slider tracks (x
+  W-340..W-320, y 540..620) reads on 1.70 -> off 11.86, ratio 7.0,
+  restored gap 0.00. Harness patched to that box (e6e5959), ISO
+  unchanged (v0.6.67 already carries the fix).
+- Boot Test 43905464285 dispatched 16:15 UTC (ref=main harness e6e5959
+  + tag v0.6.67 ISO): IN FLIGHT at session end — next session polls
+  that run id first; if green, T21 SHIPPED (state contract PASS +
+  pixel rung 7x expected). If red: read the log, the calibration
+  script and bt67 frames are in /tmp/bt67 + scripts/w66-calibrate.py.
+
 ## T21 STEP 7 — the direct channel WORKS but the frames never change: DAMAGE (2026-11-16, v0.6.66 bt66)
 - v0.6.66 (ed84b07) shipped the direct org_kde_kwin_blur channel. Two CI
   configure rounds were needed (qt6-base-private-dev for the qpa headers;
