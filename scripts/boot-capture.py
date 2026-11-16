@@ -9,6 +9,7 @@ live recovery (start SDDM / isolate graphical.target) before giving up.
 
 Usage: python3 boot-capture.py <iso> [screenshot-dir] [--vmware-boot-check]
 """
+import base64
 import json, os, re, hashlib, shutil, socket, subprocess, sys, time
 
 ISO = sys.argv[1] if len(sys.argv) > 1 else "iso/AegisOS.iso"
@@ -3815,28 +3816,37 @@ def diagnostic_boot():
     run("kwin-active",
         buscmd + "busctl --address=$A call org.kde.KWin /Effects "
                  "org.kde.kwin.Effects activeEffects 2>&1; echo T21ACTIVE")
-    # (b3) kwinrc as the session actually has it (cat — the grep -A
-    # pattern got mangled through the serial shell in run 1)
-    run("kwinrc", "cat /etc/xdg/kwinrc 2>/dev/null; echo T21CONF")
-    # (b4) the KWin build + the blur effect plugin on the runtime
-    run("kwin-version",
-        "dpkg -l 2>/dev/null | grep -E '^ii +(kwin|libkwineffects) "
-        "| head -6; echo T21VER")
-    run("effects-so",
-        "find /usr/lib -name 'kwin4_effect_blur*' 2>/dev/null; "
-        "ls /usr/lib/*/kwin/plugins/effects/ 2>/dev/null | head -8; "
-        "echo T21SO")
-    # (b5) KWin's own supportInformation: renderer + compositing +
-    # effect lists (busctl escapes newlines; restore them first)
-    run("support-info",
-        buscmd + "busctl --address=$A call org.kde.KWin /KWin "
-                 "org.kde.KWin supportInformation 2>&1 "
-                 "| sed 's/\\\\n/\\n/g' | grep -iE 'renderer|compositing"
-                 "|OpenGL|blur|Effects' | head -14; echo T21SUPPORT")
-    # (c) the compositor's own GL/compositing story (kwin logs ride the
-    # serial console via journald forward_to_console)
-    run("gl-log", "journalctl --no-pager -b 2>/dev/null | grep -iE "
-                  "'compositing|OpenGL|EGL|blur' | tail -12; echo T21GL")
+    # (b3..c) everything past the plugin/QPA check goes through a probe
+    # SCRIPT written to the VM via base64: diag runs 1-2 died to serial
+    # shell quote-mangling (a stray close-quote left bash at a `>`
+    # continuation prompt) and to the KF5-era interface case. The script
+    # owns its own quoting; introspect settles the method names.
+    probe = r"""
+echo "== kwin pkgs =="
+dpkg -l 2>/dev/null | grep -E "^ii +(kwin|libkwineffects)" | head -6
+echo "== blur so =="
+find /usr/lib -name "kwin4_effect_blur*" 2>/dev/null
+ls /usr/lib/*/kwin/plugins/effects/ 2>/dev/null | head -8
+echo "== kwinrc [Plugins] =="
+sed -n '/\[Plugins\]/,+8p' /etc/xdg/kwinrc 2>/dev/null
+echo "== introspect /Effects =="
+A=$(cat /proc/$(pgrep -f aegis-shell | head -1)/environ 2>/dev/null | tr '\0' '\n' | grep "^DBUS_SESSION_BUS_ADDRESS=" | cut -d= -f2-)
+A=${A:-unix:path=$XDG_RUNTIME_DIR/bus}
+busctl --address=$A introspect org.kde.KWin /Effects 2>&1 | grep -E "^(org|\.|method)" | head -20
+echo "== introspect /KWin =="
+busctl --address=$A introspect org.kde.KWin /KWin 2>&1 | grep -E "^\.|supportInformation|composit" | head -12
+echo "== supportInformation (blur/renderer/effects lines) =="
+busctl --address=$A call org.kde.KWin /KWin org.kde.KWin supportInformation 2>&1 | sed 's/\\n/\n/g' | grep -iE "renderer|compositing|opengl|blur|effect" | head -24
+echo "== gl-log =="
+journalctl --no-pager -b 2>/dev/null | grep -iE "compositing|opengl|egl|blur" | tail -12
+echo T21DIAGDONE
+"""
+    b64 = base64.b64encode(probe.encode()).decode()
+    serial.run(f"echo {b64} | base64 -d > /tmp/t21-diag.sh", settle=3)
+    out = serial.run("sh /tmp/t21-diag.sh", settle=12)
+    body = out.split("T21DIAGDONE")[0] if "T21DIAGDONE" in out else out
+    log("t21 diag script:\n" + "\n".join(
+        "  | " + ln for ln in body.strip().splitlines()[:60]))
     # harness-local serial.log grep: kwindowsystem categories surface here
     try:
         for line in open("serial.log", errors="replace"):
