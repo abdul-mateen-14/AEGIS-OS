@@ -3864,26 +3864,13 @@ journalctl -b --no-pager 2>/dev/null | wc -l
 journalctl -b --no-pager 2>/dev/null | grep -iE "kwin|blur|shader|failed" | tail -14
 echo T21DIAGDONE
 """
-    b64 = base64.b64encode(probe.encode()).decode()
-    serial.run(f"echo {b64} | base64 -d > /tmp/t21-diag.sh", settle=3)
-    out = serial.run("sh /tmp/t21-diag.sh", settle=12)
-    body = out.split("T21DIAGDONE")[0] if "T21DIAGDONE" in out else out
-    log("t21 diag script:\n" + "\n".join(
-        "  | " + ln for ln in body.strip().splitlines()[:80]))
-    # harness-local serial.log grep: kwindowsystem categories surface here
-    try:
-        for line in open("serial.log", errors="replace"):
-            if re.search(r"kwindoweffects|kf\.kwindowsystem|blur", line, re.I):
-                log("  serial.log | " + line.strip()[:180])
-    except OSError:
-        pass
-
-    # ── the RUNTIME-TOGGLE A/B (diag 6 proof: startup blur renders —
-    # band energy 1.80 -> 1.29 under the traced region; the w66 A/B's
-    # strip was byte-identical) — does a busctl setEffect toggle change
-    # pixels on the MAIN instance? The band y=60..360 is the wallpaper
-    # area the island overlay blurs; the strip metric may simply be
-    # blind (it sits on a uniform area).
+    # ── the RUNTIME-TOGGLE A/B — runs FIRST, while ONLY the main
+    # instance exists (diag 7 ran it AFTER the traced second shell was
+    # up: the second instance's constant startup blur masked the
+    # toggles — 1.29 flat — and the test proved nothing). Clean
+    # conditions: the boot settle left the main instance blur-OFF, so
+    # the band y=60..360 (the island overlay's whole-rect blur area)
+    # starts sharp ~1.8; if the busctl toggle renders, it drops ~1.3.
     def band_energy(png, box=(60, 60, 1220, 360)):
         im = Image.open(png).convert("L").crop(box)
         w, h = im.size
@@ -3925,6 +3912,20 @@ echo T21DIAGDONE
         f"-> off {e2:.2f} -> on {e3:.2f} "
         + ("RENDERED (band moved)" if abs(e1 - e0) > 0.08 else
            "NO RENDER on toggle"))
+
+    b64 = base64.b64encode(probe.encode()).decode()
+    serial.run(f"echo {b64} | base64 -d > /tmp/t21-diag.sh", settle=3)
+    out = serial.run("sh /tmp/t21-diag.sh", settle=12)
+    body = out.split("T21DIAGDONE")[0] if "T21DIAGDONE" in out else out
+    log("t21 diag script:\n" + "\n".join(
+        "  | " + ln for ln in body.strip().splitlines()[:80]))
+    # harness-local serial.log grep: kwindowsystem categories surface here
+    try:
+        for line in open("serial.log", errors="replace"):
+            if re.search(r"kwindoweffects|kf\.kwindowsystem|blur", line, re.I):
+                log("  serial.log | " + line.strip()[:180])
+    except OSError:
+        pass
     q.shot("t21-desktop")
     log("t21 diagnostics complete")
     return 0
