@@ -2951,15 +2951,25 @@ def main():
             return g / max(1, n)
 
         # W50/W66 — the blur request must REALLY bind at runtime, proven
-        # CAUSALLY now: the strip (x W-350..W-330, y 120..320) is the
-        # sheet's clean left-padding glass; toggle liveBlur OFF over DBus
+        # CAUSALLY now: toggle liveBlur OFF over DBus
         # (org.aegis.Governor.setEffect — exported via ExportAllInvokables
         # since T16; run 3's A/B failed on ENV plumbing, not on the
         # export: the serial shell needs XDG_RUNTIME_DIR exported exactly
         # like the w55 probe does), require the strip's gradient energy
-        # to RISE when the blur is off (the Files edges reappear through
-        # the tint), then back ON and require it to collapse again.
-        box = (W - 350, 120, W - 330, 320)
+        # to RISE when the blur is off, then back ON and require it to
+        # collapse again.
+        # The strip is DATA-DRIVEN (bt67 frame calibration, commit with
+        # the same message as this change): the old box (W-350..W-330,
+        # y 120..320) sat over the sheet's upper glass where the Files
+        # body is FLAT — bt67 measured on 3.37 -> off 3.66 (ratio 1.08)
+        # even though the toggle demonstrably re-rendered (restored ==
+        # on, and the A/B first moved in five runs). Scanning the bt67
+        # frames for max off/on grad_energy found the sheet's LOWER
+        # glass over the slider tracks (x W-340..W-320, y 540..620):
+        # on 1.70 -> off 11.86, ratio 7.0, restored gap 0.00. The 1.25
+        # gate stays; the strip now measures content that actually
+        # responds to blur.
+        box = (W - 340, 540, W - 320, 620)
         base = grad_energy(f"{OUT}/04j0-files-open.png", box)
         q.click(W - 19, 14, W, H)     # open the CC sheet over Files
         time.sleep(3)
