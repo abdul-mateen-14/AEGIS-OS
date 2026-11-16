@@ -3790,8 +3790,8 @@ def diagnostic_boot():
         return 1
 
     def run(label, cmd):
-        out = serial.run(cmd, settle=3)
-        log(f"t21 {label}: " + out.strip()[-220:])
+        out = serial.run(cmd, settle=4)
+        log(f"t21 {label}: " + out.strip()[-600:])
 
     # (a) the KF6 platform plugins on the runtime (KF6WindowSystem
     # KWayland/X11Plugin — Debian ships them inside libkf6windowsystem6)
@@ -3811,13 +3811,28 @@ def diagnostic_boot():
               "A=${A:-unix:path=$XDG_RUNTIME_DIR/bus}; ")
     run("kwin-loaded",
         buscmd + "busctl --address=$A call org.kde.KWin /Effects "
-                 "org.kde.KWin.Effects loadedEffects 2>&1; echo T21LOADED")
+                 "org.kde.kwin.Effects loadedEffects 2>&1; echo T21LOADED")
     run("kwin-active",
         buscmd + "busctl --address=$A call org.kde.KWin /Effects "
-                 "org.kde.KWin.Effects activeEffects 2>&1; echo T21ACTIVE")
-    # (b3) kwinrc as the session actually has it
-    run("kwinrc", "grep -A6 '^\\[Plugins\\]' /etc/xdg/kwinrc 2>/dev/null; "
-                  "echo T21CONF")
+                 "org.kde.kwin.Effects activeEffects 2>&1; echo T21ACTIVE")
+    # (b3) kwinrc as the session actually has it (cat — the grep -A
+    # pattern got mangled through the serial shell in run 1)
+    run("kwinrc", "cat /etc/xdg/kwinrc 2>/dev/null; echo T21CONF")
+    # (b4) the KWin build + the blur effect plugin on the runtime
+    run("kwin-version",
+        "dpkg -l 2>/dev/null | grep -E '^ii +(kwin|libkwineffects) "
+        "| head -6; echo T21VER")
+    run("effects-so",
+        "find /usr/lib -name 'kwin4_effect_blur*' 2>/dev/null; "
+        "ls /usr/lib/*/kwin/plugins/effects/ 2>/dev/null | head -8; "
+        "echo T21SO")
+    # (b5) KWin's own supportInformation: renderer + compositing +
+    # effect lists (busctl escapes newlines; restore them first)
+    run("support-info",
+        buscmd + "busctl --address=$A call org.kde.KWin /KWin "
+                 "org.kde.KWin supportInformation 2>&1 "
+                 "| sed 's/\\\\n/\\n/g' | grep -iE 'renderer|compositing"
+                 "|OpenGL|blur|Effects' | head -14; echo T21SUPPORT")
     # (c) the compositor's own GL/compositing story (kwin logs ride the
     # serial console via journald forward_to_console)
     run("gl-log", "journalctl --no-pager -b 2>/dev/null | grep -iE "
