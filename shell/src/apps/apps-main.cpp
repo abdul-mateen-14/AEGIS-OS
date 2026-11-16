@@ -237,12 +237,18 @@ int main(int argc, char *argv[])
             if (fx.contains(QStringLiteral("liveBlur")))
                 any = fx.value(QStringLiteral("liveBlur")).toBool();
         }
-        // the app QML root IS the Window (FilesApp.qml et al.) —
-        // findChildren alone would miss it
+        // T21 — pass the full window rect: KF6's legacy org_kde_kwin_blur
+        // path sends the region literally and an empty QRegion blurs
+        // nothing (diag 5 trace — set_region with zero add() rects).
+        // The app QML root IS the Window (FilesApp.qml et al.) —
+        // findChildren alone would miss it.
         if (auto *rootWin = qobject_cast<QQuickWindow *>(rootObj))
-            KWindowEffects::enableBlurBehind(rootWin, any);
+            KWindowEffects::enableBlurBehind(
+                rootWin, any,
+                QRegion(0, 0, rootWin->width(), rootWin->height()));
         for (QQuickWindow *win : rootObj->findChildren<QQuickWindow *>())
-            KWindowEffects::enableBlurBehind(win, any);
+            KWindowEffects::enableBlurBehind(
+                win, any, QRegion(0, 0, win->width(), win->height()));
     };
     applyAppBlur();
     QObject::connect(&governor, &Governor::tierChanged, &governor,

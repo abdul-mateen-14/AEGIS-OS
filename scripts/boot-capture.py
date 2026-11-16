@@ -16,10 +16,11 @@ ISO = sys.argv[1] if len(sys.argv) > 1 else "iso/AegisOS.iso"
 OUT = sys.argv[2] if len(sys.argv) > 2 else "screenshots"
 SOCK = "/tmp/aegis-qmp.sock"
 SERIAL_SOCK = "/tmp/aegis-serial.sock"
-# T20.9 — set by the w66 probe: the pixel blur A/B is only meaningful on
-# X11 (KWindowEffects::enableBlurBehind is a no-op on kwin_wayland); the
-# W58 duplicate gate consults this before judging the 04j2/04j4 pair.
-W66_PIXEL_AB = {"applicable": False, "session": "unknown"}
+# T20.9/T21 — the pixel blur A/B is meaningful on every platform since
+# the T21 empty-region fix (KF6's legacy org_kde_kwin_blur path sent
+# the region literally; the shell now passes the full window rect).
+# The session type is still recorded for the log.
+W66_PIXEL_AB = {"applicable": True, "session": "unknown"}
 ABS_MAX = 0x7FFF          # QMP abs input range for absolute pointer devices
 DESKTOP_TIMEOUT = 1200    # KVM boots in ~3 min; TCG needs more
 NEUTRAL_Y = 0.30          # pointer parking spot (screen fraction) — away from the dock
@@ -3002,7 +3003,10 @@ def main():
             settle=3)
         session_type = ("x11" if "XDG_SESSION_TYPE=x11" in st_out
                         else "wayland")
-        W66_PIXEL_AB["applicable"] = session_type == "x11"
+        # T21 — the pixel A/B is universal since the empty-region fix:
+        # the shell now sends the full window rect, so KWin renders the
+        # blur on wayland too and the rung is the end-to-end proof.
+        W66_PIXEL_AB["applicable"] = True
         W66_PIXEL_AB["session"] = session_type
 
         def conf_says(val):
@@ -3044,18 +3048,15 @@ def main():
         log(f"w66 blur state contract: off->conf false "
             f"{'PASS' if off_state else 'FAIL'} / on->conf true "
             f"{'PASS' if on_state else 'FAIL'} (session {session_type})")
-        if W66_PIXEL_AB["applicable"]:
-            w66_pixel_ok = (a > 0.5 and b > a * 1.25 and c < a * 1.2 + 1.0)
-            w66_ab_ok = w66_state_ok and w66_pixel_ok
-            log(f"w66 blur pixel A/B (x11): on {a:.2f} -> off {b:.2f} -> "
-                f"restored {c:.2f} "
-                + ("PASS" if w66_pixel_ok else "FAIL"))
-        else:
-            w66_ab_ok = w66_state_ok
-            log(f"w66 blur pixel A/B: SKIPPED ({session_type} — "
-                "KWindowEffects::enableBlurBehind is X11-only; the "
-                "Wayland consumer is T21) "
-                f"[frames on/off/restored: {a:.2f}/{b:.2f}/{c:.2f}]")
+        # T21 — the pixel A/B is the universal end-to-end proof now: the
+        # shell sends the full window rect, so KWin renders the blur on
+        # wayland too. The thresholds are the T20.8 x11-tuned ones (blur
+        # smears the strip -> energy drops when blur is on).
+        w66_pixel_ok = (a > 0.5 and b > a * 1.25 and c < a * 1.2 + 1.0)
+        w66_ab_ok = w66_state_ok and w66_pixel_ok
+        log(f"w66 blur pixel A/B ({session_type}): on {a:.2f} -> "
+            f"off {b:.2f} -> restored {c:.2f} "
+            + ("PASS" if w66_pixel_ok else "FAIL"))
         # T20.8 — 0.7 was a knife edge on the run-2/3 wallpaper (3.66 vs
         # the 3.647 bound — a 0.013 miss); the causal A/B above is the
         # primary verdict now, 0.75 keeps the tint-only fallback sane.

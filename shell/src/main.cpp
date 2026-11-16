@@ -368,6 +368,18 @@ int main(int argc, char *argv[])
     // (Governor, the W66 six-key name for the old blurLive) gates the
     // shell surfaces; re-applied on every tier / override change so the
     // Settings Desktop-Effects rows have a REAL consumer.
+    //
+    // T21 — the empty-region trap. KF6's legacy org_kde_kwin_blur path
+    // (the only blur global KWin 6.6 advertises here — diag 5
+    // wayland-info: global 71) sends the region LITERALLY: the
+    // one-arg call passes QRegion() and the trace showed set_region on
+    // a wl_region with ZERO add() rects — KWin correctly blurs
+    // nothing, and every pixel A/B came back byte-identical. (The
+    // newer ext_background_effect_manager_v1 path maps an empty region
+    // to "cover the whole window" — KWin 6.6 does not advertise it.)
+    // Plasma panels work because plasmashell passes an explicit
+    // region. Pass the full window rect; the tierChanged re-apply
+    // refreshes it (the glass surfaces are fixed-size).
     const auto applyShellBlur = [&governor, &roots]() {
         const bool live = governor.effects()
                               .value(QStringLiteral("liveBlur"))
@@ -377,7 +389,9 @@ int main(int argc, char *argv[])
                  root->findChildren<QQuickWindow *>()) {
                 if (win->property("aegisGlassRung").toString().isEmpty())
                     continue;
-                KWindowEffects::enableBlurBehind(win, live);
+                KWindowEffects::enableBlurBehind(
+                    win, live,
+                    QRegion(0, 0, win->width(), win->height()));
             }
     };
     applyShellBlur();

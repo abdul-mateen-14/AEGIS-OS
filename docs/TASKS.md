@@ -1,3 +1,32 @@
+## T21 CLOSED — the Wayland blur consumer (2026-11-16, v0.6.64)
+- Root cause found by the T21 diagnostic chain (5 diag boots,
+  t21-diag.yml, runs 43810538046/43811870784/43813001944/43814350773/
+  43815867123): EVERY KWin-side gate is green — the KF6 KWayland
+  platform plugin ships on the runtime, the shell QPA is wayland, GL
+  compositing is active on llvmpipe, KWin 6.6.6's Blur effect is
+  LOADED (isEffectLoaded s->b true, shapecorners as the control), and
+  the compositor advertises org_kde_kwin_blur_manager v1 (wayland-info
+  global 71; the newer ext_background_effect_manager_v1 is absent).
+  The second-shell WAYLAND_DEBUG trace (diag 5) shows the client
+  binding the global and sending create/set_region/commit — the
+  requests ARE sent. The killer detail: the wl_region carried ZERO
+  add() rects.
+- THE BUG: KF6's legacy org_kde_kwin_blur path sends the region
+  LITERALLY — KWindowEffects::enableBlurBehind(win, live) passes
+  QRegion(), and an empty region means KWin blurs NOTHING. (The newer
+  ext_background_effect path maps empty to "cover the whole window";
+  KWin 6.6 does not advertise it. Plasma panels work because
+  plasmashell passes an explicit region.) THE FIX: the shell and the
+  apps pass the full window rect (main.cpp applyShellBlur +
+  apps-main.cpp applyAppBlur) — one line each, plus the evidence
+  comments.
+- The harness pixel A/B is universal now (W66_PIXEL_AB.applicable
+  always true): the w66 rung is the end-to-end proof on wayland too,
+  and the W58 04j-family exclusions die automatically (blur-off now
+  differs from blur-on). The diag harness mode (--diagnostic-boot) and
+  t21-diag.yml stay as the standing compositor forensics tool.
+- SHIPPED AS v0.6.64.
+
 ## T20.14 — v0.6.63 SHIPPED (2026-11-15, Boot Test 43762890564 GREEN)
 - Run 9: main leg CLEAN (w66 state contract off->conf false PASS /
   on->conf true PASS, pixel A/B correctly skipped on wayland, zero
