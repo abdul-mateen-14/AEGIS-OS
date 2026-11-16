@@ -3839,16 +3839,20 @@ echo "== supportInformation (blur/renderer/effects lines) =="
 busctl --address=$A call org.kde.KWin /KWin org.kde.KWin supportInformation 2>&1 | sed 's/\\n/\n/g' | grep -iE "renderer|compositing|opengl|blur|effect" | head -24
 echo "== gl-log =="
 journalctl --no-pager -b 2>/dev/null | grep -iE "compositing|opengl|egl|blur" | tail -12
-echo "== isEffectLoaded (s -> b; shapecorners as the known-loaded control) =="
-busctl --address=$A call org.kde.KWin /Effects org.kde.kwin.Effects isEffectLoaded s blur 2>&1
-busctl --address=$A call org.kde.KWin /Effects org.kde.kwin.Effects isEffectLoaded s kwin4_effect_shapecorners 2>&1
-echo "== /Effects supportInformation =="
-busctl --address=$A call org.kde.KWin /Effects org.kde.kwin.Effects supportInformation 2>&1 | sed 's/\\n/\n/g' | head -40
-echo "== blur .so whole-fs + kwin-common packaging =="
-find / -name "kwin4_effect_blur*" 2>/dev/null
-dpkg -L kwin-common 2>/dev/null | grep -i effect | head -10
-echo "== wayland globals =="
-which wayland-info && wayland-info 2>/dev/null | grep -iE "blur|background_effect|server" | head -8
+echo "== kwayland plugin deps =="
+ldd /usr/lib/*/qt6/plugins/kf6/kwindowsystem/KF6WindowSystemKWaylandPlugin.so 2>/dev/null | grep -E "not found" || echo "no missing deps"
+echo "== second shell instance under WAYLAND_DEBUG (conf carries liveBlur=true, so its startup applyShellBlur attempts blur) =="
+export WAYLAND_DISPLAY=wayland-0
+export XDG_RUNTIME_DIR=/run/user/$(id -u)
+export WAYLAND_DEBUG=1
+nohup aegis-shell >/tmp/shell-debug.log 2>&1 &
+sleep 12
+pgrep -x aegis-shell | wc -l
+echo "== blur trace (bind/create/set_region or absence) =="
+grep -E "org_kde_kwin_blur|background_effect" /tmp/shell-debug.log | head -16
+echo "== trace sanity =="
+grep -c "wl_registry" /tmp/shell-debug.log
+wc -l /tmp/shell-debug.log
 echo T21DIAGDONE
 """
     b64 = base64.b64encode(probe.encode()).decode()
