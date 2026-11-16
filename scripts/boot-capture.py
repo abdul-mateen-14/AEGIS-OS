@@ -3839,6 +3839,16 @@ echo "== supportInformation (blur/renderer/effects lines) =="
 busctl --address=$A call org.kde.KWin /KWin org.kde.KWin supportInformation 2>&1 | sed 's/\\n/\n/g' | grep -iE "renderer|compositing|opengl|blur|effect" | head -24
 echo "== gl-log =="
 journalctl --no-pager -b 2>/dev/null | grep -iE "compositing|opengl|egl|blur" | tail -12
+echo "== isEffectLoaded (s -> b; shapecorners as the known-loaded control) =="
+busctl --address=$A call org.kde.KWin /Effects org.kde.kwin.Effects isEffectLoaded s blur 2>&1
+busctl --address=$A call org.kde.KWin /Effects org.kde.kwin.Effects isEffectLoaded s kwin4_effect_shapecorners 2>&1
+echo "== /Effects supportInformation =="
+busctl --address=$A call org.kde.KWin /Effects org.kde.kwin.Effects supportInformation 2>&1 | sed 's/\\n/\n/g' | head -40
+echo "== blur .so whole-fs + kwin-common packaging =="
+find / -name "kwin4_effect_blur*" 2>/dev/null
+dpkg -L kwin-common 2>/dev/null | grep -i effect | head -10
+echo "== wayland globals =="
+which wayland-info && wayland-info 2>/dev/null | grep -iE "blur|background_effect|server" | head -8
 echo T21DIAGDONE
 """
     b64 = base64.b64encode(probe.encode()).decode()
@@ -3846,7 +3856,7 @@ echo T21DIAGDONE
     out = serial.run("sh /tmp/t21-diag.sh", settle=12)
     body = out.split("T21DIAGDONE")[0] if "T21DIAGDONE" in out else out
     log("t21 diag script:\n" + "\n".join(
-        "  | " + ln for ln in body.strip().splitlines()[:60]))
+        "  | " + ln for ln in body.strip().splitlines()[:80]))
     # harness-local serial.log grep: kwindowsystem categories surface here
     try:
         for line in open("serial.log", errors="replace"):
