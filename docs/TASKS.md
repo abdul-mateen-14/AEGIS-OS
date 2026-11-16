@@ -1,3 +1,27 @@
+## T21 SHIPPED — the liveBlur toggle is CAUSALLY proven end-to-end (2026-11-16, Boot Test 43905464285 GREEN)
+- `w66 blur pixel A/B (wayland): on 1.58 -> off 11.86 -> restored 1.58
+  PASS` (ratio 7.5x; calibration predicted 7.0) + `w66 blur state
+  contract: off->conf false PASS / on->conf true PASS`; ZERO asserts
+  failed across the whole run — the first fully green Boot Test of the
+  blur arc.
+- The full arc, for the record: (1) W50 showed the toggle inert on
+  wayland; (2) T21 traced the request path — the shell's direct
+  KWindowEffects channel DOES go out (bt66 channel=direct, zero
+  warnings); (3) the damage theory: KWin re-renders a backdrop only
+  when the client damages, and idle glass surfaces never repaint, so
+  runtime blur changes were invisible; (4) the fix — one QQuick frame
+  scheduled after every real apply (win->update(), fce1006, v0.6.67);
+  (5) bt67 run 43899053162 moved the rung for the first time (3.37 ->
+  3.66 -> 3.37) but the harness strip sat over flat Files body (ratio
+  1.084 vs the 1.25 gate); (6) the strip was re-anchored from frame
+  data (scripts/w66-calibrate.py scanned the bt67 artifacts; new box
+  W-340..W-320 / y 540..620 over the sheet's slider glass, e6e5959);
+  (7) Boot Test 43905464285 (same ISO, corrected harness) PASSED.
+- User-facing: on v0.6.67+ the liveBlur switch in Settings renders
+  immediately on wayland (no re-login), and the panel/dock/sheet glass
+  states follow the governor.conf. The W41 VMware re-test note (Calm
+  settling on llvmpipe, dock crash + dead clicks fixed) is unchanged.
+
 ## T21 STEP 8 — the repaint fix WORKS: bt67 moved the rung for the first time; harness strip re-calibrated from frames (2026-11-16)
 - v0.6.67 (fce1006: win->update() after every apply) shipped. Boot Test
   43899053162: `w66 blur pixel A/B (wayland): on 3.37 -> off 3.66 ->
