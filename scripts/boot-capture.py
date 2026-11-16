@@ -3877,6 +3877,54 @@ echo T21DIAGDONE
                 log("  serial.log | " + line.strip()[:180])
     except OSError:
         pass
+
+    # ── the RUNTIME-TOGGLE A/B (diag 6 proof: startup blur renders —
+    # band energy 1.80 -> 1.29 under the traced region; the w66 A/B's
+    # strip was byte-identical) — does a busctl setEffect toggle change
+    # pixels on the MAIN instance? The band y=60..360 is the wallpaper
+    # area the island overlay blurs; the strip metric may simply be
+    # blind (it sits on a uniform area).
+    def band_energy(png, box=(60, 60, 1220, 360)):
+        im = Image.open(png).convert("L").crop(box)
+        w, h = im.size
+        px = list(im.getdata())
+        total = n = 0
+        for yy in range(0, h, 3):
+            row = yy * w
+            for xx in range(1, w, 3):
+                total += abs(px[row + xx] - px[row + xx - 1])
+                n += 1
+        return total / max(1, n)
+
+    bus = ("A=$(cat /proc/$(pgrep -f aegis-shell | head -1)/environ "
+           "2>/dev/null | tr '\\0' '\\n' | grep "
+           "^DBUS_SESSION_BUS_ADDRESS= | cut -d= -f2-); "
+           "A=${A:-unix:path=$XDG_RUNTIME_DIR/bus}; busctl --address=$A ")
+    time.sleep(2)
+    q.shot("t21-ab-base")
+    e0 = band_energy(f"{OUT}/t21-ab-base.png")
+    serial.run(bus + "call org.aegis.Governor /Governor "
+                  "org.aegis.Governor.setEffect ss liveBlur true",
+               settle=4)
+    time.sleep(4)
+    q.shot("t21-ab-on")
+    e1 = band_energy(f"{OUT}/t21-ab-on.png")
+    serial.run(bus + "call org.aegis.Governor /Governor "
+                  "org.aegis.Governor.setEffect ss liveBlur false",
+               settle=4)
+    time.sleep(4)
+    q.shot("t21-ab-off")
+    e2 = band_energy(f"{OUT}/t21-ab-off.png")
+    serial.run(bus + "call org.aegis.Governor /Governor "
+                  "org.aegis.Governor.setEffect ss liveBlur true",
+               settle=4)
+    time.sleep(3)
+    q.shot("t21-ab-on2")
+    e3 = band_energy(f"{OUT}/t21-ab-on2.png")
+    log(f"t21 runtime-toggle band energy: base {e0:.2f} -> on {e1:.2f} "
+        f"-> off {e2:.2f} -> on {e3:.2f} "
+        + ("RENDERED (band moved)" if abs(e1 - e0) > 0.08 else
+           "NO RENDER on toggle"))
     q.shot("t21-desktop")
     log("t21 diagnostics complete")
     return 0
