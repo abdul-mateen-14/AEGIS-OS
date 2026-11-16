@@ -26,6 +26,7 @@ apt-get install -y --no-install-recommends \
     build-essential cmake debhelper pkg-config \
     qt6-base-dev qt6-declarative-dev \
     libssl-dev \
+    libwayland-dev \
     liblayershellqtinterface-dev layer-shell-qt \
     libkf6windowsystem-dev \
     libpam0g-dev \

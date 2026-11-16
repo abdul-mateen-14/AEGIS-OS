@@ -15,6 +15,13 @@ find_package(LayerShellQt REQUIRED)
 find_package(KF6WindowSystem REQUIRED)
 find_package(OpenSSL REQUIRED)
 find_library(PAM_LIBRARY pam)
+# T21 v0.6.66 — the shell's direct org_kde_kwin_blur channel
+# (wayland/blurmanager.cpp) needs the raw libwayland-client API and the
+# QPA native interface (wl_display / wl_surface lookups). libwayland-dev
+# ships a pkg-config file everywhere but not always a CMake config, so
+# probe with pkg-config.
+find_package(PkgConfig REQUIRED)
+pkg_check_modules(WAYLAND_CLIENT REQUIRED IMPORTED_TARGET wayland-client)
 
 if(TARGET LayerShellQt::Interface)
     set(AEGIS_LAYERSHELL_TARGET LayerShellQt::Interface)
@@ -41,6 +48,12 @@ qt_add_executable(aegis-shell
     src/governor/Governor.cpp
     src/activity/ActivityService.h
     src/activity/ActivityService.cpp
+    # T21 v0.6.66 — direct org_kde_kwin_blur client (vendored scanner
+    # output + wrapper; see wayland/blurmanager.h for the why)
+    src/wayland/blurmanager.h
+    src/wayland/blurmanager.cpp
+    src/wayland/blur-client-protocol.h
+    src/wayland/blur-client-protocol.c
     # Desktop.qml (W36.1) calls Files.makeDir for New Folder — the shell's
     # engine must resolve Aegis.Files, not just the apps binary
     src/apps/filemanager.h
@@ -90,6 +103,8 @@ target_link_libraries(aegis-shell PRIVATE
     Qt6::DBus
     Qt6::Network   # W22 — the web-shortcut fetch pipeline lives in Util
     KF6::WindowSystem   # W50 — enableBlurBehind (org_kde_kwin_blur)
+    Qt6::GuiPrivate     # T21 v0.6.66 — qplatformnativeinterface.h
+    PkgConfig::WAYLAND_CLIENT  # T21 v0.6.66 — the direct blur channel
     ${AEGIS_LAYERSHELL_TARGET}
 )
 

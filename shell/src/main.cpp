@@ -47,6 +47,8 @@
 #include "util.h"
 #include "governor/Governor.h"
 #include "activity/ActivityService.h"
+// T21 v0.6.66 — the shell's own org_kde_kwin_blur channel
+#include "wayland/blurmanager.h"
 // W36.1 — Desktop.qml resolves Aegis.Files for the New Folder action
 #include "apps/filemanager.h"
 
@@ -415,11 +417,25 @@ int main(int argc, char *argv[])
                     + '\n');
         }
     };
+    // T21 v0.6.66 — the runtime calls are EATEN inside KF6 (the
+    // v0.6.65 blurlog proved the lambda runs with the right live values
+    // while the frames stayed byte-identical; TASKS.md "T21
+    // DIAGNOSED"). On Wayland the shell now speaks org_kde_kwin_blur
+    // directly through its own BlurManager, bound once at startup so it
+    // never hits KF6's lazily-initialized-manager early-returns. X11
+    // keeps KF6 — kwin-x11's blur-behind property is a real path there.
+    BlurManager::instance().init();
     const auto applyShellBlur = [&governor, &roots, &blurLog]() {
         const bool live = governor.effects()
                               .value(QStringLiteral("liveBlur"))
                               .toBool();
-        blurLog(QStringLiteral("apply live=%1").arg(live));
+        const bool wayland =
+            QGuiApplication::platformName()
+            == QStringLiteral("wayland");
+        blurLog(QStringLiteral("apply live=%1 channel=%2")
+                    .arg(live)
+                    .arg(wayland ? QStringLiteral("direct")
+                                 : QStringLiteral("kf6-x11")));
         for (QObject *root : roots)
             for (QQuickWindow *win :
                  root->findChildren<QQuickWindow *>()) {
@@ -441,11 +457,11 @@ int main(int argc, char *argv[])
                             .arg(win->width())
                             .arg(win->height())
                             .arg(live));
-                KWindowEffects::enableBlurBehind(win, false, QRegion());
-                if (live)
-                    KWindowEffects::enableBlurBehind(
-                        win, true,
-                        QRegion(0, 0, win->width(), win->height()));
+                const QRegion region(0, 0, win->width(), win->height());
+                if (wayland)
+                    BlurManager::instance().apply(win, live, region);
+                else
+                    KWindowEffects::enableBlurBehind(win, live, region);
                 win->setProperty("aegisBlurApplied", live);
             }
     };
