@@ -3676,7 +3676,14 @@ def main():
     lv_dc = serial.run("pgrep -af aegis-calculator | head -2; "
                        "echo W41DC-END", settle=2)
     lv_dc = lv_dc.split("W41DC-END")[0].strip()
-    w41_dockclick_ok = d_dc > 6 and "aegis-calculator" in lv_dc
+    # bt69 (44084600954) — the calculator VISIBLY opened (diff bbox
+    # 178,78..1071,790; 9.7% of pixels changed) but the whole-frame mean
+    # read 5.8 against the >6 gate: a 600x700 window dilutes the mean
+    # over 1280x800. Gate on the mean with the liveness as the second
+    # signal, exactly like open_app's patient re-diff.
+    w41_dockclick_ok = ((d_dc > 6 or (d_dc > 3 and
+                         "aegis-calculator" in lv_dc))
+                        and "aegis-calculator" in lv_dc)
     log(f"w41 dock-click-only launch: diff-vs-base={d_dc:.1f} "
         f"liveness={'alive' if 'aegis-calculator' in lv_dc else 'DEAD'} "
         + ("PASS — the tile click launched the app"
@@ -3700,16 +3707,34 @@ def main():
 
     q.shot("08-lock-base")
     lum_base = _lum(f"{OUT}/08-lock-base.png")
-    serial.run("export XDG_RUNTIME_DIR=/run/user/$(id -u); "
+    lock_out = serial.run("export XDG_RUNTIME_DIR=/run/user/$(id -u); "
                "SHELLPID=$(pgrep -f '/usr/bin/aegis-shell' | head -1); "
                "export DBUS_SESSION_BUS_ADDRESS=$(tr '\\0' '\\n' "
                "< /proc/$SHELLPID/environ "
                "| grep '^DBUS_SESSION_BUS_ADDRESS=' | head -1 "
                "| cut -d= -f2-); "
                "busctl --user call org.aegis.Shell /org/aegis/Shell "
-               "org.aegis.Shell.lock; echo W41LOCK-OK", settle=4)
+               "org.aegis.Shell.lock 2>&1; echo W41LOCK-OK", settle=4)
+    log("w41 lock busctl -> " + lock_out.strip().replace("\n", " | ")[-160:])
     time.sleep(3)
     q.shot("08-locked")
+    # bt69 — lock() returned clean yet the frame never changed: is the
+    # window mapped at all? KWin's supportInformation names every
+    # mapped window with its geometry; grep the shell's entries.
+    kwin_info = serial.run(
+        "export XDG_RUNTIME_DIR=/run/user/$(id -u); "
+        "SHELLPID=$(pgrep -f '/usr/bin/aegis-shell' | head -1); "
+        "export DBUS_SESSION_BUS_ADDRESS=$(tr '\\0' '\\n' "
+        "< /proc/$SHELLPID/environ "
+        "| grep '^DBUS_SESSION_BUS_ADDRESS=' | head -1 "
+        "| cut -d= -f2-); "
+        "qdbus org.kde.KWin /KWin org.kde.KWin.supportInformation "
+        "2>/dev/null | grep -iE 'aegis-shell|lockWindow|caption|geometry' "
+        "| tail -40; echo W41KWIN-END", settle=8)
+    body_k = kwin_info.split("W41KWIN-END")[0].strip()
+    log("w41 kwin window list at locked:\n" + "\n".join(
+        "  | " + ln for ln in body_k.splitlines()[-24:]) if body_k
+        else "  | (kwin supportInformation empty)")
     lum_locked = _lum(f"{OUT}/08-locked.png")
     w41_lock_ok = lum_locked < lum_base * 0.8
     log(f"w41 lock render: lum base {lum_base:.1f} -> locked "
@@ -3717,23 +3742,34 @@ def main():
         + ("PASS — the scrim rendered" if w41_lock_ok else
            "FAIL — the lock surface never painted (Util.locked did not "
            "flip or the Lock window is invisible)"))
-    serial.run("export XDG_RUNTIME_DIR=/run/user/$(id -u); "
+    unlock_out = serial.run("export XDG_RUNTIME_DIR=/run/user/$(id -u); "
                "SHELLPID=$(pgrep -f '/usr/bin/aegis-shell' | head -1); "
                "export DBUS_SESSION_BUS_ADDRESS=$(tr '\\0' '\\n' "
                "< /proc/$SHELLPID/environ "
                "| grep '^DBUS_SESSION_BUS_ADDRESS=' | head -1 "
                "| cut -d= -f2-); "
                "busctl --user call org.aegis.Shell /org/aegis/Shell "
-               "org.aegis.Shell.unlock ss aegis ''; echo W41UNLOCK-OK",
-               settle=6)
+               "org.aegis.Shell.unlock ss aegis '' 2>&1; "
+               "echo W41UNLOCK-OK", settle=6)
+    log("w41 unlock busctl -> "
+        + unlock_out.strip().replace("\n", " | ")[-160:])
     time.sleep(4)
     q.shot("08-unlocked")
     lum_unlocked = _lum(f"{OUT}/08-unlocked.png")
-    w41_unlock_ok = abs(lum_unlocked - lum_base) < 15
-    log(f"w41 unlock (PAM nullok): lum locked {lum_locked:.1f} -> "
-        f"unlocked {lum_unlocked:.1f} vs base {lum_base:.1f} "
-        + ("PASS — the session came back" if w41_unlock_ok else
-           "FAIL — still locked: check the aegis-auth helper output"))
+    # bt69 — the unlock verdict was vacuous when the lock never
+    # rendered (36.6 -> 36.6 "passed"). Only judge unlock when the
+    # lock actually painted; otherwise log N/A and gate nothing.
+    if w41_lock_ok:
+        w41_unlock_ok = abs(lum_unlocked - lum_base) < 15
+        log(f"w41 unlock (PAM nullok): lum locked {lum_locked:.1f} -> "
+            f"unlocked {lum_unlocked:.1f} vs base {lum_base:.1f} "
+            + ("PASS — the session came back" if w41_unlock_ok else
+               "FAIL — still locked: check the aegis-auth helper output"))
+    else:
+        w41_unlock_ok = True   # N/A — judged at the lock rung
+        log(f"w41 unlock (PAM nullok): N/A — the lock never rendered "
+            f"(lum {lum_locked:.1f} == base {lum_base:.1f}); judged at "
+            "the lock rung")
     if not w41_dockclick_ok:
         failures.append("W41: the dock-click-ONLY launch failed — the "
                         "user's exact path (tile tap -> "
