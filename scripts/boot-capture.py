@@ -3735,72 +3735,60 @@ def main():
         "  | " + ln for ln in body_x.splitlines()[-16:]) if body_x
         else "  | (introspection empty — the object is not Util)")
 
-    variants = [
-        ("busctl zero-arg",
-         "busctl --user call org.aegis.Shell /org/aegis/Shell "
-         "org.aegis.Shell.lock"),
-        ("busctl s-empty",
-         "busctl --user call org.aegis.Shell /org/aegis/Shell "
-         "org.aegis.Shell.lock s ''"),
-        ("busctl b-false",
-         "busctl --user call org.aegis.Shell /org/aegis/Shell "
-         "org.aegis.Shell.lock b false"),
-        ("gdbus zero-arg",
-         "gdbus call --session --dest org.aegis.Shell "
-         "--object-path /org/aegis/Shell "
-         "--method org.aegis.Shell.lock"),
-        ("qdbus zero-arg",
-         "qdbus org.aegis.Shell /org/aegis/Shell "
-         "org.aegis.Shell.lock"),
-    ]
-    w41_lock_ok = False
-    w41_lock_variant = ""
-    lum_locked = lum_base
-    for vi, (label, cmd) in enumerate(variants):
-        out = serial.run(export + cmd + " 2>&1; echo TRY-END", settle=3)
-        err = out.split("TRY-END")[0].strip().replace("\n", " | ")[:140]
-        time.sleep(2.5)
-        q.shot(f"08-locktry-{vi}")
-        lum_try = _lum(f"{OUT}/08-locktry-{vi}.png")
-        log(f"w41 lock try [{label}]: out='{err}' "
-            f"lum={lum_try:.1f} vs base {lum_base:.1f}")
-        if lum_try < lum_base * 0.8:
-            w41_lock_ok = True
-            w41_lock_variant = label
-            lum_locked = lum_try
-            break
-    log("w41 lock render: "
-        + (f"PASS via [{w41_lock_variant}] — the scrim rendered"
-           if w41_lock_ok else
-           "FAIL — no invocation shape darkened the frame; the "
-           "introspection excerpt above names the real signatures"))
+    # bt70 — busctl cannot parse Qt's zero-arg export ("Too few
+    # arguments." / "No such interface" depending on the shape) while
+    # gdbus returns () and the scrim VERIFIABLY renders (36.6 -> 24.9).
+    # The lock call is the proven gdbus shape, no more variants.
+    lock_out = serial.run(export + "gdbus call --session "
+                          "--dest org.aegis.Shell "
+                          "--object-path /org/aegis/Shell "
+                          "--method org.aegis.Shell.lock 2>&1; "
+                          "echo LOCKTRY-END", settle=4)
+    time.sleep(2.5)
+    q.shot("08-locked")
+    lum_locked = _lum(f"{OUT}/08-locked.png")
+    w41_lock_ok = lum_locked < lum_base * 0.8
+    log("w41 lock gdbus -> " + lock_out.strip().replace("\n", " | ")[:120])
+    log(f"w41 lock render: lum base {lum_base:.1f} -> locked "
+        f"{lum_locked:.1f} "
+        + ("PASS — the scrim rendered" if w41_lock_ok else
+           "FAIL — the lock surface never painted"))
 
-    # The PAM half is testable independently of the shell: the helper
+    # The PAM half, tested independently of the shell: the helper
     # contract is `aegis-auth <user>` + password on stdin, "OK" + rc 0
-    # on success (util.cpp Util::unlock pipes exactly that).
-    pam = serial.run("echo '' | /usr/bin/aegis-auth aegis 2>&1; "
+    # on success (util.cpp Util::unlock pipes exactly that). The live
+    # password is 'aegis' — the aegis-live-password.service unit sets
+    # it at boot because casper's legacy DES hash (U6aMy0wojraho) is
+    # unevaluable by modern libcrypt (unix_chkpwd rejected every
+    # password check for the account, nullok or not).
+    pam = serial.run("echo 'aegis' | /usr/bin/aegis-auth aegis 2>&1; "
                      "echo PAM-END", settle=5)
     pam_out = pam.split("PAM-END")[0].strip()
-    log(f"w41 pam helper direct: '{pam_out[:80]}' (need OK — empty "
-        "password rides nullok)")
+    pam_ok = pam_out.strip().endswith("OK")
+    log(f"w41 pam helper direct: '{pam_out[-90:]}' "
+        + ("PASS — PAM verified the documented live password"
+           if pam_ok else "FAIL — aegis-auth did not print OK"))
 
     if w41_lock_ok:
         unlock_out = serial.run(
-            export + "busctl --user call org.aegis.Shell "
-            "/org/aegis/Shell org.aegis.Shell.unlock ss aegis '' "
-            "2>&1; echo UNEND", settle=6)
-        log("w41 unlock busctl -> "
+            export + "gdbus call --session --dest org.aegis.Shell "
+            "--object-path /org/aegis/Shell "
+            "--method org.aegis.Shell.unlock "
+            "\"'aegis'\" \"'aegis'\" 2>&1; echo UNEND", settle=8)
+        log("w41 unlock gdbus -> "
             + unlock_out.strip().replace("\n", " | ")[:140])
         time.sleep(4)
         q.shot("08-unlocked")
         lum_unlocked = _lum(f"{OUT}/08-unlocked.png")
-        w41_unlock_ok = abs(lum_unlocked - lum_base) < 15
-        log(f"w41 unlock (PAM nullok): lum locked {lum_locked:.1f} -> "
+        # bt70 — the within-15 gate PASSED while the frame sat at the
+        # scrim level (24.9 vs base 36.6): require recovery to
+        # NEAR-BASE, not merely movement.
+        w41_unlock_ok = lum_unlocked > lum_base * 0.9
+        log(f"w41 unlock (PAM): lum locked {lum_locked:.1f} -> "
             f"unlocked {lum_unlocked:.1f} vs base {lum_base:.1f} "
             + ("PASS — the session came back" if w41_unlock_ok else
-               "FAIL — still locked; if the PAM helper above printed "
-               "OK, the unlock DBus signature needs the same "
-               "discovery treatment"))
+               "FAIL — still locked: check the aegis-auth helper "
+               "output and the aegis-live-password unit"))
     else:
         w41_unlock_ok = True   # N/A — the lock never rendered
         log("w41 unlock: N/A — the lock never rendered; judged at "
