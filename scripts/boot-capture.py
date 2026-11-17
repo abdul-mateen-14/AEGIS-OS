@@ -3650,6 +3650,103 @@ def main():
         failures.append("W44: the Files CSD right-edge drag grew the window "
                         "by < 100 px — the 8 px resize strips are not real "
                         "targets")
+    # ── W41 — the dock-click-ONLY launch rung (the user's exact path) ─
+    # Every open_app call above reaches the geometric dock click only as
+    # ladder fallback #3: attempt 0 (the DBus launch) always wins in CI,
+    # so the path the USER exercises — tap a dock tile, the shell runs
+    # Util.activateOrLaunch — was structurally untested (the v0.6.68
+    # VMware report "apps not working not even opening" could hide
+    # exactly there). This rung clicks the tile DIRECTLY: no bus call,
+    # no serial nohup. The calculator is closed first so the click is a
+    # real LAUNCH, not an activation no-op.
+    serial.run("pkill -f aegis-calculator >/dev/null 2>&1; sleep 1; "
+               "echo W41KILL-OK", settle=2)
+    time.sleep(2)
+    q.shot("08-dockclick-base")
+    idx_dc = tile_index.get("aegis-calculator", None)
+    if idx_dc is None:
+        idx_dc = 6          # the calculator rode click_idx=6 at 04d
+    q.mouse_abs(W // 2, int(H * NEUTRAL_Y), W, H)
+    time.sleep(0.8)
+    q.click(*tiles[idx_dc], W, H)
+    time.sleep(18)
+    q.shot("08-dockclick-open")
+    d_dc = diff_px(thumb(f"{OUT}/08-dockclick-open.png"),
+                   thumb(f"{OUT}/08-dockclick-base.png"))
+    lv_dc = serial.run("pgrep -af aegis-calculator | head -2; "
+                       "echo W41DC-END", settle=2)
+    lv_dc = lv_dc.split("W41DC-END")[0].strip()
+    w41_dockclick_ok = d_dc > 6 and "aegis-calculator" in lv_dc
+    log(f"w41 dock-click-only launch: diff-vs-base={d_dc:.1f} "
+        f"liveness={'alive' if 'aegis-calculator' in lv_dc else 'DEAD'} "
+        + ("PASS — the tile click launched the app"
+           if w41_dockclick_ok else
+           "FAIL — see ~/.local/state/aegis/launch/aegis-calculator.log "
+           "in the guest for the launch stderr"))
+
+    # ── W41 — the lock screen end-to-end rung (LAST: a stuck lock can
+    # no longer poison earlier rungs) ─────────────────────────────────
+    # The lock surface was a confirmed orphan (nothing ever called
+    # lock()); the CC power-row button ships in v0.6.68. This rung
+    # proves the whole chain: DBus lock() -> the scrim renders ->
+    # unlock(user, password) -> PAM (nullok on the live user) -> the
+    # desktop comes back. The state contract rides mean luminance: the
+    # 42% ink scrim must pull the frame's mean down hard, and unlock
+    # must give it back.
+    def _lum(png):
+        im = Image.open(png).convert("L")
+        px = list(im.getdata())
+        return sum(px) / max(1, len(px))
+
+    q.shot("08-lock-base")
+    lum_base = _lum(f"{OUT}/08-lock-base.png")
+    serial.run("export XDG_RUNTIME_DIR=/run/user/$(id -u); "
+               "SHELLPID=$(pgrep -f '/usr/bin/aegis-shell' | head -1); "
+               "export DBUS_SESSION_BUS_ADDRESS=$(tr '\\0' '\\n' "
+               "< /proc/$SHELLPID/environ "
+               "| grep '^DBUS_SESSION_BUS_ADDRESS=' | head -1 "
+               "| cut -d= -f2-); "
+               "busctl --user call org.aegis.Shell /org/aegis/Shell "
+               "org.aegis.Shell.lock; echo W41LOCK-OK", settle=4)
+    time.sleep(3)
+    q.shot("08-locked")
+    lum_locked = _lum(f"{OUT}/08-locked.png")
+    w41_lock_ok = lum_locked < lum_base * 0.8
+    log(f"w41 lock render: lum base {lum_base:.1f} -> locked "
+        f"{lum_locked:.1f} "
+        + ("PASS — the scrim rendered" if w41_lock_ok else
+           "FAIL — the lock surface never painted (Util.locked did not "
+           "flip or the Lock window is invisible)"))
+    serial.run("export XDG_RUNTIME_DIR=/run/user/$(id -u); "
+               "SHELLPID=$(pgrep -f '/usr/bin/aegis-shell' | head -1); "
+               "export DBUS_SESSION_BUS_ADDRESS=$(tr '\\0' '\\n' "
+               "< /proc/$SHELLPID/environ "
+               "| grep '^DBUS_SESSION_BUS_ADDRESS=' | head -1 "
+               "| cut -d= -f2-); "
+               "busctl --user call org.aegis.Shell /org/aegis/Shell "
+               "org.aegis.Shell.unlock ss aegis ''; echo W41UNLOCK-OK",
+               settle=6)
+    time.sleep(4)
+    q.shot("08-unlocked")
+    lum_unlocked = _lum(f"{OUT}/08-unlocked.png")
+    w41_unlock_ok = abs(lum_unlocked - lum_base) < 15
+    log(f"w41 unlock (PAM nullok): lum locked {lum_locked:.1f} -> "
+        f"unlocked {lum_unlocked:.1f} vs base {lum_base:.1f} "
+        + ("PASS — the session came back" if w41_unlock_ok else
+           "FAIL — still locked: check the aegis-auth helper output"))
+    if not w41_dockclick_ok:
+        failures.append("W41: the dock-click-ONLY launch failed — the "
+                        "user's exact path (tile tap -> "
+                        "Util.activateOrLaunch) is broken; the DBus "
+                        "ladder cannot mask it any more")
+    if not w41_lock_ok:
+        failures.append("W41: the lock surface never rendered — the "
+                        "lock() trigger or the Lock window is dead")
+    if not w41_unlock_ok:
+        failures.append("W41: the PAM unlock did not return the "
+                        "desktop — the session is still locked after "
+                        "unlock()")
+
     if not w44_terminal_ok:
         failures.append("W44: the Konsole right-edge drag grew the window "
                         "by < 100 px — the decorated (aurorae) resize path "
