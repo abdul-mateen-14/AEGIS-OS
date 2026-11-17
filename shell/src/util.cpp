@@ -696,6 +696,16 @@ void Util::nudgeKWinConfig()
 
 void Util::powerAction(const QString &action)
 {
+    // W41 (2026-11-17) — the lock screen was a confirmed orphan: Lock.qml
+    // is instantiated and unlock() works through the PAM helper, but
+    // NOTHING ever called lock() (no shortcut, no tile — grep proved zero
+    // references outside the property line). The Control Center power row
+    // is the trigger that clicks reliably everywhere (the user's own Calm
+    // taps prove pointer input works); "lock" rides the same dispatcher.
+    if (action == QStringLiteral("lock")) {
+        lock();
+        return;
+    }
     QString systemctlAction;
     if (action == QStringLiteral("suspend"))
         systemctlAction = QStringLiteral("suspend");

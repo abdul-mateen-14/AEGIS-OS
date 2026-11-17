@@ -241,7 +241,13 @@ Window {
                             spacing: 10
 
                             Repeater {
+                                // W41 — "Lock Screen" leads the row (macOS
+                                // order). The row sits BELOW the sliders, so
+                                // adding the fourth button cannot shift the
+                                // w66 calibrated strip; the row height (36)
+                                // is unchanged.
                                 model: [
+                                    { label: "Lock Screen", action: "lock" },
                                     { label: "Suspend",   action: "suspend" },
                                     { label: "Restart",   action: "reboot" },
                                     { label: "Shut Down", action: "shutdown" }
@@ -249,7 +255,7 @@ Window {
 
                                 delegate: Rectangle {
                                     required property var modelData
-                                    width: (parent.width - 20) / 3
+                                    width: (parent.width - 30) / 4
                                     height: 36
                                     radius: 10
                                     color: powerMa.containsMouse
