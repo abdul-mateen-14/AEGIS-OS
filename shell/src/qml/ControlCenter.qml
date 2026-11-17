@@ -178,7 +178,21 @@ Window {
                                 onToggled: {
                                     if (Activity.calm) {
                                         Activity.calm = false
-                                        Governor.setAutoMode(true)
+                                        // W41 vmware bug report (2026-11-17):
+                                        // "tapping on calm doesn't reverse it".
+                                        // The old off-branch re-enabled auto
+                                        // mode — on a software rasterizer
+                                        // (VMware llvmpipe) every animated
+                                        // frame violates the 22 ms rung, so
+                                        // the machine demoted straight back
+                                        // to C within 2 s and the exit looked
+                                        // one-way. Leaving Calm is an explicit
+                                        // user choice: PIN Tier A (the battery
+                                        // rule still overrides a pin —
+                                        // evaluate() checks batteryCalm before
+                                        // any pinned tier). Auto mode stays
+                                        // the default at startup.
+                                        Governor.setTier("A")
                                     } else {
                                         Activity.calm = true
                                         Governor.setTier("C")
