@@ -33,6 +33,15 @@ apt-get install -y --no-install-recommends \
     libpam0g-dev \
     file
 
+echo "=== QML duplicate-key guard ==="
+# W41 bt72 — a duplicate Component.onCompleted in Dock.qml made the
+# QML engine refuse the whole file ("Property value set multiple
+# times"); Main.qml failed to load and the shell exited at STARTUP,
+# two red boot runs before anyone looked at the guest console. The
+# C++ build does not parse QML, so Shell CI needs this structural
+# check: duplicate keys are always load-fatal in QML.
+python3 "$ROOT/scripts/qml-dup-check.py" "$ROOT/shell/src/qml"
+
 echo "=== Building aegis-shell ==="
 cd "$ROOT/shell"
 dpkg-buildpackage -us -uc -b -j"$(nproc)"

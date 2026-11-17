@@ -50,7 +50,9 @@ Window {
             aegisGlassRect = Qt.rect(tray.x, tray.y,
                                      tray.width, tray.height)
     }
-    Component.onCompleted: publishGlassRect()
+    // published from the dockRoot's ONE Component.onCompleted below —
+    // a second handler here is "Property value set multiple times"
+    // (bt72: the whole Main.qml load fails and the shell exits)
 
     // W52 — the exclusive zone follows the tray state so maximized
     // windows keep the macOS contract (stop above the RESTING dock;
@@ -123,7 +125,9 @@ Window {
         Util.publishDockTileMap(parts.join(";"))
     }
 
-    Component.onCompleted: { publishTileMap(); publishReserve() }
+    Component.onCompleted: {
+        publishTileMap(); publishReserve(); publishGlassRect()
+    }
     // the layer-shell configure assigns the window position AFTER the
     // component completes — republish when it lands and once later
     onXChanged: publishTileMap()
