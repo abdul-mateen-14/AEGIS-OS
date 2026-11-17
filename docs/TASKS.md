@@ -1,3 +1,45 @@
+## W41 — the user's v0.6.67 VMware bug report: triage + first fixes (2026-11-17, fc79ab2)
+The user re-tested v0.6.67 in VMware and filed seven issues. Triage
+against the code:
+1. "no splash, only black screen" — the vmwgfx-in-initramfs hook
+   (v0.6.58+) IS in the ISO and the CI vmware-svga leg shows "vmwgfx
+   IS loaded" but display_capable=False (W48-F1, diagnosed not
+   asserted): CI cannot reproduce a display on the emulated SVGA, so
+   the real-Workstation failure mode is still unproven. NEW: a verbose
+   GRUB entry (no quiet/splash, loglevel=7) names the stalled stage.
+2. "boot menu buttons doesn't work, just auto boots" — FIXED: timeout
+   was 1 s; the menu flashed past before the VM console took keyboard
+   focus. Now 5 s + the verbose entry + the compatibility entry.
+3. "tapping on calm doesn't reverse it" — FIXED: the Calm-exit branch
+   called setAutoMode(true); on llvmpipe every animated frame violates
+   the 22 ms rung, so the auto machine demoted back to C within 2 s —
+   one-way by physics. Exit now PINS Tier A (battery rule still
+   overrides a pin). Magnify+blur restore is proven reachable: the
+   user's own tap-into-Calm vanished both effects through setTier("C"),
+   so setTier("A") rides the same path back (T21's repaint fix makes
+   it visible).
+4. "no lock screen" — CONFIRMED placeholder: Lock.qml exists and is
+   instantiated in Main.qml but NOTHING ever sets Util.locked=true
+   (grep: zero references outside the property line). No shortcut, no
+   idle trigger. NEXT CYCLE: wire Meta+L + a CC tile + the PAM check.
+5. "apps not working, not even opening" — the harness opens apps via
+   DBus Util.launch (ladder 1) or serial nohup (ladder 2); geometric
+   dock clicks are only fallback 3, so the USER'S exact path (dock
+   tile click) is likely untested in CI. The W24 launch-log channel
+   exists for this: ~/.local/state/aegis/launch/<app>.log holds every
+   launch's stderr — ask the user for those files. NEXT CYCLE: add a
+   harness rung that opens an app EXCLUSIVELY via geometric dock
+   click, and audit activateOrLaunch's activation branch.
+6. "upper surface of dock becomes blur" — liveBlur covers the dock's
+   FULL WINDOW RECT (the T21 wayland fix); if the dock window is
+   taller than the dock visual, blur bleeds above the pill. NEXT
+   CYCLE: clip the dock's blur region to its visual bounds.
+7. "feels like placeholders" — Lock is one confirmed orphan; the rest
+   needs the same wiring audit (one grep per surface: instantiated but
+   never triggered).
+Pushed fc79ab2 (Calm pin + GRUB); Shell CI runs on it. Release +
+boot-test cycle next turn once CI is green.
+
 ## T21 SHIPPED — the liveBlur toggle is CAUSALLY proven end-to-end (2026-11-16, Boot Test 43905464285 GREEN)
 - `w66 blur pixel A/B (wayland): on 1.58 -> off 11.86 -> restored 1.58
   PASS` (ratio 7.5x; calibration predicted 7.0) + `w66 blur state
