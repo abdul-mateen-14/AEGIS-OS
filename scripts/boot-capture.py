@@ -2210,10 +2210,34 @@ def main():
     # T7 — one traffic-light anatomy, asserted on the two fresh captures
     # (Files CSD shell band vs Terminal aurorae band). Runs BEFORE anything
     # else can cover the windows; a miss fails the release right here.
+    # bt72 (44136332922) — a mid-run session-bus hiccup ("Connection
+    # refused" on the user scope) left the Files capture windowless and
+    # the T7 assert hard-exited the run BEFORE the lock/blur rungs.
+    # One self-heal: re-open Files directly (bypassing the bus), re-
+    # capture, retry the assert once; the successful capture REPLACES
+    # 02-files.png so every downstream consumer sees the same window.
     try:
         header_geometry_assert(f"{OUT}/02-files.png", f"{OUT}/03-terminal.png")
     except SystemExit:
-        raise
+        log("header assert retry: re-opening Files (the 02 capture may "
+            "be windowless from a session-bus hiccup)")
+        serial.run("nohup aegis-files >/dev/null 2>&1 & sleep 1; "
+                   "echo FILES-RETRY", settle=2)
+        time.sleep(14)
+        q.shot("02-files-retry")
+        try:
+            header_geometry_assert(f"{OUT}/02-files-retry.png",
+                                   f"{OUT}/03-terminal.png")
+        except SystemExit:
+            log("header assert retry: still no anatomy — the Files "
+                "window never painted; see 02-files-retry.png in the "
+                "artifacts")
+            sys.exit(1)
+        except Exception as e:
+            log(f"header geometry assert crashed on retry: {e}")
+            sys.exit(1)
+        shutil.copyfile(f"{OUT}/02-files-retry.png", f"{OUT}/02-files.png")
+        log("header assert retry: PASS on the re-captured Files window")
     except Exception as e:
         log(f"header geometry assert crashed: {e}")
         sys.exit(1)
