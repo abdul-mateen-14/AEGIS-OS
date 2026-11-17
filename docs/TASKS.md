@@ -1,3 +1,32 @@
+## W41 v0.6.69 SHIPPED — the lock screen works END-TO-END, Boot Test 44112294293 GREEN (2026-11-17)
+- bt70's discovery rung cracked the "no lock screen" residual into two
+  independent causes, both fixed and verified in bt71:
+  (1) busctl cannot parse Qt's zero-arg method export — four invocation
+  shapes all died in the CLI parser ("Too few arguments." /
+  "No such interface" / "Too few parameters for signature.") while
+  `gdbus call --method org.aegis.Shell.lock` returned `()` and the
+  scrim VERIFIABLY rendered (36.6 -> 24.9). The harness rides gdbus
+  now; the shell's DBus surface was never broken.
+  (2) casper creates the live user with the legacy DES hash
+  U6aMy0wojraho, which modern libcrypt cannot evaluate — unix_chkpwd
+  rejected EVERY password check for the account (bt70's direct
+  aegis-auth probe: "password check failed"), nullok or not.
+  aegis-live-password.service now sets the documented live password
+  `aegis` before the display manager starts; Calamares
+  remove-live-autologin strips the unit from installed systems so real
+  users keep their own password.
+- bt71 rung physics, all PASS: dock-click launch (diff 5.9, alive),
+  lock render (36.6 -> 24.9), PAM direct (`OK`), unlock
+  (24.9 -> 36.6 == base). The unlock gate now demands recovery to
+  NEAR-BASE (>0.9x) — bt70's within-15 gate "passed" while the frame
+  sat at scrim level, a vacuous verdict now structurally impossible.
+- The lock chain the user gets on the live ISO: CC -> Lock Screen ->
+  the ink scrim paints over the desktop -> type `aegis` -> PAM verifies
+  -> the desktop returns byte-for-byte.
+- Still open (queued): dock blur clip to the pill's visual bounds
+  (v0.6.70), and the user-data asks (launch logs + verbose boot stage)
+  for the VMware apps/splash bugs.
+
 ## W41 v0.6.68 SHIPPED — Boot Test 44062473317 GREEN (2026-11-17)
 - w66 holds on the 4-button power row: `on 1.64 -> off 11.86 ->
   restored 1.64 PASS` (7.2x), ZERO asserts failed — the Lock Screen
