@@ -1,3 +1,20 @@
+## W41 v0.6.68 SHIPPED — Boot Test 44062473317 GREEN (2026-11-17)
+- w66 holds on the 4-button power row: `on 1.64 -> off 11.86 ->
+  restored 1.64 PASS` (7.2x), ZERO asserts failed — the Lock Screen
+  button and the Calm pin did not move the calibrated strip.
+- Shipping in this ISO for the user's VMware re-test:
+  (1) Calm exit PINS Tier A — the toggle is no longer one-way on
+  llvmpipe (fc79ab2);
+  (2) GRUB menu 5 s + a "verbose boot diagnostics" entry (no
+  quiet/splash, loglevel=7) — the black-splash VM now names its
+  stalled stage (fc79ab2);
+  (3) Lock Screen leads the CC power row -> Util::lock() — the lock
+  surface finally has a trigger (06ec39b).
+- Still open (queued): geometric-dock-click-only harness rung (the
+  user's app-launch path is untested in CI), lock end-to-end rung,
+  dock blur clip to the pill's visual bounds, and the user-data asks
+  (launch logs + verbose boot stage).
+
 ## W41 — the user's v0.6.67 VMware bug report: triage + first fixes (2026-11-17, fc79ab2)
 The user re-tested v0.6.67 in VMware and filed seven issues. Triage
 against the code:
