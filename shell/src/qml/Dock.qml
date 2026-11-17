@@ -39,6 +39,19 @@ Window {
     property string stateName: "expanded"        // expanded | sliver | hidden
     property int hoverIndex: -1
 
+    // W41 #6 — the dock window is 340 px tall (room for the magnify
+    // overflow and the add pill) but the GLASS is only the tray pill.
+    // main.cpp's applyShellBlur reads aegisGlassRect to clip the blur
+    // region to the pill; the full-window region blurred the desktop
+    // above the pill ("upper surface of dock becomes blur").
+    property var aegisGlassRect
+    function publishGlassRect() {
+        if (tray.width > 0 && tray.height > 0)
+            aegisGlassRect = Qt.rect(tray.x, tray.y,
+                                     tray.width, tray.height)
+    }
+    Component.onCompleted: publishGlassRect()
+
     // W52 — the exclusive zone follows the tray state so maximized
     // windows keep the macOS contract (stop above the RESTING dock;
     // hidden reclaims the strip). The numbers mirror main.cpp
@@ -279,6 +292,12 @@ Window {
             bottom: parent.bottom
             bottomMargin: Tokens.dockMargin
         }
+        // keep the blur clip current (the pill's width breathes with
+        // magnification)
+        onXChanged: dockRoot.publishGlassRect()
+        onYChanged: dockRoot.publishGlassRect()
+        onWidthChanged: dockRoot.publishGlassRect()
+        onHeightChanged: dockRoot.publishGlassRect()
         // V1 — the pill's horizontal padding grows by the same delta the
         // magnified icons add: the row always grew the tray with it, but
         // the PADDING stayed 6 px, so the end tiles kept kissing the

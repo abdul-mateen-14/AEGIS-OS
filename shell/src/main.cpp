@@ -457,7 +457,26 @@ int main(int argc, char *argv[])
                             .arg(win->width())
                             .arg(win->height())
                             .arg(live));
-                const QRegion region(0, 0, win->width(), win->height());
+                // W41 #6 — clip to the window's VISUAL glass bounds when
+                // the QML publishes them (Dock.qml's aegisGlassRect: the
+                // tray pill). The full window rect blurred the desktop
+                // above the pill — the dock window is 340 px tall while
+                // the glass is 64.
+                QRegion region(0, 0, win->width(), win->height());
+                const QVariant glassRect = win->property("aegisGlassRect");
+                if (glassRect.canConvert<QRectF>()) {
+                    const QRectF gr = glassRect.toRectF();
+                    if (gr.isValid() && gr.width() > 0 && gr.height() > 0
+                        && gr.width() <= win->width()
+                        && gr.height() <= win->height())
+                        region = QRegion(gr.toRect());
+                }
+                blurLog(QStringLiteral("region %1 %2,%3 %4x%5")
+                            .arg(rung)
+                            .arg(region.boundingRect().x())
+                            .arg(region.boundingRect().y())
+                            .arg(region.boundingRect().width())
+                            .arg(region.boundingRect().height()));
                 if (wayland)
                     BlurManager::instance().apply(win, live, region);
                 else

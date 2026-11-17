@@ -3691,6 +3691,69 @@ def main():
            "FAIL — see ~/.local/state/aegis/launch/aegis-calculator.log "
            "in the guest for the launch stderr"))
 
+    # ── W41-R3 — the dock blur CLIP A/B (user report 6) ─────────────
+    # The dock window is 340 px tall while its glass is the ~64 px tray
+    # pill; the old full-window region blurred the desktop ABOVE the
+    # pill. The fix: Dock.qml publishes the pill rect as
+    # aegisGlassRect, main.cpp clips the blur region to it and blurlogs
+    # "region dock X,Y WxH". Verdict = (a) the blurlog's dock region is
+    # CLIPPED (height well under the window height — proves the new
+    # protocol state causally), AND (b) the wallpaper band above the
+    # pill does NOT move on a liveBlur off/on toggle (with the bug the
+    # band smoothed under the full rect, off-energy >> on-energy). The
+    # pointer rests on the calculator tile here, so the dock is
+    # expanded and the pill is static across the three shots.
+    clip_box = (W // 2 - 70, H - 130, W // 2 + 70, H - 90)
+    dock_on = grad_energy(f"{OUT}/08-dockclick-open.png", clip_box)
+    set_blur(False)
+    time.sleep(1.5)
+    q.shot("08-blurclip-off")
+    dock_off = grad_energy(f"{OUT}/08-blurclip-off.png", clip_box)
+    set_blur(True)
+    time.sleep(1.5)
+    q.shot("08-blurclip-restored")
+    dock_restored = grad_energy(f"{OUT}/08-blurclip-restored.png",
+                                clip_box)
+    blog = serial.run("cat $XDG_RUNTIME_DIR/aegis/blurlog 2>/dev/null "
+                      "| grep -E 'reset dock|region dock' | tail -6; "
+                      "echo BL-DOCK", settle=3)
+    blog_body = blog.split("BL-DOCK")[0].strip()
+    log("w41 dock blurlog tail:\n" + "\n".join(
+        "  | " + ln for ln in blog_body.splitlines()[-6:]) if blog_body
+        else "  | (no dock blurlog lines — blur never applied)")
+    win_h = clip_h = None
+    for ln in blog_body.splitlines():
+        t = ln.split()
+        if len(t) >= 4 and t[1] == "reset" and t[2] == "dock":
+            try:
+                win_h = int(t[3].split("x")[1])
+            except (IndexError, ValueError):
+                pass
+        if len(t) >= 5 and t[1] == "region" and t[2] == "dock":
+            try:
+                clip_h = int(t[4].split("x")[1])
+            except (IndexError, ValueError):
+                pass
+    clipped = (win_h is not None and clip_h is not None
+               and clip_h < win_h - 40)
+    dev = (max(abs(dock_off - dock_on),
+               abs(dock_restored - dock_on)) / max(0.01, dock_on))
+    stable = dev <= 0.35
+    w41_clip_ok = clipped and stable
+    log(f"w41 dock blur clip: region_h={clip_h} window_h={win_h} "
+        f"clipped={'yes' if clipped else 'NO'}; above-pill energy "
+        f"on={dock_on:.2f} off={dock_off:.2f} restored="
+        f"{dock_restored:.2f} dev={dev:.2f} "
+        + ("PASS — the blur stops at the pill's top edge"
+           if w41_clip_ok else
+           "FAIL — either the region is still the full window rect "
+           "(clipped=NO) or the band above the pill moved with the "
+           "toggle (dev>0.35: the wallpaper behind it is blurred)"))
+    if not w41_clip_ok:
+        failures.append("W41: the dock blur is not clipped to the "
+                        "pill's visual bounds — the desktop above the "
+                        "dock pill blurs (user report 6)")
+
     # ── W41 — the lock screen end-to-end rung (LAST: a stuck lock can
     # no longer poison earlier rungs) ─────────────────────────────────
     # The lock surface was a confirmed orphan (nothing ever called
