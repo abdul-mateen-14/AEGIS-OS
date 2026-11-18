@@ -3096,11 +3096,56 @@ def main():
         # shell sends the full window rect, so KWin renders the blur on
         # wayland too. The thresholds are the T20.8 x11-tuned ones (blur
         # smears the strip -> energy drops when blur is on).
+        # bt73 (44155514095) — the pixel A/B measured the DOCK WINDOW's
+        # full-rect bleed: the strip (y540..620) sits above the pill
+        # inside the 340 px dock window (y460..800), so bt71's
+        # 1.66/11.86 PASS was the bleed itself — the exact bug the user
+        # reported ("upper surface of dock becomes blur"). The clip fix
+        # removed the bleed, and the wallpaper wherever blur legitimately
+        # renders is too smooth to A/B (recalibration from bt73 frames:
+        # every candidate box ratio <= 1.01, pill-band delta 0.28). The
+        # end-to-end verdict moves to the PROTOCOL contract: the
+        # blurlog must show the dock window's blur region CLIPPED to
+        # its glass (the dock shares the "panel" rung with the top bar,
+        # so pair each reset with its region and keep the tall window).
+        dock_win = None
+        dock_region = None
+        cur = None
+        for ln in body.splitlines():
+            t = ln.split()
+            if len(t) >= 4 and t[1] == "reset" and t[2] == "panel":
+                try:
+                    wh = t[3].split("x")
+                    cur = (int(wh[0]), int(wh[1]))
+                except (IndexError, ValueError):
+                    cur = None
+            elif len(t) >= 5 and t[1] == "region" and t[2] == "panel":
+                try:
+                    xy = t[3].split(",")
+                    wh = t[4].split("x")
+                    reg = (int(xy[0]), int(xy[1]),
+                           int(wh[0]), int(wh[1]))
+                except (IndexError, ValueError):
+                    reg = None
+                if cur and cur[1] >= 200 and reg:
+                    dock_win, dock_region = cur, reg
+        w66_clip_ok = (dock_win is not None and dock_region is not None
+                       and dock_region[3] < dock_win[1] - 40)
+        dw = f"{dock_win[0]}x{dock_win[1]}" if dock_win else "?"
+        dr = (f"{dock_region[0]},{dock_region[1]} "
+              f"{dock_region[2]}x{dock_region[3]}"
+              if dock_region else "?")
+        log(f"w66 blur protocol contract: dock window {dw} region "
+            f"{dr} " + ("PASS — the dock's blur is clipped to its "
+                        "glass" if w66_clip_ok else
+                        "FAIL — no clipped dock region in the blurlog"))
         w66_pixel_ok = (a > 0.5 and b > a * 1.25 and c < a * 1.2 + 1.0)
-        w66_ab_ok = w66_state_ok and w66_pixel_ok
         log(f"w66 blur pixel A/B ({session_type}): on {a:.2f} -> "
-            f"off {b:.2f} -> restored {c:.2f} "
-            + ("PASS" if w66_pixel_ok else "FAIL"))
+            f"off {b:.2f} -> restored {c:.2f} (informational — the "
+            "strip measured the dock's full-rect bleed before the "
+            "clip fix; the wallpaper under real blur is too smooth "
+            "to A/B)")
+        w66_ab_ok = w66_state_ok and w66_clip_ok
         # T20.8 — 0.7 was a knife edge on the run-2/3 wallpaper (3.66 vs
         # the 3.647 bound — a 0.013 miss); the causal A/B above is the
         # primary verdict now, 0.75 keeps the tint-only fallback sane.
@@ -3665,11 +3710,8 @@ def main():
     if not w66_ab_ok:
         failures.append("W66: the liveBlur toggle contract broke (the "
                         "governor.conf override did not follow the DBus "
-                        "setEffect calls"
-                        + (" — and the pixel A/B moved nothing on x11)"
-                           if W66_PIXEL_AB["applicable"]
-                           else f" on session {W66_PIXEL_AB['session']}"
-                           ) + ")")
+                        "setEffect calls, or the blurlog shows no "
+                        "clipped dock region")
     if not w44_files_ok:
         failures.append("W44: the Files CSD right-edge drag grew the window "
                         "by < 100 px — the 8 px resize strips are not real "
@@ -3728,49 +3770,65 @@ def main():
     # pointer rests on the calculator tile here, so the dock is
     # expanded and the pill is static across the three shots.
     clip_box = (W // 2 - 70, H - 130, W // 2 + 70, H - 90)
+    pill_box = (W // 2 - 240, H - 70, W // 2 + 240, H - 10)
     dock_on = grad_energy(f"{OUT}/08-dockclick-open.png", clip_box)
+    pill_on = grad_energy(f"{OUT}/08-dockclick-open.png", pill_box)
     set_blur(False)
     time.sleep(1.5)
     q.shot("08-blurclip-off")
     dock_off = grad_energy(f"{OUT}/08-blurclip-off.png", clip_box)
+    pill_off = grad_energy(f"{OUT}/08-blurclip-off.png", pill_box)
     set_blur(True)
     time.sleep(1.5)
     q.shot("08-blurclip-restored")
     dock_restored = grad_energy(f"{OUT}/08-blurclip-restored.png",
                                 clip_box)
+    # the dock SHARES the "panel" rung with the top bar (configureSurface
+    # names both "panel") — bt73's rung grepped "dock" and found nothing
     blog = serial.run("cat $XDG_RUNTIME_DIR/aegis/blurlog 2>/dev/null "
-                      "| grep -E 'reset dock|region dock' | tail -6; "
+                      "| grep -E 'reset panel|region panel' | tail -8; "
                       "echo BL-DOCK", settle=3)
     blog_body = blog.split("BL-DOCK")[0].strip()
     log("w41 dock blurlog tail:\n" + "\n".join(
-        "  | " + ln for ln in blog_body.splitlines()[-6:]) if blog_body
-        else "  | (no dock blurlog lines — blur never applied)")
+        "  | " + ln for ln in blog_body.splitlines()[-8:]) if blog_body
+        else "  | (no panel blurlog lines — blur never applied)")
     win_h = clip_h = None
+    cur = None
     for ln in blog_body.splitlines():
         t = ln.split()
-        if len(t) >= 4 and t[1] == "reset" and t[2] == "dock":
+        if len(t) >= 4 and t[1] == "reset" and t[2] == "panel":
             try:
-                win_h = int(t[3].split("x")[1])
+                wh = t[3].split("x")
+                cur = (int(wh[0]), int(wh[1]))
             except (IndexError, ValueError):
-                pass
-        if len(t) >= 5 and t[1] == "region" and t[2] == "dock":
+                cur = None
+        elif len(t) >= 5 and t[1] == "region" and t[2] == "panel":
             try:
-                clip_h = int(t[4].split("x")[1])
+                wh = t[4].split("x")
+                reg_h = int(wh[1])
             except (IndexError, ValueError):
-                pass
+                reg_h = None
+            # the dock is the TALL panel-class window (340 px); the top
+            # bar is 28 px — keep the last tall window's region pair
+            if cur and cur[1] >= 200 and reg_h is not None:
+                win_h, clip_h = cur[1], reg_h
     clipped = (win_h is not None and clip_h is not None
                and clip_h < win_h - 40)
     dev = (max(abs(dock_off - dock_on),
                abs(dock_restored - dock_on)) / max(0.01, dock_on))
     stable = dev <= 0.35
     w41_clip_ok = clipped and stable
+    pill_dev = abs(pill_off - pill_on)
     log(f"w41 dock blur clip: region_h={clip_h} window_h={win_h} "
         f"clipped={'yes' if clipped else 'NO'}; above-pill energy "
         f"on={dock_on:.2f} off={dock_off:.2f} restored="
-        f"{dock_restored:.2f} dev={dev:.2f} "
+        f"{dock_restored:.2f} dev={dev:.2f} (static = clipped, the "
+        f"wallpaper there is too smooth to blur-signal); pill band "
+        f"on={pill_on:.2f} off={pill_off:.2f} delta={pill_dev:.2f} "
+        f"(informational) "
         + ("PASS — the blur stops at the pill's top edge"
            if w41_clip_ok else
-           "FAIL — either the region is still the full window rect "
+           "FAIL — either the blurlog shows no clipped dock region "
            "(clipped=NO) or the band above the pill moved with the "
            "toggle (dev>0.35: the wallpaper behind it is blurred)"))
     if not w41_clip_ok:
