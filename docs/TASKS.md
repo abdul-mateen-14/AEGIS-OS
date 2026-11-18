@@ -1,3 +1,32 @@
+## W41 v0.6.72 SHIPPED — boot can no longer be a silent black screen (bt76 44354941174 GREEN, 2026-11-18)
+- User follow-up: "boot still needs improvement in VM and simple
+  laptop." Recon: the 0200 hook already registers aegis-mark (two-step)
+  + force-loads virtio_gpu/bochs/vmwgfx/qxl/cirrus with the W49 assert,
+  open-vm-tools ships, and the strict splash signature paints on the
+  QEMU legs — the residual user-facing failure is plymouthd losing the
+  display on real vmwgfx/weak-GPU stacks while `console=ttyS0,
+  115200n8` was the LAST console= (=/dev/console), so a failed splash
+  meant a screen with nothing on it.
+- 9179bdf (both boot paths — UEFI grub.cfg verbatim + BIOS isolinux
+  bootappend-live): (1) tty1 is now the LAST console= on every
+  user-facing entry — boot text lands on the SCREEN when the splash
+  dies; (2) plymouth.ignore-serial-consoles keeps plymouthd off the
+  serial head; (3) NEW fourth menu entry "Start Aegis OS (no splash —
+  visible boot text)" (plymouth.enable=0, no quiet, loglevel=4) — the
+  guaranteed-visible boot one keypress away in the 5 s menu, alongside
+  the nomodeset compatibility entry for GPUs.
+- bt75 (44349263774) failed fast with a NEW failure class: the Boot
+  Test downloads the tag's release assets, and the dispatch went out
+  ~35 s after the tag push, before Release 44349226213 published
+  SHA256SUMS ("Not Found" x3). Sequencing rule: dispatch the Boot Test
+  only after the release reports 3-4 assets. Run 2 (bt76 44354941174)
+  GREEN: the full matrix passed (W39 toggles, W41 dock-click + lock
+  36.0->24.8 + PAM 'OK' + unlock to base, W50 blur binds, W51/W52/
+  W54-W64) and vmwgfx IS loaded.
+- Still on the user: if the splash blacks out on real VMware, boot the
+  "no splash" entry and send the visible boot text (or the verbose
+  entry's tail) — that names the exact stalled stage.
+
 ## W41 v0.6.71 SHIPPED — the dock blur clip verified, Boot Test 44233615969 GREEN (2026-11-18)
 - The arc cost two broken runs + one lesson. v0.6.70 (c3ac985) added a
   SECOND Component.onCompleted to dockRoot — QML refuses the whole file
