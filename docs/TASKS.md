@@ -1,3 +1,43 @@
+## W41 v0.6.71 SHIPPED — the dock blur clip verified, Boot Test 44233615969 GREEN (2026-11-18)
+- The arc cost two broken runs + one lesson. v0.6.70 (c3ac985) added a
+  SECOND Component.onCompleted to dockRoot — QML refuses the whole file
+  ("Property value set multiple times"), Main.qml failed to load, the
+  shell exited at startup (bt72 44136332922 + 44142355315: every DBus
+  launch hit a dead shell, pgrep empty -> proc//environ, dock-slots
+  12 -> 10 was the frozen-frame parse). Shell CI could not see it: the
+  C++ build does not parse QML. The broken release was deleted.
+- Guards shipped in bc903cc: scripts/qml-dup-check.py (walks every
+  .qml, fails the build on duplicate property/handler keys — verified
+  against the exact bt72 pattern; wired into build-shell.sh, CI prints
+  "qml-dup-check: OK (23 files)") + the T7 self-heal (a windowless
+  Files capture relaunches over serial and retries the header assert
+  once).
+- bt73 (44155514095) then "failed" the blur rungs while the lock
+  chain and dock-click all PASSED — the post-mortem found the gates
+  were measuring the BUG: the w66 strip (y540..620) sits above the
+  pill INSIDE the 340 px dock window, so bt71's 1.66/11.86 pixel PASS
+  was the full-rect bleed itself, and the clip rung grepped "dock"
+  while the dock shares the "panel" rung (configureSurface). The
+  blurlog showed the fix working all along: region panel 275,270
+  730x64. Recalibration from bt73 frames (scripts/w66-recalibrate.py)
+  proved no pixel A/B survives the fix — the wallpaper under real
+  blur is too smooth (every candidate ratio <= 1.01, pill delta 0.28).
+- f01a806 rewired the verdicts to the PROTOCOL contract, and bt74
+  (44233615969) confirms: `w66 blur protocol contract: dock window
+  1280x340 region 275,270 730x64 PASS — the dock's blur is clipped to
+  its glass` + the state contract (conf follows the toggles) + the
+  clip rung (region_h=64 window_h=340 clipped=yes; the above-pill
+  band static at dev=0.00 = the correct clipped behavior) + the FULL
+  W41 chain (dock-click launch, lock render 36.0 -> 24.9, PAM 'OK',
+  unlock back to base). User report 6 CLOSED.
+- Watch-item (not a regression gate): bt73's guest console showed QML
+  noise absent in bt71 (CalendarPopover modelData ReferenceErrors,
+  Util.setCalendarOpen "is not a function" — the method EXISTS as a
+  property WRITE accessor, QML must set the property instead of
+  calling it, Panel/ControlCenter "Unable to assign [undefined] to
+  bool" on Activity.calm timing). One-time startup-binding variance
+  on llvmpipe; fix the CalendarPopover call shape in a quiet cycle.
+
 ## W41 v0.6.69 SHIPPED — the lock screen works END-TO-END, Boot Test 44112294293 GREEN (2026-11-17)
 - bt70's discovery rung cracked the "no lock screen" residual into two
   independent causes, both fixed and verified in bt71:
