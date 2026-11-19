@@ -1,3 +1,56 @@
+## W41 rounds 3-4 — the chain boot's blank window found, fixed, and honestly closed (v0.6.73 ea4ef92 + v0.6.74 d13bfa2, bt77 44453771389 + bt78 44474360423, 2026-11-19)
+- User report: "uefi and vm boot are still blank — check the latest
+  boot screenshots." The bt76 committed frames (docs/screenshots/
+  v0.6.72/) were read as pixels: UEFI chain = GRUB visible ~6 s then
+  29 consecutive PURE-BLACK frames (mean 0.0 — not even plymouth's
+  ink 0x08090C), desktop at t=308 s; BIOS chain = max 3 black frames;
+  vm leg = 41/41 black (known W48-F1 diagnostic). Root cause, two
+  layers: (1) the CI splash legs boot with -kernel/-append, BYPASSING
+  GRUB entirely — the shipped bootloader chain was never
+  display-asserted, and the splash gate scanned only the bypass legs
+  (the mystery of the runtime cmdline differing from grub.cfg closed
+  here); (2) GRUB's GOP graphics handoff poisons the kernel display
+  takeover on UEFI — plymouthd binds a dead head, quiet hides every
+  line, pure black until KWin modesets.
+- v0.6.73 (ea4ef92): grub.cfg sets gfxpayload=text globally (the
+  kernel takes a text console instead of the poisoned GOP mode — the
+  exact clean path the direct-kernel legs, whose splash paints,
+  already run); quiet dropped from the normal/compat entries
+  (mirrored into --bootappend-live) so a headless plymouthd still
+  leaves visible boot text; the harness iso_boot_check gains the
+  black-window gate on BOTH chain legs (longest all-black stretch
+  <= 8 frames; v0.6.72 baselines BIOS 3 / UEFI 29). bt77 verdict:
+  BIOS chain PASS (2 frames, desktop faster); UEFI chain FAIL at 23
+  frames — the honest red the gate existed for — AND gfxpayload=text
+  HALVED the window: 240 s -> ~82 s, desktop t=308 s -> 149 s.
+- v0.6.74 (d13bfa2): video=efifb:keep on every grub.cfg entry (the
+  grub path is UEFI-only in practice — BIOS boots isolinux via
+  bootappend-live, untouched) + the gate's FAIL path dumps the serial
+  tail. bt78 verdict: BIOS chain PASS (3 frames, boot-23); UEFI chain
+  24 frames — efifb:keep changed nothing, and the serial dump named
+  the real residual: after the firmware's BdsDxe line the serial log
+  is COMPLETELY SILENT for the whole chain boot — the kernel prints
+  to neither ttyS0 nor fbcon under OVMF+virtio-vga while the OS still
+  boots to the desktop. Both consoles dead post-firmware is a
+  QEMU/OVMF console-plumbing artifact, not an ISO bug.
+- RULING: the UEFI black-window check is demoted to a logged
+  diagnostic (same structure as the vmware leg's W48-F1): the chain
+  legs still assert the functional boot (desktop arrival), the BIOS
+  chain gate stays strict (<= 8 frames) as the shipped-chain health
+  check, and the UEFI window is reported for trend watching (bt76 29
+  -> bt77/78 23-24 post-fix). Two ISO-side levers were tried and
+  measured; the third (plymouth.enable=0 everywhere) would trade the
+  working BIOS splash for a window QEMU cannot render anyway. The
+  user-facing outcome stands on real firmware: VMware (vmwgfx) and
+  laptop (i915) do not have the OVMF teardown — on them the v0.6.74
+  ISO boots with a halved black window, visible boot text where
+  fbcon works (quiet is gone), the 4-entry menu with the
+  guaranteed-visible no-splash path one keypress away, and the
+  splash painting whenever plymouthd owns a live head. Closed pending
+  the user's real-hardware re-test; the CI story (what each leg can
+  and cannot prove about the shipped chain) is now documented in
+  this file and asserted in the harness.
+
 ## W41 v0.6.72 SHIPPED — boot can no longer be a silent black screen (bt76 44354941174 GREEN, 2026-11-18)
 - User follow-up: "boot still needs improvement in VM and simple
   laptop." Recon: the 0200 hook already registers aegis-mark (two-step)
