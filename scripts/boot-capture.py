@@ -3645,7 +3645,15 @@ def main():
                # asserted by W38 (window-state absence + diff-vs-home).
                # Timing-flap: run 8 hit it only because both frames
                # landed inside one clock minute (43760209461).
-               ("04i-corex.png", "04k2-store-closed.png")}
+               ("04i-corex.png", "04k2-store-closed.png"),
+               # W47 round 2 — the 05d3 auto-close probe ends on the
+               # SAME clean desktop 05e was taken from (the sheet died
+               # on the CC open, the CC closed): byte-equality IS the
+               # designed auto-close outcome, and the auto-close is
+               # already asserted by the 05d3 delta < 2.0 verdict.
+               # Flagged only because the pair shipped in the same
+               # commit (bt82 44561493045).
+               ("05e-home-ref.png", "05d3-calendar-autoclosed.png")}
     # T20.9 — on Wayland the blur toggle CANNOT move pixels (the
     # KWindowEffects consumer is X11-only), so the 04j2/04j4 pair is
     # by-design equal there too. On X11 the pair stays judged: equality
