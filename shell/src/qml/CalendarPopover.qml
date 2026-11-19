@@ -44,9 +44,25 @@ Window {
         // both auto-close predicates were dead (the captures only
         // ever tested open). The assignment is the property face.
         function onCcOpenChanged() { if (Util.ccOpen) Util.calendarOpen = false }
+    }
+    // the window predicate closes ONLY on a count INCREASE — a new
+    // trackable window APPEARED. util.cpp emits windowTrackingChanged
+    // on EVERY windowwatch payload, and KWin's windowListChanged fires
+    // even for the popover's own mapping (the count excludes it via
+    // the aegis-shell class, but the signal does not): the v0.6.75
+    // "count > 0" gate closed the sheet the instant it opened whenever
+    // any app window was already up (bt80 44537980422 / bt81
+    // 44543160518: 05d byte-identical to the clean desktop; bt79's
+    // dark-mode plate measured 19.5 vs the desktop's 22.8 — the delta
+    // that W47 had been passing on). Files opening 0→1 still closes;
+    // a window closing 2→1 keeps the sheet.
+    property int lastWinCount: Util.workspaceWindows
+    Connections {
+        target: Util
         function onWindowTrackingChanged() {
-            if (Util.workspaceWindows > 0 && Util.calendarOpen)
+            if (Util.workspaceWindows > lastWinCount && Util.calendarOpen)
                 Util.calendarOpen = false
+            lastWinCount = Util.workspaceWindows
         }
     }
 
