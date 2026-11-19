@@ -50,6 +50,13 @@
   the user's real-hardware re-test; the CI story (what each leg can
   and cannot prove about the shipped chain) is now documented in
   this file and asserted in the harness.
+- Verification run bt79 = 44479710981 (same v0.6.74 ISO, harness
+  with the demotion) GREEN and the numbers are the best of the war:
+  BIOS chain 1 all-black frame (strict gate, was 3), desktop at
+  boot-23; UEFI chain 21 frames (trend 29 -> 23 -> 24 -> 21), desktop
+  at boot-28, diagnostic logged with the artifact explanation. The
+  shipped chain's display health is asserted where firmware allows
+  it and reported where it does not.
 
 ## W41 v0.6.72 SHIPPED — boot can no longer be a silent black screen (bt76 44354941174 GREEN, 2026-11-18)
 - User follow-up: "boot still needs improvement in VM and simple
