@@ -1,3 +1,60 @@
+## W47 rounds 1-3 — the calendar popover's auto-close: dead code, self-kill, and the honest gate (v0.6.75 cb0cd67 + v0.6.76 c10d2fe, bt80-85, 2026-11-19)
+- The watch-item (property-WRITE call shape) audited REAL: both of the
+  CalendarPopover's auto-close writes called Util.setCalendarOpen(false)
+  as a METHOD, but setCalendarOpen is the Q_PROPERTY WRITE accessor,
+  not Q_INVOKABLE (util.h:68's own comment names toggleCalendar as the
+  QML face) — QML threw TypeError at runtime and the sheet never
+  auto-closed when the Control Center opened or a real window appeared.
+  The captures only ever asserted open + toggle-close, which is why CI
+  never caught it. Fixed to the property face (Util.calendarOpen =
+  false) + the 05d3 harness step (re-open, CC open kills it, CC close,
+  sheet-region diff vs the clean desktop) — v0.6.75, cb0cd67.
+- v0.6.75's boot tests bt80 (44537980422) + bt81 (44543160518) red with
+  an IDENTICAL new signature: 05d delta=0.0, all calendar frames byte-
+  identical (W58) = the popover never survived its own open. Root
+  cause, sealed by pixel forensics: util.cpp emits
+  windowTrackingChanged on EVERY windowwatch payload and KWin's
+  windowListChanged fires even for the popover's own mapping (the
+  count excludes the aegis-shell class — windowwatch main.js
+  isShellClass — but the signal does not), so with any app window
+  already open the now-working assignment inside the
+  "workspaceWindows > 0" gate closed the sheet the instant it opened.
+  The proof: bt79's 05d measured 19.5 = the dark-mode popover plate
+  over the 22.8 desktop — W47 had been passing on a 3.3 delta with the
+  sheet open; bt81's 05d was the bare desktop.
+- The fix: gate the predicate on a count INCREASE (lastWinCount tracks
+  the payload count; close only when a NEW trackable window appeared —
+  files opening 0->1 closes, a window closing 2->1 keeps the sheet,
+  the popover's own mapping leaves the count equal) — v0.6.76,
+  c10d2fe. Verified REPRODUCIBLE: bt82 (44561493045), bt83
+  (44566924094), bt84 (44572547162) all show 05d delta=9.1 (LIVE
+  popover), 05d2 0.0 (toggle-close), 05d3 0.0 "(auto-close works)" —
+  W47 green on all three asserts for the first time ever, four runs
+  running.
+- The reds bt82-84 were harness bookkeeping, each closed in one step:
+  W58's 05e == 05d3 by-design pair (both frames capture the clean
+  desktop after the sheet cycle — equality IS the designed outcome)
+  registered (ed5b654), then its REVERSED orientation (sorted(
+  os.listdir) sees "05d3-" before "05e-"; the dedup tuple arrives
+  (digests[h], fn) = (05d3, 05e)) — both orientations registered
+  (d947d26), then bt84's W39 timing flap: the knob scan PROVED the
+  click landed (the post-click re-scan moved the dim knob
+  (425,381) -> (441,381)) but the governor.conf grep came back empty
+  within settle=2 under llvmpipe load — the rotate/dim greps retry 4x
+  ~5 s before failing (a001453).
+- bt85 (44578557015) GREEN — the full suite passes: 05d delta=9.1,
+  05d3 auto-close works, W39 PASS with the retry, zero asserts. The
+  auto-close behavior is now shipped AND asserted: the popover closes
+  when the Control Center opens or a new window appears, stays open
+  otherwise, and the gate can never again pass on a dead handler
+  (05d3 requires a live open-die-close cycle every run).
+- Watch-items left open: the dark-probe click deterministically fails
+  to apply dark mode (05c2 shows the CC still light on bt79 AND bt81 —
+  latent, pre-existing, the probe's assert is lenient); the apps-bug
+  launch logs in the CI artifacts read clean (every app launches,
+  libEGL/vaapi warnings are benign under virtio) — the user's own
+  logs from the affected machine are still wanted.
+
 ## W41 rounds 3-4 — the chain boot's blank window found, fixed, and honestly closed (v0.6.73 ea4ef92 + v0.6.74 d13bfa2, bt77 44453771389 + bt78 44474360423, 2026-11-19)
 - User report: "uefi and vm boot are still blank — check the latest
   boot screenshots." The bt76 committed frames (docs/screenshots/
