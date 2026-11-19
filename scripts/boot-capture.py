@@ -4080,6 +4080,35 @@ def iso_boot_check(uefi):
     n = wait_desktop(q, proc)
     mode = "UEFI (OVMF)" if uefi else "BIOS (SeaBIOS)"
     if n >= 0:
+        # W41 round 3 — bt76's committed UEFI frames: GRUB visible for
+        # ~6 s, then 29 consecutive PURE-BLACK frames (~240 s) before
+        # the desktop at t=308 s, while the leg verdict said PASS. The
+        # desktop-pass alone shipped exactly the blank boot the user
+        # keeps reporting. The chain legs now assert the blank window
+        # itself: a short black stretch is the normal decompress
+        # handoff (BIOS baseline: 3 frames), the splash ink (val~5-9)
+        # and boot text both count as content. v0.6.72 baseline:
+        # BIOS max run 3, UEFI max run 29 — 8 separates them cleanly.
+        worst = run = i = 0
+        while True:
+            path = os.path.join(OUT, f"boot-{i:02d}.png")
+            if not os.path.exists(path):
+                break
+            im = Image.open(path).convert("L")
+            px = list(im.getdata())
+            if sum(px) / len(px) < 1.0:
+                run += 1
+                worst = max(worst, run)
+            else:
+                run = 0
+            i += 1
+        log(f"iso-boot {mode}: longest all-black stretch before the "
+            f"desktop = {worst} frame(s)")
+        if worst > 8:
+            log(f"iso-boot {mode}: the chain boot blacks out for "
+                f"{worst} frames between the bootloader and the "
+                "desktop — the user's blank-boot failure — FAIL")
+            return 1
         log(f"iso-boot {mode}: desktop from the ISO chain at "
             f"boot-{n:02d} — PASS")
         return 0
