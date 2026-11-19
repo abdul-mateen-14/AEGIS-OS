@@ -3653,6 +3653,10 @@ def main():
                # already asserted by the 05d3 delta < 2.0 verdict.
                # Flagged only because the pair shipped in the same
                # commit (bt82 44561493045).
+               # bt83 44566924094 — sorted(os.listdir) sees "05d3-"
+               # BEFORE "05e-" ('3' < 'e'), so the dedup tuple arrives
+               # REVERSED from creation order; register both.
+               ("05d3-calendar-autoclosed.png", "05e-home-ref.png"),
                ("05e-home-ref.png", "05d3-calendar-autoclosed.png")}
     # T20.9 — on Wayland the blur toggle CANNOT move pixels (the
     # KWindowEffects consumer is X11-only), so the 04j2/04j4 pair is
