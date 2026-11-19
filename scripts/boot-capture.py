@@ -2482,10 +2482,20 @@ def main():
                 log(f"w63 disc probe failed: {e}")
 
             if click_knob(f"{OUT}/04n-wallpaper.png", 0):
-                out = serial.run("grep -c '^wallpaperRotateDaily=true' "
-                                 "~/.config/aegis/tokens.conf 2>/dev/null; "
-                                 "echo ROT-END", settle=2)
-                w39_rotate_ok = out.split("ROT-END")[0].strip() == "1"
+                # bt84 44572547162 — the knob moved but the config grep
+                # came back empty within settle=2: the settings write
+                # lagged under llvmpipe load. The assert's intent is the
+                # override chain WROTE the key, not that it wrote within
+                # 2 s — retry before failing (4 tries x ~5 s).
+                w39_rotate_ok = False
+                for _ in range(4):
+                    out = serial.run("grep -c '^wallpaperRotateDaily=true' "
+                                     "~/.config/aegis/tokens.conf 2>/dev/null; "
+                                     "echo ROT-END", settle=2)
+                    w39_rotate_ok = out.split("ROT-END")[0].strip() == "1"
+                    if w39_rotate_ok:
+                        break
+                    time.sleep(3)
                 log("w39 rotate toggle: "
                     + ("tokens.conf verdict PASS" if w39_rotate_ok
                        else "FAIL — " + out.strip()[-80:]))
@@ -2493,10 +2503,18 @@ def main():
                 # restore off — the knob moved; re-scan
                 click_knob(f"{OUT}/04n2-wallpaper-on.png", 0)
             if click_knob(f"{OUT}/04n-wallpaper.png", 1):
-                out = serial.run("grep -c 'wallpaperDim=true' "
-                                 "~/.config/aegis/governor.conf 2>/dev/null; "
-                                 "echo DIM-END", settle=2)
-                w39_dim_ok = out.split("DIM-END")[0].strip() == "1"
+                # same timing flap as the rotate grep above (bt84: the
+                # post-click re-scan showed the knob at (441, 381) —
+                # the UI toggled, the write lagged)
+                w39_dim_ok = False
+                for _ in range(4):
+                    out = serial.run("grep -c 'wallpaperDim=true' "
+                                     "~/.config/aegis/governor.conf 2>/dev/null; "
+                                     "echo DIM-END", settle=2)
+                    w39_dim_ok = out.split("DIM-END")[0].strip() == "1"
+                    if w39_dim_ok:
+                        break
+                    time.sleep(3)
                 log("w39 focus-dim toggle: "
                     + ("governor.conf verdict PASS" if w39_dim_ok
                        else "FAIL — " + out.strip()[-80:]))
