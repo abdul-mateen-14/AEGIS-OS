@@ -4107,7 +4107,14 @@ def iso_boot_check(uefi):
         if worst > 8:
             log(f"iso-boot {mode}: the chain boot blacks out for "
                 f"{worst} frames between the bootloader and the "
-                "desktop — the user's blank-boot failure — FAIL")
+                "desktop — the user's blank-boot failure — FAIL; "
+                "serial.log tail (plymouthd's own words):")
+            try:
+                for line in list(open("serial.log",
+                                      errors="replace"))[-30:]:
+                    log("  | " + line.rstrip()[:200])
+            except OSError:
+                pass
             return 1
         log(f"iso-boot {mode}: desktop from the ISO chain at "
             f"boot-{n:02d} — PASS")
