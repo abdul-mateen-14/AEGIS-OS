@@ -3399,6 +3399,34 @@ def main():
                                    cal_region(f"{OUT}/05e-home-ref.png")))
         log(f"05d2-calendar-closed: sheet-region delta={cal_closed_delta:.1f}")
         calendar_ok = calendar_ok and cal_closed_delta < 2.0
+        # W47 round 2 — the AUTO-CLOSE predicates (util.h:51 WRITE
+        # shape): the popover must also die when the Control Center
+        # opens (onCcOpenChanged). The captures only ever asserted
+        # open + toggle-close, so the dead Util.setCalendarOpen(false)
+        # method calls (TypeError at runtime — setCalendarOpen is the
+        # Q_PROPERTY WRITE, not Q_INVOKABLE; util.h:68 names
+        # toggleCalendar as the QML face) shipped silently. Re-open
+        # the sheet, open the CC, close it, and diff the sheet region
+        # against the clean desktop: if the popover survived the CC
+        # open it is still there after the CC closes — the region
+        # stays lit regardless of how the two sheets overlap.
+        cal_autoclose_ok = False
+        q.click(W - 108, 14, W, H)      # popover open again
+        time.sleep(2.0)
+        q.key("meta_l", "s")            # CC opens -> popover must die
+        time.sleep(2.0)
+        q.key("meta_l", "s")            # CC closed
+        time.sleep(1.5)
+        q.shot("05d3-calendar-autoclosed")
+        cal_ac_delta = max(abs(a - b) for a, b in
+                           zip(cal_region(f"{OUT}/05d3-calendar-autoclosed.png"),
+                               cal_region(f"{OUT}/05e-home-ref.png")))
+        cal_autoclose_ok = cal_ac_delta < 2.0
+        ac_msg = ("auto-close works" if cal_autoclose_ok
+                  else "popover SURVIVED the CC open")
+        log(f"05d3-calendar-autoclosed: sheet-region delta="
+            f"{cal_ac_delta:.1f} ({ac_msg})")
+        calendar_ok = calendar_ok and cal_autoclose_ok
     except Exception as e:
         log(f"calendar probe failed: {e}")
 
@@ -3977,7 +4005,9 @@ def main():
                         "stamp did not land")
     if not calendar_ok:
         failures.append("W47: the clock click did not open the calendar "
-                        "popover (or the second click did not close it)")
+                        "popover, the second click did not close it, or "
+                        "the popover survived the Control Center opening "
+                        "(the auto-close WRITE shape)")
     if drm_clean is False:
         failures.append("W41: the virtio journal carries plymouthd "
                         "DRM-master/headless lines — the renderer is "

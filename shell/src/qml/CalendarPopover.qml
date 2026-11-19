@@ -38,10 +38,15 @@ Window {
     // ── the W20-style predicates: one sheet at a time, gone on focus loss ──
     Connections {
         target: Util
-        function onCcOpenChanged() { if (Util.ccOpen) Util.setCalendarOpen(false) }
+        // util.h:68 — toggleCalendar is the Q_INVOKABLE face;
+        // setCalendarOpen is the Q_PROPERTY WRITE and NOT invokable,
+        // so the method-call shape threw TypeError at runtime and
+        // both auto-close predicates were dead (the captures only
+        // ever tested open). The assignment is the property face.
+        function onCcOpenChanged() { if (Util.ccOpen) Util.calendarOpen = false }
         function onWindowTrackingChanged() {
             if (Util.workspaceWindows > 0 && Util.calendarOpen)
-                Util.setCalendarOpen(false)
+                Util.calendarOpen = false
         }
     }
 
