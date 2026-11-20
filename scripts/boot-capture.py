@@ -2455,31 +2455,28 @@ def main():
                 # at the true antialiased corner (~10 px left), and the
                 # +8..+41 strip landed on the SELECTED-ROW highlight
                 # pill (26 px run) — legitimate UI, not a glyph chip.
-                # Guard against the alignment: a row whose tint run
-                # exceeds 60 px anywhere across the sidebar body is a
-                # row pill (pills span ~200 px; glyph chips ~36 px) and
-                # is EXCLUDED from the strip measurement — a reintroduced
-                # chip is still caught because chips live on non-pill
-                # rows too and every row without a pill is still judged.
+                # bt89 44727107456 killed the first exclusion: a row's
+                # longest tint run > 60 px never fires because the
+                # row's own white LABEL TEXT breaks the pill's tint
+                # into segments < 60 px (the pill's pre-text segment
+                # IS the 26 px the strip measures). Coverage, not runs:
+                # a pill row accumulates ~200 px of tint across its
+                # width despite the gaps; a glyph chip row accumulates
+                # <= ~36 px. Rows with > 100 tint pixels anywhere in
+                # the sidebar body are pills and are EXCLUDED from the
+                # strip measurement — a reintroduced chip is still
+                # caught because chips live on non-pill rows too.
                 pill_rows = set()
                 for yy in range(stop + 90, min(stop + 550, H - 160)):
-                    run63 = best63 = 0
-                    prev63 = -9
+                    cov63 = 0
                     for xx in range(sx0 + 8, min(sx0 + 230, W)):
                         r, g, b = w63_px[xx, yy]
-                        hit63 = False
                         for tr, tg, tb in tints:
                             if (abs(r - tr) <= 40 and abs(g - tg) <= 40
                                     and abs(b - tb) <= 40):
-                                hit63 = True
+                                cov63 += 1
                                 break
-                        if hit63:
-                            run63 = run63 + 1 if prev63 == xx - 1 else 1
-                            best63 = max(best63, run63)
-                            prev63 = xx
-                        else:
-                            run63 = 0
-                    if best63 > 60:
+                    if cov63 > 100:
                         pill_rows.add(yy)
                 w63_mask = set()
                 for yy in range(stop + 90, min(stop + 550, H - 160)):
