@@ -2443,9 +2443,27 @@ def main():
             #       no fat 150-600 px^2 chips, the ID-card avatar
             #       (>= 600 px^2) whitelisted at exactly one.
             try:
-                stw = window_hairline(f"{OUT}/04n-wallpaper.png")
+                # W63 v6 (bt95 forensics, exact reproduction via the
+                # harness's own window_hairline): the plain call anchored
+                # on the PANEL (top y 52, run-start 203) — the band then
+                # started at y 142, sweeping wallpaper rows ABOVE the
+                # settings window (288 blue-wave "tint" hits) and the
+                # Aegis ID avatar's white mark (the 400px2 "chip" at
+                # x 209..228 y 179..198); the pane's toggle-switch knobs
+                # (x 416..434, 302px2 x2) sat 1 px inside the old
+                # sx0+232 edge. The anchor is now the WINDOW (y_from=110
+                # skips panel/island rows), and the x band ends at the
+                # sidebar divider (sx0+187 — the longest label ends ~350,
+                # the pane content starts ~395).
+                stw = window_hairline(f"{OUT}/04n-wallpaper.png",
+                                      y_from=110)
                 sx0 = stw[1] if stw else 200
-                stop = stw[0] if stw else 150
+                stop = stw[0] if stw else 160
+                if stop < 100:
+                    # the panel row won anyway — fall back to the
+                    # measured window top (bt94/95 captures)
+                    stop = 160
+                    sx0 = sx0 if sx0 > 150 else 203
                 w63_px = Image.open(
                     f"{OUT}/04n-wallpaper.png").convert("RGB").load()
                 tints = [(0x8B, 0x5C, 0xF6), (0x3E, 0x8B, 0xFF),
@@ -2479,9 +2497,19 @@ def main():
                 # accent — the sidebar itself carried none). The band is
                 # the sidebar now: x sx0..sx0+232 (the pane divider),
                 # y unchanged. The chips/avatars classifier is untouched.
+                # W63 v6b (measured on the bt95 capture): the sidebar is
+                # GLASS — the aurora wallpaper's blue waves bleed through
+                # it dimmed ((92,161,224) class), 93 hue-matching px
+                # scattered across the whole band. A whole-band tint
+                # assert is therefore unsound BY CONSTRUCTION: the bleed
+                # is background, not ink. The W45 regression this assert
+                # guards (tinted GLYPH ink) lives at the GLYPH COLUMN
+                # (18 px boxes at leftMargin 10): the tint assert runs
+                # there with a measured noise floor of 8 px — the old
+                # colored glyphs measured 1000+.
                 w63_tint_hits = 0
                 for yy in range(stop + 90, min(stop + 550, H - 160)):
-                    for xx in range(sx0, min(sx0 + 232, W)):
+                    for xx in range(sx0 + 8, min(sx0 + 42, W)):
                         r, g, b = w63_px[xx, yy]
                         for tr, tg, tb in tints:
                             if (abs(r - tr) <= 40 and abs(g - tg) <= 40
@@ -2490,7 +2518,7 @@ def main():
                                 break
                 w63_mask = set()
                 for yy in range(stop + 90, min(stop + 550, H - 160)):
-                    for xx in range(sx0, min(sx0 + 232, W)):
+                    for xx in range(sx0, min(sx0 + 187, W)):
                         r, g, b = w63_px[xx, yy]
                         if r > 170 and g > 170 and b > 170                                 and abs(r - g) < 30 and abs(g - b) < 30:
                             w63_mask.add((xx, yy))
@@ -2527,7 +2555,7 @@ def main():
                 chips63 = [a for _w, a in blob63 if 150 <= a < 600]
                 avatars63 = [a for _w, a in blob63 if a >= 600]
                 w63_disc_ok = ((not chips63) and len(avatars63) <= 1
-                               and w63_tint_hits == 0)
+                               and w63_tint_hits <= 8)
                 log("w63 sidebar blobs (W75 white ink): "
                     + ", ".join(f"{w}px/{a}px2" for w, a in sorted(
                         blob63, reverse=True))
