@@ -8,6 +8,7 @@ qml6-module-qtquick-layouts
 qml6-module-qtquick-templates
 qml6-module-qtqml-workerscript
 qml6-module-qtquick-window
+qml6-module-qtquick-effects
 # First-party apps (aegis-files / aegis-settings): FolderListModel for the
 # Files views, QtQuick.Dialogs for the Wallpaper "Choose image…" picker.
 qml6-module-qt-labs-folderlistmodel
