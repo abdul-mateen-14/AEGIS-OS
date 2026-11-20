@@ -147,7 +147,7 @@ def window_hairline(png, scan_to=260, y_from=40):
     """T7 anchor — the window's top hairline. Both anatomies draw one: the
     Files CSD GlassPanel borders white @ 0.14, the aurorae AegisLights
     frame's top edge stroke is the same white @ 0.14. A hairline row is a
-    long qualifying run (lum 36..170 — raised for the Liquid Glass 0.28 border; >= 60% of the best run) that also
+    long qualifying run (lum 36..150 — the Liquid Glass 0.28 border reads ~89, inside the window; >= 60% of the best run) that also
     SPIKES above its vertical neighbours (>= 10 lum) — wallpaper gradient
     rows run long but never spike. The TOPMOST such row wins: the Files
     toolbar hairline (top+96) and the aurorae band-bottom hairline
@@ -168,12 +168,14 @@ def window_hairline(png, scan_to=260, y_from=40):
         run_best = 0
         for x in range(W):
             v = px[x, y]
-            # Liquid Glass v1.6 — the border token went 0.14 ->
-            # 0.28 (lum ~89 over the dark wallpaper) and future
-            # rim brightness may reach 0.40 (~117): keep the
-            # anchor's ceiling above the token, the spike test
-            # does the disambiguation.
-            if 36 <= v <= 170:
+            # Liquid Glass v1.6 (bt88 44718243659) — the ceiling
+            # stays 150: raising it to 170 admitted a brighter
+            # wallpaper row on the SAME 12-files frame (the run
+            # grew 934 -> 1021 px, x_start 173 -> 90) and W64's
+            # strip landed inside the sidebar ([466], 0 cols).
+            # The 0.28 border reads lum ~89 — comfortably inside
+            # 36..150; the spike test does the disambiguation.
+            if 36 <= v <= 150:
                 if cur == 0:
                     run_start = x
                 cur += 1
