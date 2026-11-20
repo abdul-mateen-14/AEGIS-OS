@@ -3255,7 +3255,7 @@ def main():
             # window anchors Top+Right with margins (0,40,10,0) (main.cpp
             # ccWindow), 348 wide, QML height 388 since W68. Every W67/W68
             # box below is sheet-relative.
-            CCX1, CCY0, CCH = W - 10, 40, 388
+            CCX1, CCY0, CCH = W - 10, 40, 394   # W69: sliders 32 -> 36
             CCX0 = CCX1 - 348
             SB = CCY0 + CCH          # sheet bottom (428)
             plate = mean_lum(f"{OUT}/04j2-cc-over-files.png",
@@ -3328,6 +3328,49 @@ def main():
                 + " — want 64±2 wide (radius 32) — "
                 + ("PASS" if w68_circles_ok else
                    "FAIL — the circles are not 64 px or absent"))
+        except Exception as e:
+            log(f"w68 circle probe failed: {e}")
+
+        # W69 — the PILL probe (same SHA as the shape change): both slider
+        # tracks must carry a 24x20 white bar knob inside the track's
+        # y-band, and the level fill must be white-family, not accent
+        # (accent = state, white = level — the kit's own hierarchy). The
+        # x-vs-value match needs the value plumbed to serial; the x
+        # positions are logged every run until then.
+        w69_pills_ok = False
+        try:
+            im69 = Image.open(
+                f"{OUT}/04j2-cc-over-files.png").convert("RGB")
+            # slider rows: sheet y CCY0+16+30+12 + [82+12+44+12] = 236 ->
+            # slider 1 at 236..272, slider 2 at 284..320 (rows 36 tall)
+            knobs = []
+            for sy in (CCY0 + 236, CCY0 + 284):
+                track = im69.crop((CCX0 + 40, sy, CCX1 - 16, sy + 36))
+                tpx = track.load()
+                white = [(xx, yy) for yy in range(track.size[1])
+                         for xx in range(track.size[0])
+                         if tpx[xx, yy][0] > 225 and tpx[xx, yy][1] > 225
+                         and tpx[xx, yy][2] > 225]
+                if not white:
+                    knobs.append(None)
+                    continue
+                xs = [w0[0] for w0 in white]
+                ys = [w0[1] for w0 in white]
+                knobs.append((max(xs) - min(xs) + 1,
+                              max(ys) - min(ys) + 1,
+                              min(xs), min(ys)))
+            shapes_ok = all(k is not None and 22 <= k[0] <= 26
+                            and 18 <= k[1] <= 22 for k in knobs)
+            w69_pills_ok = shapes_ok
+            log(f"w69 pills: knobs "
+                + ", ".join("none" if k is None
+                            else f"{k[0]}x{k[1]}@x+{k[2]},y+{k[3]}"
+                            for k in knobs)
+                + " — want 24x20 bars in the track bands — "
+                + ("PASS" if w69_pills_ok else
+                   "FAIL — the knob is not the 24x20 pill bar"))
+        except Exception as e:
+            log(f"w69 pill probe failed: {e}")
         except Exception as e:
             log(f"w67/w68 probe failed: {e}")
     except Exception as e:

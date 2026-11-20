@@ -31,7 +31,8 @@ Window {
     // (the old 452 left a dead band under the footer).
     // W68 — 446 -> 388: one row of four 64 px circles + captions replaces
     // the two 64 px rectangle rows; the sheet keeps the snug fit.
-    height: 388
+    // W69 — 388 -> 394: the two slider rows grow 32 -> 36 for the pill.
+    height: 394
     flags: Qt.FramelessWindowHint
 
     // Tier C shortens every motion token — Table 17 fallback rung.
@@ -648,7 +649,9 @@ Window {
         signal committed()
 
         width: parent ? parent.width : 320
-        height: 32
+        // W69 — the pill is fat: 28 px track in a 36 px row (the 16 px
+        // mono glyphs ride vertically centered as before)
+        height: 36
 
         Canvas {
             id: sliderGlyph
@@ -674,32 +677,60 @@ Window {
             stepSize: 0.01
             onMoved: committed()
 
+            // W69 — glass pill sliders (the kit dropped accent-filled
+            // levels: volume/brightness read as white liquid; accent
+            // stays reserved for toggles and links — color = state,
+            // white = level). Track 28 px radius 14, white 0.16 fill,
+            // 0.18 hairline, the v1.6 lens-depth 2 px inner bottom
+            // shadow; the level fills white 0.85 up to the knob.
             background: Rectangle {
                 x: slider.leftPadding
-                y: slider.topPadding + slider.availableHeight / 2 - 2
+                y: slider.topPadding + slider.availableHeight / 2 - 14
                 width: slider.availableWidth
-                height: 4
-                radius: 2
-                color: Util.darkMode ? Qt.rgba(1, 1, 1, 0.14)
-                                     : Qt.rgba(0, 0, 0, 0.12)
+                height: 28
+                radius: 14
+                color: Util.darkMode ? Qt.rgba(1, 1, 1, 0.16)
+                                     : Qt.rgba(0, 0, 0, 0.10)
+                border.width: 1
+                border.color: Util.darkMode ? Qt.rgba(1, 1, 1, 0.18)
+                                            : Qt.rgba(0, 0, 0, 0.14)
 
+                // the level — white liquid up to the knob
                 Rectangle {
                     width: slider.visualPosition * parent.width
                     height: parent.height
-                    radius: 2
-                    color: Tokens.accent
+                    radius: 14
+                    color: Util.darkMode ? Qt.rgba(1, 1, 1, 0.85)
+                                         : Qt.rgba(0, 0, 0, 0.55)
+                }
+
+                // lens depth — the v1.6 inner bottom shadow, pill-sized
+                Rectangle {
+                    anchors {
+                        bottom: parent.bottom
+                        left: parent.left
+                        right: parent.right
+                        bottomMargin: 2
+                        leftMargin: 6
+                        rightMargin: 6
+                    }
+                    height: 2
+                    color: Qt.rgba(0, 0, 0, 0.10)
                 }
             }
 
+            // W69 — the knob is a 24x20 rounded bar (radius 10), white
+            // 0.92, riding the value as before
             handle: Rectangle {
-                x: slider.leftPadding + slider.visualPosition * slider.availableWidth - 7
-                y: slider.topPadding + slider.availableHeight / 2 - 7
-                width: 14
-                height: 14
-                radius: 7
-                color: "#FFFFFF"
+                x: slider.leftPadding + slider.visualPosition * slider.availableWidth - 12
+                y: slider.topPadding + slider.availableHeight / 2 - 10
+                width: 24
+                height: 20
+                radius: 10
+                color: Util.darkMode ? Qt.rgba(1, 1, 1, 0.92) : "#FFFFFF"
                 border.width: 1
-                border.color: Qt.rgba(0, 0, 0, 0.2)
+                border.color: Util.darkMode ? Qt.rgba(1, 1, 1, 0.25)
+                                            : Qt.rgba(0, 0, 0, 0.2)
             }
         }
     }
