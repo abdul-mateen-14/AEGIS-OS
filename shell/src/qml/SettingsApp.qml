@@ -228,34 +228,18 @@ Window {
                     anchors { fill: parent; margins: 10 }
                     spacing: 2
 
-                    // D6 — brand row: the 18 px mark + wordmark above the
-                    // Aegis ID rail (reviewer carry-over on v0.6.34; the
-                    // v1.3 ruling stands)
-                    Row {
-                        Layout.fillWidth: true
-                        Layout.leftMargin: 6
-                        Layout.topMargin: 2
-                        Layout.bottomMargin: 6
-                        spacing: 8
-
-                        Image {
-                            source: "aegis-mark.png"
-                            sourceSize: Qt.size(18, 18)
-                            width: 18; height: 18
-                            anchors.verticalCenter: parent.verticalCenter
-                        }
-                        Text {
-                            text: "Aegis"
-                            font { family: "Montserrat"; pixelSize: 13; weight: Font.DemiBold }
-                            color: Tokens.fg
-                            anchors.verticalCenter: parent.verticalCenter
-                        }
-                    }
-
+                    // W73 (owner order, v0.6.81) — the brand row is
+                    // GONE: the mark already lives in the island (T17) on
+                    // every desktop and in this window's own title; the
+                    // sidebar header was redundant chrome. The sidebar's
+                    // first element is the Aegis ID rail (topMargin 4 so
+                    // it does not glue to the window edge).
+                    //
                     // Aegis ID row — 38 px avatar + name + chevron (§6)
                     AbstractButton {
                         id: aegisRow
                         Layout.fillWidth: true
+                        Layout.topMargin: 4
                         Layout.preferredHeight: 56
                         property bool active: win.pane === 8
                         background: Rectangle {
@@ -268,20 +252,40 @@ Window {
                             Item {
                                 Layout.preferredWidth: 38; Layout.preferredHeight: 38
                                 Layout.alignment: Qt.AlignVCenter
+                                // W74 (owner order) — the clear-language
+                                // avatar: a glass circle (white 0.12 ink,
+                                // 0.22 hairline rim) — the blue gradient
+                                // disc dies; in the clear language the
+                                // accent lives only in the selected row's
+                                // pill, never in the avatar. White
+                                // initials signed in, the white mark
+                                // signed out (not "\u25CB"); a profile
+                                // photo, once the account carries one,
+                                // wins over both (the Apple pattern).
                                 Rectangle {
                                     anchors.fill: parent; radius: 19
-                                    gradient: Gradient {
-                                        GradientStop { position: 0; color: "#56B0FF" }
-                                        GradientStop { position: 1; color: "#1D6FEA" }
-                                    }
+                                    color: Util.darkMode
+                                           ? Qt.rgba(1, 1, 1, 0.12)
+                                           : Qt.rgba(0, 0, 0, 0.06)
+                                    border.width: 1
+                                    border.color: Util.darkMode
+                                                  ? Qt.rgba(1, 1, 1, 0.22)
+                                                  : Qt.rgba(0, 0, 0, 0.14)
+                                }
+                                Image {
+                                    anchors.centerIn: parent
+                                    visible: !AegisId.signedIn
+                                    source: "aegis-mark-white.png"
+                                    sourceSize: Qt.size(20, 20)
+                                    width: 20; height: 20
                                 }
                                 Text {
                                     anchors.centerIn: parent
-                                    text: AegisId.signedIn
-                                          ? Util.userInitials
-                                          : "\u25CB"
+                                    visible: AegisId.signedIn
+                                    text: Util.userInitials
                                     font { pixelSize: 14; weight: Font.Medium }
-                                    color: "#FFFFFF"
+                                    color: Util.darkMode
+                                           ? "#FFFFFF" : Tokens.ink
                                 }
                             }
                             ColumnLayout {
