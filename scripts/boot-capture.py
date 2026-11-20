@@ -2450,39 +2450,28 @@ def main():
                          (0x28, 0xC8, 0x40), (0xFF, 0x9F, 0x0A),
                          (0x5B, 0x8B, 0xFF), (0xFA, 0x2D, 0x48),
                          (0x4A, 0xC8, 0xC8), (0x6E, 0x7B, 0xFF)]
-                # LIQUID GLASS v1.6 (bt86 44689353406) — the border
-                # token went 0.14 -> 0.28, the hairline run now starts
-                # at the true antialiased corner (~10 px left), and the
-                # +8..+41 strip landed on the SELECTED-ROW highlight
-                # pill (26 px run) — legitimate UI, not a glyph chip.
-                # bt89 44727107456 killed the first exclusion: a row's
-                # longest tint run > 60 px never fires because the
-                # row's own white LABEL TEXT breaks the pill's tint
-                # into segments < 60 px (the pill's pre-text segment
-                # IS the 26 px the strip measures). Coverage, not runs:
-                # a pill row accumulates ~200 px of tint across its
-                # width despite the gaps; a glyph chip row accumulates
-                # <= ~36 px. Rows with > 100 tint pixels anywhere in
-                # the sidebar body are pills and are EXCLUDED from the
-                # strip measurement — a reintroduced chip is still
-                # caught because chips live on non-pill rows too.
-                pill_rows = set()
-                for yy in range(stop + 90, min(stop + 550, H - 160)):
-                    cov63 = 0
-                    for xx in range(sx0 + 8, min(sx0 + 230, W)):
-                        r, g, b = w63_px[xx, yy]
-                        for tr, tg, tb in tints:
-                            if (abs(r - tr) <= 40 and abs(g - tg) <= 40
-                                    and abs(b - tb) <= 40):
-                                cov63 += 1
-                                break
-                    if cov63 > 100:
-                        pill_rows.add(yy)
+                # W63 v3 (bt89 44727107456 forensics) — the old strip
+                # (sx0+8..+41) never reliably held the glyph column:
+                # the hairline run-start drifts with border brightness
+                # and wallpaper streaks, so bt85/bt88's strips sat in
+                # empty space (0px false-PASS) and bt86/bt89's landed
+                # on the AEGIS ID AVATAR — a legitimate filled blue
+                # circle (~37px) on the account card, NOT a glyph chip.
+                # Blob classification over the whole sidebar body:
+                #   - stroke glyphs (the shipped 1.8px family): thin
+                #     blobs, area < 150 px^2 even when a long horizontal
+                #     stroke (the monitor base) runs 14 px wide -> PASS
+                #   - the W45 regression (a filled chip disc behind a
+                #     glyph, calibrated 16 px wide): a FAT blob,
+                #     150 <= area < 600 px^2 -> FAIL
+                #   - the avatar: area >= 600 px^2 (the full circle is
+                #     ~980; even a scan-window-clipped chord measures
+                #     ~730) -> whitelisted, exactly ONE allowed
+                w63_px = Image.open(
+                    f"{OUT}/04n-wallpaper.png").convert("RGB").load()
                 w63_mask = set()
                 for yy in range(stop + 90, min(stop + 550, H - 160)):
-                    if yy in pill_rows:
-                        continue
-                    for xx in range(sx0 + 8, sx0 + 41):
+                    for xx in range(sx0, min(sx0 + 260, W)):
                         r, g, b = w63_px[xx, yy]
                         for tr, tg, tb in tints:
                             if (abs(r - tr) <= 40 and abs(g - tg) <= 40
@@ -2490,7 +2479,7 @@ def main():
                                 w63_mask.add((xx, yy))
                                 break
                 seen63 = set()
-                worst_run = 0
+                blob63 = []          # (widest_run, area)
                 for p63 in w63_mask:
                     if p63 in seen63:
                         continue
@@ -2510,18 +2499,27 @@ def main():
                     rows63 = {}
                     for xx, yy in comp63:
                         rows63.setdefault(yy, []).append(xx)
+                    wr63 = 0
                     for xs63 in rows63.values():
                         xs63.sort()
                         run63 = best63 = 1
                         for a63, b63 in zip(xs63, xs63[1:]):
                             run63 = run63 + 1 if b63 - a63 == 1 else 1
                             best63 = max(best63, run63)
-                        worst_run = max(worst_run, best63)
-                w63_disc_ok = worst_run <= 8
-                log("w63 sidebar glyphs: widest tint run "
-                    f"{worst_run}px — "
-                    + ("PASS (bare glyphs, no discs)" if w63_disc_ok
+                        wr63 = max(wr63, best63)
+                    blob63.append((wr63, len(comp63)))
+                chips63 = [a for _w, a in blob63 if 150 <= a < 600]
+                avatars63 = [a for _w, a in blob63 if a >= 600]
+                w63_disc_ok = (not chips63) and len(avatars63) <= 1
+                log("w63 sidebar blobs: "
+                    + ", ".join(f"{w}px/{a}px2" for w, a in sorted(
+                        blob63, reverse=True))
+                    + f" — chips {chips63 or 'none'}, "
+                    + f"avatars {len(avatars63)} — "
+                    + ("PASS (bare glyphs; the ID-card avatar "
+                       "whitelisted)" if w63_disc_ok
                        else "FAIL — a filled tint disc is back"))
+                w63_disc_ok = worst_run <= 8
             except Exception as e:
                 log(f"w63 disc probe failed: {e}")
 
