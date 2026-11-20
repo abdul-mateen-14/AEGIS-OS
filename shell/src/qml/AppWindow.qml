@@ -22,9 +22,15 @@ Item {
     Rectangle {
         anchors.fill: parent
         radius: 18
-        // Liquid Glass v1.6 — the body is translucent so the full-window blur (apps-main T21) manifests here: the wallpaper liquefies behind the content, the chrome band stays the thinnest rung
-        color: Util.darkMode ? Qt.rgba(23/255, 24/255, 29/255, 0.84)
-                             : Qt.rgba(244/255, 246/255, 250/255, 0.86)
+        // Liquid Glass v1.6, revised in bt87 — the body went 0.84/0.86
+        // translucent and the app-content pixel contract broke: W64's
+        // card clusterer merged the whole grid into one 466 px blob and
+        // usrbin read 0 columns (the blurred wallpaper behind the tiles
+        // destroys the uniform-background assumption; W63 same class).
+        // Reverted opaque: the material hierarchy is Apple's own — glass
+        // is the CHROME (the 44 px titleband below, at the thinnest rung
+        // with the v1.6 specular system), document content stays solid.
+        color: Util.darkMode ? "#17181D" : "#F4F6FA"
         border.color: Tokens.glassBorder
         border.width: 1
     }
@@ -101,9 +107,15 @@ Item {
         id: toolbarRow
         anchors { top: titlebar.bottom; left: parent.left; right: parent.right }
         height: 52
-        // Liquid Glass v1.6 — the body is translucent so the full-window blur (apps-main T21) manifests here: the wallpaper liquefies behind the content, the chrome band stays the thinnest rung
-        color: Util.darkMode ? Qt.rgba(23/255, 24/255, 29/255, 0.84)
-                             : Qt.rgba(244/255, 246/255, 250/255, 0.86)
+        // Liquid Glass v1.6, revised in bt87 — the body went 0.84/0.86
+        // translucent and the app-content pixel contract broke: W64's
+        // card clusterer merged the whole grid into one 466 px blob and
+        // usrbin read 0 columns (the blurred wallpaper behind the tiles
+        // destroys the uniform-background assumption; W63 same class).
+        // Reverted opaque: the material hierarchy is Apple's own — glass
+        // is the CHROME (the 44 px titleband below, at the thinnest rung
+        // with the v1.6 specular system), document content stays solid.
+        color: Util.darkMode ? "#17181D" : "#F4F6FA"
         DragHandler {
             target: null
             onActiveChanged: if (active && root.window) root.window.startSystemMove()
