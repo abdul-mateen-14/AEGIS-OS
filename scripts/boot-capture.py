@@ -934,7 +934,14 @@ def app_diag(serial):
     Returns the two foreground QML-probe outputs so main() can ASSERT —
     §1: an ISO whose apps do not open is a failed release, not a capture."""
     diag_cmds = [
-        "echo ===PROCS===; ps aux | grep -Ei 'aegis|kwin|corex|dolphin|chromium' | grep -v grep | head -20",
+        # RUST-BASELINE — the old form (ps aux | grep ... | head -20)
+        # sorted by USER and head-cut the interesting rows: the bt85
+        # dump surfaced only avahi/login/sddm-helper. RSS per process
+        # is the input to the Rust-migration decision (docs/
+        # RUST-MIGRATION.md) — capture it properly: RSS-sorted top-18
+        # + the memory-pressure line, no grep filter to skew the sort.
+        "echo ===PROCS===; ps -eo user:12,pid,rss,vsz,comm --sort=-rss "
+        "| head -19; grep -E 'MemTotal|MemAvailable' /proc/meminfo",
         "echo ===SESSLOG===; tail -n 80 /tmp/aegis-session.log 2>&1",
         "echo ===SETTINGS-ERR===; tail -40 /tmp/aegis-settings.err 2>&1",
         # §1 — foreground probes. The guest CLASSIFIES its own stderr and
