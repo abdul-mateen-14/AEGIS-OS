@@ -2470,9 +2470,18 @@ def main():
                 #   - the avatar: area >= 600 px^2 -> whitelisted, ONE
                 #     allowed (W74 made it a glass circle; its rim is
                 #     still a bright blob on the dark sidebar)
+                # W63 v5 (bt94 forensics, measured on the real capture):
+                # the v4 band swept x sx0..sx0+260 and its right edge fell
+                # INTO the wallpaper pane's content — the two 20x20 fat
+                # "chips" were the pane's toggle-switch knobs (x 416,
+                # y 334/372, 308 px2 each) and all 421 tint pixels were
+                # the aurora-ink THUMBNAIL (pure #3E8BFF, the default
+                # accent — the sidebar itself carried none). The band is
+                # the sidebar now: x sx0..sx0+232 (the pane divider),
+                # y unchanged. The chips/avatars classifier is untouched.
                 w63_tint_hits = 0
                 for yy in range(stop + 90, min(stop + 550, H - 160)):
-                    for xx in range(sx0, min(sx0 + 260, W)):
+                    for xx in range(sx0, min(sx0 + 232, W)):
                         r, g, b = w63_px[xx, yy]
                         for tr, tg, tb in tints:
                             if (abs(r - tr) <= 40 and abs(g - tg) <= 40
@@ -2481,7 +2490,7 @@ def main():
                                 break
                 w63_mask = set()
                 for yy in range(stop + 90, min(stop + 550, H - 160)):
-                    for xx in range(sx0, min(sx0 + 260, W)):
+                    for xx in range(sx0, min(sx0 + 232, W)):
                         r, g, b = w63_px[xx, yy]
                         if r > 170 and g > 170 and b > 170                                 and abs(r - g) < 30 and abs(g - b) < 30:
                             w63_mask.add((xx, yy))
