@@ -32,7 +32,8 @@ Window {
     // W68 — 446 -> 388: one row of four 64 px circles + captions replaces
     // the two 64 px rectangle rows; the sheet keeps the snug fit.
     // W69 — 388 -> 394: the two slider rows grow 32 -> 36 for the pill.
-    height: 394
+    // W70 — 394 -> 434: three 1 px section rules ride the 12 px flow.
+    height: 434
     flags: Qt.FramelessWindowHint
 
     // Tier C shortens every motion token — Table 17 fallback rung.
@@ -238,6 +239,20 @@ Window {
                             }
                         }
 
+                        // W70 — hairline separators: 1 px white 0.14
+                        // (never scales — the glassBorder rule) between
+                        // the CC sections; they are what makes a glass
+                        // plate read as organized glass rather than a
+                        // floating gray box.
+                        component SectionRule: Rectangle {
+                            width: parent ? parent.width : 0
+                            height: 1
+                            color: Util.darkMode ? Qt.rgba(1, 1, 1, 0.14)
+                                                 : Qt.rgba(0, 0, 0, 0.10)
+                        }
+
+                        SectionRule { }
+
                         // fifth tile — Do Not Disturb (Table 17 footnote)
                         CcTile {
                             label: "Do Not Disturb"
@@ -246,6 +261,8 @@ Window {
                             wide: true
                             onToggled: Activity.dnd = !Activity.dnd
                         }
+
+                        SectionRule { }
 
                         // sliders — Display + Sound, 16 px mono glyphs
                         CcSlider {
@@ -264,6 +281,8 @@ Window {
                                 Util.setVolume(value)
                             }
                         }
+
+                        SectionRule { }
 
                         // power row — Table 17 row height, airy hit targets
                         Row {

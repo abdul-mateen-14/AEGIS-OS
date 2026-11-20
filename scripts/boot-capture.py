@@ -3255,7 +3255,7 @@ def main():
             # window anchors Top+Right with margins (0,40,10,0) (main.cpp
             # ccWindow), 348 wide, QML height 388 since W68. Every W67/W68
             # box below is sheet-relative.
-            CCX1, CCY0, CCH = W - 10, 40, 394   # W69: sliders 32 -> 36
+            CCX1, CCY0, CCH = W - 10, 40, 434   # W70: +3 hairlines
             CCX0 = CCX1 - 348
             SB = CCY0 + CCH          # sheet bottom (428)
             plate = mean_lum(f"{OUT}/04j2-cc-over-files.png",
@@ -3371,8 +3371,47 @@ def main():
                    "FAIL — the knob is not the 24x20 pill bar"))
         except Exception as e:
             log(f"w69 pill probe failed: {e}")
+
+        # W70 — the HAIRLINE probe (same SHA): three 1 px rows whose mean
+        # luminance sits ABOVE the glass plate around them (white 0.14
+        # over the plate), at the section boundaries below the circles
+        # row, the DND card and the sliders. Rows are located by SCAN, not
+        # by guessed y (the W72 lesson): inside the sheet column band,
+        # count rows whose mean exceeds the sheet's local plate mean by
+        # 6+ and are flanked by plate rows — expect exactly 3.
+        w70_rules_ok = False
+        try:
+            im70 = Image.open(
+                f"{OUT}/04j2-cc-over-files.png").convert("L").crop(
+                    (CCX0 + 30, CCY0 + 180, CCX1 - 30, SB - 30))
+            px70 = im70.load()
+            rows = []
+            for yy in range(2, im70.size[1] - 2):
+                t = n = 0
+                for xx in range(0, im70.size[0], 2):
+                    t += px70[xx, yy]
+                    n += 1
+                rows.append(t / max(1, n))
+            plate70 = sorted(rows)[len(rows) // 2]
+            hot = [i for i, v in enumerate(rows)
+                   if v > plate70 + 6 and rows[i - 2] <= plate70 + 6
+                   and (i + 2 >= len(rows) or rows[i + 2] <= plate70 + 6)]
+            # collapse adjacent hot rows (a rule is 1 px, but the caption
+            # rows above can spill)
+            groups = []
+            for i in hot:
+                if groups and i - groups[-1][-1] <= 2:
+                    groups[-1].append(i)
+                else:
+                    groups.append([i])
+            w70_rules_ok = len(groups) == 3
+            log(f"w70 hairlines: plate median {plate70:.0f}, "
+                f"{len(groups)} hot row group(s) at "
+                f"{[g[0] for g in groups]} — want exactly 3 — "
+                + ("PASS" if w70_rules_ok else
+                   "FAIL — the section rules are missing or doubled"))
         except Exception as e:
-            log(f"w67/w68 probe failed: {e}")
+            log(f"w70 rule probe failed: {e}")
     except Exception as e:
         try:
             q.click(W - 19, 14, W, H)   # defensive CC close
