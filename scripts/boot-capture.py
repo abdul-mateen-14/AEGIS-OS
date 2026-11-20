@@ -147,7 +147,7 @@ def window_hairline(png, scan_to=260, y_from=40):
     """T7 anchor — the window's top hairline. Both anatomies draw one: the
     Files CSD GlassPanel borders white @ 0.14, the aurorae AegisLights
     frame's top edge stroke is the same white @ 0.14. A hairline row is a
-    long qualifying run (lum 36..110, >= 60% of the best run) that also
+    long qualifying run (lum 36..170 — raised for the Liquid Glass 0.28 border; >= 60% of the best run) that also
     SPIKES above its vertical neighbours (>= 10 lum) — wallpaper gradient
     rows run long but never spike. The TOPMOST such row wins: the Files
     toolbar hairline (top+96) and the aurorae band-bottom hairline
@@ -168,7 +168,12 @@ def window_hairline(png, scan_to=260, y_from=40):
         run_best = 0
         for x in range(W):
             v = px[x, y]
-            if 36 <= v <= 150:
+            # Liquid Glass v1.6 — the border token went 0.14 ->
+            # 0.28 (lum ~89 over the dark wallpaper) and future
+            # rim brightness may reach 0.40 (~117): keep the
+            # anchor's ceiling above the token, the spike test
+            # does the disambiguation.
+            if 36 <= v <= 170:
                 if cur == 0:
                     run_start = x
                 cur += 1
@@ -2443,8 +2448,41 @@ def main():
                          (0x28, 0xC8, 0x40), (0xFF, 0x9F, 0x0A),
                          (0x5B, 0x8B, 0xFF), (0xFA, 0x2D, 0x48),
                          (0x4A, 0xC8, 0xC8), (0x6E, 0x7B, 0xFF)]
+                # LIQUID GLASS v1.6 (bt86 44689353406) — the border
+                # token went 0.14 -> 0.28, the hairline run now starts
+                # at the true antialiased corner (~10 px left), and the
+                # +8..+41 strip landed on the SELECTED-ROW highlight
+                # pill (26 px run) — legitimate UI, not a glyph chip.
+                # Guard against the alignment: a row whose tint run
+                # exceeds 60 px anywhere across the sidebar body is a
+                # row pill (pills span ~200 px; glyph chips ~36 px) and
+                # is EXCLUDED from the strip measurement — a reintroduced
+                # chip is still caught because chips live on non-pill
+                # rows too and every row without a pill is still judged.
+                pill_rows = set()
+                for yy in range(stop + 90, min(stop + 550, H - 160)):
+                    run63 = best63 = 0
+                    prev63 = -9
+                    for xx in range(sx0 + 8, min(sx0 + 230, W)):
+                        r, g, b = w63_px[xx, yy]
+                        hit63 = False
+                        for tr, tg, tb in tints:
+                            if (abs(r - tr) <= 40 and abs(g - tg) <= 40
+                                    and abs(b - tb) <= 40):
+                                hit63 = True
+                                break
+                        if hit63:
+                            run63 = run63 + 1 if prev63 == xx - 1 else 1
+                            best63 = max(best63, run63)
+                            prev63 = xx
+                        else:
+                            run63 = 0
+                    if best63 > 60:
+                        pill_rows.add(yy)
                 w63_mask = set()
                 for yy in range(stop + 90, min(stop + 550, H - 160)):
+                    if yy in pill_rows:
+                        continue
                     for xx in range(sx0 + 8, sx0 + 41):
                         r, g, b = w63_px[xx, yy]
                         for tr, tg, tb in tints:
