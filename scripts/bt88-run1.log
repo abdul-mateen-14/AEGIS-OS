@@ -1,0 +1,689 @@
+﻿2026-11-20T10:19:30.7797767Z Current runner version: '2.338.2'
+2026-11-20T10:19:30.7837701Z ##[group]Runner Image Provisioner
+2026-11-20T10:19:30.7839138Z Hosted Compute Agent
+2026-11-20T10:19:30.7840267Z Version: 20261103.629
+2026-11-20T10:19:30.7841243Z Commit: 15dbd9ccb5dbf34fae002b6ed1a2670f52df37bc
+2026-11-20T10:19:30.7842556Z Build Date: 2026-11-03T17:26:59Z
+2026-11-20T10:19:30.7843862Z Worker ID: {a339fc26-b60e-4d43-a109-45ef4edbb082}
+2026-11-20T10:19:30.7845329Z Region: eastus
+2026-11-20T10:19:30.7846284Z Cloud: Azure
+2026-11-20T10:19:30.7847209Z ##[endgroup]
+2026-11-20T10:19:30.7849717Z ##[group]Operating System
+2026-11-20T10:19:30.7850856Z Ubuntu
+2026-11-20T10:19:30.7851897Z 26.04.1
+2026-11-20T10:19:30.7852824Z LTS
+2026-11-20T10:19:30.7853704Z ##[endgroup]
+2026-11-20T10:19:30.7855009Z ##[group]Runner Image
+2026-11-20T10:19:30.7856103Z Image: ubuntu-26.04
+2026-11-20T10:19:30.7857649Z Version: 20261111.196.1
+2026-11-20T10:19:30.7859818Z Included Software: https://github.com/actions/runner-images/blob/ubuntu26/20261111.196/images/ubuntu/Ubuntu2604-Readme.md
+2026-11-20T10:19:30.7862711Z Image Release: https://github.com/actions/runner-images/releases/tag/ubuntu26%2F20261111.196
+2026-11-20T10:19:30.7864682Z ##[endgroup]
+2026-11-20T10:19:30.7866836Z ##[group]GITHUB_TOKEN Permissions
+2026-11-20T10:19:30.7869791Z Contents: write
+2026-11-20T10:19:30.7870793Z Metadata: read
+2026-11-20T10:19:30.7871740Z ##[endgroup]
+2026-11-20T10:19:30.7875360Z Secret source: Actions
+2026-11-20T10:19:30.7877055Z Cache mode: write
+2026-11-20T10:19:30.7878563Z Prepare workflow directory
+2026-11-20T10:19:30.8303954Z Prepare all required actions
+2026-11-20T10:19:30.8352240Z Getting action download info
+2026-11-20T10:19:31.0174181Z Download action repository 'actions/checkout@v4' (SHA:11d5960a326750d5838078e36cf38b85af677262)
+2026-11-20T10:19:31.1483076Z Download action repository 'actions/upload-artifact@v4' (SHA:ea165f8d65b6e75b540449e92b4886f43607fa02)
+2026-11-20T10:19:31.3428517Z Complete job name: Boot ISO and capture screenshots
+2026-11-20T10:19:31.4337626Z ##[group]Run actions/checkout@v4
+2026-11-20T10:19:31.4338545Z with:
+2026-11-20T10:19:31.4339015Z   repository: abdul-mateen-14/AEGIS-OS
+2026-11-20T10:19:31.4342970Z   token: ***
+2026-11-20T10:19:31.4343414Z   ssh-strict: true
+2026-11-20T10:19:31.4343866Z   ssh-user: git
+2026-11-20T10:19:31.4344327Z   persist-credentials: true
+2026-11-20T10:19:31.4344989Z   clean: true
+2026-11-20T10:19:31.4345441Z   sparse-checkout-cone-mode: true
+2026-11-20T10:19:31.4345967Z   fetch-depth: 1
+2026-11-20T10:19:31.4346403Z   fetch-tags: false
+2026-11-20T10:19:31.4346852Z   show-progress: true
+2026-11-20T10:19:31.4347308Z   lfs: false
+2026-11-20T10:19:31.4347726Z   submodules: false
+2026-11-20T10:19:31.4348182Z   set-safe-directory: true
+2026-11-20T10:19:31.4348696Z   allow-unsafe-pr-checkout: false
+2026-11-20T10:19:31.4349469Z ##[endgroup]
+2026-11-20T10:19:31.7493944Z Syncing repository: abdul-mateen-14/AEGIS-OS
+2026-11-20T10:19:31.7497113Z ##[group]Getting Git version info
+2026-11-20T10:19:31.7498673Z Working directory is '/home/runner/work/AEGIS-OS/AEGIS-OS'
+2026-11-20T10:19:31.7500785Z [command]/usr/bin/git version
+2026-11-20T10:19:31.7508879Z git version 2.56.1
+2026-11-20T10:19:31.7532557Z ##[endgroup]
+2026-11-20T10:19:31.7547452Z Temporarily overriding HOME='/home/runner/work/_temp/883af272-3970-43b4-943e-111194122c13' before making global git config changes
+2026-11-20T10:19:31.7550316Z Adding repository directory to the temporary git global config as a safe directory
+2026-11-20T10:19:31.7552528Z [command]/usr/bin/git config --global --add safe.directory /home/runner/work/AEGIS-OS/AEGIS-OS
+2026-11-20T10:19:31.7625671Z Deleting the contents of '/home/runner/work/AEGIS-OS/AEGIS-OS'
+2026-11-20T10:19:31.7646082Z ##[group]Initializing the repository
+2026-11-20T10:19:31.7647363Z [command]/usr/bin/git init /home/runner/work/AEGIS-OS/AEGIS-OS
+2026-11-20T10:19:31.7795550Z hint: Using 'master' as the name for the initial branch. This default branch name
+2026-11-20T10:19:31.7797874Z hint: will change to "main" in Git 3.0. To configure the initial branch name
+2026-11-20T10:19:31.7799766Z hint: to use in all of your new repositories, which will suppress this warning,
+2026-11-20T10:19:31.7800672Z hint: call:
+2026-11-20T10:19:31.7801134Z hint:
+2026-11-20T10:19:31.7801732Z hint: 	git config --global init.defaultBranch <name>
+2026-11-20T10:19:31.7802433Z hint:
+2026-11-20T10:19:31.7803126Z hint: Names commonly chosen instead of 'master' are 'main', 'trunk' and
+2026-11-20T10:19:31.7804874Z hint: 'development'. The just-created branch can be renamed via this command:
+2026-11-20T10:19:31.7806577Z hint:
+2026-11-20T10:19:31.7807490Z hint: 	git branch -m <name>
+2026-11-20T10:19:31.7808421Z hint:
+2026-11-20T10:19:31.7809628Z hint: Disable this message with "git config set advice.defaultBranchName false"
+2026-11-20T10:19:31.7811936Z Initialized empty Git repository in /home/runner/work/AEGIS-OS/AEGIS-OS/.git/
+2026-11-20T10:19:31.7823155Z [command]/usr/bin/git remote add origin https://github.com/abdul-mateen-14/AEGIS-OS
+2026-11-20T10:19:31.7896458Z ##[endgroup]
+2026-11-20T10:19:31.7898513Z ##[group]Disabling automatic garbage collection
+2026-11-20T10:19:31.7900782Z [command]/usr/bin/git config --local gc.auto 0
+2026-11-20T10:19:31.7946576Z ##[endgroup]
+2026-11-20T10:19:31.7950385Z ##[group]Setting up auth
+2026-11-20T10:19:31.7955395Z [command]/usr/bin/git config --local --name-only --get-regexp core\.sshCommand
+2026-11-20T10:19:31.7996189Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'core\.sshCommand' && git config --local --unset-all 'core.sshCommand' || :"
+2026-11-20T10:19:31.8539522Z [command]/usr/bin/git config --local --name-only --get-regexp http\.https\:\/\/github\.com\/\.extraheader
+2026-11-20T10:19:31.8589910Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'http\.https\:\/\/github\.com\/\.extraheader' && git config --local --unset-all 'http.https://github.com/.extraheader' || :"
+2026-11-20T10:19:31.8886105Z [command]/usr/bin/git config --local --name-only --get-regexp ^includeIf\.gitdir:
+2026-11-20T10:19:31.8929450Z [command]/usr/bin/git submodule foreach --recursive git config --local --show-origin --name-only --get-regexp remote.origin.url
+2026-11-20T10:19:31.9209404Z [command]/usr/bin/git config --local http.https://github.com/.extraheader AUTHORIZATION: basic ***
+2026-11-20T10:19:31.9250072Z ##[endgroup]
+2026-11-20T10:19:31.9259276Z ##[group]Fetching the repository
+2026-11-20T10:19:31.9261097Z [command]/usr/bin/git -c protocol.version=2 fetch --no-tags --prune --no-recurse-submodules --depth=1 origin +fd24476f633ab8000147031c7341ad3ba29a29c6:refs/remotes/origin/main
+2026-11-20T10:19:40.7701275Z From https://github.com/abdul-mateen-14/AEGIS-OS
+2026-11-20T10:19:40.7704255Z  * [new ref]         fd24476f633ab8000147031c7341ad3ba29a29c6 -> origin/main
+2026-11-20T10:19:40.7709389Z ##[endgroup]
+2026-11-20T10:19:40.7711602Z ##[group]Determining the checkout info
+2026-11-20T10:19:40.7713909Z ##[endgroup]
+2026-11-20T10:19:40.7718060Z [command]/usr/bin/git sparse-checkout disable
+2026-11-20T10:19:40.7792774Z [command]/usr/bin/git config --local --unset-all extensions.worktreeConfig
+2026-11-20T10:19:40.7826220Z ##[group]Checking out the ref
+2026-11-20T10:19:40.7830965Z [command]/usr/bin/git checkout --progress --force -B main refs/remotes/origin/main
+2026-11-20T10:19:41.7824794Z Switched to a new branch 'main'
+2026-11-20T10:19:41.7829674Z branch 'main' set up to track 'origin/main'.
+2026-11-20T10:19:41.7878899Z ##[endgroup]
+2026-11-20T10:19:41.7936119Z [command]/usr/bin/git log -1 --format=%H
+2026-11-20T10:19:41.7962043Z fd24476f633ab8000147031c7341ad3ba29a29c6
+2026-11-20T10:19:41.8210767Z ##[group]Run TAG="v0.6.78"
+2026-11-20T10:19:41.8211163Z [36;1mTAG="v0.6.78"[0m
+2026-11-20T10:19:41.8211439Z [36;1mif [ -z "$TAG" ]; then[0m
+2026-11-20T10:19:41.8212033Z [36;1m  TAG=$(curl -s "https://api.github.com/repos/abdul-mateen-14/AEGIS-OS/releases/latest" \[0m
+2026-11-20T10:19:41.8212669Z [36;1m    | python3 -c "import json,sys;print(json.load(sys.stdin)['tag_name'])")[0m
+2026-11-20T10:19:41.8213342Z [36;1mfi[0m
+2026-11-20T10:19:41.8213566Z [36;1mecho "tag=$TAG" >> "$GITHUB_OUTPUT"[0m
+2026-11-20T10:19:41.8213868Z [36;1mecho "Boot-testing: $TAG"[0m
+2026-11-20T10:19:41.8267919Z shell: /usr/bin/bash -e {0}
+2026-11-20T10:19:41.8268226Z ##[endgroup]
+2026-11-20T10:19:41.8356896Z Boot-testing: v0.6.78
+2026-11-20T10:19:41.8409948Z ##[group]Run # DNS guard — the 2026-11-11 v0.6.27 boot tests hung 45 min inside
+2026-11-20T10:19:41.8410519Z [36;1m# DNS guard — the 2026-11-11 v0.6.27 boot tests hung 45 min inside[0m
+2026-11-20T10:19:41.8411002Z [36;1m# apt on the runner's stub resolver (the same drift that broke the[0m
+2026-11-20T10:19:41.8411482Z [36;1m# ISO build container). Break the stub symlink, pin the two public[0m
+2026-11-20T10:19:41.8411995Z [36;1m# resolvers, and give apt hard retries with an index verdict.[0m
+2026-11-20T10:19:41.8412409Z [36;1msudo rm -f /etc/resolv.conf[0m
+2026-11-20T10:19:41.8412860Z [36;1mprintf "nameserver 1.1.1.1\nnameserver 8.8.8.8\n" | sudo tee /etc/resolv.conf >/dev/null[0m
+2026-11-20T10:19:41.8413350Z [36;1mfor attempt in 1 2 3; do[0m
+2026-11-20T10:19:41.8413627Z [36;1m  sudo apt-get update -qq || true[0m
+2026-11-20T10:19:41.8413991Z [36;1m  apt-cache show qemu-system-x86 >/dev/null 2>&1 && break[0m
+2026-11-20T10:19:41.8414640Z [36;1m  echo "archive indexes unavailable (attempt $attempt), retrying in 10 s"[0m
+2026-11-20T10:19:41.8415057Z [36;1m  sleep 10[0m
+2026-11-20T10:19:41.8415286Z [36;1m  [ "$attempt" = 3 ] && exit 1[0m
+2026-11-20T10:19:41.8487314Z [36;1mdone[0m
+2026-11-20T10:19:41.8487953Z [36;1msudo apt-get install -y -qq qemu-system-x86 ovmf >/dev/null[0m
+2026-11-20T10:19:41.8488771Z [36;1mqemu-system-x86_64 --version | head -1[0m
+2026-11-20T10:19:41.8489575Z [36;1mls -la /usr/share/OVMF/OVMF_CODE.fd || echo "no OVMF_CODE.fd"[0m
+2026-11-20T10:19:41.8490499Z [36;1m# KVM exists on public-repo runners but is often root-only; make it[0m
+2026-11-20T10:19:41.8491273Z [36;1m# usable so the boot runs in minutes instead of ~30. The capture[0m
+2026-11-20T10:19:41.8492069Z [36;1m# script still falls back to TCG automatically if this fails.[0m
+2026-11-20T10:19:41.8492736Z [36;1msudo chmod 666 /dev/kvm 2>/dev/null || true[0m
+2026-11-20T10:19:41.8493365Z [36;1mls -la /dev/kvm || echo "no /dev/kvm — TCG fallback"[0m
+2026-11-20T10:19:41.8493959Z [36;1mpip install -q pillow pycdlib[0m
+2026-11-20T10:19:41.8543775Z shell: /usr/bin/bash -e {0}
+2026-11-20T10:19:41.8544063Z ##[endgroup]
+2026-11-20T10:19:57.2415845Z 
+2026-11-20T10:19:57.2416379Z Running kernel seems to be up-to-date.
+2026-11-20T10:19:57.2416796Z 
+2026-11-20T10:19:57.2416968Z Restarting services...
+2026-11-20T10:19:57.2505606Z 
+2026-11-20T10:19:57.2506316Z Service restarts being deferred:
+2026-11-20T10:19:57.2535828Z  systemctl restart hosted-compute-agent.service
+2026-11-20T10:19:57.2536383Z 
+2026-11-20T10:19:57.2536591Z No containers need to be restarted.
+2026-11-20T10:19:57.2536944Z 
+2026-11-20T10:19:57.2537194Z No user sessions are running outdated binaries.
+2026-11-20T10:19:57.2537656Z 
+2026-11-20T10:19:57.2538028Z No VM guests are running outdated hypervisor (qemu) binaries on this host.
+2026-11-20T10:19:58.1677066Z QEMU emulator version 10.2.1 (Debian 1:10.2.1+ds-1ubuntu3.3)
+2026-11-20T10:19:58.1719053Z ls: cannot access '/usr/share/OVMF/OVMF_CODE.fd': No such file or directory
+2026-11-20T10:19:58.1723546Z no OVMF_CODE.fd
+2026-11-20T10:19:58.1857754Z crw-rw-rw- 1 root kvm 10, 232 Nov 20 10:18 /dev/kvm
+2026-11-20T10:19:59.6452406Z ##[group]Run TAG="v0.6.78"; VER="${TAG#v}"
+2026-11-20T10:19:59.6452768Z [36;1mTAG="v0.6.78"; VER="${TAG#v}"[0m
+2026-11-20T10:19:59.6453197Z [36;1mBASE="https://github.com/abdul-mateen-14/AEGIS-OS/releases/download/$TAG"[0m
+2026-11-20T10:19:59.6453634Z [36;1mmkdir -p iso && cd iso[0m
+2026-11-20T10:19:59.6453986Z [36;1m# asset downloads occasionally return a challenged/empty body —[0m
+2026-11-20T10:19:59.6454668Z [36;1m# validate every file and retry before trusting it[0m
+2026-11-20T10:19:59.6455094Z [36;1mfor i in 1 2 3; do[0m
+2026-11-20T10:19:59.6455590Z [36;1m  curl -sL --retry 3 -o SHA256SUMS "$BASE/SHA256SUMS"[0m
+2026-11-20T10:19:59.6455950Z [36;1m  grep -qE '^[0-9a-f]{64} ' SHA256SUMS && break[0m
+2026-11-20T10:19:59.6456391Z [36;1m  echo "SHA256SUMS invalid (attempt $i):"; head -c 200 SHA256SUMS; echo; sleep 8[0m
+2026-11-20T10:19:59.6456795Z [36;1mdone[0m
+2026-11-20T10:19:59.6457194Z [36;1mgrep -qE '^[0-9a-f]{64} ' SHA256SUMS || { echo "::error::SHA256SUMS still invalid"; exit 1; }[0m
+2026-11-20T10:19:59.6457651Z [36;1mfor P in part-00 part-01; do[0m
+2026-11-20T10:19:59.6457914Z [36;1m  for i in 1 2 3; do[0m
+2026-11-20T10:19:59.6458250Z [36;1m    curl -sL --retry 3 -O "$BASE/AegisOS-$VER-amd64.iso.$P"[0m
+2026-11-20T10:19:59.6458776Z [36;1m    [ "$(stat -c%s "AegisOS-$VER-amd64.iso.$P" 2>/dev/null || echo 0)" -gt 100000000 ] && break[0m
+2026-11-20T10:19:59.6459291Z [36;1m    echo "part $P too small (attempt $i), retrying"; sleep 8[0m
+2026-11-20T10:19:59.6459634Z [36;1m  done[0m
+2026-11-20T10:19:59.6459988Z [36;1m  [ "$(stat -c%s "AegisOS-$VER-amd64.iso.$P" 2>/dev/null || echo 0)" -gt 100000000 ] \[0m
+2026-11-20T10:19:59.6460468Z [36;1m    || { echo "::error::part $P still incomplete"; exit 1; }[0m
+2026-11-20T10:19:59.6460787Z [36;1mdone[0m
+2026-11-20T10:19:59.6461153Z [36;1mcat "AegisOS-$VER-amd64.iso.part-00" "AegisOS-$VER-amd64.iso.part-01" > AegisOS.iso[0m
+2026-11-20T10:19:59.6461592Z [36;1msha256sum -c SHA256SUMS[0m
+2026-11-20T10:19:59.6512993Z shell: /usr/bin/bash -e {0}
+2026-11-20T10:19:59.6513258Z ##[endgroup]
+2026-11-20T10:20:16.4770734Z AegisOS.iso: OK
+2026-11-20T10:20:16.4812744Z ##[group]Run python3 scripts/boot-capture.py iso/AegisOS.iso screenshots
+2026-11-20T10:20:16.4813371Z [36;1mpython3 scripts/boot-capture.py iso/AegisOS.iso screenshots[0m
+2026-11-20T10:20:16.4863226Z shell: /usr/bin/bash -e {0}
+2026-11-20T10:20:16.4863480Z ##[endgroup]
+2026-11-20T10:20:16.5712879Z [10:20:16] trying gpu=virtio-vga-gl accelerator=-enable-kvm
+2026-11-20T10:20:16.6855600Z [10:20:16] extracted /live/vmlinuz -> vmlinuz (17357192 bytes)
+2026-11-20T10:20:16.7701340Z [10:20:16] extracted /live/initrd.img -> initrd.img (213817476 bytes)
+2026-11-20T10:20:16.7702263Z [10:20:16] booting kernel directly with interactive serial console
+2026-11-20T10:20:16.7708770Z [10:20:16] qemu: qemu-system-x86_64 -enable-kvm -cpu host -m 4096 -smp 4 -device virtio-vga-gl -display none -device qemu-xhci -device usb-tablet -device virtio-net-pci,netdev=n0 -netdev user,id=n0 -cdrom iso/AegisOS.iso -boot d -no-reboot -qmp unix:/tmp/aegis-qmp.sock,server,nowait -chardev socket,id=ser0,path=/tmp/aegis-serial.sock,server=on,wait=off,logfile=serial.log -serial chardev:ser0 -kernel vmlinuz -initrd initrd.img -append boot=live components quiet splash vt.global_cursor_default=0 loglevel=3 hostname=aegis username=aegis autologin console=tty1 console=ttyS0,115200n8 plymouth.ignore-serial-consoles plymouth.debug=stream:/dev/ttyS0 plymouth.debug=file:/run/plymouth-boot-debug.log systemd.journald.forward_to_console=true systemd.show_status=yes
+2026-11-20T10:20:19.7711652Z [10:20:19] qemu exited immediately (rc=1); qemu.log:
+2026-11-20T10:20:19.7713044Z [10:20:19]   | qemu-system-x86_64: -device virtio-vga-gl: The display backend does not have OpenGL support enabled
+2026-11-20T10:20:19.7714866Z [10:20:19]   | It can be enabled with '-display BACKEND,gl=on' where BACKEND is the name of the display backend to use.
+2026-11-20T10:20:19.7716214Z [10:20:19] trying gpu=virtio-vga-gl accelerator=-accel
+2026-11-20T10:20:19.7861560Z [10:20:19] booting kernel directly with interactive serial console
+2026-11-20T10:20:19.7867768Z [10:20:19] qemu: qemu-system-x86_64 -accel tcg,thread=multi -cpu max -m 4096 -smp 4 -device virtio-vga-gl -display none -device qemu-xhci -device usb-tablet -device virtio-net-pci,netdev=n0 -netdev user,id=n0 -cdrom iso/AegisOS.iso -boot d -no-reboot -qmp unix:/tmp/aegis-qmp.sock,server,nowait -chardev socket,id=ser0,path=/tmp/aegis-serial.sock,server=on,wait=off,logfile=serial.log -serial chardev:ser0 -kernel vmlinuz -initrd initrd.img -append boot=live components quiet splash vt.global_cursor_default=0 loglevel=3 hostname=aegis username=aegis autologin console=tty1 console=ttyS0,115200n8 plymouth.ignore-serial-consoles plymouth.debug=stream:/dev/ttyS0 plymouth.debug=file:/run/plymouth-boot-debug.log systemd.journald.forward_to_console=true systemd.show_status=yes
+2026-11-20T10:20:22.7871145Z [10:20:22] qemu exited immediately (rc=1); qemu.log:
+2026-11-20T10:20:22.7872459Z [10:20:22]   | qemu-system-x86_64: -device virtio-vga-gl: The display backend does not have OpenGL support enabled
+2026-11-20T10:20:22.7874259Z [10:20:22]   | It can be enabled with '-display BACKEND,gl=on' where BACKEND is the name of the display backend to use.
+2026-11-20T10:20:22.7875892Z [10:20:22] trying gpu=virtio-vga accelerator=-enable-kvm
+2026-11-20T10:20:22.8018751Z [10:20:22] booting kernel directly with interactive serial console
+2026-11-20T10:20:22.8023736Z [10:20:22] qemu: qemu-system-x86_64 -enable-kvm -cpu host -m 4096 -smp 4 -device virtio-vga -display none -device qemu-xhci -device usb-tablet -device virtio-net-pci,netdev=n0 -netdev user,id=n0 -cdrom iso/AegisOS.iso -boot d -no-reboot -qmp unix:/tmp/aegis-qmp.sock,server,nowait -chardev socket,id=ser0,path=/tmp/aegis-serial.sock,server=on,wait=off,logfile=serial.log -serial chardev:ser0 -kernel vmlinuz -initrd initrd.img -append boot=live components quiet splash vt.global_cursor_default=0 loglevel=3 hostname=aegis username=aegis autologin console=tty1 console=ttyS0,115200n8 plymouth.ignore-serial-consoles plymouth.debug=stream:/dev/ttyS0 plymouth.debug=file:/run/plymouth-boot-debug.log systemd.journald.forward_to_console=true systemd.show_status=yes
+2026-11-20T10:20:25.8028476Z [10:20:25] accelerator in use: -enable-kvm; gpu: virtio-vga
+2026-11-20T10:20:25.8035323Z [10:20:25] QMP connected
+2026-11-20T10:20:25.8864167Z /home/runner/work/AEGIS-OS/AEGIS-OS/scripts/boot-capture.py:131: DeprecationWarning: Image.Image.getdata is deprecated and will be removed in Pillow 14 (2027-10-15). Use get_flattened_data instead.
+2026-11-20T10:20:25.8866044Z   px = list(im.getdata())
+2026-11-20T10:20:25.9044734Z /home/runner/work/AEGIS-OS/AEGIS-OS/scripts/boot-capture.py:1529: DeprecationWarning: Image.Image.getdata is deprecated and will be removed in Pillow 14 (2027-10-15). Use get_flattened_data instead.
+2026-11-20T10:20:25.9046633Z   vals = list(hsv.getdata())
+2026-11-20T10:20:25.9134590Z [10:20:25] boot-00: sat=84.6 val=13.2 dock-slots=12 t=0s
+2026-11-20T10:20:27.0141839Z [10:20:27] boot-01: sat=84.6 val=13.2 dock-slots=12 t=1s
+2026-11-20T10:20:28.1228077Z [10:20:28] boot-02: sat=84.6 val=13.2 dock-slots=12 t=2s
+2026-11-20T10:20:29.2455791Z [10:20:29] boot-03: sat=84.6 val=13.2 dock-slots=12 t=3s
+2026-11-20T10:20:30.3661276Z [10:20:30] boot-04: sat=84.6 val=13.2 dock-slots=12 t=5s
+2026-11-20T10:20:31.4982582Z [10:20:31] boot-05: sat=84.6 val=13.2 dock-slots=12 t=6s
+2026-11-20T10:20:32.6055857Z [10:20:32] boot-06: sat=84.6 val=13.2 dock-slots=12 t=7s
+2026-11-20T10:20:33.7083391Z [10:20:33] boot-07: sat=84.6 val=13.2 dock-slots=12 t=8s
+2026-11-20T10:20:34.8098087Z [10:20:34] boot-08: sat=84.6 val=13.2 dock-slots=12 t=9s
+2026-11-20T10:20:35.9322285Z [10:20:35] boot-09: sat=84.6 val=13.2 dock-slots=12 t=10s
+2026-11-20T10:20:37.0448739Z [10:20:37] boot-10: sat=84.6 val=13.2 dock-slots=12 t=11s
+2026-11-20T10:20:38.1374144Z [10:20:38] boot-11: sat=84.6 val=13.2 dock-slots=12 t=12s
+2026-11-20T10:20:40.7258305Z [10:20:40] boot-12: sat=84.6 val=13.3 dock-slots=12 t=15s
+2026-11-20T10:20:43.3462650Z [10:20:43] boot-13: sat=84.6 val=13.3 dock-slots=12 t=18s
+2026-11-20T10:20:45.9368036Z [10:20:45] boot-14: sat=84.6 val=13.3 dock-slots=12 t=20s
+2026-11-20T10:20:48.5286195Z [10:20:48] boot-15: sat=84.6 val=13.3 dock-slots=12 t=23s
+2026-11-20T10:20:51.1495346Z [10:20:51] boot-16: sat=84.6 val=13.3 dock-slots=12 t=25s
+2026-11-20T10:20:53.7287866Z [10:20:53] boot-17: sat=0.0 val=0.7 dock-slots=0 t=28s
+2026-11-20T10:20:56.3124172Z [10:20:56] boot-18: sat=0.0 val=0.7 dock-slots=0 t=31s
+2026-11-20T10:20:58.8799942Z [10:20:58] boot-19: sat=0.0 val=0.7 dock-slots=0 t=33s
+2026-11-20T10:21:01.4552983Z [10:21:01] boot-20: sat=0.0 val=0.0 dock-slots=0 t=36s
+2026-11-20T10:21:04.1440357Z [10:21:04] boot-21: sat=152.2 val=65.7 dock-slots=12 t=38s
+2026-11-20T10:21:16.7934778Z /home/runner/work/AEGIS-OS/AEGIS-OS/scripts/boot-capture.py:1693: DeprecationWarning: Image.Image.getdata is deprecated and will be removed in Pillow 14 (2027-10-15). Use get_flattened_data instead.
+2026-11-20T10:21:16.7935840Z   px = list(im.getdata())
+2026-11-20T10:21:16.9549214Z [10:21:16] resolution 1280x800; dock slots: 12 (geometric)
+2026-11-20T10:21:47.3166740Z [10:21:47] serial login OK — seeding review fixtures
+2026-11-20T10:21:51.3759133Z [10:21:51] seed report.pdf: ok
+2026-11-20T10:21:53.4256379Z [10:21:53] seed photo.png: ok
+2026-11-20T10:21:55.4549761Z [10:21:55] seed archive.zip: ok
+2026-11-20T10:21:57.4864763Z [10:21:57] seed track.mp3: ok
+2026-11-20T10:21:59.5155254Z [10:21:59] seed notes.txt: ok
+2026-11-20T10:22:05.5708816Z [10:22:05] home: Desktop Downloads Pictures Templates archive.zip photo.png track.mp3 Documents Music Public Videos notes.txt report.pdf aegis@aegis:~$
+2026-11-20T10:22:19.5913284Z [10:22:19] click map rebuild failed (Coordinate 'right' is less than 'left') — keeping config map
+2026-11-20T10:22:29.8156582Z [10:22:29] plymouth boot debug: 7:watch_for_u: watching for udev graphics device and input device add and remove events
+2026-11-20T10:22:29.8158096Z  | 00:00:01.270 ../src/libply-splash-core/ply-device-manager.c:456:create_devi: Not creating devices for subsystem input because there is no configure XKB layout
+2026-11-20T10:22:29.8160059Z  | 00:00:01.273 ../src/libply-splash-core/ply-device-manager.c:461:create_devi: creating objects for drm devices
+2026-11-20T10:22:29.8161505Z  | 00:00:01.277 ../src/libply-splash-core/ply-device-manager.c:482:create_devi: found device /sys/devices/pci0000:00/0000:00:02.0/drm/card0
+2026-11-20T10:22:29.8162803Z  | 00:00:01.279 ../src/libply-splash-core/ply-device-manager.c:490:create_devi: device is initialized 1
+2026-11-20T10:22:29.8163953Z  | 00:00:01.281 ../src/libply-splash-core/ply-device-manager.c:494:create_devi: found node /dev/dri/card0
+2026-11-20T10:22:29.8165323Z  | 00:00:01.284 ../src/libply-splash-core/ply-device-manager.c:379:create_devi: device subsystem is drm
+2026-11-20T10:22:29.8166619Z  | 00:00:01.286 ../src/libply-splash-core/ply-device-manager.c:391:create_devi: found DRM device /dev/dri/card0
+2026-11-20T10:22:29.8168223Z  | 00:00:01.288 ../src/libply-splash-core/ply-device-manager.c:1111:create_dev: creating devices for /dev/dri/card0 (renderer type: 1) (terminal: /dev/tty1)
+2026-11-20T10:22:29.8169309Z  | 00:00:01.291 ../src/libply-splash-core/ply-renderer.c:247:ply_renderer_open: trying to open renderer plugin /usr/lib/x86_64-linux-gnu/plymouth/renderers/drm.so
+2026-11-20T10:22:29.8170239Z  | 00:00:01.294 ../src/plugins/renderers/drm/plugin.c:896:create_backend      : creating renderer backend for device /dev/dri/card0
+2026-11-20T10:22:29.8170914Z  | [  116.485805] sudo[3156]: pam_unix(sudo:session): session closed for user root
+2026-11-20T10:22:29.8171300Z  | BOOT-DEBUG-READ
+2026-11-20T10:22:29.8171502Z  | aegis@aegis:~$
+2026-11-20T10:22:42.1059002Z [10:22:42] 01c-launcher-shortcut: diff-vs-home=23.8 (Meta+Space via the aegis-shortcuts script)
+2026-11-20T10:22:51.7797877Z [10:22:51] window-state dump: {"count": 0, "anyFull": false, "ids": [], "allIds": [], "active": ""}
+2026-11-20T10:22:54.9161286Z [10:22:54] 02-files: dbus launch -> confined")
+2026-11-20T10:22:54.9162080Z  | [  150.000361] systemd[1]: bluetooth.service - Bluetooth service skipped, unmet condition check ConditionPathIsDirectory=/sys/class/bluetooth
+2026-11-20T10:22:54.9162869Z  | [
+2026-11-20T10:23:20.0260691Z [10:23:20] 02-files: diff-vs-home=22.5 dock-slots=12
+2026-11-20T10:23:30.7232793Z [10:23:30] w27 after minimize: {"count": 0, "anyFull": false, "ids": [], "allIds": ["aegis-files"], "active": ""}
+2026-11-20T10:23:39.8038371Z [10:23:39] w27 activate request: [Script-aegis-windowwatch]
+2026-11-20T10:23:39.8040108Z  | ActivateRequest=aegis-files
+2026-11-20T10:23:39.8040740Z  | ActivateSeq=1
+2026-11-20T10:23:39.8041195Z  | 
+2026-11-20T10:23:39.8041636Z  | REQ-END
+2026-11-20T10:23:39.8042074Z  | aegis@aegis:~$
+2026-11-20T10:23:47.8924148Z [10:23:47] w27 after dock click: {"count": 1, "anyFull": false, "ids": ["aegis-files"], "allIds": ["aegis-files"], "active": "aegis-files"}
+2026-11-20T10:23:47.9807713Z [10:23:47] 02b-files-restored: diff-vs-home=25.7
+2026-11-20T10:23:48.0182113Z [10:23:48] w44 02c-files-resized: dragging right edge at x=1117 (hairline end 1111, y=262)
+2026-11-20T10:23:51.7977740Z [10:23:51] w44 02c-files-resized: run 1021 -> 1181 (grew 160 px)
+2026-11-20T10:24:00.9659318Z [10:24:00] 03-terminal: dbus launch -> LAUNCH-03-terminal-OK
+2026-11-20T10:24:00.9659956Z  | aegis@aegis:~$
+2026-11-20T10:24:19.0851682Z [10:24:19] 03-terminal: diff-vs-home=23.4 dock-slots=12
+2026-11-20T10:24:19.1580625Z [10:24:19] §5.3 lane-B shadow: left ring lum=21.1 vs wallpaper 29.4 PASS
+2026-11-20T10:24:23.2696396Z [10:24:23] 04-settings: dbus launch -> LAUNCH-04-settings-OK
+2026-11-20T10:24:23.2698095Z  | aegis@aegis:~$
+2026-11-20T10:24:53.3907409Z [10:24:53] 04-settings: diff-vs-home=26.1 dock-slots=12
+2026-11-20T10:24:58.5805765Z /home/runner/work/AEGIS-OS/AEGIS-OS/scripts/boot-capture.py:344: DeprecationWarning: Image.Image.getdata is deprecated and will be removed in Pillow 14 (2027-10-15). Use get_flattened_data instead.
+2026-11-20T10:24:58.5807304Z   vals = sorted(box.getdata())
+2026-11-20T10:24:58.5813566Z [10:24:58] header assert files: hairline y=62 x_start=90 win_left≈162 dot_x=178 dot_cy=82.5 dot_w=10 inset=16 drop=20.5 band_lum=22
+2026-11-20T10:24:58.6879759Z [10:24:58] header assert terminal: hairline y=67 x_start=143 win_left≈137 dot_x=154 dot_cy=87.5 dot_w=10 inset=17 drop=20.5 band_lum=4
+2026-11-20T10:24:58.6881430Z [10:24:58] header geometry assert PASS — one traffic-light anatomy across CSD and aurorae windows
+2026-11-20T10:25:09.0822839Z [10:25:09] xkb typing probe: PASS
+2026-11-20T10:25:09.1878016Z [10:25:09] w44 03b-term-resized: dragging right edge at x=1142 (hairline end 1136, y=267)
+2026-11-20T10:25:12.9688538Z [10:25:12] w44 03b-term-resized: run 993 -> 1129 (grew 136 px)
+2026-11-20T10:25:22.0976699Z [10:25:22] pane8: [1] 3946
+2026-11-20T10:25:22.0977070Z  | PANE8-LAUNCHED
+2026-11-20T10:25:22.0977333Z  | aegis@aegis:~$
+2026-11-20T10:25:40.1652168Z [10:25:40] 04b-aegis-id captured
+2026-11-20T10:26:07.4326999Z [10:26:07] 04l-displays: diff-vs-home=21.6
+2026-11-20T10:26:07.4923874Z [10:26:07] presentation knob clusters: [(425, 213), (425, 313)]
+2026-11-20T10:26:12.3415923Z [10:26:12] presentation state: ON (file verdict)
+2026-11-20T10:26:39.3656890Z [10:26:39] 04m-drivers: diff-vs-home=20.9 (W33 real inventory)
+2026-11-20T10:27:04.6969618Z [10:27:04] w63 sidebar glyphs: widest tint run 0px — PASS (bare glyphs, no discs)
+2026-11-20T10:27:04.7569126Z [10:27:04] w39 knobs: [(425, 343), (425, 381)]
+2026-11-20T10:27:09.5275257Z [10:27:09] w39 rotate toggle: tokens.conf verdict PASS
+2026-11-20T10:27:09.6590828Z [10:27:09] w39 knobs: [(441, 343), (425, 381)]
+2026-11-20T10:27:12.4619755Z [10:27:12] w39 knobs: [(425, 343), (425, 381)]
+2026-11-20T10:27:17.2505821Z [10:27:17] w39 focus-dim toggle: governor.conf verdict PASS
+2026-11-20T10:27:17.4615792Z [10:27:17] w39 knobs: [(425, 343), (441, 381)]
+2026-11-20T10:27:45.5257680Z [10:27:45] w39 knobs: [(1049, 263), (1049, 301), (1049, 339), (1049, 377), (1049, 415), (1049, 453)]
+2026-11-20T10:27:50.3188670Z [10:27:50] w39 effects toggle: governor.conf override verdict PASS
+2026-11-20T10:27:50.5137727Z [10:27:50] w39 knobs: [(1033, 263), (1049, 301), (1049, 339), (1049, 377), (1049, 415), (1049, 453)]
+2026-11-20T10:28:06.3979290Z [10:28:06] w43 NM table: [1]+  Done                       WAYLAND_DISPLAY=wayland-0 nohup aegis-settings 2 > /tmp/aegis-settings2.err 2>&1
+2026-11-20T10:28:06.3980576Z  | ens4:ethernet:connected:Wired connection 1
+2026-11-20T10:28:06.3981296Z  | lo:loopback:connected (externally):lo
+2026-11-20T10:28:10.4446379Z [10:28:10] w43 wired state: ethernet:connected PASS
+2026-11-20T10:28:14.5394850Z [10:28:14] w42 default browser: aegis-browser.desktop
+2026-11-20T10:28:20.6231096Z [10:28:20] w56 kscreen-doctor: Output: 1 Virtual-1 38f3adb6-76c1-4adc-8436-a732e7d97166
+2026-11-20T10:28:20.6231673Z  | 	enabled
+2026-11-20T10:28:20.6231914Z  | 	connected
+2026-11-20T10:28:20.6232151Z  | 	priority 1
+2026-11-20T10:28:24.6837392Z [10:28:24] w54 store icons: 6 catalog icons in the theme — PASS
+2026-11-20T10:28:32.7949143Z [10:28:32] w55 payload head: s "[\"Files\",\"Terminal\",\"Aegis Browser\",\"OS Private Chat\",\"CoreX Terminal\",\"Music\",\"Calculator\",\"Editor\",\"Monitor\",\"Store\",\"Settings\",\"Trash\",\"Add Bluetooth Device\",\"Addition
+2026-11-20T10:28:32.7954821Z [10:28:32] w55 launcher names: 27 entries, dups=none — PASS
+2026-11-20T10:28:36.8847548Z [10:28:36] 04c-music: dbus launch -> LAUNCH-04c-music-OK
+2026-11-20T10:28:36.8848021Z  | aegis@aegis:~$
+2026-11-20T10:29:02.0057977Z [10:29:02] 04c-music: diff-vs-home=16.1 dock-slots=12
+2026-11-20T10:29:11.1867301Z [10:29:11] 04d-calculator: dbus launch -> LAUNCH-04d-calculator-OK
+2026-11-20T10:29:36.3334021Z  | aegis@aegis:~$
+2026-11-20T10:29:36.3334732Z [10:29:36] 04d-calculator: diff-vs-home=6.7 dock-slots=12
+2026-11-20T10:29:45.5137940Z [10:29:45] 04e-editor: dbus launch -> LAUNCH-04e-editor-OK
+2026-11-20T10:29:45.5138449Z  | aegis@aegis:~$
+2026-11-20T10:30:10.6362050Z [10:30:10] 04e-editor: diff-vs-home=15.6 dock-slots=12
+2026-11-20T10:30:19.8170725Z [10:30:19] 04f-monitor: dbus launch -> LAUNCH-04f-monitor-OK
+2026-11-20T10:30:19.8171423Z  | aegis@aegis:~$
+2026-11-20T10:30:44.9752433Z [10:30:44] 04f-monitor: diff-vs-home=15.8 dock-slots=12
+2026-11-20T10:30:54.1586899Z [10:30:54] 04g-browser: resolved Exec: /usr/bin/aegis-browser-stable %U
+2026-11-20T10:30:58.2547855Z [10:30:58] 04g-browser: dbus launch -> LAUNCH-04g-browser-OK
+2026-11-20T10:30:58.2548484Z  | aegis@aegis:~$
+2026-11-20T10:31:28.3628022Z [10:31:28] 04g-browser: diff-vs-home=25.4 dock-slots=12
+2026-11-20T10:31:36.7076192Z [10:31:36] 04h-os: resolved Exec: /opt/OSPrivateChat/os-private-chat
+2026-11-20T10:31:40.9496516Z [10:31:40] 04h-os: dbus launch -> LAUNCH-04h-os-OK
+2026-11-20T10:31:40.9497273Z  | aegis@aegis:~$ [  673.631943] dbus-daemon[898]: [system] Failed to activate service 'org.bluez': timed out (service_start_timeout=25000ms)
+2026-11-20T10:32:11.1111763Z [10:32:11] 04h-os: diff-vs-home=0.0 dock-slots=12
+2026-11-20T10:32:13.1655784Z [10:32:13] 04h-os: liveness: OSPrivateChat/os-private-chat --no-first-run --no-default-browser-check --disable-gpu --no-sandbox --test-type
+2026-11-20T10:32:13.1657260Z  | 6964 /opt/OSPrivateChat/os-private-chat --type=zygote --no-zygote-sandbox --no-sandbox
+2026-11-20T10:32:53.3048217Z [10:32:53] 04h-os: patient re-diff=0.0
+2026-11-20T10:32:53.3048879Z [10:32:53] 04h-os attempt 1: screen looks unchanged, retrying
+2026-11-20T10:33:26.5187007Z [10:33:26] 04h-os: diff-vs-home=35.9 dock-slots=12
+2026-11-20T10:33:35.7576056Z [10:33:35] 04i-corex: resolved Exec: "/opt/CoreX Terminal/corex-terminal" %U
+2026-11-20T10:33:39.8567264Z [10:33:39] 04i-corex: dbus launch -> LAUNCH-04i-corex-OK
+2026-11-20T10:33:39.8568857Z  | aegis@aegis:~$
+2026-11-20T10:34:25.0206241Z [10:34:25] 04i-corex: diff-vs-home=3.5 dock-slots=12
+2026-11-20T10:34:27.0828724Z [10:34:27] 04i-corex: liveness: eX Terminal/corex-terminal --no-first-run --no-default-browser-check --disable-gpu --no-sandbox --test-type %U
+2026-11-20T10:34:27.0829740Z  | 7412 /opt/CoreX Terminal/corex-terminal --type=zygote --no-zygote-sandbox --no-sandbox
+2026-11-20T10:35:07.2249567Z [10:35:07] 04i-corex: patient re-diff=3.5
+2026-11-20T10:35:07.2250168Z [10:35:07] 04i-corex attempt 1: screen looks unchanged, retrying
+2026-11-20T10:35:55.4253291Z [10:35:55] 04i-corex: diff-vs-home=36.4 dock-slots=12
+2026-11-20T10:36:04.6190802Z [10:36:04] 04k-store: dbus launch -> LAUNCH-04k-store-OK
+2026-11-20T10:36:04.6191243Z  | aegis@aegis:~$
+2026-11-20T10:36:29.7227965Z [10:36:29] 04k-store: diff-vs-home=30.2 dock-slots=12
+2026-11-20T10:36:29.7830990Z [10:36:29] w38 store lights: found at [(102, 49), (122, 49), (142, 49)]
+2026-11-20T10:36:29.8001760Z [10:36:29] w61 island margin: worst |inside-outside| delta 0.0 — PASS
+2026-11-20T10:36:41.2803967Z [10:36:41] w38 store close: payload-closed=True diff-vs-home=0.0
+2026-11-20T10:36:45.3875399Z [10:36:45] 12-files: dbus launch -> LAUNCH-12-files-OK
+2026-11-20T10:36:45.3875926Z  | aegis@aegis:~$
+2026-11-20T10:37:10.4966162Z [10:37:10] 12-files: diff-vs-home=22.5 dock-slots=12
+2026-11-20T10:37:14.5726783Z [10:37:14] w64 home items (serial): 13
+2026-11-20T10:37:14.6515906Z [10:37:14] w64 small: cards [34] clusters 12/13 — FAIL
+2026-11-20T10:37:17.3132566Z [10:37:17] w64 standard: cards [466] — FAIL
+2026-11-20T10:37:19.9732263Z [10:37:19] w64 large: cards [] — FAIL
+2026-11-20T10:37:39.2527220Z [10:37:39] w64 usrbin rows: 1335 items / 0 cols = ? — FAIL
+2026-11-20T10:37:55.4728670Z [10:37:55] w64 usrbin close: count now 1
+2026-11-20T10:38:16.8428803Z [10:38:16] w52 dock reserve: maximized bottom edge y=719 (reserve line 724) — PASS
+2026-11-20T10:38:37.5135980Z [10:38:37] w66 busctl off: (silent = success for a void method)
+2026-11-20T10:38:45.2186873Z [10:38:45] w66 busctl on: (silent = success for a void method)
+2026-11-20T10:38:51.1126620Z [10:38:51] w66 blur state contract: off->conf false PASS / on->conf true PASS (session wayland)
+2026-11-20T10:38:53.1735978Z [10:38:53] w66 blurlog tail:
+2026-11-20T10:38:53.1736884Z   | 1795171113499 region panel 275,270 730x64
+2026-11-20T10:38:53.1738052Z   | 1795171113499 reset panel 1280x28 live=0
+2026-11-20T10:38:53.1738503Z   | 1795171113499 region panel 0,0 1280x28
+2026-11-20T10:38:53.1739569Z   | 1795171121200 apply live=1 channel=direct
+2026-11-20T10:38:53.1740178Z   | 1795171121200 reset sheet 1280x800 live=1
+2026-11-20T10:38:53.1740553Z   | 1795171121200 region sheet 0,0 1280x800
+2026-11-20T10:38:53.1741104Z   | 1795171121200 reset sheet 300x340 live=1
+2026-11-20T10:38:53.1741703Z   | 1795171121200 region sheet 0,0 300x340
+2026-11-20T10:38:53.1742279Z   | 1795171121200 reset sheet 348x446 live=1
+2026-11-20T10:38:53.1743060Z   | 1795171121200 region sheet 0,0 348x446
+2026-11-20T10:38:53.1743658Z   | 1795171121200 reset panel 1280x340 live=1
+2026-11-20T10:38:53.1744323Z   | 1795171121200 region panel 275,270 730x64
+2026-11-20T10:38:53.1745008Z   | 1795171121200 reset panel 1280x28 live=1
+2026-11-20T10:38:53.1745367Z   | 1795171121200 region panel 0,0 1280x28
+2026-11-20T10:38:53.1746397Z [10:38:53] w66 blur protocol contract: dock window 1280x340 region 275,270 730x64 PASS — the dock's blur is clipped to its glass
+2026-11-20T10:38:53.1748046Z [10:38:53] w66 blur pixel A/B (wayland): on 11.86 -> off 11.86 -> restored 11.86 (informational — the strip measured the dock's full-rect bleed before the clip fix; the wallpaper under real blur is too smooth to A/B)
+2026-11-20T10:38:53.1749215Z [10:38:53] w50 blur binds: strip energy base 0.00 -> sheet 11.86 PASS
+2026-11-20T10:39:18.4786259Z [10:39:18] w51 trash two-window: count 1 -> 2 (diff-vs-home=29.7) — PASS
+2026-11-20T10:39:51.9767662Z [10:39:51] w51 trash single: count 0 -> 1 diff-vs-home=25.9 — PASS
+2026-11-20T10:39:54.6791066Z [10:39:54] 05c-cc-shortcut: diff-vs-home=29.5 (Meta+S)
+2026-11-20T10:40:01.9781618Z [10:40:01] 05b-control-center-dnd captured (DND on, diff=1.7)
+2026-11-20T10:40:18.0031059Z [10:40:18] dark tile verdict: AegisDark -> AegisLight (state file: light) PASS
+2026-11-20T10:40:24.2830669Z /home/runner/work/AEGIS-OS/AEGIS-OS/scripts/boot-capture.py:3445: DeprecationWarning: Image.Image.getdata is deprecated and will be removed in Pillow 14 (2027-10-15). Use get_flattened_data instead.
+2026-11-20T10:40:24.2831808Z   px = list(box.getdata())
+2026-11-20T10:40:24.3266271Z [10:40:24] 05d-calendar: sheet-region delta=9.9
+2026-11-20T10:40:26.2016344Z [10:40:26] 05d2-calendar-closed: sheet-region delta=0.0
+2026-11-20T10:40:32.2462372Z [10:40:32] 05d3-calendar-autoclosed: sheet-region delta=0.0 (auto-close works)
+2026-11-20T10:40:32.2566949Z /home/runner/work/AEGIS-OS/AEGIS-OS/scripts/boot-capture.py:1152: DeprecationWarning: Image.Image.getdata is deprecated and will be removed in Pillow 14 (2027-10-15). Use get_flattened_data instead.
+2026-11-20T10:40:32.2569086Z   line = sum(1 for p in band.getdata()
+2026-11-20T10:40:32.2581666Z /home/runner/work/AEGIS-OS/AEGIS-OS/scripts/boot-capture.py:1157: DeprecationWarning: Image.Image.getdata is deprecated and will be removed in Pillow 14 (2027-10-15). Use get_flattened_data instead.
+2026-11-20T10:40:32.2583245Z   white = sum(1 for p in wm.getdata() if min(p) > 150)
+2026-11-20T10:40:32.2621000Z [10:40:32] splash boot-00: INK background — progress-line px 20, watermark px 4075
+2026-11-20T10:40:32.2776834Z [10:40:32] splash boot-01: INK background — progress-line px 40, watermark px 4075
+2026-11-20T10:40:32.2929414Z [10:40:32] splash boot-02: INK background — progress-line px 64, watermark px 4075
+2026-11-20T10:40:32.3081910Z [10:40:32] splash boot-03: INK background — progress-line px 88, watermark px 4075
+2026-11-20T10:40:32.3236111Z [10:40:32] splash boot-04: INK background — progress-line px 114, watermark px 4075
+2026-11-20T10:40:32.3389846Z [10:40:32] splash boot-05: INK background — progress-line px 140, watermark px 4075
+2026-11-20T10:40:32.3541874Z [10:40:32] splash boot-06: INK background — progress-line px 164, watermark px 4075
+2026-11-20T10:40:32.3696670Z [10:40:32] splash boot-07: INK background — progress-line px 188, watermark px 4075
+2026-11-20T10:40:32.3849193Z [10:40:32] splash boot-08: INK background — progress-line px 210, watermark px 4075
+2026-11-20T10:40:32.4001933Z [10:40:32] splash boot-09: INK background — progress-line px 232, watermark px 4075
+2026-11-20T10:40:32.4157266Z [10:40:32] splash boot-10: INK background — progress-line px 254, watermark px 4075
+2026-11-20T10:40:32.4310262Z [10:40:32] splash boot-11: INK background — progress-line px 274, watermark px 4075
+2026-11-20T10:40:32.4463663Z [10:40:32] splash boot-12: INK background — progress-line px 314, watermark px 4075
+2026-11-20T10:40:32.4620244Z [10:40:32] splash boot-13: INK background — progress-line px 326, watermark px 4075
+2026-11-20T10:40:32.4772512Z [10:40:32] splash boot-14: INK background — progress-line px 336, watermark px 4075
+2026-11-20T10:40:32.4927549Z [10:40:32] splash boot-15: INK background — progress-line px 344, watermark px 4075
+2026-11-20T10:40:32.5082716Z [10:40:32] splash boot-16: INK background — progress-line px 352, watermark px 4075
+2026-11-20T10:40:32.5165369Z [10:40:32] splash boot-17: background is not ink — console or desktop frame
+2026-11-20T10:40:32.5248416Z [10:40:32] splash boot-18: background is not ink — console or desktop frame
+2026-11-20T10:40:32.5331034Z [10:40:32] splash boot-19: background is not ink — console or desktop frame
+2026-11-20T10:40:32.5412441Z [10:40:32] splash boot-20: background is not ink — console or desktop frame
+2026-11-20T10:40:32.5413539Z [10:40:32] splash: MARK SPLASH CONFIRMED on boot-16 (progress px 352, watermark px 4075)
+2026-11-20T10:40:38.6255382Z [10:40:38] gpu/plymouth probe:  | GPU-PROBE
+2026-11-20T10:40:38.6255820Z  | aegis@aegis:~$
+2026-11-20T10:40:44.6707308Z [10:40:44] virtio journal DRM-master check: clean
+2026-11-20T10:40:57.4588587Z [10:40:57] splash probe: anged
+2026-11-20T10:40:57.4588956Z  | 
+2026-11-20T10:40:57.4589527Z  | 00:20:34.144 ../src/libply-splash-core/ply-device-manager.c:1248:create_dev: Timeout elapsed, looking for d
+2026-11-20T10:40:59.9872729Z [10:40:59] 07-live-splash-probe captured (idle-session show-splash EXPERIMENT — not boot evidence)
+2026-11-20T10:40:59.9979580Z /home/runner/work/AEGIS-OS/AEGIS-OS/scripts/boot-capture.py:3560: DeprecationWarning: Image.Image.getdata is deprecated and will be removed in Pillow 14 (2027-10-15). Use get_flattened_data instead.
+2026-11-20T10:40:59.9980688Z   bright = sum(1 for p in box.getdata() if max(p) > 70)
+2026-11-20T10:41:00.0218732Z [10:41:00] plymouth-test centre brightness: 2%
+2026-11-20T10:41:04.4067321Z [10:41:04] plymouthd debug: 00:20:36.822 ../src/libply-splash-core/ply-device-manager.c:490:create_devi: device is initialized 1
+2026-11-20T10:41:04.4069447Z  | 00:20:36.822 ../src/libply-splash-core/ply-device-manager.c:494:create_devi: found node /dev/input/event1
+2026-11-20T10:41:04.4070860Z  | 
+2026-11-20T10:41:04.4071352Z  | 00:20:36.822 ../src/libply-splash-core/ply-device-manager.c:379:create_devi: device subsystem is input
+2026-11-20T10:41:04.4071928Z  | 
+2026-11-20T10:41:04.4072436Z 00:20:36.823 ../src/libply-splash-core/ply-device-manager.c:406:create_devi: found input device /dev/input/event1
+2026-11-20T10:41:04.4073494Z  | 00:20:36.826 ../src/libply-splash-core/ply-device-manager.c:293:add_input_d: Input device 'AT Translated Set 2 keyboard' already added, skipping...
+2026-11-20T10:41:04.4074322Z  | 00:20:36
+2026-11-20T10:41:08.8068008Z [10:41:08] serial OK — app diagnostics follow
+2026-11-20T10:41:14.8987549Z [10:41:14] app-diag: ===PROCS===
+2026-11-20T10:41:14.8988301Z  | USER             PID   RSS    VSZ COMMAND
+2026-11-20T10:41:14.8988992Z  | aegis           1193 461476 2246356 aegis-shell
+2026-11-20T10:41:14.8989757Z  | aegis           1200 337596 1943768 kwin_wayland
+2026-11-20T10:41:14.8990508Z  | aegis           9116 223036 1581468 aegis-apps
+2026-11-20T10:41:14.8991320Z  | aegis           1301 132828 1437636 polkit-kde-auth
+2026-11-20T10:41:14.8992070Z  | aegis           1296 131628 1281764 kded6
+2026-11-20T10:41:14.8992782Z  | root            1100 38408 130748 unattended-upgr
+2026-11-20T10:41:14.8993511Z  | root            3347 31280 350652 
+2026-11-20T10:41:21.0959351Z [10:41:21] app-diag: ===SESSLOG===
+2026-11-20T10:41:21.0960400Z  | === aegis-session start Fri Nov 20 10:20:53 AM UTC 2026 uid=1000 seat=seat0 vt=2 XDG_RUNTIME_DIR=/run/user/1000 ===
+2026-11-20T10:41:21.0964228Z  | kwin started pid=1200
+2026-11-20T10:41:21.0965135Z  | No backend specified, automatically choosing drm
+2026-11-20T10:41:21.0967217Z  | socket_ok=1; runtime dir: bus dbus-1 dconf doc gnupg openssh_agent pipewire-0 pipewire-0-manager pipewire-0-manager.lock pipewire-0.lock pk-debconf-socket pulse snapd-session-agent.socket
+2026-11-20T10:41:27.1307462Z [10:41:27] app-diag: ===SETTINGS-ERR===
+2026-11-20T10:41:27.1308382Z  | libEGL warning: egl: failed to create dri2 screen
+2026-11-20T10:41:27.1309299Z  | libEGL warning: egl: failed to create dri2 screen
+2026-11-20T10:41:27.1310085Z  | aegis@aegis:~$
+2026-11-20T10:41:39.2097060Z [10:41:39] app-diag: ===QPS===
+2026-11-20T10:41:39.2097764Z  | aegis@aegis:~$
+2026-11-20T10:41:51.2488890Z [10:41:51] app-diag: ===QPF===
+2026-11-20T10:41:51.2492373Z  | aegis@aegis:~$ [ 1285.865521] systemd[1]: Starting sddm-backgrounds-cache.service - Update SDDM user backgrounds cache from AccountsService...
+2026-11-20T10:41:51.2494579Z  | [ 1285.913193] update-sddm-backgrounds-cache[10032]: SDDM backgrounds cache updated successfully
+2026-11-20T10:41:51.2495897Z  | [ 1285.913898] update-sddm-backgrounds-cache[10032]: Cache file: /usr/share/sddm/themes/ubuntu-budgie-login/cache/user-backgrounds.json
+2026-11-20T10:41:51.2496692Z  | [ 
+2026-11-20T10:42:03.3379272Z [10:42:03] app-diag: ===QPM===
+2026-11-20T10:42:03.3379867Z  | aegis@aegis:~$
+2026-11-20T10:42:15.4211497Z [10:42:15] app-diag: ===QPC===
+2026-11-20T10:42:15.4212194Z  | aegis@aegis:~$
+2026-11-20T10:42:27.5052368Z [10:42:27] app-diag: ===QPE===
+2026-11-20T10:42:27.5053067Z  | aegis@aegis:~$
+2026-11-20T10:42:39.5876419Z [10:42:39] app-diag: ===QPN===
+2026-11-20T10:42:39.5876780Z  | aegis@aegis:~$
+2026-11-20T10:42:45.6540335Z [10:42:45] app-diag: ===VERDICTS===
+2026-11-20T10:42:45.6541124Z  | PV-s=CLEAN
+2026-11-20T10:42:45.6541596Z  | PV-f=CLEAN
+2026-11-20T10:42:45.6542051Z  | PV-m=CLEAN
+2026-11-20T10:42:45.6542524Z  | PV-c=CLEAN
+2026-11-20T10:42:45.6542989Z  | PV-e=CLEAN
+2026-11-20T10:42:45.6543420Z  | PV-n=CLEAN
+2026-11-20T10:42:45.6543907Z  | aegis@aegis:~$
+2026-11-20T10:42:51.7096433Z [10:42:51] app-diag: ===WRAPPERS===
+2026-11-20T10:42:51.7097271Z  | -rwxr-xr-x 1 root root 110 Nov 14 09:20 /usr/bin/aegis-calculator
+2026-11-20T10:42:51.7098272Z  | -rwxr-xr-x 1 root root 102 Nov 14 09:20 /usr/bin/aegis-editor
+2026-11-20T10:42:51.7099072Z  | -rwxr-xr-x 1 root root 105 Nov 14 09:20 /usr/bin/aegis-files
+2026-11-20T10:42:51.7099892Z  | -rwxr-xr-x 1 root root 104 Nov 14 09:20 /usr/bin/aegis-monitor
+2026-11-20T10:42:51.7103805Z  | -rwxr-xr-x 1 root root 100 Nov 14 09:20 /usr/bin/aegis-music
+2026-11-20T10:42:51.7104746Z  | -rwxr-xr-x 1 root root 119 Nov 14 09:20 /usr/bin/aegis
+2026-11-20T10:42:57.7939835Z [10:42:57] app-diag: ===JRN-SHELL===
+2026-11-20T10:42:57.7941134Z  | [ 1348.426234] sudo[10588]: pam_unix(sudo:session): session opened for user root(uid=0) by aegis(uid=1000)
+2026-11-20T10:42:57.7946481Z  | [ 1348.426438] sudo[10588]: aegis : TTY=/dev/ttyS0 ; *** ; USER=root ; COMMAND=/usr/bin/journalctl -b --no-pager
+2026-11-20T10:42:57.7947891Z  | [ 1348.444184] sudo[10588]: pam_unix(sudo:session): session closed for user root
+2026-11-20T10:42:57.7948859Z  | Nov 20 10:20:52 aegis sddm[1123]: Session "/usr/share/wayla
+2026-11-20T10:43:03.8595739Z [10:43:03] app-diag: ===JRN-KWIN===
+2026-11-20T10:43:03.8597242Z  | [ 1354.514919] sudo[10616]: pam_unix(sudo:session): session opened for user root(uid=0) by aegis(uid=1000)
+2026-11-20T10:43:03.8599528Z  | [ 1354.515120] sudo[10616]: aegis : TTY=/dev/ttyS0 ; *** ; USER=root ; COMMAND=/usr/bin/journalctl -b --no-pager
+2026-11-20T10:43:03.8600989Z  | [ 1354.532438] sudo[10616]: pam_unix(sudo:session): session closed for user root
+2026-11-20T10:43:03.8601965Z  | aegis@aegis:~$
+2026-11-20T10:43:09.9327124Z [10:43:09] app-diag: ===JRN-CRASH===
+2026-11-20T10:43:09.9328353Z  | [ 1360.580900] sudo[10645]: pam_unix(sudo:session): session opened for user root(uid=0) by aegis(uid=1000)
+2026-11-20T10:43:09.9331201Z  | [ 1360.581073] sudo[10645]: aegis : TTY=/dev/ttyS0 ; *** ; USER=root ; COMMAND=/usr/bin/journalctl -b --no-pager
+2026-11-20T10:43:09.9332759Z  | [ 1360.599618] sudo[10645]: pam_unix(sudo:session): session closed for user root
+2026-11-20T10:43:09.9333767Z  | aegis@aegis:~$
+2026-11-20T10:43:15.9676556Z [10:43:15] app-diag: ===COREDUMPCTL===
+2026-11-20T10:43:15.9677572Z  | -bash: coredumpctl: command not found
+2026-11-20T10:43:15.9678453Z  | aegis@aegis:~$
+2026-11-20T10:43:22.1506845Z [10:43:22] app-diag: ===KWINRC===
+2026-11-20T10:43:22.1507276Z  | [org.kde.kdecoration2]
+2026-11-20T10:43:22.1507592Z  | library=org.kde.kwin.aurorae
+2026-11-20T10:43:22.1508046Z  | theme=__aurorae__svg__AegisLights
+2026-11-20T10:43:22.1508566Z  | ButtonsOnLeft=XIA
+2026-11-20T10:43:22.1509020Z  | ButtonsOnRight=
+2026-11-20T10:43:22.1509467Z  | BorderSizeAuto=false
+2026-11-20T10:43:22.1510559Z  | # W11 — None = borders 0/44/0/0: the client is flush with the window edge
+2026-11-20T10:43:22.1511549Z  | # below the 44 px glass band (the AppWindow.qml anatomy). The aurorae v2
+2026-11-20T10:43:22.1512771Z  | # engine clamps theme Border* to this size (Normal would clamp 12 → 6 an
+2026-11-20T10:43:28.3163716Z [10:43:28] app-diag: ===KDEGLOBALS===
+2026-11-20T10:43:28.3164683Z  | [General]
+2026-11-20T10:43:28.3165318Z  | ColorScheme=AegisDark
+2026-11-20T10:43:28.3166585Z  | # W18 — pin the type: without [General] font every Qt widget app fell
+2026-11-20T10:43:28.3167738Z  | # back to the session default; Montserrat 10 is the v1.3 body token.
+2026-11-20T10:43:28.3168831Z  | font=Montserrat,10,-1,5,400,0,0,0,0,0
+2026-11-20T10:43:28.3172478Z  | 
+2026-11-20T10:43:28.3172903Z  | [KDE]
+2026-11-20T10:43:28.3173335Z  | widgetStyle=breeze
+2026-11-20T10:43:28.3173814Z  | contrast=4
+2026-11-20T10:43:28.3174235Z  | 
+2026-11-20T10:43:28.3174788Z  | [Icons]
+2026-11-20T10:43:28.3175216Z  | Theme=Aegis
+2026-11-20T10:43:28.3175619Z  | 
+2026-11-20T10:43:28.3176389Z  | # W11 — the konsole.mo caption override loads for this language: the KAbo
+2026-11-20T10:43:34.4417359Z [10:43:34] app-diag: ===USER-KDEGLOBALS===
+2026-11-20T10:43:34.4418322Z  | -rw-r--r-- 1 aegis aegis 2528 Nov 20 10:40 /home/aegis/.config/kdeglobals
+2026-11-20T10:43:34.4418868Z  | [General]
+2026-11-20T10:43:34.4419146Z  | ColorScheme=AegisDark
+2026-11-20T10:43:34.4419440Z  | 
+2026-11-20T10:43:34.4419670Z  | [KDE]
+2026-11-20T10:43:34.4419917Z  | widgetStyle=breeze
+2026-11-20T10:43:34.4420203Z  | contrast=4
+2026-11-20T10:43:34.4420451Z  | 
+2026-11-20T10:43:34.4420676Z  | [Icons]
+2026-11-20T10:43:34.4420918Z  | Theme=Aegis
+2026-11-20T10:43:34.4421514Z  | 
+2026-11-20T10:43:34.4421761Z  | [Toolbar style]
+2026-11-20T10:43:34.4422102Z  | ToolButtonStyle=IconOnly
+2026-11-20T10:43:34.4422484Z  | ToolButtonStyleOtherToolbars=IconOnly
+2026-11-20T10:43:34.4422831Z  | 
+2026-11-20T10:43:34.4423057Z  | [Colors:Window]
+2026-11-20T10:43:34.4423324Z  | BackgroundNormal=23,24,29
+2026-11-20T10:43:34.4423638Z  | BackgroundAlternate=32,34,40
+2026-11-20T10:43:34.4423938Z  | Foreg
+2026-11-20T10:43:40.4806146Z [10:43:40] app-diag: ===SDDM-THEME===
+2026-11-20T10:43:40.4806901Z  | Main.qml  background.jpg  mark.png  metadata.desktop  theme.conf
+2026-11-20T10:43:40.4807478Z  | aegis@aegis:~$
+2026-11-20T10:43:46.5306679Z [10:43:46] app-diag: ===KWIN-SCRIPTS===
+2026-11-20T10:43:46.5307273Z  | b true
+2026-11-20T10:43:46.5307653Z  | aegis@aegis:~$
+2026-11-20T10:43:52.5735667Z [10:43:52] app-diag: ===KWIN-EFFECTS===
+2026-11-20T10:43:52.5736178Z  | Too few parameters for signature.
+2026-11-20T10:43:52.5736465Z 
+2026-11-20T10:43:52.5736582Z  | aegis@aegis:~$
+2026-11-20T10:43:58.6457412Z [10:43:58] app-diag: ===KWIN-LOADS===
+2026-11-20T10:43:58.6458537Z  | [ 1409.294366] sudo[10874]: pam_unix(sudo:session): session opened for user root(uid=0) by aegis(uid=1000)
+2026-11-20T10:43:58.6460526Z  | [ 1409.294550] sudo[10874]: aegis : TTY=/dev/ttyS0 ; *** ; USER=root ; COMMAND=/usr/bin/journalctl -b --no-pager
+2026-11-20T10:43:58.6461899Z  | [ 1409.314620] sudo[10874]: pam_unix(sudo:session): session closed for user root
+2026-11-20T10:43:58.6462795Z  | aegis@aegis:~$
+2026-11-20T10:44:04.6926369Z [10:44:04] app-diag: ===KWIN-PLUGINS===
+2026-11-20T10:44:04.6927111Z  | kwin4_effect_shapecorners.so
+2026-11-20T10:44:04.6927932Z  | ls: cannot access '/usr/lib/qt6/plugins/kwin/effects/plugins/': No such file or directory
+2026-11-20T10:44:04.6928808Z  | PLUGINS-DONE
+2026-11-20T10:44:04.6929192Z  | aegis@aegis:~$
+2026-11-20T10:44:10.8758716Z [10:44:10] app-diag: ===LAUNCH-LOGS===
+2026-11-20T10:44:10.8760080Z  | ### LOGFILE: /home/aegis/.local/state/aegis-shell/aegis/launch/aegis-calculator.log
+2026-11-20T10:44:10.8761179Z  | --- 2026-11-20T10:29:07
+2026-11-20T10:44:10.8761755Z  | aegis-calculator
+2026-11-20T10:44:10.8762379Z  | libEGL warning: egl: failed to create dri2 screen
+2026-11-20T10:44:10.8763179Z  | libEGL warning: egl: failed to create dri2 screen
+2026-11-20T10:44:10.8764843Z  | qt.qpa.services: Failed to register with host portal QDBusError("org.freedesktop.portal.Error.Failed", "Could not register app ID: App info
+2026-11-20T10:44:17.0987488Z [10:44:17] app-diag: ===PLYMOUTH===
+2026-11-20T10:44:17.0988360Z  | -bash: plymouth-set-default-theme: command not found
+2026-11-20T10:44:17.0989491Z  | ● plymouth-start.service - Show Plymouth Boot Screen
+2026-11-20T10:44:17.0990464Z  |      Loaded: loaded (/usr/lib/systemd/system/plymouth-start.service; static)
+2026-11-20T10:44:17.0991502Z  |      Active: active (exited) since Fri 2026-11-20 10:20:29 UTC; 23min ago
+2026-11-20T10:44:17.0992415Z  |  Invocation: 5586cafe3a6147ea8d1ca196370db802
+2026-11-20T10:44:17.0993282Z  |     Process: 406 ExecStart=/usr/sbin/plymouthd --mode=boot --pid
+2026-11-20T10:44:17.0994060Z [10:44:17] probe settings: CLEAN
+2026-11-20T10:44:17.0995120Z [10:44:17] probe files: CLEAN
+2026-11-20T10:44:17.0995608Z [10:44:17] probe music: CLEAN
+2026-11-20T10:44:17.0996074Z [10:44:17] probe calculator: CLEAN
+2026-11-20T10:44:17.0996613Z [10:44:17] probe editor: CLEAN
+2026-11-20T10:44:17.0997233Z [10:44:17] probe monitor: CLEAN
+2026-11-20T10:44:17.1203617Z /home/runner/work/AEGIS-OS/AEGIS-OS/scripts/boot-capture.py:1373: DeprecationWarning: Image.Image.getdata is deprecated and will be removed in Pillow 14 (2027-10-15). Use get_flattened_data instead.
+2026-11-20T10:44:17.1204982Z   for p in im.getdata():
+2026-11-20T10:44:17.1949972Z [10:44:17] tint assert: 128 px at #FA2D48 in 02-files
+2026-11-20T10:44:17.2125751Z /home/runner/work/AEGIS-OS/AEGIS-OS/scripts/boot-capture.py:1392: DeprecationWarning: Image.Image.getdata is deprecated and will be removed in Pillow 14 (2027-10-15). Use get_flattened_data instead.
+2026-11-20T10:44:17.2127258Z   for p in im.getdata():
+2026-11-20T10:44:17.2741194Z [10:44:17] monitor assert: 563 accent px in 04f-monitor
+2026-11-20T10:44:17.3135746Z [10:44:17] island assert: home 27 px (visible), files 0 px (should be hidden)
+2026-11-20T10:44:17.3502271Z [10:44:17] magnify assert: rest clearance 4 px, magnified 28 px
+2026-11-20T10:44:43.7108527Z [10:44:43] w41 dock-click-only launch: diff-vs-base=6.3 liveness=alive PASS — the tile click launched the app
+2026-11-20T10:44:59.1489157Z [10:44:59] w41 dock blurlog tail:
+2026-11-20T10:44:59.1490038Z   | 1795171483808 reset panel 1280x340 live=0
+2026-11-20T10:44:59.1490912Z   | 1795171483808 region panel 210,270 861x64
+2026-11-20T10:44:59.1491600Z   | 1795171483808 reset panel 1280x28 live=0
+2026-11-20T10:44:59.1492237Z   | 1795171483808 region panel 0,0 1280x28
+2026-11-20T10:44:59.1492876Z   | 1795171489488 reset panel 1280x340 live=1
+2026-11-20T10:44:59.1493516Z   | 1795171489488 region panel 210,270 861x64
+2026-11-20T10:44:59.1494151Z   | 1795171489488 reset panel 1280x28 live=1
+2026-11-20T10:44:59.1495045Z   | 1795171489488 region panel 0,0 1280x28
+2026-11-20T10:44:59.1497430Z [10:44:59] w41 dock blur clip: region_h=64 window_h=340 clipped=yes; above-pill energy on=7.66 off=7.66 restored=7.66 dev=0.00 (static = clipped, the wallpaper there is too smooth to blur-signal); pill band on=11.90 off=11.59 delta=0.31 (informational) PASS — the blur stops at the pill's top edge
+2026-11-20T10:44:59.2409732Z /home/runner/work/AEGIS-OS/AEGIS-OS/scripts/boot-capture.py:3953: DeprecationWarning: Image.Image.getdata is deprecated and will be removed in Pillow 14 (2027-10-15). Use get_flattened_data instead.
+2026-11-20T10:44:59.2410875Z   px = list(im.getdata())
+2026-11-20T10:45:05.4909391Z [10:45:05] w41 introspection (lock/unlock members):
+2026-11-20T10:45:05.4909931Z   | org.aegis.Shell                     interface -         -            -
+2026-11-20T10:45:05.4910424Z   | .lock                               method    -         -            -
+2026-11-20T10:45:05.4910905Z   | .unlock                             method    ss        -            -
+2026-11-20T10:45:05.4911424Z   | org.freedesktop.DBus.Introspectable interface -         -            -
+2026-11-20T10:45:05.4912000Z   | org.freedesktop.DBus.Peer           interface -         -            -
+2026-11-20T10:45:05.4912566Z   | org.freedesktop.DBus.Properties     interface -         -            -
+2026-11-20T10:45:12.2449160Z [10:45:12] w41 lock gdbus -> ()
+2026-11-20T10:45:12.2449790Z  | LOCKTRY-END
+2026-11-20T10:45:12.2450187Z  | aegis@aegis:~$
+2026-11-20T10:45:12.2451279Z [10:45:12] w41 lock render: lum base 36.9 -> locked 24.9 PASS — the scrim rendered
+2026-11-20T10:45:18.3281438Z [10:45:18] w41 pam helper direct: 'OK' PASS — PAM verified the documented live password
+2026-11-20T10:45:26.4466949Z [10:45:26] w41 unlock gdbus -> ()
+2026-11-20T10:45:26.4467324Z  | UNEND
+2026-11-20T10:45:26.4467548Z  | aegis@aegis:~$
+2026-11-20T10:45:30.5546354Z [10:45:30] w41 unlock (PAM): lum locked 24.9 -> unlocked 36.9 vs base 36.9 PASS — the session came back
+2026-11-20T10:45:30.5548225Z [10:45:30] ASSERT FAILED: W64: the Files icon presets do not render at 56/84/116 px cards — the segmented control or the size bindings regressed
+2026-11-20T10:45:30.5549908Z [10:45:30] ASSERT FAILED: W64: the /usr/bin grid at Small spans < 8 rows (ceil(items/columns) from the serial count and row-1 label clusters)
+2026-11-20T10:45:30.5550731Z [10:45:30] capture complete (FAILED release)
+2026-11-20T10:45:30.5810081Z ##[error]Process completed with exit code 1.
+2026-11-20T10:45:30.5916034Z ##[group]Run actions/upload-artifact@v4
+2026-11-20T10:45:30.5916349Z with:
+2026-11-20T10:45:30.5916564Z   name: boot-test-v0.6.78
+2026-11-20T10:45:30.5917116Z   path: screenshots/**
+screenshots-vmware/**
+screenshots-isobios/**
+screenshots-isouefi/**
+serial.log
+serial-diag.txt
+qemu.log
+
+2026-11-20T10:45:30.5917700Z   retention-days: 90
+2026-11-20T10:45:30.5917919Z   if-no-files-found: warn
+2026-11-20T10:45:30.5918153Z   compression-level: 6
+2026-11-20T10:45:30.5918581Z   overwrite: false
+2026-11-20T10:45:30.5918793Z   include-hidden-files: false
+2026-11-20T10:45:30.5919057Z ##[endgroup]
+2026-11-20T10:45:30.7608104Z (node:4111) [DEP0040] DeprecationWarning: The `punycode` module is deprecated. Please use a userland alternative instead.
+2026-11-20T10:45:30.7608949Z (Use `node --trace-deprecation ...` to show where the warning was created)
+2026-11-20T10:45:30.7827923Z Multiple search paths detected. Calculating the least common ancestor of all paths
+2026-11-20T10:45:30.7832963Z The least common ancestor is /home/runner/work/AEGIS-OS/AEGIS-OS. This will be the root directory of the artifact
+2026-11-20T10:45:30.7834086Z With the provided path, there will be 82 files uploaded
+2026-11-20T10:45:30.7837557Z Artifact name is valid!
+2026-11-20T10:45:30.7839020Z Root directory input is valid!
+2026-11-20T10:45:31.0200675Z Beginning upload of artifact content to blob storage
+2026-11-20T10:45:31.3557324Z (node:4111) [DEP0169] DeprecationWarning: `url.parse()` behavior is not standardized and prone to errors that have security implications. Use the WHATWG URL API instead. CVEs are not issued for `url.parse()` vulnerabilities.
+2026-11-20T10:45:31.6144632Z Uploaded bytes 8388608
+2026-11-20T10:45:31.7963697Z Uploaded bytes 14805952
+2026-11-20T10:45:31.8142142Z Finished uploading artifact content to blob storage!
+2026-11-20T10:45:31.8143944Z SHA256 digest of uploaded artifact zip is dc9d3f67146d8c1b2bc932a4842ba29fe51452f37ea7b86b841ff6151809bec6
+2026-11-20T10:45:31.8146226Z Finalizing artifact upload
+2026-11-20T10:45:32.1307420Z Artifact boot-test-v0.6.78.zip successfully finalized. Artifact ID 14622361594
+2026-11-20T10:45:32.1309156Z Artifact boot-test-v0.6.78 has been successfully uploaded! Final size is 14805952 bytes. Artifact ID is 14622361594
+2026-11-20T10:45:32.1315442Z Artifact download URL: https://github.com/abdul-mateen-14/AEGIS-OS/actions/runs/44718243659/artifacts/14622361594
+2026-11-20T10:45:32.1610994Z Post job cleanup.
+2026-11-20T10:45:32.2527331Z [command]/usr/bin/git version
+2026-11-20T10:45:32.2578406Z git version 2.56.1
+2026-11-20T10:45:32.2625931Z Temporarily overriding HOME='/home/runner/work/_temp/eacbad45-b3ec-40dd-b928-04ad4c1b71b4' before making global git config changes
+2026-11-20T10:45:32.2627283Z Adding repository directory to the temporary git global config as a safe directory
+2026-11-20T10:45:32.2632362Z [command]/usr/bin/git config --global --add safe.directory /home/runner/work/AEGIS-OS/AEGIS-OS
+2026-11-20T10:45:32.2679898Z [command]/usr/bin/git config --local --name-only --get-regexp core\.sshCommand
+2026-11-20T10:45:32.2719837Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'core\.sshCommand' && git config --local --unset-all 'core.sshCommand' || :"
+2026-11-20T10:45:32.3029970Z [command]/usr/bin/git config --local --name-only --get-regexp http\.https\:\/\/github\.com\/\.extraheader
+2026-11-20T10:45:32.3072295Z http.https://github.com/.extraheader
+2026-11-20T10:45:32.3084234Z [command]/usr/bin/git config --local --unset-all http.https://github.com/.extraheader
+2026-11-20T10:45:32.3128688Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'http\.https\:\/\/github\.com\/\.extraheader' && git config --local --unset-all 'http.https://github.com/.extraheader' || :"
+2026-11-20T10:45:32.3472341Z [command]/usr/bin/git config --local --name-only --get-regexp ^includeIf\.gitdir:
+2026-11-20T10:45:32.3517768Z [command]/usr/bin/git submodule foreach --recursive git config --local --show-origin --name-only --get-regexp remote.origin.url
+2026-11-20T10:45:32.3998498Z Cleaning up orphan processes
+2026-11-20T10:45:32.4414920Z ##[warning]Node.js 20 is deprecated. The following actions target Node.js 20 but are being forced to run on Node.js 24: actions/checkout@v4, actions/upload-artifact@v4. For more information see: https://github.blog/changelog/2025-09-19-deprecation-of-node-20-on-github-actions-runners/

@@ -1,3 +1,56 @@
+## Liquid Glass v1.6 SHIPPED + two detector root-causes — v0.6.78 fd24476, bt86-91, 2026-11-20
+- The user's ask ("truly transparent liquid glass in every section and
+  everywhere", the iOS 26 material, YouTube ref IrGYUq1mklk) shipped in
+  bd83a52: every tint cut ~40% (panel 0.52→0.32, sheet 0.46→0.28,
+  chrome 0.36→0.20, dock tray 0.13→0.08, light rungs 0.38/0.32/0.28),
+  rims up 0.14→0.28/0.30/0.24, GlassPanel specular upgraded (top band
+  14 px @ 20%→3%, sheen wash, 2px inner bottom shadow, doubled bounce
+  stroke), kwinrc BlurStrength=14, Launcher joined the sheet rung. The
+  0.84/0.86 translucent app-body hunk of the same commit was REVERTED
+  in fd24476 (the material hierarchy is Apple's own — glass is the
+  chrome, content stays solid; the glass in app windows lives in the
+  44 px titleband) and that revert is what boot-verified: **bt91
+  44731962529 GREEN** (zero assert failures), release v0.6.78 assets
+  live on the tag.
+- bt87 44693380590's W64 red was REAL (translucent body) and bt86
+  44689353406's W63 red was REAL (the 0.28 border moved the T7 hairline
+  run_start ~10 px left onto the selected-row pill) — but the first
+  harness response (a7fd820: pill-run exclusion + hairline ceiling
+  150→170) fixed NEITHER, and bt88 (44718243659) red again taught why.
+  Artifact forensics on bt88's own frames: raising the ceiling to 170
+  admitted a brighter wallpaper row on the SAME 12-files capture — the
+  qualifying run grew 934→1021 px, x_start moved 173→90, and W64's
+  strip (wx0+260/276/292) landed inside the sidebar (one 466 px blob,
+  0 label columns); the ceiling revert (395ea5c) alone fixed W64
+  completely — bt89 44727107456: cards [56,56]/[84,84]/[116×3] +
+  usrbin 1335 items/79 cols = 17 rows, all PASS.
+- bt89 then red on W63 26 px AGAIN, exposing that the pill exclusion
+  had never fired with a correct hairline: the row's own white label
+  text breaks the pill's tint run into segments < 60 px (the pill's
+  pre-text segment IS the 26 px measured), and bt85/bt88's 0 px "PASS"
+  runs were positional luck — the +8..+41 strip sat in empty space and
+  never saw the glyph column at all. bt89's strip landed on the AEGIS
+  ID AVATAR: a legitimate filled blue circle (~36 px, area ~980 px²)
+  on the account card, same x-range as the glyph column. Width alone
+  cannot classify (the avatar clips at the scan edge to a 26 px chord;
+  legitimate stroke glyphs run 14 px wide — the monitor base line).
+  Final detector (f08ea3e, validated locally PASS on BOTH bt89's fail
+  frame and bt85's pass frame): connected tint-blob classification by
+  AREA over the whole sidebar body — strokes < 150 px² pass even when
+  long, the W45 chip regression (calibrated 16 px, ~200 px²) lands in
+  the 150-600 FAIL band, the avatar (≥ 600 px²) whitelists exactly
+  one. bt91 in CI: `chips none, avatars 1` PASS.
+- Rust stage 0 MEASURE arrived with this run: the replaced ===PROCS===
+  diagnostic now dumps the RSS-sorted table (llvmpipe session):
+  aegis-shell 460 MB, kwin_wayland 333 MB, aegis-apps 224 MB,
+  polkit-kde-auth 132 MB, kded6 131 MB — the Electron-apps-first
+  staging in docs/RUST-MIGRATION.md (b24c5f9) has its baseline.
+- User-facing: v0.6.78 is the Liquid Glass ISO — every floating
+  surface (panel, dock tray, launcher, sheets, popover) reads truly
+  translucent with the specular system; app content stays opaque
+  under a glass titleband. 05d popover delta 9.9-11.2 across runs
+  (the thinner plate reads MORE distinct, not less).
+
 ## W47 rounds 1-3 — the calendar popover's auto-close: dead code, self-kill, and the honest gate (v0.6.75 cb0cd67 + v0.6.76 c10d2fe, bt80-85, 2026-11-19)
 - The watch-item (property-WRITE call shape) audited REAL: both of the
   CalendarPopover's auto-close writes called Util.setCalendarOpen(false)
