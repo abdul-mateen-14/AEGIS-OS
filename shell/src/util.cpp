@@ -367,6 +367,39 @@ void Util::rotateIfDue()
     setWallpaper(list.at(idx));
 }
 
+// W67 (v1.7) — the wallpaper's luminance under the CC sheet's corner,
+// 0-255 (-1 when the image cannot be read). Cached per wallpaper path so
+// the sheet's scrim binding can call it every open without re-decoding.
+// The sheet covers the top-right of a 16:10 desktop, so the sample is the
+// image's right half, top 60% (scaled 128x80: x>=64, y<=48).
+int Util::backdropLuminance()
+{
+    if (m_backdropFor == m_wallpaper && m_backdropLum >= -1)
+        return m_backdropLum;
+    m_backdropFor = m_wallpaper;
+    m_backdropLum = -1;
+    if (m_wallpaper.isEmpty() || !QFileInfo::exists(m_wallpaper))
+        return m_backdropLum;
+    const QImage src(m_wallpaper);
+    if (src.isNull())
+        return m_backdropLum;
+    const QImage small = src.scaled(128, 80, Qt::IgnoreAspectRatio,
+                                    Qt::SmoothTransformation);
+    if (small.isNull())
+        return m_backdropLum;
+    qint64 sum = 0;
+    int n = 0;
+    for (int y = 0; y < 48; ++y) {
+        for (int x = 64; x < 128; ++x) {
+            const QRgb px = small.pixel(x, y);
+            sum += qGray(px);
+            ++n;
+        }
+    }
+    m_backdropLum = n > 0 ? int(sum / n) : -1;
+    return m_backdropLum;
+}
+
 void Util::forwardToShellBool(const QString &method, bool value) const
 {
     if (m_ownsDBus)

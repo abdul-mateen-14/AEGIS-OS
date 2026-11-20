@@ -21,9 +21,13 @@ BorderSizeAuto=false
 BorderSize=Tiny
 
 # Liquid Glass v1.6 — BlurStrength 14/15: the material is now carried by a strong blur behind a THIN tint (the wallpaper must read through every plate, liquefied) instead of a heavy fill.
+# Liquid Glass v1.7 (W67) — 14 → 15, the stock effect's ceiling: the ink flip
+# puts white 0.14 over the blur, and the reference's color bleed is
+# saturation-driven — every unit of blur depth now shows. Tier C is
+# unaffected (its 0.94 opaque plate carries readability without blur).
 [Effect-blur]
 BlurDecorations=true
-BlurStrength=14
+BlurStrength=15
 
 [Plugins]
 # W50 — assert our blur configuration instead of inheriting the distro

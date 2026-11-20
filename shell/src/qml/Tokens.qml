@@ -116,15 +116,24 @@ QtObject {
     // KWin manifests it only where alpha < 1). Tier C (0.94) stays the
     // deliberate calm-mode opacity — accessibility beats aesthetics
     // there.
-    readonly property color glassTint: Qt.rgba(16/255, 16/255, 18/255, 0.32)
+    // LIQUID GLASS v1.7 (W67 — the ink flip): glass that sits on the
+    // WALLPAPER carries WHITE-based ink and lets the saturated, blurred
+    // backdrop supply the color and luminosity (the dock tray's white
+    // 0.08 was the in-tree proof; the reference kit's plates are
+    // 10-25% white ink). Glass that sits on CONTENT (the 44 px
+    // titleband) keeps dark ink for contrast. v1.6's near-black
+    // rgba(16,16,18,0.32) composited to a charcoal plate — the "liquid"
+    // is the backdrop showing through, not the fill.
+    readonly property color glassTint: Qt.rgba(1, 1, 1, 0.14)
     readonly property color glassBorder: Qt.rgba(1, 1, 1, 0.28)   // hairline, 1 px, never scales — carries the shape now that the plate is thin
     readonly property color glassHighlight: Qt.rgba(1, 1, 1, 0.18)
     // dock tray — light glass over any wallpaper (macOS dark-mode dock look)
     readonly property color dockGlassTint: Qt.rgba(1, 1, 1, 0.08)
     readonly property color dockGlassBorder: Qt.rgba(1, 1, 1, 0.38)
     readonly property color dockGlassHighlight: Qt.rgba(1, 1, 1, 0.42)
-    // light rung — used by M2 surfaces when Dark Mode is off (audit in M4)
-    readonly property color glassTintLight: Qt.rgba(244/255, 246/255, 250/255, 0.38)
+    // light rung — used by M2 surfaces when Dark Mode is off (audit in M4).
+    // W67 — 0.38 → 0.30 (more liquid; the light ink is already white-based).
+    readonly property color glassTintLight: Qt.rgba(244/255, 246/255, 250/255, 0.30)
     readonly property color glassBorderLight: Qt.rgba(0, 0, 0, 0.16)
 
     // ── Material rungs (§5.1 — one system, three rungs, no per-screen
@@ -132,12 +141,15 @@ QtObject {
     // compositor's stock blur job (glassBlurPx etc. below document the
     // spec); the tints here are what the shell paints.
     // Sheet Glass — CC sheet, calendar popover, launcher sheet, menus.
-    // Sheets read thinner once blur lands (52% → 46%).
-    readonly property color sheetTint: Qt.rgba(16/255, 16/255, 18/255, 0.28)
+    // W67 ink flip: white 0.12 — slightly thinner than glassTint, the
+    // rungs' relative ordering preserved from the dark-ink era.
+    readonly property color sheetTint: Qt.rgba(1, 1, 1, 0.12)
     readonly property color sheetBorder: Qt.rgba(1, 1, 1, 0.30)
     readonly property color sheetTintLight: Qt.rgba(244/255, 246/255, 250/255, 0.32)
     // Chrome Glass — the AppWindow 44 px titleband only. Titlebars must
     // be MORE transparent than sheets; the window body stays opaque.
+    // W67: STAYS dark ink (fd24476's ruling — the titleband sits on app
+    // content, where the §0 rule says dark).
     readonly property color chromeTint: Qt.rgba(16/255, 16/255, 18/255, 0.20)
     readonly property color chromeBorder: Qt.rgba(1, 1, 1, 0.24)
     readonly property color chromeTintLight: Qt.rgba(244/255, 246/255, 250/255, 0.28)
@@ -145,9 +157,13 @@ QtObject {
     // formalizes the measured 56→52 top-to-bottom drift)
     readonly property color dockWash: Qt.rgba(1, 1, 1, 0.08)
 
-    readonly property int glassBlurPx: 34
-    readonly property real glassSaturation: 1.8
-    readonly property real glassBrightness: 1.08
+    // W67 — the reference's color bleed is saturation-driven: the
+    // compositor knobs notch up on tier A/B (kwinrc BlurStrength rides
+    // 14 → 15, the stock effect's ceiling). Tier C's 0.94 opaque calm
+    // plate is untouched — it is the readability fallback.
+    readonly property int glassBlurPx: 40
+    readonly property real glassSaturation: 2.0
+    readonly property real glassBrightness: 1.12
 
     // ── Motion (§4, Table 9 — six tokens, nothing outside them) ───
     readonly property int durInstant: 80     // fades, reduced-motion replacement

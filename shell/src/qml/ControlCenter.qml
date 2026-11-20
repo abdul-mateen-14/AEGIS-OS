@@ -90,6 +90,31 @@ Window {
                 }
             }
 
+            // W67 — the luminosity-adaptive scrim: white ink lowers text
+            // contrast on bright wallpaper bands, so a 1-stop black wash
+            // (0.10 at the header fading out by 40% height) rises BEHIND
+            // the text rows only when the wallpaper under the sheet is
+            // bright (Util.backdropLuminance > 140). Declared after the
+            // highlight and before the content Column: it tints the glass,
+            // never the glyphs. The probe asserts fg-vs-plate contrast
+            // from the capture; this is the shell-side half of that rule.
+            Rectangle {
+                anchors {
+                    top: parent.top
+                    left: parent.left
+                    right: parent.right
+                    topMargin: 1
+                    leftMargin: 1
+                    rightMargin: 1
+                }
+                height: parent.height * 0.4
+                visible: Util.darkMode && Util.backdropLuminance() > 140
+                gradient: Gradient {
+                    GradientStop { position: 0; color: Qt.rgba(0, 0, 0, 0.10) }
+                    GradientStop { position: 1; color: Qt.rgba(0, 0, 0, 0) }
+                }
+            }
+
             Column {
                 anchors.fill: parent
                 anchors.margins: 16

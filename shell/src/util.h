@@ -95,6 +95,16 @@ public:
     Q_INVOKABLE void setWallpaper(const QString &path);
     bool wallpaperRotateDaily() const { return m_wallpaperRotateDaily; }
     Q_INVOKABLE void setWallpaperRotateDaily(bool on);
+    // W67 (v1.7) — backdrop luminance under the CC sheet's corner of the
+    // wallpaper (0-255; -1 when the image cannot be read). The white ink
+    // flip lowers text contrast on bright wallpaper bands, so the sheet
+    // raises its scrim only when the plate it floats over is bright.
+    // Sampled from the wallpaper FILE (the sheet's top-right quadrant:
+    // scaled to 128x80, x>=64 y<=48 — the region a 348 px sheet covers on
+    // a 16:10 desktop). The probes assert fg-vs-plate contrast from real
+    // captures; this only gates the scrim. Cached; invalidated by
+    // wallpaperChanged.
+    Q_INVOKABLE int backdropLuminance();
     // shell main.cpp marks the process that owns org.aegis.Shell on the
     // session bus. App processes (aegis-apps) leave it false: their accent/
     // wallpaper writes also go out as DBus calls to org.aegis.Shell so the
@@ -314,6 +324,9 @@ private:
     QVariantMap m_config;
     QString m_accent = QStringLiteral("#3E8BFF");
     QString m_wallpaper;
+    // W67 — backdropLuminance() cache, keyed by the wallpaper path
+    QString m_backdropFor;
+    int m_backdropLum = -2;    // -2 = never computed; -1 = unreadable
     bool m_wallpaperRotateDaily = false;
     int m_rotateIndex = 0;
     QString m_rotateDate;

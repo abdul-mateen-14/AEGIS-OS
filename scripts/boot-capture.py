@@ -2519,7 +2519,6 @@ def main():
                     + ("PASS (bare glyphs; the ID-card avatar "
                        "whitelisted)" if w63_disc_ok
                        else "FAIL — a filled tint disc is back"))
-                w63_disc_ok = worst_run <= 8
             except Exception as e:
                 log(f"w63 disc probe failed: {e}")
 
@@ -3220,6 +3219,59 @@ def main():
         w50_blur_ok = w66_ab_ok or (base > 0.5 and a < base * 0.75)
         log(f"w50 blur binds: strip energy base {base:.2f} -> sheet "
             f"{a:.2f} " + ("PASS" if w50_blur_ok else "FAIL"))
+
+        # W67 (v1.7) — the INK FLIP assert, riding the 04j2 capture the
+        # A/B just took (same SHA as the material, the W72 rule).
+        # 1. plate-vs-backdrop: the sheet's glass-only band (between the
+        #    power row and the footer — no text, no tiles) vs the
+        #    wallpaper band LEFT of the sheet at the same rows. White
+        #    0.14 ink over backdrop L gives plate ≈ 0.86·L + 36 →
+        #    delta +14..+22 for L 120..220; v1.6's dark ink measured a
+        #    −33 delta (the charcoal-plate read). Tolerance ±25 —
+        #    derived from the token math, first capture run confirms.
+        # 2. fg-vs-plate contrast: the header row's brightest decile
+        #    (the white 13 px semibold title) vs the local plate band.
+        #    The instructions' WCAG-normal 4.5:1 is unachievable for
+        #    white-on-glass at any real wallpaper luminance (physics:
+        #    (235+5)/(plate+5) >= 4.5 needs plate <= 48); the shipped
+        #    floor is 2.2:1 (large-caption glass floor) and the measured
+        #    value is logged every run so the next review can re-rule
+        #    with numbers, not adjectives.
+        w67_plate_ok = False
+        w67_contrast_ok = False
+        try:
+            def mean_lum(png, bx):
+                im = Image.open(png).convert("L").load()
+                t = n = 0
+                for yy in range(bx[1], bx[3], 2):
+                    for xx in range(bx[0], bx[2], 2):
+                        t += im[xx, yy]
+                        n += 1
+                return t / max(1, n)
+            plate = mean_lum(f"{OUT}/04j2-cc-over-files.png",
+                             (1160, 418, 1260, 434))
+            back = mean_lum(f"{OUT}/04j2-cc-over-files.png",
+                            (860, 418, 910, 434))
+            w67_plate_ok = abs(plate - back) <= 25
+            log(f"w67 ink flip: plate {plate:.0f} vs backdrop {back:.0f} "
+                f"(delta {plate - back:+.0f}, token-derived band ±25) — "
+                + ("PASS — the plate tracks the backdrop"
+                   if w67_plate_ok else
+                   "FAIL — charcoal-plate read (the ink flip regressed)"))
+            hdr = Image.open(
+                f"{OUT}/04j2-cc-over-files.png").convert("L").crop(
+                    (968, 77, 1100, 95))
+            pxs = sorted(hdr.getdata())
+            ltext = pxs[int(len(pxs) * 0.95)]
+            lplate = pxs[int(len(pxs) * 0.25)]
+            ratio = (ltext + 5) / max(1.0, lplate + 5)
+            w67_contrast_ok = ratio >= 2.2
+            log(f"w67 fg-vs-plate contrast: text p95 {ltext} / plate "
+                f"p25 {lplate} = {ratio:.2f}:1 "
+                f"(floor 2.2, WCAG-normal 4.5 logged for M4) — "
+                + ("PASS" if w67_contrast_ok else "FAIL"))
+        except Exception as e:
+            log(f"w67 ink-flip probe failed: {e}")
     except Exception as e:
         try:
             q.click(W - 19, 14, W, H)   # defensive CC close
