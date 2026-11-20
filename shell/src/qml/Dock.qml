@@ -1,4 +1,5 @@
 import QtQuick
+import QtQuick.Effects
 import QtQuick.Controls
 import Aegis.Util
 import Aegis.Governor
@@ -486,24 +487,56 @@ Window {
                     // (5) Launch — bounce on a Translate so the scale never fights it
                     Item {
                         id: bounce
-                        width: icon.width
-                        height: icon.height
+                        // W76 (owner order, v0.6.81) — the clear-mode
+                        // plate: every dock icon rides a 52 px glass plate
+                        // (white 0.10 ink over the tray's glass, hairline
+                        // rim, radius 13) and renders as a WHITE
+                        // monochrome silhouette — alpha-masked via
+                        // MultiEffect's colorization, no custom shader.
+                        // The wallpaper supplies all color, as on the
+                        // reference device; magnification rides the same
+                        // spring factor the bare icon used.
+                        readonly property real k: tile.spring.value / Tokens.tileWidth
+                        width: plate.width
+                        height: plate.height
                         anchors {
                             horizontalCenter: parent.horizontalCenter
                             bottom: parent.bottom
                         }
                         transform: Translate { id: lift }
 
-                        Image {
-                            id: icon
-                            source: "image://icons/" + (tile.modelData.icon || "application-x-executable")
-                            width: Tokens.iconSize * (tile.spring.value / Tokens.tileWidth)
-                            height: width
+                        Rectangle {
+                            id: plate
+                            width: 52 * bounce.k
+                            height: 52 * bounce.k
+                            radius: 13 * bounce.k
                             anchors.bottom: parent.bottom
                             anchors.horizontalCenter: parent.horizontalCenter
-                            fillMode: Image.PreserveAspectFit
-                            mipmap: true
-                            sourceSize: Qt.size(128, 128)
+                            color: Util.darkMode ? Qt.rgba(1, 1, 1, 0.10)
+                                                 : Qt.rgba(0, 0, 0, 0.06)
+                            border.width: 1
+                            border.color: Util.darkMode
+                                          ? Qt.rgba(1, 1, 1, 0.22)
+                                          : Qt.rgba(0, 0, 0, 0.10)
+
+                            Image {
+                                id: icon
+                                source: "image://icons/" + (tile.modelData.icon || "application-x-executable")
+                                width: Tokens.iconSize * bounce.k
+                                height: width
+                                anchors.centerIn: parent
+                                fillMode: Image.PreserveAspectFit
+                                mipmap: true
+                                sourceSize: Qt.size(128, 128)
+                                layer.enabled: true
+                                layer.effect: MultiEffect {
+                                    saturation: 0.0
+                                    colorization: 1.0
+                                    colorizationColor: Util.darkMode
+                                                       ? Qt.rgba(1, 1, 1, 0.92)
+                                                       : Qt.rgba(0, 0, 0, 0.80)
+                                }
+                            }
                         }
 
                         // running dot — 4 px, floats 4 px clear of the icon

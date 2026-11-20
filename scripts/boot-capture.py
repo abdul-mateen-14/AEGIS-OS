@@ -3450,6 +3450,37 @@ def main():
                    "installed QML"))
         except Exception as e:
             log(f"w71 motion probe failed: {e}")
+
+        # W76 — the CLEAR DOCK probe (same SHA as the plate change): in
+        # the tray band the icons are white silhouettes now — a healthy
+        # near-white glyph population and only wallpaper-bleed vividness.
+        # Thresholds are token-derived (12 plates x stroke glyphs at 1x);
+        # the first capture run confirms them (the W72 honest pattern).
+        w76_clear_ok = False
+        try:
+            im76 = Image.open(
+                f"{OUT}/04j2-cc-over-files.png").convert("RGB")
+            tray = im76.crop((W // 2 - 340, H - 66, W // 2 + 340, H - 14))
+            tpx = tray.load()
+            white = vivid = total = 0
+            for yy in range(0, tray.size[1], 1):
+                for xx in range(0, tray.size[0], 1):
+                    r, g, b = tpx[xx, yy]
+                    total += 1
+                    if r > 215 and g > 215 and b > 215                             and abs(r - g) < 25 and abs(g - b) < 25:
+                        white += 1
+                    elif max(r, g, b) - min(r, g, b) > 60                             and max(r, g, b) > 90:
+                        vivid += 1
+            wfrac = white / max(1, total)
+            vfrac = vivid / max(1, total)
+            w76_clear_ok = white > 600 and vfrac < 0.20
+            log(f"w76 clear dock: white {white} ({wfrac:.1%}), vivid "
+                f"{vivid} ({vfrac:.1%}) — want white > 600, vivid < 20% "
+                "(wallpaper bleed only) — "
+                + ("PASS" if w76_clear_ok else
+                   "FAIL — the dock icons are not the white family"))
+        except Exception as e:
+            log(f"w76 clear-dock probe failed: {e}")
     except Exception as e:
         try:
             q.click(W - 19, 14, W, H)   # defensive CC close
