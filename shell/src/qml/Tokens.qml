@@ -102,22 +102,30 @@ QtObject {
         generic:    { w: 300,                      h: 56,                 r: 28 }
     })
 
-    // ── Panel Glass (§3, Table 7 — dark rung) ────────────────────────
-    // W50 — the backdrop blur is REAL now: every glass surface requests
-    // it through KWindowEffects::enableBlurBehind (org_kde_kwin_blur),
-    // gated by Governor.blurLive / blurAny (W57). The blur amount /
-    // saturation / brightness below document the material spec the
-    // compositor's stock blur effect approximates.
-    readonly property color glassTint: Qt.rgba(16/255, 16/255, 18/255, 0.52)
-    readonly property color glassBorder: Qt.rgba(1, 1, 1, 0.14)   // hairline, 1 px, never scales
-    readonly property color glassHighlight: Qt.rgba(1, 1, 1, 0.10)
+    // ── Panel Glass (§3, Table 7 — Liquid Glass v1.6 pass) ───────────
+    // W50 — the backdrop blur is REAL: every glass surface requests it
+    // through KWindowEffects::enableBlurBehind (org_kde_kwin_blur),
+    // gated by Governor.blurLive / blurAny (W57).
+    // LIQUID GLASS (v1.6, user ask: "truly transparent liquid glass
+    // vibe in every section and everywhere" — the iOS 26 material):
+    // every tint dropped ~40% (the wallpaper now reads THROUGH every
+    // plate), and the shape is carried by the specular system instead
+    // of the fill — brighter rims (GlassPanel), kwinrc BlurStrength=14,
+    // and the app window bodies went translucent (0.84/0.86) so blur
+    // shows through them too (apps-main already blurs the full window;
+    // KWin manifests it only where alpha < 1). Tier C (0.94) stays the
+    // deliberate calm-mode opacity — accessibility beats aesthetics
+    // there.
+    readonly property color glassTint: Qt.rgba(16/255, 16/255, 18/255, 0.32)
+    readonly property color glassBorder: Qt.rgba(1, 1, 1, 0.28)   // hairline, 1 px, never scales — carries the shape now that the plate is thin
+    readonly property color glassHighlight: Qt.rgba(1, 1, 1, 0.18)
     // dock tray — light glass over any wallpaper (macOS dark-mode dock look)
-    readonly property color dockGlassTint: Qt.rgba(1, 1, 1, 0.13)
-    readonly property color dockGlassBorder: Qt.rgba(1, 1, 1, 0.26)
-    readonly property color dockGlassHighlight: Qt.rgba(1, 1, 1, 0.30)
+    readonly property color dockGlassTint: Qt.rgba(1, 1, 1, 0.08)
+    readonly property color dockGlassBorder: Qt.rgba(1, 1, 1, 0.38)
+    readonly property color dockGlassHighlight: Qt.rgba(1, 1, 1, 0.42)
     // light rung — used by M2 surfaces when Dark Mode is off (audit in M4)
-    readonly property color glassTintLight: Qt.rgba(244/255, 246/255, 250/255, 0.55)
-    readonly property color glassBorderLight: Qt.rgba(0, 0, 0, 0.10)
+    readonly property color glassTintLight: Qt.rgba(244/255, 246/255, 250/255, 0.38)
+    readonly property color glassBorderLight: Qt.rgba(0, 0, 0, 0.16)
 
     // ── Material rungs (§5.1 — one system, three rungs, no per-screen
     // values). Blur amount / saturation / brightness per rung are the
@@ -125,21 +133,21 @@ QtObject {
     // spec); the tints here are what the shell paints.
     // Sheet Glass — CC sheet, calendar popover, launcher sheet, menus.
     // Sheets read thinner once blur lands (52% → 46%).
-    readonly property color sheetTint: Qt.rgba(16/255, 16/255, 18/255, 0.46)
-    readonly property color sheetBorder: Qt.rgba(1, 1, 1, 0.16)
-    readonly property color sheetTintLight: Qt.rgba(244/255, 246/255, 250/255, 0.50)
+    readonly property color sheetTint: Qt.rgba(16/255, 16/255, 18/255, 0.28)
+    readonly property color sheetBorder: Qt.rgba(1, 1, 1, 0.30)
+    readonly property color sheetTintLight: Qt.rgba(244/255, 246/255, 250/255, 0.32)
     // Chrome Glass — the AppWindow 44 px titleband only. Titlebars must
     // be MORE transparent than sheets; the window body stays opaque.
-    readonly property color chromeTint: Qt.rgba(16/255, 16/255, 18/255, 0.36)
-    readonly property color chromeBorder: Qt.rgba(1, 1, 1, 0.12)
-    readonly property color chromeTintLight: Qt.rgba(244/255, 246/255, 250/255, 0.42)
+    readonly property color chromeTint: Qt.rgba(16/255, 16/255, 18/255, 0.20)
+    readonly property color chromeBorder: Qt.rgba(1, 1, 1, 0.24)
+    readonly property color chromeTintLight: Qt.rgba(244/255, 246/255, 250/255, 0.28)
     // dock tray — the 12 px vertical wash inside the top edge (§5.2;
     // formalizes the measured 56→52 top-to-bottom drift)
-    readonly property color dockWash: Qt.rgba(1, 1, 1, 0.05)
+    readonly property color dockWash: Qt.rgba(1, 1, 1, 0.08)
 
-    readonly property int glassBlurPx: 28
-    readonly property real glassSaturation: 1.6
-    readonly property real glassBrightness: 1.06
+    readonly property int glassBlurPx: 34
+    readonly property real glassSaturation: 1.8
+    readonly property real glassBrightness: 1.08
 
     // ── Motion (§4, Table 9 — six tokens, nothing outside them) ───
     readonly property int durInstant: 80     // fades, reduced-motion replacement

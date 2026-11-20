@@ -94,8 +94,10 @@ Window {
             anchors.horizontalCenter: parent.horizontalCenter
             anchors.top: parent.top
             anchors.topMargin: 96
-            color: Util.darkMode ? Qt.rgba(16/255, 16/255, 18/255, 0.55)
-                                 : Qt.rgba(244/255, 246/255, 250/255, 0.55)
+            // Liquid Glass v1.6 — the launcher sheet joins the token
+            // system (was a hardcoded 0.55 plate; now the sheet rung)
+            color: Util.darkMode ? Tokens.sheetTint
+                                 : Tokens.sheetTintLight
             border.width: 1
             border.color: Util.darkMode ? Tokens.glassBorder : Tokens.glassBorderLight
 

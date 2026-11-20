@@ -46,7 +46,9 @@ Rectangle {
     }
     border.width: 1
 
-    // (1) top highlight band — replaces the old 1 px inset line
+    // (1) top highlight band — the "lit from above" streak; Liquid
+    // Glass v1.6 doubled its reach (8 → 14 px) and brightness so the
+    // rim, not the fill, defines the shape
     Rectangle {
         anchors {
             top: parent.top
@@ -56,15 +58,31 @@ Rectangle {
             leftMargin: Math.max(1, parent.cornerRadius)
             rightMargin: Math.max(1, parent.cornerRadius)
         }
-        height: 8
-        visible: parent.height > 10
+        height: 14
+        visible: parent.height > 16
         gradient: Gradient {
-            GradientStop { position: 0; color: Qt.rgba(1, 1, 1, 0.12) }
-            GradientStop { position: 1; color: Qt.rgba(1, 1, 1, 0.02) }
+            GradientStop { position: 0; color: Qt.rgba(1, 1, 1, 0.20) }
+            GradientStop { position: 1; color: Qt.rgba(1, 1, 1, 0.03) }
         }
     }
 
-    // (3) bottom inner stroke — the faint bounce light
+    // (2b) LIQUID GLASS v1.6 — the sheen wash: a broad soft light
+    // across the upper half (the lens reads as curved because of this,
+    // not because of the border). Vertical gradient approximates the
+    // diagonal sweep without a rotated, clipped child.
+    Rectangle {
+        anchors.fill: parent
+        radius: parent.radius
+        visible: parent.height > 60
+        gradient: Gradient {
+            GradientStop { position: 0;    color: Qt.rgba(1, 1, 1, 0.05) }
+            GradientStop { position: 0.55; color: Qt.rgba(1, 1, 1, 0.0) }
+            GradientStop { position: 1;    color: Qt.rgba(0, 0, 0, 0.04) }
+        }
+    }
+
+    // (3) bottom inner stroke — the bounce light, doubled for the thin
+    // plate (a floating panel, not a sticker)
     Rectangle {
         anchors {
             bottom: parent.bottom
@@ -76,6 +94,22 @@ Rectangle {
         }
         height: 1
         visible: parent.height > 10
-        color: Qt.rgba(1, 1, 1, 0.06)
+        color: Qt.rgba(1, 1, 1, 0.10)
+    }
+
+    // (4) LIQUID GLASS v1.6 — inner bottom shadow: the depth cue that
+    // makes the plate read as a lens standing over the wallpaper
+    Rectangle {
+        anchors {
+            bottom: parent.bottom
+            left: parent.left
+            right: parent.right
+            bottomMargin: 2
+            leftMargin: Math.max(1, parent.cornerRadius)
+            rightMargin: Math.max(1, parent.cornerRadius)
+        }
+        height: 2
+        visible: parent.height > 16
+        color: Qt.rgba(0, 0, 0, 0.10)
     }
 }

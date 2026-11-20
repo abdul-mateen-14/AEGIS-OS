@@ -20,8 +20,10 @@ BorderSizeAuto=false
 # the T7 header assert guards the button geometry.
 BorderSize=Tiny
 
+# Liquid Glass v1.6 — BlurStrength 14/15: the material is now carried by a strong blur behind a THIN tint (the wallpaper must read through every plate, liquefied) instead of a heavy fill.
 [Effect-blur]
 BlurDecorations=true
+BlurStrength=14
 
 [Plugins]
 # W50 — assert our blur configuration instead of inheriting the distro

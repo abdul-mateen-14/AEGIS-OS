@@ -22,7 +22,9 @@ Item {
     Rectangle {
         anchors.fill: parent
         radius: 18
-        color: Util.darkMode ? "#17181D" : "#F4F6FA"
+        // Liquid Glass v1.6 — the body is translucent so the full-window blur (apps-main T21) manifests here: the wallpaper liquefies behind the content, the chrome band stays the thinnest rung
+        color: Util.darkMode ? Qt.rgba(23/255, 24/255, 29/255, 0.84)
+                             : Qt.rgba(244/255, 246/255, 250/255, 0.86)
         border.color: Tokens.glassBorder
         border.width: 1
     }
@@ -99,7 +101,9 @@ Item {
         id: toolbarRow
         anchors { top: titlebar.bottom; left: parent.left; right: parent.right }
         height: 52
-        color: Util.darkMode ? "#17181D" : "#F4F6FA"
+        // Liquid Glass v1.6 — the body is translucent so the full-window blur (apps-main T21) manifests here: the wallpaper liquefies behind the content, the chrome band stays the thinnest rung
+        color: Util.darkMode ? Qt.rgba(23/255, 24/255, 29/255, 0.84)
+                             : Qt.rgba(244/255, 246/255, 250/255, 0.86)
         DragHandler {
             target: null
             onActiveChanged: if (active && root.window) root.window.startSystemMove()
