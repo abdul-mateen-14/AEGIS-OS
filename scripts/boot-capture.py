@@ -2724,24 +2724,32 @@ def main():
         opens["monitor"] = True
         q.key("alt", "f4"); time.sleep(5)
 
-    # T13 W24 — the three TIER B debs must LAUNCH, not just install ("installs
+    # T13 W24 — the Tier B products must LAUNCH, not just install ("installs
     # but doesn't launch must go red in CI, not be discovered in a VM").
     # open_app's diff-vs-home check IS the W25 window-mapped proof (the
-    # process existing says nothing — a crashed electron process is
-    # exactly what this catches). The dock clicks ride the guest-resolved
-    # map (browser 2, os 3, corex 4); the W25 wrapper guards the electron
-    # launches, and the W24 launch logs land in
+    # process existing says nothing — a crashed window is exactly what
+    # this catches). The dock clicks ride the guest-resolved map
+    # (browser 2, os 3, corex 4); the W24 launch logs land in
     # ~/.local/state/aegis/launch/ for the diag dump.
+    # Rust stage 1 (v0.6.79) — os/corex are no longer Electron debs: the
+    # slots ride aegis-webshell (the shipped aegis-browser-stable in
+    # --app mode, per-app profile — docs/RUST-MIGRATION.md). No .desktop
+    # resolution anymore: the multi-word cmd rides Util.launch directly
+    # (util.cpp runs the command under /bin/sh), and the webshell script
+    # deliberately stays as the parent process so the failure-path
+    # pgrep -af aegis-webshell annotation still finds it.
     if open_app("04g-browser", "aegis-browser-stable", wait_s=30,
                 click_idx=2, launch_cmd="desktop"):
         opens["browser"] = True
         q.key("alt", "f4"); time.sleep(5)
-    if open_app("04h-os", "os-private-chat", wait_s=30,
-                click_idx=3, launch_cmd="desktop"):
+    if open_app("04h-os", "aegis-webshell os-chat "
+                "https://os-cloudflare.pages.dev/app",
+                wait_s=30, click_idx=3):
         opens["os"] = True
         q.key("alt", "f4"); time.sleep(5)
-    if open_app("04i-corex", "corex-terminal", wait_s=45,
-                click_idx=4, launch_cmd="desktop"):
+    if open_app("04i-corex", "aegis-webshell corex "
+                "https://corex-2hl.pages.dev",
+                wait_s=45, click_idx=4):
         opens["corex"] = True
         q.key("alt", "f4"); time.sleep(5)
 

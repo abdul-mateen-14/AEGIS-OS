@@ -17,7 +17,7 @@ for d in /opt/aegis-debs/*.deb /root/packages/*.deb /root/packages.chroot/*.deb;
     [ -f "$d" ] || continue
     pkg=$(dpkg-deb -f "$d" Package 2>/dev/null) || continue
     case "$pkg" in
-        aegis-shell|aegis-browser-stable|corex-terminal|os-private-chat|kwin4-effect-shapecorners) ;;
+        aegis-shell|aegis-browser-stable|kwin4-effect-shapecorners) ;;
         *) continue ;;
     esac
     status=$(dpkg-query -W -f='${Status}' "$pkg" 2>/dev/null) || status=""

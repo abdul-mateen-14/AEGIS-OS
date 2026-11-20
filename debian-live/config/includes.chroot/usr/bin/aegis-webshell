@@ -1,0 +1,36 @@
+#!/bin/sh
+# PWA app-window launcher — the stage-1 replacement for the two Electron
+# wrappers (os-private-chat 2.8.33, corex-terminal 1.1.0 — see
+# docs/APP-SLOTS.md and docs/RUST-MIGRATION.md for the full forensics).
+#
+# Evidence (the debs' app.asar, unpacked 2026-11-20): the local payload of
+# "os-private-chat" is a 3.9 KB main.js loading
+# https://os-cloudflare.pages.dev/app ("all chat logic, crypto and UI stay
+# server/PWA-side — no duplication") and "corex-terminal" is a 7 KB main.js
+# loading https://corex-2hl.pages.dev (the terminal logic is the hosted
+# site). 280 MB of private Chromium EACH for ~40 lines of window glue —
+# glue the system already ships: aegis-browser-stable is a full Chromium.
+# This launcher rides it in --app mode with a per-app profile, so both
+# PWAs share ONE Chromium runtime instead of carrying two private ones,
+# and the browser's own window-geometry persistence replaces the Electron
+# window-state code.
+#
+# usage: aegis-webshell <app-name> <url>
+#   aegis-webshell os-chat https://os-cloudflare.pages.dev/app
+#   aegis-webshell corex  https://corex-2hl.pages.dev
+APP="$1"; URL="$2"
+[ -n "$APP" ] && [ -n "$URL" ] || {
+    echo "usage: aegis-webshell <app-name> <url>" >&2
+    exit 64
+}
+PROFILE="$HOME/.local/share/aegis/webshell/$APP"
+mkdir -p "$PROFILE"
+# No exec: the script stays as the parent while the browser runs, so
+# pgrep -af aegis-webshell (the harness liveness annotation and any user
+# pgrep) still finds the session. The W25 guard execs the browser itself
+# and carries the GTK dark-mode sync + the VM-only flags (--disable-gpu
+# --no-sandbox --test-type) exactly as it did for the Electron pair.
+aegis-electron-launch aegis-browser-stable \
+    --app="$URL" \
+    --user-data-dir="$PROFILE" \
+    --class="aegis-webshell-$APP"

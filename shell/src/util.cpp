@@ -57,11 +57,11 @@ QVariantMap Util::defaultConfig() const
                         {"cmd", "aegis-browser-stable"},
                         {"resolve", true}},                     // Tier B — entry: aegis-browser / org.aegisbrowser.Aegis
             QVariantMap{{"name", "OS"}, {"icon", "os-private-chat"},
-                        {"cmd", "os-private-chat"},
-                        {"resolve", true}},                     // Tier B — the messenger deb's own entry/mark
+                        {"cmd", "aegis-webshell os-chat "
+                                "https://os-cloudflare.pages.dev/app"}},  // Tier B — PWA window (aegis-webshell), the Electron deb retired
             QVariantMap{{"name", "CoreX"}, {"icon", "corex-terminal"},
-                        {"cmd", "corex-terminal"},
-                        {"resolve", true}},                     // Tier B — the CoreX deb's own entry/mark
+                        {"cmd", "aegis-webshell corex "
+                                "https://corex-2hl.pages.dev"}},          // Tier B — PWA window (aegis-webshell), the Electron deb retired
             QVariantMap{{"type", "separator"}},
             QVariantMap{{"name", "Music"}, {"icon", "aegis-music"},
                         {"cmd", "aegis-music"}},               // Tier A — first-party Music (M3)

@@ -10,8 +10,30 @@ basename is useless).
 | App | Package | Binary | Dock tile | Default-browser role |
 | --- | --- | --- | --- | --- |
 | AEGIS Browser | `aegis-browser-stable 156.0.8078.79-1` (r31 prerelease x64 deb, 116 MB — proper rebrand, replaces the 614 MB chromium repack r24) | `/usr/bin/aegis-browser-stable` → `/opt/aegis-browser/browser/aegis-browser` | `web-browser` icon, cmd `aegis-browser-stable` | **Yes** — skel `mimeapps.list` maps http/https/html/xhtml to `aegis-browser.desktop`; Gmail/YouTube/GitHub/X/WhatsApp/ChatGPT web tiles open in it via `xdg-open` |
-| OS (private messenger, full E2E) | `os-private-chat 2.8.33` (93 MB) | `/usr/bin/os-private-chat` → `/opt/OSPrivateChat/os-private-chat` | `aegis-cloud` icon, cmd `os-private-chat` | — |
-| CoreX trading terminal | `corex-terminal 1.1.0` (102 MB) | `/usr/bin/corex-terminal` → `/opt/CoreX Terminal/corex-terminal` (postinst update-alternatives + symlink) | `aegis-corex` icon, cmd `corex-terminal` | — |
+| OS (private messenger, full E2E) | **RETIRED the Electron deb** (`os-private-chat 2.8.33`, 93 MB download / 280 MB installed) — slot now `aegis-webshell os-chat https://os-cloudflare.pages.dev/app` | — (rides `aegis-browser-stable --app`, per-app profile `~/.local/share/aegis/webshell/os-chat`) | `aegis-cloud` icon, cmd unchanged dock position | — |
+| CoreX trading terminal | **RETIRED the Electron deb** (`corex-terminal 1.1.0`, 102 MB download / 280 MB installed) — slot now `aegis-webshell corex https://corex-2hl.pages.dev` | — (rides `aegis-browser-stable --app`, per-app profile `~/.local/share/aegis/webshell/corex`) | `aegis-corex` icon, cmd unchanged dock position | — |
+
+## The stage-1 retirement — why (v0.6.79, 2026-11-20)
+
+Unpacking both debs' `resources/app.asar` (evidence in
+docs/RUST-MIGRATION.md): the entire local payload of os-private-chat is
+a **3.9 KB main.js** loading `https://os-cloudflare.pages.dev/app`
+("All chat logic, crypto and UI stay server/PWA-side — no duplication")
+and of corex-terminal a **7 KB main.js** loading
+`https://corex-2hl.pages.dev`. 280 MB of *private* Chromium each for
+~40 lines of window glue — glue the image already ships in aegis-
+browser-stable (a full Chromium 156 rebrand). The two slots now launch
+`/usr/bin/aegis-webshell <app> <url>`: the shipped browser in `--app`
+mode with a per-app `--user-data-dir` profile (login state, permission
+grants and window geometry persist per app), riding the W25 guard for
+GTK dark sync + VM flags like every Chromium launch. 560 MB of disk
+leave the squashfs and two Chromium forks leave the patch surface.
+Behavior deltas, recorded honestly: site permission prompts (mic,
+notifications) are Chromium's own stored in the per-app profile instead
+of the wrappers' auto-grant; CoreX's offline card and OS-Chat's
+Save-As dialog become Chromium's native equivalents; external links
+open in the default browser exactly as before (both PWAs' shell code
+routed them there anyway).
 
 No other browser ships in the image (no firefox / epiphany / distro
 chromium in any package list) — AEGIS Browser is the only one.

@@ -10,8 +10,12 @@
 # geometric dock-click map by half a pitch)
 https://github.com/abdul-mateen-14/AEGIS-BROWSER/releases/download/linux-156.0.8078.79-r45/AegisBrowser_156.0.8078.79_linux_x64_r45.deb
 
-# OS — private messenger, full E2E encryption (package os-private-chat 2.8.33)
-https://drive.usercontent.google.com/download?id=1aq0DVPlWZyAEXTaB1xIO3ymO0X9TXHwK&export=download&confirm=t|os-private-chat_2.8.33_amd64.deb
-
-# CoreX — trading terminal (package corex-terminal 1.1.0)
-https://drive.usercontent.google.com/download?id=1kVjGk8PuWDLGRdleUYSqAR3pR7ZWHa4f&export=download&confirm=t|corex-terminal_1.1.0_amd64.deb
+# RETIRED (Rust stage 1, v0.6.79) — os-private-chat 2.8.33 and
+# corex-terminal 1.1.0: unpacking both debs' app.asar showed the local
+# payload is a 3.9/7 KB main.js around a hosted PWA (os-cloudflare.pages.dev
+# /app, corex-2hl.pages.dev) — 280 MB installed Chromium EACH for window
+# glue the system already ships. The slots now ride aegis-webshell (the
+# shipped aegis-browser-stable in --app mode with per-app profiles); the
+# URLs stay here for provenance/revert:
+#   chat: https://drive.usercontent.google.com/download?id=1aq0DVPlWZyAEXTaB1xIO3ymO0X9TXHwK&export=download&confirm=t|os-private-chat_2.8.33_amd64.deb
+#   corex: https://drive.usercontent.google.com/download?id=1kVjGk8PuWDLGRdleUYSqAR3pR7ZWHa4f&export=download&confirm=t|corex-terminal_1.1.0_amd64.deb
