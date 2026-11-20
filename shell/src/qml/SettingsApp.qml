@@ -38,15 +38,20 @@ Window {
     // the §6 pane order lives on the WINDOW: the sidebar Repeater and the
     // pane loader both resolve it as win.panes (one lookup, no inner-item
     // scoping surprises)
+    // W75 (owner order, v0.6.81) — the location-tint table is RETIRED:
+    // every sidebar glyph renders white monochrome (Tokens.fg), the
+    // selected row's accent pill carries the only color — exactly the
+    // owner's iOS 26 clear-mode reference frame. The painter contract
+    // stays color-parameterized; the call site chooses the ink.
     property var panes: [
-        { label: "Wallpaper",          tint: "#8B5CF6", glyph: "mountain" },
-        { label: "Appearance",         tint: "#3E8BFF", glyph: "palette" },
-        { label: "Desktop Effects",    tint: "#28C840", glyph: "sparkles" },
-        { label: "Drivers & Firmware", tint: "#FF9F0A", glyph: "chip" },
-        { label: "Displays",           tint: "#5B8BFF", glyph: "monitor" },
-        { label: "Sound",              tint: "#FA2D48", glyph: "speaker" },
-        { label: "Network",            tint: "#4AC8C8", glyph: "wifi" },
-        { label: "Users",              tint: "#6E7BFF", glyph: "person" }
+        { label: "Wallpaper",          glyph: "mountain" },
+        { label: "Appearance",         glyph: "palette" },
+        { label: "Desktop Effects",    glyph: "sparkles" },
+        { label: "Drivers & Firmware", glyph: "chip" },
+        { label: "Displays",           glyph: "monitor" },
+        { label: "Sound",              glyph: "speaker" },
+        { label: "Network",            glyph: "wifi" },
+        { label: "Users",              glyph: "person" }
     ]
 
     // W31 — the §6 sidebar glyphs, same 18 px Canvas + stroke family as the
@@ -322,18 +327,14 @@ Window {
                             }
                             contentItem: RowLayout {
                                 spacing: 10
-                                // W63 — bare location-tinted glyphs: the
-                                // 20 px tint disc came from the v0.6.56
-                                // W45 spec (reviewer-owned correction) and
-                                // the proposal says three times what ships
-                                // instead — chapter 06 "location-tinted
-                                // glyph", the Files caption "colored sidebar
-                                // glyphs", chapter 09 "tints its sidebar
-                                // glyphs by location". Files' place rows
-                                // (18 px tinted images, no circle) are the
-                                // blessed pattern; here the same idea with
-                                // the painted glyph family: bare 18 px
-                                // optical box, modelData.tint as the color.
+                                // W75 (v0.6.81) — white monochrome glyphs:
+                                // the W63 location-tint era is retired by
+                                // owner order (the iOS 26 clear mode).
+                                // Tokens.fg rides the painter contract's
+                                // color parameter; the redrawn pack masters
+                                // (Glyphs-redrawn, W68's swap) render the
+                                // geometry. The selected pill carries the
+                                // accent — the sidebar's only color.
                                 Canvas {
                                     width: 18; height: 18
                                     Layout.alignment: Qt.AlignVCenter
@@ -341,7 +342,7 @@ Window {
                                     onPaint: win.paintPaneGlyph(
                                         modelData.glyph,
                                         getContext("2d"), width, height,
-                                        modelData.tint)
+                                        Tokens.fg)
                                 }
                                 Text { text: modelData.label; font.pixelSize: 13; color: Tokens.fg; Layout.alignment: Qt.AlignVCenter }
                                 Item { Layout.fillWidth: true }

@@ -2432,14 +2432,16 @@ def main():
             time.sleep(16)
             q.shot("04n-wallpaper")
 
-            # T18 W63 — the sidebar glyphs are BARE location tints: no
-            # filled tint discs anywhere in the pane-rows region (the
-            # reviewer-owned W45 correction). Detector: in the glyph
-            # column (window x +8..+40, below the Aegis ID rail, above
-            # the dock) any tint-hue blob whose widest horizontal run
-            # exceeds 8 px is a filled disc — stroke glyphs never exceed
-            # ~6 px. Calibrated on the v0.6.60 capture: 12 tint blobs,
-            # widest run 16 px (FAIL) pre-fix.
+            # T18 W63 — recalibrated for W75 (v0.6.81, same SHA as the
+            # QML — the W72 rule): the sidebar glyphs are WHITE
+            # MONOCHROME now (the owner's clear mode; the location-tint
+            # table is retired). Two asserts in one strip:
+            #   (a) ZERO tint-hue pixels remain in the sidebar body — the
+            #       retired palette must not render anywhere;
+            #   (b) the glyph ink is the white-stroke family: blobs of
+            #       stroke-area (< 150 px^2, the 1.8-2.2 px stroke boxes),
+            #       no fat 150-600 px^2 chips, the ID-card avatar
+            #       (>= 600 px^2) whitelisted at exactly one.
             try:
                 stw = window_hairline(f"{OUT}/04n-wallpaper.png")
                 sx0 = stw[1] if stw else 200
@@ -2455,29 +2457,34 @@ def main():
                 # the hairline run-start drifts with border brightness
                 # and wallpaper streaks, so bt85/bt88's strips sat in
                 # empty space (0px false-PASS) and bt86/bt89's landed
-                # on the AEGIS ID AVATAR — a legitimate filled blue
-                # circle (~37px) on the account card, NOT a glyph chip.
-                # Blob classification over the whole sidebar body:
-                #   - stroke glyphs (the shipped 1.8px family): thin
-                #     blobs, area < 150 px^2 even when a long horizontal
-                #     stroke (the monitor base) runs 14 px wide -> PASS
-                #   - the W45 regression (a filled chip disc behind a
-                #     glyph, calibrated 16 px wide): a FAT blob,
-                #     150 <= area < 600 px^2 -> FAIL
-                #   - the avatar: area >= 600 px^2 (the full circle is
-                #     ~980; even a scan-window-clipped chord measures
-                #     ~730) -> whitelisted, exactly ONE allowed
-                w63_px = Image.open(
-                    f"{OUT}/04n-wallpaper.png").convert("RGB").load()
-                w63_mask = set()
+                # on the AEGIS ID AVATAR — a legitimate glass circle on
+                # the account card, NOT a glyph chip.
+                # W75 v4 — the same blob classifier, new ink mask:
+                # white-stroke pixels (near-neutral, bright — the
+                # Tokens.fg family on the dark sidebar) instead of the
+                # tint hues:
+                #   - stroke glyphs (the pack's 1.8-2.2 px family): thin
+                #     blobs, area < 150 px^2 -> the PASS population
+                #   - a filled chip disc (any tint regressions): a FAT
+                #     150-600 px^2 blob -> FAIL
+                #   - the avatar: area >= 600 px^2 -> whitelisted, ONE
+                #     allowed (W74 made it a glass circle; its rim is
+                #     still a bright blob on the dark sidebar)
+                w63_tint_hits = 0
                 for yy in range(stop + 90, min(stop + 550, H - 160)):
                     for xx in range(sx0, min(sx0 + 260, W)):
                         r, g, b = w63_px[xx, yy]
                         for tr, tg, tb in tints:
                             if (abs(r - tr) <= 40 and abs(g - tg) <= 40
                                     and abs(b - tb) <= 40):
-                                w63_mask.add((xx, yy))
+                                w63_tint_hits += 1
                                 break
+                w63_mask = set()
+                for yy in range(stop + 90, min(stop + 550, H - 160)):
+                    for xx in range(sx0, min(sx0 + 260, W)):
+                        r, g, b = w63_px[xx, yy]
+                        if r > 170 and g > 170 and b > 170                                 and abs(r - g) < 30 and abs(g - b) < 30:
+                            w63_mask.add((xx, yy))
                 seen63 = set()
                 blob63 = []          # (widest_run, area)
                 for p63 in w63_mask:
@@ -2510,15 +2517,17 @@ def main():
                     blob63.append((wr63, len(comp63)))
                 chips63 = [a for _w, a in blob63 if 150 <= a < 600]
                 avatars63 = [a for _w, a in blob63 if a >= 600]
-                w63_disc_ok = (not chips63) and len(avatars63) <= 1
-                log("w63 sidebar blobs: "
+                w63_disc_ok = ((not chips63) and len(avatars63) <= 1
+                               and w63_tint_hits == 0)
+                log("w63 sidebar blobs (W75 white ink): "
                     + ", ".join(f"{w}px/{a}px2" for w, a in sorted(
                         blob63, reverse=True))
                     + f" — chips {chips63 or 'none'}, "
-                    + f"avatars {len(avatars63)} — "
-                    + ("PASS (bare glyphs; the ID-card avatar "
-                       "whitelisted)" if w63_disc_ok
-                       else "FAIL — a filled tint disc is back"))
+                    + f"avatars {len(avatars63)}, tint pixels "
+                    + f"{w63_tint_hits} — "
+                    + ("PASS (white strokes; no tint ink; the glass "
+                       "avatar whitelisted)" if w63_disc_ok
+                       else "FAIL — chips or tint ink in the sidebar"))
             except Exception as e:
                 log(f"w63 disc probe failed: {e}")
 
