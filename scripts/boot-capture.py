@@ -3060,7 +3060,10 @@ def main():
         # on 1.70 -> off 11.86, ratio 7.0, restored gap 0.00. The 1.25
         # gate stays; the strip now measures content that actually
         # responds to blur.
-        box = (W - 340, 540, W - 320, 620)
+        # W72 — sheet-relative since W68 (the sheet is 388 tall at
+        # y 40..428; the second slider track band is the blur-responsive
+        # glass the original 540..620 box chased)
+        box = (W - 342, SB - 132, W - 322, SB - 108)
         base = grad_energy(f"{OUT}/04j0-files-open.png", box)
         q.click(W - 19, 14, W, H)     # open the CC sheet over Files
         time.sleep(3)
@@ -3248,10 +3251,17 @@ def main():
                         t += im[xx, yy]
                         n += 1
                 return t / max(1, n)
+            # W72 — the sheet rect is DERIVED, never guessed: the CC
+            # window anchors Top+Right with margins (0,40,10,0) (main.cpp
+            # ccWindow), 348 wide, QML height 388 since W68. Every W67/W68
+            # box below is sheet-relative.
+            CCX1, CCY0, CCH = W - 10, 40, 388
+            CCX0 = CCX1 - 348
+            SB = CCY0 + CCH          # sheet bottom (428)
             plate = mean_lum(f"{OUT}/04j2-cc-over-files.png",
-                             (1160, 418, 1260, 434))
+                             (CCX1 - 110, SB - 16, CCX1 - 10, SB - 4))
             back = mean_lum(f"{OUT}/04j2-cc-over-files.png",
-                            (860, 418, 910, 434))
+                            (CCX0 - 62, SB - 16, CCX0 - 12, SB - 4))
             w67_plate_ok = abs(plate - back) <= 25
             log(f"w67 ink flip: plate {plate:.0f} vs backdrop {back:.0f} "
                 f"(delta {plate - back:+.0f}, token-derived band ±25) — "
@@ -3260,7 +3270,7 @@ def main():
                    "FAIL — charcoal-plate read (the ink flip regressed)"))
             hdr = Image.open(
                 f"{OUT}/04j2-cc-over-files.png").convert("L").crop(
-                    (968, 77, 1100, 95))
+                    (CCX0 + 46, CCY0 + 17, CCX0 + 178, CCY0 + 35))
             pxs = sorted(hdr.getdata())
             ltext = pxs[int(len(pxs) * 0.95)]
             lplate = pxs[int(len(pxs) * 0.25)]
@@ -3272,6 +3282,54 @@ def main():
                 + ("PASS" if w67_contrast_ok else "FAIL"))
         except Exception as e:
             log(f"w67 ink-flip probe failed: {e}")
+
+        # W68 — the CIRCLE probe (same SHA as the shape change): the
+        # tile-grid band (y CCY0+58..CCY0+130) must hold 64 px circles,
+        # accent blobs bounding 64±2 wide; the accent count is logged
+        # (it is session-state: wifi/dark checked on a default run).
+        w68_circles_ok = False
+        try:
+            band = Image.open(
+                f"{OUT}/04j2-cc-over-files.png").convert("RGB").crop(
+                    (CCX0, CCY0 + 58, CCX1, CCY0 + 130))
+            bpx = band.load()
+            ACC = (0x3E, 0x8B, 0xFF)   # the default accent (util.cpp)
+            mask = set()
+            for yy in range(0, band.size[1]):
+                for xx in range(0, band.size[0]):
+                    r, g, b = bpx[xx, yy]
+                    if (abs(r - ACC[0]) <= 40 and abs(g - ACC[1]) <= 40
+                            and abs(b - ACC[2]) <= 40):
+                        mask.add((xx, yy))
+            seen = set()
+            boxes = []
+            for p0 in mask:
+                if p0 in seen:
+                    continue
+                stack, comp = [p0], set()
+                while stack:
+                    q0 = stack.pop()
+                    if q0 in seen or q0 not in mask:
+                        continue
+                    seen.add(q0)
+                    comp.add(q0)
+                    stack += [(q0[0] + 1, q0[1]), (q0[0] - 1, q0[1]),
+                              (q0[0], q0[1] + 1), (q0[0], q0[1] - 1)]
+                if len(comp) < 400:
+                    continue
+                xs = [c[0] for c in comp]
+                ys = [c[1] for c in comp]
+                boxes.append((max(xs) - min(xs) + 1,
+                              max(ys) - min(ys) + 1))
+            widths_ok = boxes and all(56 <= wd <= 76 for wd, _h in boxes)
+            w68_circles_ok = widths_ok
+            log(f"w68 circles: {len(boxes)} accent blob(s), "
+                + ", ".join(f"{wd}x{ht}" for wd, ht in boxes)
+                + " — want 64±2 wide (radius 32) — "
+                + ("PASS" if w68_circles_ok else
+                   "FAIL — the circles are not 64 px or absent"))
+        except Exception as e:
+            log(f"w67/w68 probe failed: {e}")
     except Exception as e:
         try:
             q.click(W - 19, 14, W, H)   # defensive CC close

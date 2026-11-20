@@ -29,7 +29,9 @@ Window {
     width: 348
     // W13 — Table 17 rhythm: 16 px margins, 12 px separations, snug height
     // (the old 452 left a dead band under the footer).
-    height: 446
+    // W68 — 446 -> 388: one row of four 64 px circles + captions replaces
+    // the two 64 px rectangle rows; the sheet keeps the snug fit.
+    height: 388
     flags: Qt.FramelessWindowHint
 
     // Tier C shortens every motion token — Table 17 fallback rung.
@@ -158,7 +160,10 @@ Window {
                         spacing: 12
 
                         Grid {
-                            columns: 2
+                            // W68 — one row of four glass circles (the
+                            // mockup's connectivity group; the 2x2 sketch
+                            // was superseded by the approved render)
+                            columns: 4
                             columnSpacing: 12
                             rowSpacing: 12
                             width: parent.width
@@ -415,191 +420,34 @@ Window {
         }
     }
 
-    // ── mono glyphs (Canvas — no emoji, no theme dependency) ────────
+    // ── mono glyphs — DELEGATED to Glyphs (v0.6.81, the reviewer's icon
+    // pack): the geometry lives ONLY in Glyphs.qml now, emitted from the
+    // same 24-grid masters as the SVG/PNG pack (the guide §1(b) "one
+    // glyph, two geometries" duplication dies). Same function names and
+    // signatures — every call site above keeps working; the CC's local
+    // 1.6 px family is replaced by the pack's 2.2 px tile family at the
+    // 26 px optical size.
 
-    function paintWifi(ctx, w, h, color) {
-        ctx.reset()
-        ctx.strokeStyle = color
-        ctx.fillStyle = color
-        ctx.lineWidth = 1.6
-        ctx.lineCap = "round"
-        const cx = w / 2, cy = h / 2 + 3.5
-        for (let i = 1; i <= 3; ++i) {
-            ctx.beginPath()
-            ctx.arc(cx, cy, i * 3.4, Math.PI * 1.25, Math.PI * 1.75, false)
-            ctx.stroke()
-        }
-        ctx.beginPath()
-        ctx.arc(cx, cy, 1.6, 0, Math.PI * 2)
-        ctx.fill()
-    }
+    function paintWifi(ctx, w, h, color) { Glyphs.wifi(ctx, w, h, color) }
 
-    // T15-D6 (W43) — the RJ45 plug for radio-less machines (VMs): same
-    // 1.6 px stroke family as the CC wifi fan.
-    function paintWired(ctx, w, h, color) {
-        ctx.reset()
-        ctx.strokeStyle = color
-        ctx.lineWidth = 1.6
-        ctx.lineCap = "round"
-        ctx.lineJoin = "round"
-        const cx = w / 2
-        ctx.beginPath()
-        ctx.moveTo(cx - 4.5, 3.5)
-        ctx.lineTo(cx + 4.5, 3.5)
-        ctx.lineTo(cx + 4.5, 11.5)
-        ctx.moveTo(cx - 4.5, 3.5)
-        ctx.lineTo(cx - 4.5, 11.5)
-        ctx.stroke()
-        for (const off of [-2.4, 0, 2.4]) {
-            ctx.beginPath()
-            ctx.moveTo(cx + off, 3.5)
-            ctx.lineTo(cx + off, 7.0)
-            ctx.stroke()
-        }
-        ctx.beginPath()
-        ctx.moveTo(cx, 11.5)
-        ctx.lineTo(cx, 13.5)
-        ctx.stroke()
-    }
+    function paintWired(ctx, w, h, color) { Glyphs.wired(ctx, w, h, color) }
 
     function paintBluetooth(ctx, w, h, color) {
-        ctx.reset()
-        ctx.strokeStyle = color
-        ctx.lineWidth = 1.6
-        ctx.lineCap = "round"
-        ctx.lineJoin = "round"
-        const cx = w / 2
-        ctx.beginPath()
-        ctx.moveTo(cx, 2)
-        ctx.lineTo(cx, h - 2)
-        ctx.moveTo(cx, 2)
-        ctx.lineTo(cx + 4.5, 6.5)
-        ctx.lineTo(cx - 4.5, h - 6.5)
-        ctx.moveTo(cx, h - 2)
-        ctx.lineTo(cx + 4.5, h - 6.5)
-        ctx.lineTo(cx - 4.5, 6.5)
-        ctx.stroke()
+        Glyphs.bluetooth(ctx, w, h, color)
     }
 
-    function paintMoon(ctx, w, h, color) {
-        ctx.reset()
-        ctx.fillStyle = color
-        const cx = w / 2, cy = h / 2
-        ctx.beginPath()
-        ctx.arc(cx, cy, 7, 0, Math.PI * 2)
-        ctx.fill()
-        ctx.globalCompositeOperation = "destination-out"
-        ctx.beginPath()
-        ctx.arc(cx + 3.5, cy - 2.5, 6.5, 0, Math.PI * 2)
-        ctx.fill()
-        ctx.globalCompositeOperation = "source-over"
-    }
+    function paintMoon(ctx, w, h, color) { Glyphs.moon(ctx, w, h, color) }
 
-    function paintHalf(ctx, w, h, color) {
-        ctx.reset()
-        const cx = w / 2, cy = h / 2
-        ctx.fillStyle = color
-        ctx.beginPath()
-        ctx.arc(cx, cy, 6.5, -Math.PI / 2, Math.PI / 2)
-        ctx.closePath()
-        ctx.fill()
-        ctx.strokeStyle = color
-        ctx.lineWidth = 1.4
-        ctx.beginPath()
-        ctx.arc(cx, cy, 6.5, 0, Math.PI * 2)
-        ctx.stroke()
-    }
+    function paintHalf(ctx, w, h, color) { Glyphs.half(ctx, w, h, color) }
 
-    // Bell — the W13 wide-tile glyph, redrawn: a true bell silhouette
-    // (nub, flaring dome, straight lip, clapper) on the 2 px stroke
-    // family. DND on fills the dome solid in the accent; off is outline.
     function paintBell(ctx, w, h, color, checked) {
-        ctx.reset()
-        ctx.strokeStyle = color
-        ctx.fillStyle = color
-        ctx.lineWidth = 2
-        ctx.lineCap = "round"
-        ctx.lineJoin = "round"
-        const cx = w / 2
-        // top nub — sits on the dome crown
-        ctx.beginPath()
-        ctx.arc(cx, 3.4, 1.3, 0, Math.PI * 2)
-        ctx.fill()
-        // dome — narrow crown, trumpet flare to the lip
-        ctx.beginPath()
-        ctx.moveTo(cx - 1.5, 4.9)
-        ctx.bezierCurveTo(cx - 4.2, 6.0, cx - 3.3, 9.0, cx - 5.2, 12.6)
-        ctx.lineTo(cx + 5.2, 12.6)
-        ctx.bezierCurveTo(cx + 3.3, 9.0, cx + 4.2, 6.0, cx + 1.5, 4.9)
-        ctx.closePath()
-        if (checked)
-            ctx.fill()
-        else
-            ctx.stroke()
-        // lip — a hair wider than the dome feet
-        ctx.beginPath()
-        ctx.moveTo(cx - 6.0, 12.6)
-        ctx.lineTo(cx + 6.0, 12.6)
-        ctx.stroke()
-        // clapper
-        if (!checked) {
-            ctx.beginPath()
-            ctx.arc(cx, 14.6, 1.5, Math.PI * 0.15, Math.PI * 0.85)
-            ctx.stroke()
-        }
+        Glyphs.bell(ctx, w, h, color, checked)
     }
 
-    function paintSun(ctx, w, h, color) {
-        ctx.reset()
-        ctx.fillStyle = color
-        ctx.strokeStyle = color
-        ctx.lineWidth = 1.4
-        ctx.lineCap = "round"
-        const cx = w / 2, cy = h / 2
-        ctx.beginPath()
-        ctx.arc(cx, cy, 3.2, 0, Math.PI * 2)
-        ctx.fill()
-        for (let i = 0; i < 8; ++i) {
-            const a = i * Math.PI / 4
-            ctx.beginPath()
-            ctx.moveTo(cx + Math.cos(a) * 5.2, cy + Math.sin(a) * 5.2)
-            ctx.lineTo(cx + Math.cos(a) * 7.8, cy + Math.sin(a) * 7.8)
-            ctx.stroke()
-        }
-    }
+    function paintSun(ctx, w, h, color) { Glyphs.sun(ctx, w, h, color) }
 
     function paintSpeaker(ctx, w, h, color, muted) {
-        ctx.reset()
-        ctx.fillStyle = color
-        ctx.strokeStyle = color
-        ctx.lineWidth = 1.5
-        ctx.lineCap = "round"
-        ctx.lineJoin = "round"
-        const cx = w / 2 - 2, cy = h / 2
-        ctx.beginPath()
-        ctx.moveTo(cx - 5, cy - 2.5)
-        ctx.lineTo(cx - 2, cy - 2.5)
-        ctx.lineTo(cx + 2, cy - 6.5)
-        ctx.lineTo(cx + 2, cy + 6.5)
-        ctx.lineTo(cx - 2, cy + 2.5)
-        ctx.lineTo(cx - 5, cy + 2.5)
-        ctx.closePath()
-        ctx.fill()
-        if (muted) {
-            ctx.beginPath()
-            ctx.moveTo(cx + 4.5, cy - 3.5)
-            ctx.lineTo(cx + 9, cy + 3.5)
-            ctx.moveTo(cx + 9, cy - 3.5)
-            ctx.lineTo(cx + 4.5, cy + 3.5)
-            ctx.stroke()
-        } else {
-            ctx.beginPath()
-            ctx.arc(cx + 3.5, cy, 3, -Math.PI / 3, Math.PI / 3)
-            ctx.stroke()
-            ctx.beginPath()
-            ctx.arc(cx + 3.5, cy, 6, -Math.PI / 3, Math.PI / 3)
-            ctx.stroke()
-        }
+        Glyphs.speaker(ctx, w, h, color, muted)
     }
 
     // ── inline components ────────────────────────────────────────────
@@ -608,7 +456,15 @@ Window {
     // left-aligned, a real switch at the right end. The tile stays glass;
     // the switch carries the accent state. Narrow tiles keep the centered
     // icon-above-label look and fill with the accent when checked.
-    component CcTile: Rectangle {
+    // W68 — narrow tiles are 64 px glass circles in ONE row of four (the
+    // mockup's connectivity group: 4 circles, 12 px gaps — the sheet's
+    // 316 px inner width holds 4x64 + 3x12 exactly). The checked state is
+    // iOS 26's active toggle: solid accent, white glyph, no half-measures;
+    // unchecked is the sheet's own glass — white 0.12 under the v1.7 ink
+    // flip — with a 0.22 hairline rim. Captions (W70: 11 px semibold
+    // white/85) live UNDER the circle. The wide DND card stays a
+    // radius-18 glass card with its 36x20 switch row.
+    component CcTile: Item {
         id: ccTile
         property string label
         property bool checked
@@ -617,27 +473,19 @@ Window {
         signal toggled()
 
         width: wide ? (parent ? parent.width : 320)
-                    : ((parent ? parent.width : 320) - 12) / 2
-        height: wide ? 44 : 64
-        radius: 16
-        // §5.4 — tiles answer the pointer: scale 1.02 (90 ms OutQuad) and
-        // the resting glass lightens +6% white while hovered.
-        scale: tileHover.hovered ? 1.02 : 1.0
-        Behavior on scale {
-            NumberAnimation { duration: 90; easing.type: Easing.OutQuad }
-        }
-        color: !wide && checked ? Tokens.accent
-                                : (Util.darkMode
-                                       ? (tileHover.hovered ? Qt.rgba(1, 1, 1, 0.13)
-                                                            : Qt.rgba(1, 1, 1, 0.07))
-                                       : (tileHover.hovered ? Qt.rgba(0, 0, 0, 0.02)
-                                                            : Qt.rgba(0, 0, 0, 0.05)))
-        border.width: 1
-        border.color: (!wide && checked) ? Qt.rgba(1, 1, 1, 0.25)
-                                         : (Util.darkMode ? Qt.rgba(1, 1, 1, 0.10)
-                                                          : Qt.rgba(0, 0, 0, 0.08))
-        Behavior on color {
-            ColorAnimation { duration: ccRoot.dur(Tokens.durQuick) }
+                    : ((parent ? parent.width : 320) - 36) / 4
+        height: wide ? 44 : 82
+
+        // the WHOLE tile toggles — wide tiles included. The v0.6.20 boot
+        // test caught the regression: this MouseArea once carried
+        // visible: !wide, so the DND tile body was dead and only the
+        // switch responded — five tags shipped identical "DND on"
+        // captures. Declared FIRST so the wide switch keeps its own hit
+        // area above it.
+        MouseArea {
+            anchors.fill: parent
+            cursorShape: Qt.PointingHandCursor
+            onClicked: toggled()
         }
 
         HoverHandler {
@@ -645,124 +493,152 @@ Window {
             cursorShape: Qt.PointingHandCursor
         }
 
-        // the WHOLE tile toggles — wide tiles included. The v0.6.20 boot
-        // test caught the regression: this MouseArea carried visible: !wide,
-        // so the Do Not Disturb tile body was dead and only the 36x20
-        // switch responded — five tags shipped identical "DND on" captures
-        // because the capture clicks the tile body. Declared FIRST so the
-        // narrow column and the wide content row stack above it and the
-        // switch keeps its own hit area.
-        MouseArea {
-            anchors.fill: parent
-            cursorShape: Qt.PointingHandCursor
-            onClicked: toggled()
-        }
+        Rectangle {
+            id: plate
+            anchors {
+                top: parent.top
+                horizontalCenter: parent.horizontalCenter
+            }
+            width: wide ? parent.width : 64
+            height: wide ? parent.height : 64
+            radius: wide ? 18 : 32
+            // §5.4 — tiles answer the pointer: scale 1.02 (90 ms OutQuad)
+            scale: tileHover.hovered ? 1.02 : 1.0
+            Behavior on scale {
+                NumberAnimation { duration: 90; easing.type: Easing.OutQuad }
+            }
+            color: (!wide && checked)
+                       ? Tokens.accent
+                       : (Util.darkMode
+                              ? (tileHover.hovered ? Qt.rgba(1, 1, 1, 0.18)
+                                                   : Qt.rgba(1, 1, 1, 0.12))
+                              : (tileHover.hovered ? Qt.rgba(0, 0, 0, 0.04)
+                                                   : Qt.rgba(0, 0, 0, 0.06)))
+            border.width: 1
+            border.color: (!wide && checked) ? Qt.rgba(1, 1, 1, 0.25)
+                                             : (Util.darkMode ? Qt.rgba(1, 1, 1, 0.22)
+                                                              : Qt.rgba(0, 0, 0, 0.08))
+            Behavior on color {
+                ColorAnimation { duration: ccRoot.dur(Tokens.durQuick) }
+            }
 
-        // narrow tile — icon above label, centered
-        Column {
-            visible: !wide
-            anchors.centerIn: parent
-            spacing: 5
-
+            // narrow — the 26 px glyph alone rides the circle (the pack's
+            // 2.2 px stroke family); white 0.92 unchecked (W68), white on
+            // accent checked
             Canvas {
-                width: 18
-                height: 18
+                visible: !wide
+                anchors.centerIn: parent
+                width: 26
+                height: 26
                 onPaint: if (painter)
                     painter(getContext("2d"), width, height,
                             checked ? "#FFFFFF"
-                                    : (Util.darkMode ? Qt.rgba(1, 1, 1, 0.85)
+                                    : (Util.darkMode ? Qt.rgba(1, 1, 1, 0.92)
                                                      : Qt.rgba(0, 0, 0, 0.72)),
                             checked)
             }
 
-            Text {
-                anchors.horizontalCenter: parent.horizontalCenter
-                text: label
-                color: checked ? "#FFFFFF" : Tokens.fg
-                font { family: "Montserrat"; pixelSize: 10; weight: Font.Medium }
-            }
-        }
-
-        // wide tile — content row: icon + label left, switch right
-        Item {
-            visible: wide
-            anchors.fill: parent
-            anchors.leftMargin: 14
-            anchors.rightMargin: 14
-
-            Canvas {
-                id: wideGlyph
-                width: 18
-                height: 18
-                anchors.left: parent.left
-                anchors.verticalCenter: parent.verticalCenter
-                onPaint: if (painter)
-                    painter(getContext("2d"), width, height,
-                            checked ? Tokens.accent
-                                    : (Util.darkMode ? Qt.rgba(1, 1, 1, 0.85)
-                                                     : Qt.rgba(0, 0, 0, 0.72)),
-                            checked)
-            }
-
-            Text {
-                text: label
-                color: Tokens.fg
-                elide: Text.ElideRight
-                font { family: "Montserrat"; pixelSize: 11; weight: Font.Medium }
-                anchors.left: wideGlyph.right
-                anchors.leftMargin: 10
-                anchors.right: dndSwitch.left
-                anchors.rightMargin: 10
-                anchors.verticalCenter: parent.verticalCenter
-            }
-
-            // 36×20 switch — knob rides the state with the standard easing
+            // wide — content row: icon + label left, switch right
             Item {
-                id: dndSwitch
-                width: 36
-                height: 20
-                anchors.right: parent.right
-                anchors.verticalCenter: parent.verticalCenter
+                visible: wide
+                anchors.fill: parent
+                anchors.leftMargin: 14
+                anchors.rightMargin: 14
 
-                Rectangle {
-                    anchors.fill: parent
-                    radius: 10
-                    color: checked ? Tokens.accent
-                                   : (Util.darkMode ? Qt.rgba(1, 1, 1, 0.14)
-                                                    : Qt.rgba(0, 0, 0, 0.12))
-                    border.width: 1
-                    border.color: Util.darkMode ? Qt.rgba(1, 1, 1, 0.10)
-                                                : Qt.rgba(0, 0, 0, 0.08)
-                    Behavior on color {
-                        ColorAnimation { duration: ccRoot.dur(Tokens.durQuick) }
-                    }
+                Canvas {
+                    id: wideGlyph
+                    width: 18
+                    height: 18
+                    anchors.left: parent.left
+                    anchors.verticalCenter: parent.verticalCenter
+                    onPaint: if (painter)
+                        painter(getContext("2d"), width, height,
+                                checked ? Tokens.accent
+                                        : (Util.darkMode ? Qt.rgba(1, 1, 1, 0.85)
+                                                         : Qt.rgba(0, 0, 0, 0.72)),
+                                checked)
                 }
 
-                Rectangle {
-                    x: checked ? parent.width - 18 : 2
+                Text {
+                    text: label
+                    color: Tokens.fg
+                    elide: Text.ElideRight
+                    font { family: "Montserrat"; pixelSize: 11; weight: Font.Medium }
+                    anchors.left: wideGlyph.right
+                    anchors.leftMargin: 10
+                    anchors.right: dndSwitch.left
+                    anchors.rightMargin: 10
                     anchors.verticalCenter: parent.verticalCenter
-                    width: 16
-                    height: 16
-                    radius: 8
-                    color: "#FFFFFF"
-                    Behavior on x {
-                        NumberAnimation {
-                            duration: ccRoot.dur(Tokens.durStandard)
-                            easing.type: Easing.OutCubic
+                }
+
+                // 36×20 switch — knob rides the state with the standard easing
+                Item {
+                    id: dndSwitch
+                    width: 36
+                    height: 20
+                    anchors.right: parent.right
+                    anchors.verticalCenter: parent.verticalCenter
+
+                    Rectangle {
+                        anchors.fill: parent
+                        radius: 10
+                        color: checked ? Tokens.accent
+                                       : (Util.darkMode ? Qt.rgba(1, 1, 1, 0.14)
+                                                        : Qt.rgba(0, 0, 0, 0.12))
+                        border.width: 1
+                        border.color: Util.darkMode ? Qt.rgba(1, 1, 1, 0.10)
+                                                    : Qt.rgba(0, 0, 0, 0.08)
+                        Behavior on color {
+                            ColorAnimation {
+                                duration: ccRoot.dur(Tokens.durQuick)
+                            }
                         }
                     }
-                }
 
-                MouseArea {
-                    anchors.fill: parent
-                    cursorShape: Qt.PointingHandCursor
-                    onClicked: toggled()
+                    Rectangle {
+                        x: checked ? parent.width - 18 : 2
+                        anchors.verticalCenter: parent.verticalCenter
+                        width: 16
+                        height: 16
+                        radius: 8
+                        color: "#FFFFFF"
+                        Behavior on x {
+                            NumberAnimation {
+                                duration: ccRoot.dur(Tokens.durStandard)
+                                easing.type: Easing.OutCubic
+                            }
+                        }
+                    }
+
+                    MouseArea {
+                        anchors.fill: parent
+                        cursorShape: Qt.PointingHandCursor
+                        onClicked: toggled()
+                    }
                 }
             }
         }
 
+        // W70 caption — under the circle, horizontal-fit (Calm Mode is the
+        // long one and must not ellipsize at 1x)
+        Text {
+            visible: !wide
+            anchors {
+                top: plate.bottom
+                topMargin: 4
+                horizontalCenter: plate.horizontalCenter
+            }
+            width: ccTile.width
+            horizontalAlignment: Text.AlignHCenter
+            fontSizeMode: Text.HorizontalFit
+            text: label
+            color: Util.darkMode ? Qt.rgba(1, 1, 1, 0.85)
+                                 : Qt.rgba(0, 0, 0, 0.75)
+            font { family: "Montserrat"; pixelSize: 11; weight: Font.DemiBold }
+        }
     }
 
+    
     // W13 — anchor layout: both tracks end at the SAME right margin
     component CcSlider: Item {
         property var painter
