@@ -3412,6 +3412,35 @@ def main():
                    "FAIL — the section rules are missing or doubled"))
         except Exception as e:
             log(f"w70 rule probe failed: {e}")
+
+        # W71 — the MOTION keys (same SHA): the entrance/sheen/press keys
+        # grepped in the INSTALLED QML over serial (the W39 grep pattern;
+        # a mid-open pixel frame is timing-unsafe over a ~100-300 ms
+        # screenshot pipe on llvmpipe — the 05d motion series stays the
+        # motion evidence, this asserts the KEYS exist).
+        w71_motion_ok = False
+        try:
+            out = serial.run(
+                "grep -c 'ccRoot.sheen' "
+                "/usr/share/aegis/shell/qml/ControlCenter.qml; "
+                "echo W71A; grep -c 'tileClick.pressed' "
+                "/usr/share/aegis/shell/qml/ControlCenter.qml; "
+                "echo W71B; grep -c 'dur(200)' "
+                "/usr/share/aegis/shell/qml/ControlCenter.qml; "
+                "echo W71-END", settle=3)
+            seg = out.split("W71-END")[0]
+            counts = [x.strip() for x in seg.replace("W71A", "|")
+                      .replace("W71B", "|").split("|") if x.strip()]
+            w71_motion_ok = (len(counts) == 3
+                             and all(c.isdigit() and int(c) >= 1
+                                     for c in counts))
+            log(f"w71 motion keys: sheen/press/entrance counts "
+                f"{counts} — "
+                + ("PASS" if w71_motion_ok else
+                   "FAIL — the motion keys are missing from the "
+                   "installed QML"))
+        except Exception as e:
+            log(f"w71 motion probe failed: {e}")
     except Exception as e:
         try:
             q.click(W - 19, 14, W, H)   # defensive CC close

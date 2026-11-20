@@ -89,7 +89,7 @@ Window {
                 }
                 height: 8
                 gradient: Gradient {
-                    GradientStop { position: 0; color: Qt.rgba(1, 1, 1, 0.12) }
+                    GradientStop { position: 0; color: Qt.rgba(1, 1, 1, ccRoot.sheen) }
                     GradientStop { position: 1; color: Qt.rgba(1, 1, 1, 0.02) }
                 }
             }
@@ -409,6 +409,16 @@ Window {
         }
     }
 
+    // W71 — the liquid entrance: the plate ARRIVES. Scale 0.96 -> 1 +
+    // opacity over 200 ms (governor-gated: tier C lands at 80 ms instant,
+    // the Table 17 fallback rule), anchored to the island's bottom edge
+    // via the existing 2 px drop. The v1.6 OutBack overshoot reads as a
+    // bounce, not a liquid arrival — OutCubic is the kit's ease.
+    // Blur-in is the honest cut: per-window blur strength has no KWin
+    // animation API, and faking it with a shader breaks the no-shader
+    // rule — the scale+opacity+sheen carry the arrival.
+    property real sheen: 0.12
+
     SequentialAnimation {
         id: springIn
 
@@ -418,7 +428,7 @@ Window {
                 property: "y"
                 from: -2
                 to: 0
-                duration: Tokens.durSpring
+                duration: ccRoot.dur(200)
                 easing.type: Easing.OutCubic
             }
             NumberAnimation {
@@ -426,16 +436,35 @@ Window {
                 property: "scale"
                 from: 0.96
                 to: 1
-                duration: Tokens.durSpring
-                easing.type: Easing.OutBack
-                easing.overshoot: 1.35
+                duration: ccRoot.dur(200)
+                easing.type: Easing.OutCubic
             }
             NumberAnimation {
                 target: sheet
                 property: "opacity"
                 from: 0
                 to: 1
-                duration: Tokens.durInstant
+                duration: ccRoot.dur(160)
+            }
+        }
+        // the sheen sweep — one gradient stop's alpha 0.12 -> 0.18 ->
+        // 0.12 over 600 ms: a light pass across the glass, no shader
+        SequentialAnimation {
+            NumberAnimation {
+                target: ccRoot
+                property: "sheen"
+                from: 0.12
+                to: 0.18
+                duration: ccRoot.dur(300)
+                easing.type: Easing.InOutQuad
+            }
+            NumberAnimation {
+                target: ccRoot
+                property: "sheen"
+                from: 0.18
+                to: 0.12
+                duration: ccRoot.dur(300)
+                easing.type: Easing.InOutQuad
             }
         }
     }
@@ -503,6 +532,7 @@ Window {
         // captures. Declared FIRST so the wide switch keeps its own hit
         // area above it.
         MouseArea {
+            id: tileClick
             anchors.fill: parent
             cursorShape: Qt.PointingHandCursor
             onClicked: toggled()
@@ -512,6 +542,12 @@ Window {
             id: tileHover
             cursorShape: Qt.PointingHandCursor
         }
+
+        // W71 — press feedback: the tile dips to 0.94 on press and
+        // springs back over 80 ms (the same OutQuad family; tier C's
+        // durInstant keeps it readable). Read off the tile's own
+        // MouseArea (tileClick) — no second grab.
+        property bool pressed: tileClick.pressed
 
         Rectangle {
             id: plate
@@ -523,9 +559,10 @@ Window {
             height: wide ? parent.height : 64
             radius: wide ? 18 : 32
             // §5.4 — tiles answer the pointer: scale 1.02 (90 ms OutQuad)
-            scale: tileHover.hovered ? 1.02 : 1.0
+            scale: ccTile.pressed ? 0.94
+                                  : (tileHover.hovered ? 1.02 : 1.0)
             Behavior on scale {
-                NumberAnimation { duration: 90; easing.type: Easing.OutQuad }
+                NumberAnimation { duration: ccRoot.dur(80); easing.type: Easing.OutQuad }
             }
             color: (!wide && checked)
                        ? Tokens.accent
