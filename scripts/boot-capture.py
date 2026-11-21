@@ -3678,7 +3678,20 @@ def main():
             before = serial.run("grep ColorScheme "
                                 "~/.config/kdeglobals 2>/dev/null | head -1; "
                                 "echo TOKEN-END", settle=2)
-            q.click(1172, 234, W, H)
+            # W68 geometry (bt96 forensics) — the dark tile is the 4th
+            # circle of the one-row group; the old LITERAL (1172, 234)
+            # was the old tile row and in the v0.6.81 layout lands on the
+            # DND card (y 192..236), toggling Do Not Disturb instead of
+            # dark mode — exactly bt96's "AegisDark -> AegisDark (state
+            # file: absent)" red. Derived from the sheet constants the
+            # W67 block already computed; the literals are the same
+            # numbers at 1280x800 as the fallback.
+            try:
+                dark_x = CCX0 + 16 + 3 * 82 + 35   # cell 4 center (70 px cells, 12 px gaps)
+                dark_y = CCY0 + 16 + 30 + 12 + 32  # circle-row center
+            except NameError:
+                dark_x, dark_y = 1219, 130
+            q.click(dark_x, dark_y, W, H)
             time.sleep(2.5)
             q.shot("05c-dark-toggled")
             # W59 — the first frame can be mid-transition (the v0.6.59
@@ -3692,7 +3705,7 @@ def main():
                 "cat ~/.local/state/aegis-shell/aegis/theme 2>/dev/null; "
                 "echo THEME-END", settle=2)
             if "light" not in state_out and "dark" not in state_out:
-                q.click(1172, 234, W, H)
+                q.click(dark_x, dark_y, W, H)
                 time.sleep(2.5)
             time.sleep(1.2)
             q.shot("05c2-dark-settled")
@@ -3720,7 +3733,7 @@ def main():
                 + ("PASS" if dark_flipped and theme_light
                    else "PASS on state file only" if theme_light
                    else "FAIL"))
-            q.click(1172, 234, W, H)
+            q.click(dark_x, dark_y, W, H)
             time.sleep(1.5)
         except Exception as e:
             log(f"dark tile probe failed: {e}")
