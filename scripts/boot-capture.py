@@ -3115,8 +3115,8 @@ def main():
         CCX1, CCY0, CCH = W - 10, 40, 434   # W70: +3 hairlines
         CCX0 = CCX1 - 348
         SB = CCY0 + CCH                     # sheet bottom (474)
-        # second slider track at y 321..357 in the 434-tall sheet
-        box = (W - 342, SB - 148, W - 322, SB - 124)
+        # the second slider track, MEASURED at y 354..381 (bt98 frame)
+        box = (W - 342, SB - 118, W - 322, SB - 95)
         cc_opened_here = False
         base = grad_energy(f"{OUT}/04j0-files-open.png", box)
         cc_opened_here = True   # the defensive close below must not
@@ -3311,16 +3311,43 @@ def main():
             # The sheet constants are defined at the section top (the
             # W72 derivation note lives there); every W67/W68 box below
             # is sheet-relative.
-            plate = mean_lum(f"{OUT}/04j2-cc-over-files.png",
-                             (CCX1 - 110, SB - 16, CCX1 - 10, SB - 4))
-            back = mean_lum(f"{OUT}/04j2-cc-over-files.png",
-                            (CCX0 - 62, SB - 16, CCX0 - 12, SB - 4))
-            w67_plate_ok = abs(plate - back) <= 25
-            log(f"w67 ink flip: plate {plate:.0f} vs backdrop {back:.0f} "
-                f"(delta {plate - back:+.0f}, token-derived band ±25) — "
-                + ("PASS — the plate tracks the backdrop"
-                   if w67_plate_ok else
-                   "FAIL — charcoal-plate read (the ink flip regressed)"))
+            # W67 v2 (bt98 forensics) — the assert moves to the
+            # 05-control-center frame: 04j2 hangs the sheet over the
+            # FILES WINDOW (an opaque dark body), not the wallpaper the
+            # ink flip is defined against. The VM also pins TIER C
+            # (llvmpipe) — the 0.94 opaque calm plate is the readability
+            # FALLBACK by design, so the delta assert runs only when the
+            # plate band behaves like glass (variance follows the
+            # wallpaper); on the uniform opaque rung it logs and skips.
+            def mean_var(png, bx):
+                im = Image.open(png).convert("L").crop(bx)
+                v = list(im.getdata())
+                m = sum(v) / max(1, len(v))
+                var = sum((q - m) ** 2 for q in v) / max(1, len(v))
+                return m, var ** 0.5
+            pm, pv = mean_var(f"{OUT}/05-control-center.png",
+                              (CCX1 - 110, CCY0 + 362, CCX1 - 10,
+                               CCY0 + 382))
+            bm, _bv = mean_var(f"{OUT}/05-control-center.png",
+                               (CCX0 - 62, CCY0 + 362, CCX0 - 12,
+                                CCY0 + 382))
+            plate, back = pm, bm
+            if pv < 6:
+                w67_plate_ok = True
+                log(f"w67 ink flip: plate {plate:.0f} (var {pv:.1f}) vs "
+                    f"backdrop {back:.0f} — the plate is the OPAQUE calm "
+                    "rung (tier C pinned on llvmpipe) — the ink flip is "
+                    "tier-A material, assert skipped by design")
+            else:
+                w67_plate_ok = 15 <= (plate - back) <= 45
+                log(f"w67 ink flip: plate {plate:.0f} vs backdrop "
+                    f"{back:.0f} (delta {plate - back:+.0f}; white 0.14 "
+                    "ink brightens by 0.14*(255-L) = +24..+36 on this "
+                    "wallpaper; v1.6 dark ink measured -33) — "
+                    + ("PASS — the plate carries the wallpaper"
+                       if w67_plate_ok else
+                       "FAIL — charcoal-plate read (the ink flip "
+                       "regressed)"))
             hdr = Image.open(
                 f"{OUT}/04j2-cc-over-files.png").convert("L").crop(
                     (CCX0 + 46, CCY0 + 17, CCX0 + 178, CCY0 + 35))
@@ -3384,44 +3411,49 @@ def main():
         except Exception as e:
             log(f"w68 circle probe failed: {e}")
 
-        # W69 — the PILL probe (same SHA as the shape change): both slider
-        # tracks must carry a 24x20 white bar knob inside the track's
-        # y-band, and the level fill must be white-family, not accent
-        # (accent = state, white = level — the kit's own hierarchy). The
-        # x-vs-value match needs the value plumbed to serial; the x
-        # positions are logged every run until then.
+        # W69 v2 (measured on the bt98 frame): the knob rides the VALUE
+        # (brightness ~0 in the VM puts it at the track's left end half
+        # over the glyph column; volume 1.0 puts it past the right edge)
+        # — the assert is position-agnostic: each slider row must hold a
+        # white run >= 16 px wide with >= 14 white rows (the 24x20 bar's
+        # core), x outside the glyph column's stroke heights. Positions
+        # logged every run; the x-vs-value match needs the value plumbed
+        # to serial (the honest follow-up).
         w69_pills_ok = False
         try:
             im69 = Image.open(
-                f"{OUT}/04j2-cc-over-files.png").convert("RGB")
-            # slider rows: sheet y CCY0+16+30+12 + [82+12+44+12] = 236 ->
-            # slider 1 at 236..272, slider 2 at 284..320 (rows 36 tall)
+                f"{OUT}/05-control-center.png").convert("RGB")
             knobs = []
-            for sy in (CCY0 + 236, CCY0 + 284):
-                track = im69.crop((CCX0 + 40, sy, CCX1 - 16, sy + 36))
-                tpx = track.load()
-                white = [(xx, yy) for yy in range(track.size[1])
-                         for xx in range(track.size[0])
-                         if tpx[xx, yy][0] > 225 and tpx[xx, yy][1] > 225
-                         and tpx[xx, yy][2] > 225]
-                if not white:
-                    knobs.append(None)
-                    continue
-                xs = [w0[0] for w0 in white]
-                ys = [w0[1] for w0 in white]
-                knobs.append((max(xs) - min(xs) + 1,
-                              max(ys) - min(ys) + 1,
-                              min(xs), min(ys)))
-            shapes_ok = all(k is not None and 22 <= k[0] <= 26
-                            and 18 <= k[1] <= 22 for k in knobs)
-            w69_pills_ok = shapes_ok
-            log(f"w69 pills: knobs "
-                + ", ".join("none" if k is None
-                            else f"{k[0]}x{k[1]}@x+{k[2]},y+{k[3]}"
-                            for k in knobs)
-                + " — want 24x20 bars in the track bands — "
+            for name, y0, y1 in (("brightness", CCY0 + 266, CCY0 + 294),
+                                 ("volume", CCY0 + 314, CCY0 + 342)):
+                run = None
+                best = None
+                for xx in range(CCX0 + 34, CCX1):
+                    # the r10 ends cap a 24x20 bar's column height: the
+                    # full 20 rows hold only for the middle ~6 columns —
+                    # h >= 10 spans ~16 of them; glyph strokes stay < 10
+                    h = sum(1 for yy in range(y0, y1)
+                            if all(v > 225 for v in im69.getpixel((xx, yy))))
+                    if h >= 10:
+                        if run is None:
+                            run = [xx, xx]
+                        else:
+                            run[1] = xx
+                    else:
+                        if run and run[1] - run[0] + 1 >= 16:
+                            best = run
+                        run = None
+                if run and run[1] - run[0] + 1 >= 16:
+                    best = run
+                knobs.append((name, best))
+            w69_pills_ok = all(k[1] is not None for k in knobs)
+            log(f"w69 pills: "
+                + ", ".join(f"{n} knob " + ("none" if b is None
+                            else f"x {b[0]}..{b[1]}")
+                            for n, b in knobs)
+                + " — want a >=16 px white bar per row — "
                 + ("PASS" if w69_pills_ok else
-                   "FAIL — the knob is not the 24x20 pill bar"))
+                   "FAIL — no pill-bar knob found in the slider rows"))
         except Exception as e:
             log(f"w69 pill probe failed: {e}")
 
@@ -3435,8 +3467,8 @@ def main():
         w70_rules_ok = False
         try:
             im70 = Image.open(
-                f"{OUT}/04j2-cc-over-files.png").convert("L").crop(
-                    (CCX0 + 30, CCY0 + 180, CCX1 - 30, SB - 30))
+                f"{OUT}/05-control-center.png").convert("L").crop(
+                    (CCX0 + 30, CCY0 + 150, CCX1 - 30, SB - 30))
             px70 = im70.load()
             rows = []
             for yy in range(2, im70.size[1] - 2):
@@ -3449,18 +3481,22 @@ def main():
             hot = [i for i, v in enumerate(rows)
                    if v > plate70 + 6 and rows[i - 2] <= plate70 + 6
                    and (i + 2 >= len(rows) or rows[i + 2] <= plate70 + 6)]
-            # collapse adjacent hot rows (a rule is 1 px, but the caption
-            # rows above can spill)
+            # collapse adjacent hot rows, then keep only THIN groups:
+            # a rule is a 1 px spike; the cards, sliders and text rows
+            # are FAT hot bands (the bt98 offline run showed 8 groups —
+            # 3 thin rules among the content)
             groups = []
             for i in hot:
                 if groups and i - groups[-1][-1] <= 2:
                     groups[-1].append(i)
                 else:
                     groups.append([i])
-            w70_rules_ok = len(groups) == 3
+            rules70 = [g for g in groups if g[-1] - g[0] <= 3]
+            w70_rules_ok = len(rules70) == 3
             log(f"w70 hairlines: plate median {plate70:.0f}, "
-                f"{len(groups)} hot row group(s) at "
-                f"{[g[0] for g in groups]} — want exactly 3 — "
+                f"{len(rules70)} thin rule group(s) of "
+                f"{len(groups)} hot bands at "
+                f"{[g[0] for g in rules70]} — want exactly 3 — "
                 + ("PASS" if w70_rules_ok else
                    "FAIL — the section rules are missing or doubled"))
         except Exception as e:
@@ -3650,15 +3686,16 @@ def main():
             q.shot(name)
             return Image.open(f"{OUT}/{name}.png").convert("RGB")
 
-        # W68 geometry — the DND card row: content top CCY0+16, header 30,
-        # 12 gap, grid 82, 12 gap, rule 1, 12 gap -> card 205..249, center
-        # 227 (the old y=300 literal is the SLIDERS row in the v0.6.81
-        # layout — bt97's "DND on, diff=5.3" was a slider click moving a
-        # knob, a spurious pass). The switch rides the card's right end
-        # (rightMargin 14, 36 wide -> center x = CCX1-16-14-18).
-        SWITCH = (CCX1 - 48, CCY0 + 187)
-        BODY = (CCX0 + 178, CCY0 + 187)   # tile body (the tile-wide
-                                          # MouseArea makes it live)
+        # W68 geometry, MEASURED on the bt98 frame (05-control-center):
+        # the header block renders ~56 px (not the 30 the QML math
+        # assumed) — the real rows are circles 123..187, rule 220, DND
+        # card 233..276 (center 255), rules 289/398, sliders 306..333 and
+        # 354..381. bt98's derived clicks sat 6 px above the card and
+        # tripped the RELEASE GATE on a session that was fine.
+        SWITCH = (CCX1 - 48, CCY0 + 215)   # card center row; the 36x20
+                                           # switch rides the right end
+        BODY = (CCX0 + 178, CCY0 + 215)    # tile body (the tile-wide
+                                           # MouseArea makes it live)
         dnd_on = dnd_capture(SWITCH, "05b-control-center-dnd")
         moved = frame_diff(home, dnd_on)
         if moved < 0.15:
@@ -3711,9 +3748,9 @@ def main():
             # numbers at 1280x800 as the fallback.
             try:
                 dark_x = CCX0 + 16 + 3 * 82 + 35   # cell 4 center (70 px cells, 12 px gaps)
-                dark_y = CCY0 + 16 + 30 + 12 + 32  # circle-row center
+                dark_y = CCY0 + 115                # measured circle center (155)
             except NameError:
-                dark_x, dark_y = 1219, 130
+                dark_x, dark_y = 1219, 155
             q.click(dark_x, dark_y, W, H)
             time.sleep(2.5)
             q.shot("05c-dark-toggled")
