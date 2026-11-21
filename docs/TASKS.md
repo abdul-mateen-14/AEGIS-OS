@@ -1,3 +1,48 @@
+## Circle kit v1.7 SHIPPED + the five-run harness-honesty saga — v0.6.81 (3af19a6), bt92-100, 2026-11-21
+- The ISO round shipped (bc903cc build + 30d7717 self-heal + 0f252ed
+  W63 v6/v6b): the W63 sidebar strip re-anchored window-relative and
+  scoped to the glyph column (noise floor 8 vs the old 1000+ colored
+  glyphs), the CC rebuilt as a one-row circle grid (W68: 64 px circles,
+  accent blobs 62±2 wide), slider pills with position-agnostic knob
+  probes (W69), three 1 px hairline rules with a thin-band scan (W70),
+  press-scale + sheen + entrance motion keys (W71), the 434 px sheet,
+  and the dark-mode scrim keyed on Util.backdropLuminance() > 140
+  (C++ backdropLuminance in util.cpp). Shell CI + QML dup-check clean.
+- The saga is the HARNESS story, five runs to honest GREEN, each red a
+  different silent-gap species: bt96/bt97 (44798791040/44860123516) —
+  the dark-tile probe's literal (1172, 234) was the OLD tile row (it
+  landed on the DND card in the new layout), and commit B's derived
+  A/B box referenced SB before its definition — the NameError aborted
+  the ENTIRE CC probe section, the except swallowed it (19 other
+  asserts kept passing, no failure flag existed for never-run probes)
+  and the defensive CC toggle flipped window state for the whole 05
+  cluster; bt98 (44863096037) — the section finally ran (25 passes,
+  w68/w76 verified for real) and exposed ~26 px of stale arithmetic
+  (the header renders ~56 px, not the 30 the QML math assumed): the
+  DND switch clicks hit 6 px above the card, tripping the RELEASE
+  GATE before the dark probe ran, and the ink-flip assert measured
+  tier-C physics (the VM pins TIER C on llvmpipe — the 0.94 opaque
+  calm plate is the readability fallback BY DESIGN); bt99
+  (44865339290) — GREEN but dishonest: the w67/w69/w70 probes were
+  re-staged on a capture taken LATER in the flow (FileNotFoundError
+  x3) and the CC-material family was informational-only since it was
+  written (the verdict gate never checked the flags); bt100
+  (44874848091) — the closure: all three probes moved after the
+  05-control-center shot, every probe re-anchored to MEASURED rows
+  (circles 123..187, DND card 233..276 center 255, rules 220/289/398,
+  sliders 306..333/354..381), the ink flip gated on plate variance
+  (glass tracks the wallpaper; the opaque rung logs and skips by
+  design; tier A asserts 15<=delta<=45), and all seven CC-material
+  flags are verdict-gate items with "could not run" appends in every
+  probe except. **bt100 GREEN, zero FAILs**: dark tile AegisDark ->
+  AegisLight end-to-end (state file light), DND diff=1.7, knobs at
+  [963..980]/[1237..1256], rules [218, 287, 396], W63 v6b strip clean,
+  circles 62x43 x2, clear dock white 2504/vivid 0, motion keys 1/1/2.
+  Release v0.6.81 assets live (3). ISO unchanged since 3af19a6 —
+  bt98-100 tested the same artifact; every fix after it was harness-
+  only. M4 (the real-GPU tier-A re-verify: the ink-flip delta assert
+  + the scrim) is the one open item the tier-C gate defers.
+
 ## Liquid Glass v1.6 SHIPPED + two detector root-causes — v0.6.78 fd24476, bt86-91, 2026-11-20
 - The user's ask ("truly transparent liquid glass in every section and
   everywhere", the iOS 26 material, YouTube ref IrGYUq1mklk) shipped in
