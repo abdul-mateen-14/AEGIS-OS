@@ -3106,11 +3106,22 @@ def main():
         # on 1.70 -> off 11.86, ratio 7.0, restored gap 0.00. The 1.25
         # gate stays; the strip now measures content that actually
         # responds to blur.
-        # W72 — sheet-relative since W68 (the sheet is 388 tall at
-        # y 40..428; the second slider track band is the blur-responsive
-        # glass the original 540..620 box chased)
-        box = (W - 342, SB - 132, W - 322, SB - 108)
+        # W72 — sheet-relative since W68. The constants live HERE (the
+        # section's top): bt97 proved a later definition is a landmine —
+        # the box read SB before it existed, the NameError aborted the
+        # ENTIRE probe section (w66/w67-w71/w76 never ran, no failure
+        # flag set) and the defensive CC toggle flipped the window state
+        # for the whole 05 cluster downstream.
+        CCX1, CCY0, CCH = W - 10, 40, 434   # W70: +3 hairlines
+        CCX0 = CCX1 - 348
+        SB = CCY0 + CCH                     # sheet bottom (474)
+        # second slider track at y 321..357 in the 434-tall sheet
+        box = (W - 342, SB - 148, W - 322, SB - 124)
+        cc_opened_here = False
         base = grad_energy(f"{OUT}/04j0-files-open.png", box)
+        cc_opened_here = True   # the defensive close below must not
+                                # toggle a window this section never
+                                # opened (bt97's abort-path cascade)
         q.click(W - 19, 14, W, H)     # open the CC sheet over Files
         time.sleep(3)
         if serial is None:
@@ -3297,13 +3308,9 @@ def main():
                         t += im[xx, yy]
                         n += 1
                 return t / max(1, n)
-            # W72 — the sheet rect is DERIVED, never guessed: the CC
-            # window anchors Top+Right with margins (0,40,10,0) (main.cpp
-            # ccWindow), 348 wide, QML height 388 since W68. Every W67/W68
-            # box below is sheet-relative.
-            CCX1, CCY0, CCH = W - 10, 40, 434   # W70: +3 hairlines
-            CCX0 = CCX1 - 348
-            SB = CCY0 + CCH          # sheet bottom (428)
+            # The sheet constants are defined at the section top (the
+            # W72 derivation note lives there); every W67/W68 box below
+            # is sheet-relative.
             plate = mean_lum(f"{OUT}/04j2-cc-over-files.png",
                              (CCX1 - 110, SB - 16, CCX1 - 10, SB - 4))
             back = mean_lum(f"{OUT}/04j2-cc-over-files.png",
@@ -3519,8 +3526,18 @@ def main():
         except Exception as e:
             log(f"w76 clear-dock probe failed: {e}")
     except Exception as e:
+        # bt97 lesson — a dead probe section must be LOUD: the NameError
+        # abort ran 19 other asserts while w66/w67-w71/w76 silently
+        # never executed and no failure flag existed. The abort itself
+        # is now the failure.
         try:
-            q.click(W - 19, 14, W, H)   # defensive CC close
+            failures.append("CC probe section aborted before its asserts: "
+                            + str(e)[:160])
+        except NameError:
+            pass
+        try:
+            if locals().get("cc_opened_here"):
+                q.click(W - 19, 14, W, H)   # defensive CC close
             time.sleep(1.5)
         except Exception:
             pass
@@ -3633,8 +3650,14 @@ def main():
             q.shot(name)
             return Image.open(f"{OUT}/{name}.png").convert("RGB")
 
-        SWITCH = (W - 64, 300)            # the 36x20 switch, right end
-        BODY = (W - 180, 300)             # tile body (the new tile-wide
+        # W68 geometry — the DND card row: content top CCY0+16, header 30,
+        # 12 gap, grid 82, 12 gap, rule 1, 12 gap -> card 205..249, center
+        # 227 (the old y=300 literal is the SLIDERS row in the v0.6.81
+        # layout — bt97's "DND on, diff=5.3" was a slider click moving a
+        # knob, a spurious pass). The switch rides the card's right end
+        # (rightMargin 14, 36 wide -> center x = CCX1-16-14-18).
+        SWITCH = (CCX1 - 48, CCY0 + 187)
+        BODY = (CCX0 + 178, CCY0 + 187)   # tile body (the tile-wide
                                           # MouseArea makes it live)
         dnd_on = dnd_capture(SWITCH, "05b-control-center-dnd")
         moved = frame_diff(home, dnd_on)
