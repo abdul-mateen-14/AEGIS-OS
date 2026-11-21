@@ -3297,72 +3297,6 @@ def main():
         #    floor is 2.2:1 (large-caption glass floor) and the measured
         #    value is logged every run so the next review can re-rule
         #    with numbers, not adjectives.
-        w67_plate_ok = False
-        w67_contrast_ok = False
-        try:
-            def mean_lum(png, bx):
-                im = Image.open(png).convert("L").load()
-                t = n = 0
-                for yy in range(bx[1], bx[3], 2):
-                    for xx in range(bx[0], bx[2], 2):
-                        t += im[xx, yy]
-                        n += 1
-                return t / max(1, n)
-            # The sheet constants are defined at the section top (the
-            # W72 derivation note lives there); every W67/W68 box below
-            # is sheet-relative.
-            # W67 v2 (bt98 forensics) — the assert moves to the
-            # 05-control-center frame: 04j2 hangs the sheet over the
-            # FILES WINDOW (an opaque dark body), not the wallpaper the
-            # ink flip is defined against. The VM also pins TIER C
-            # (llvmpipe) — the 0.94 opaque calm plate is the readability
-            # FALLBACK by design, so the delta assert runs only when the
-            # plate band behaves like glass (variance follows the
-            # wallpaper); on the uniform opaque rung it logs and skips.
-            def mean_var(png, bx):
-                im = Image.open(png).convert("L").crop(bx)
-                v = list(im.getdata())
-                m = sum(v) / max(1, len(v))
-                var = sum((q - m) ** 2 for q in v) / max(1, len(v))
-                return m, var ** 0.5
-            pm, pv = mean_var(f"{OUT}/05-control-center.png",
-                              (CCX1 - 110, CCY0 + 362, CCX1 - 10,
-                               CCY0 + 382))
-            bm, _bv = mean_var(f"{OUT}/05-control-center.png",
-                               (CCX0 - 62, CCY0 + 362, CCX0 - 12,
-                                CCY0 + 382))
-            plate, back = pm, bm
-            if pv < 6:
-                w67_plate_ok = True
-                log(f"w67 ink flip: plate {plate:.0f} (var {pv:.1f}) vs "
-                    f"backdrop {back:.0f} — the plate is the OPAQUE calm "
-                    "rung (tier C pinned on llvmpipe) — the ink flip is "
-                    "tier-A material, assert skipped by design")
-            else:
-                w67_plate_ok = 15 <= (plate - back) <= 45
-                log(f"w67 ink flip: plate {plate:.0f} vs backdrop "
-                    f"{back:.0f} (delta {plate - back:+.0f}; white 0.14 "
-                    "ink brightens by 0.14*(255-L) = +24..+36 on this "
-                    "wallpaper; v1.6 dark ink measured -33) — "
-                    + ("PASS — the plate carries the wallpaper"
-                       if w67_plate_ok else
-                       "FAIL — charcoal-plate read (the ink flip "
-                       "regressed)"))
-            hdr = Image.open(
-                f"{OUT}/04j2-cc-over-files.png").convert("L").crop(
-                    (CCX0 + 46, CCY0 + 17, CCX0 + 178, CCY0 + 35))
-            pxs = sorted(hdr.getdata())
-            ltext = pxs[int(len(pxs) * 0.95)]
-            lplate = pxs[int(len(pxs) * 0.25)]
-            ratio = (ltext + 5) / max(1.0, lplate + 5)
-            w67_contrast_ok = ratio >= 2.2
-            log(f"w67 fg-vs-plate contrast: text p95 {ltext} / plate "
-                f"p25 {lplate} = {ratio:.2f}:1 "
-                f"(floor 2.2, WCAG-normal 4.5 logged for M4) — "
-                + ("PASS" if w67_contrast_ok else "FAIL"))
-        except Exception as e:
-            log(f"w67 ink-flip probe failed: {e}")
-
         # W68 — the CIRCLE probe (same SHA as the shape change): the
         # tile-grid band (y CCY0+58..CCY0+130) must hold 64 px circles,
         # accent blobs bounding 64±2 wide; the accent count is logged
@@ -3410,97 +3344,6 @@ def main():
                    "FAIL — the circles are not 64 px or absent"))
         except Exception as e:
             log(f"w68 circle probe failed: {e}")
-
-        # W69 v2 (measured on the bt98 frame): the knob rides the VALUE
-        # (brightness ~0 in the VM puts it at the track's left end half
-        # over the glyph column; volume 1.0 puts it past the right edge)
-        # — the assert is position-agnostic: each slider row must hold a
-        # white run >= 16 px wide with >= 14 white rows (the 24x20 bar's
-        # core), x outside the glyph column's stroke heights. Positions
-        # logged every run; the x-vs-value match needs the value plumbed
-        # to serial (the honest follow-up).
-        w69_pills_ok = False
-        try:
-            im69 = Image.open(
-                f"{OUT}/05-control-center.png").convert("RGB")
-            knobs = []
-            for name, y0, y1 in (("brightness", CCY0 + 266, CCY0 + 294),
-                                 ("volume", CCY0 + 314, CCY0 + 342)):
-                run = None
-                best = None
-                for xx in range(CCX0 + 34, CCX1):
-                    # the r10 ends cap a 24x20 bar's column height: the
-                    # full 20 rows hold only for the middle ~6 columns —
-                    # h >= 10 spans ~16 of them; glyph strokes stay < 10
-                    h = sum(1 for yy in range(y0, y1)
-                            if all(v > 225 for v in im69.getpixel((xx, yy))))
-                    if h >= 10:
-                        if run is None:
-                            run = [xx, xx]
-                        else:
-                            run[1] = xx
-                    else:
-                        if run and run[1] - run[0] + 1 >= 16:
-                            best = run
-                        run = None
-                if run and run[1] - run[0] + 1 >= 16:
-                    best = run
-                knobs.append((name, best))
-            w69_pills_ok = all(k[1] is not None for k in knobs)
-            log(f"w69 pills: "
-                + ", ".join(f"{n} knob " + ("none" if b is None
-                            else f"x {b[0]}..{b[1]}")
-                            for n, b in knobs)
-                + " — want a >=16 px white bar per row — "
-                + ("PASS" if w69_pills_ok else
-                   "FAIL — no pill-bar knob found in the slider rows"))
-        except Exception as e:
-            log(f"w69 pill probe failed: {e}")
-
-        # W70 — the HAIRLINE probe (same SHA): three 1 px rows whose mean
-        # luminance sits ABOVE the glass plate around them (white 0.14
-        # over the plate), at the section boundaries below the circles
-        # row, the DND card and the sliders. Rows are located by SCAN, not
-        # by guessed y (the W72 lesson): inside the sheet column band,
-        # count rows whose mean exceeds the sheet's local plate mean by
-        # 6+ and are flanked by plate rows — expect exactly 3.
-        w70_rules_ok = False
-        try:
-            im70 = Image.open(
-                f"{OUT}/05-control-center.png").convert("L").crop(
-                    (CCX0 + 30, CCY0 + 150, CCX1 - 30, SB - 30))
-            px70 = im70.load()
-            rows = []
-            for yy in range(2, im70.size[1] - 2):
-                t = n = 0
-                for xx in range(0, im70.size[0], 2):
-                    t += px70[xx, yy]
-                    n += 1
-                rows.append(t / max(1, n))
-            plate70 = sorted(rows)[len(rows) // 2]
-            hot = [i for i, v in enumerate(rows)
-                   if v > plate70 + 6 and rows[i - 2] <= plate70 + 6
-                   and (i + 2 >= len(rows) or rows[i + 2] <= plate70 + 6)]
-            # collapse adjacent hot rows, then keep only THIN groups:
-            # a rule is a 1 px spike; the cards, sliders and text rows
-            # are FAT hot bands (the bt98 offline run showed 8 groups —
-            # 3 thin rules among the content)
-            groups = []
-            for i in hot:
-                if groups and i - groups[-1][-1] <= 2:
-                    groups[-1].append(i)
-                else:
-                    groups.append([i])
-            rules70 = [g for g in groups if g[-1] - g[0] <= 3]
-            w70_rules_ok = len(rules70) == 3
-            log(f"w70 hairlines: plate median {plate70:.0f}, "
-                f"{len(rules70)} thin rule group(s) of "
-                f"{len(groups)} hot bands at "
-                f"{[g[0] for g in rules70]} — want exactly 3 — "
-                + ("PASS" if w70_rules_ok else
-                   "FAIL — the section rules are missing or doubled"))
-        except Exception as e:
-            log(f"w70 rule probe failed: {e}")
 
         # W71 — the MOTION keys (same SHA): the entrance/sheen/press keys
         # grepped in the INSTALLED QML over serial (the W39 grep pattern;
@@ -3646,6 +3489,166 @@ def main():
                                          # run opened the calendar here)
     time.sleep(3)
     q.shot("05-control-center")
+
+    w67_plate_ok = False
+    w67_contrast_ok = False
+    try:
+        def mean_lum(png, bx):
+            im = Image.open(png).convert("L").load()
+            t = n = 0
+            for yy in range(bx[1], bx[3], 2):
+                for xx in range(bx[0], bx[2], 2):
+                    t += im[xx, yy]
+                    n += 1
+            return t / max(1, n)
+        # The sheet constants are defined at the section top (the
+        # W72 derivation note lives there); every W67/W68 box below
+        # is sheet-relative.
+        # W67 v2 (bt98 forensics) — the assert moves to the
+        # 05-control-center frame: 04j2 hangs the sheet over the
+        # FILES WINDOW (an opaque dark body), not the wallpaper the
+        # ink flip is defined against. The VM also pins TIER C
+        # (llvmpipe) — the 0.94 opaque calm plate is the readability
+        # FALLBACK by design, so the delta assert runs only when the
+        # plate band behaves like glass (variance follows the
+        # wallpaper); on the uniform opaque rung it logs and skips.
+        def mean_var(png, bx):
+            im = Image.open(png).convert("L").crop(bx)
+            v = list(im.getdata())
+            m = sum(v) / max(1, len(v))
+            var = sum((q - m) ** 2 for q in v) / max(1, len(v))
+            return m, var ** 0.5
+        pm, pv = mean_var(f"{OUT}/05-control-center.png",
+                          (CCX1 - 110, CCY0 + 362, CCX1 - 10,
+                           CCY0 + 382))
+        bm, _bv = mean_var(f"{OUT}/05-control-center.png",
+                           (CCX0 - 62, CCY0 + 362, CCX0 - 12,
+                            CCY0 + 382))
+        plate, back = pm, bm
+        if pv < 6:
+            w67_plate_ok = True
+            log(f"w67 ink flip: plate {plate:.0f} (var {pv:.1f}) vs "
+                f"backdrop {back:.0f} — the plate is the OPAQUE calm "
+                "rung (tier C pinned on llvmpipe) — the ink flip is "
+                "tier-A material, assert skipped by design")
+        else:
+            w67_plate_ok = 15 <= (plate - back) <= 45
+            log(f"w67 ink flip: plate {plate:.0f} vs backdrop "
+                f"{back:.0f} (delta {plate - back:+.0f}; white 0.14 "
+                "ink brightens by 0.14*(255-L) = +24..+36 on this "
+                "wallpaper; v1.6 dark ink measured -33) — "
+                + ("PASS — the plate carries the wallpaper"
+                   if w67_plate_ok else
+                   "FAIL — charcoal-plate read (the ink flip "
+                   "regressed)"))
+        hdr = Image.open(
+            f"{OUT}/04j2-cc-over-files.png").convert("L").crop(
+                (CCX0 + 46, CCY0 + 17, CCX0 + 178, CCY0 + 35))
+        pxs = sorted(hdr.getdata())
+        ltext = pxs[int(len(pxs) * 0.95)]
+        lplate = pxs[int(len(pxs) * 0.25)]
+        ratio = (ltext + 5) / max(1.0, lplate + 5)
+        w67_contrast_ok = ratio >= 2.2
+        log(f"w67 fg-vs-plate contrast: text p95 {ltext} / plate "
+            f"p25 {lplate} = {ratio:.2f}:1 "
+            f"(floor 2.2, WCAG-normal 4.5 logged for M4) — "
+            + ("PASS" if w67_contrast_ok else "FAIL"))
+    except Exception as e:
+        log(f"w67 ink-flip probe failed: {e}")
+        failures.append("w67 ink-flip probe could not run: " + str(e)[:120])
+
+    # W69 v2 (measured on the bt98 frame): the knob rides the VALUE
+    # (brightness ~0 in the VM puts it at the track's left end half
+    # over the glyph column; volume 1.0 puts it past the right edge)
+    # — the assert is position-agnostic: each slider row must hold a
+    # white run >= 16 px wide with >= 14 white rows (the 24x20 bar's
+    # core), x outside the glyph column's stroke heights. Positions
+    # logged every run; the x-vs-value match needs the value plumbed
+    # to serial (the honest follow-up).
+    w69_pills_ok = False
+    try:
+        im69 = Image.open(
+            f"{OUT}/05-control-center.png").convert("RGB")
+        knobs = []
+        for name, y0, y1 in (("brightness", CCY0 + 266, CCY0 + 294),
+                             ("volume", CCY0 + 314, CCY0 + 342)):
+            run = None
+            best = None
+            for xx in range(CCX0 + 34, CCX1):
+                # the r10 ends cap a 24x20 bar's column height: the
+                # full 20 rows hold only for the middle ~6 columns —
+                # h >= 10 spans ~16 of them; glyph strokes stay < 10
+                h = sum(1 for yy in range(y0, y1)
+                        if all(v > 225 for v in im69.getpixel((xx, yy))))
+                if h >= 10:
+                    if run is None:
+                        run = [xx, xx]
+                    else:
+                        run[1] = xx
+                else:
+                    if run and run[1] - run[0] + 1 >= 16:
+                        best = run
+                    run = None
+            if run and run[1] - run[0] + 1 >= 16:
+                best = run
+            knobs.append((name, best))
+        w69_pills_ok = all(k[1] is not None for k in knobs)
+        log(f"w69 pills: "
+            + ", ".join(f"{n} knob " + ("none" if b is None
+                        else f"x {b[0]}..{b[1]}")
+                        for n, b in knobs)
+            + " — want a >=16 px white bar per row — "
+            + ("PASS" if w69_pills_ok else
+               "FAIL — no pill-bar knob found in the slider rows"))
+    except Exception as e:
+        log(f"w69 pill probe failed: {e}")
+        failures.append("w69 pill probe could not run: " + str(e)[:120])
+
+    # W70 — the HAIRLINE probe (same SHA): three 1 px rows whose mean
+    # luminance sits ABOVE the glass plate around them (white 0.14
+    # over the plate), at the section boundaries below the circles
+    # row, the DND card and the sliders. Rows are located by SCAN, not
+    # by guessed y (the W72 lesson): inside the sheet column band,
+    # count rows whose mean exceeds the sheet's local plate mean by
+    # 6+ and are flanked by plate rows — expect exactly 3.
+    w70_rules_ok = False
+    try:
+        im70 = Image.open(
+            f"{OUT}/05-control-center.png").convert("L").crop(
+                (CCX0 + 30, CCY0 + 150, CCX1 - 30, SB - 30))
+        px70 = im70.load()
+        rows = []
+        for yy in range(2, im70.size[1] - 2):
+            t = n = 0
+            for xx in range(0, im70.size[0], 2):
+                t += px70[xx, yy]
+                n += 1
+            rows.append(t / max(1, n))
+        plate70 = sorted(rows)[len(rows) // 2]
+        hot = [i for i, v in enumerate(rows)
+               if v > plate70 + 6 and rows[i - 2] <= plate70 + 6
+               and (i + 2 >= len(rows) or rows[i + 2] <= plate70 + 6)]
+        # collapse adjacent hot rows, then keep only THIN groups:
+        # a rule is a 1 px spike; the cards, sliders and text rows
+        # are FAT hot bands (the bt98 offline run showed 8 groups —
+        # 3 thin rules among the content)
+        groups = []
+        for i in hot:
+            if groups and i - groups[-1][-1] <= 2:
+                groups[-1].append(i)
+            else:
+                groups.append([i])
+        rules70 = [g for g in groups if g[-1] - g[0] <= 3]
+        w70_rules_ok = len(rules70) == 3
+        log(f"w70 hairlines: plate median {plate70:.0f}, "
+            f"{len(rules70)} thin rule group(s) of "
+            f"{len(groups)} hot bands at "
+            f"{[g[0] for g in rules70]} — want exactly 3 — "
+            + ("PASS" if w70_rules_ok else
+               "FAIL — the section rules are missing or doubled"))
+    except Exception as e:
+        log(f"w70 rule probe failed: {e}")
+        failures.append("w70 rule probe could not run: " + str(e)[:120])
 
     # W13 acceptance — DND on AND off. The CC sheet is deterministic: 348 px
     # anchored top-right, BUT KWin places the layer surface below the
@@ -4479,6 +4482,25 @@ def main():
                            "config write is still broken)")
                         + " — see the dark tile verdict line")
 
+    if not w67_plate_ok:
+        failures.append("W67: the ink-flip assert failed or the probe "
+                        "could not run")
+    if not w67_contrast_ok:
+        failures.append("W67: the header fg-vs-plate contrast fell below "
+                        "the 2.2:1 glass floor")
+    if not w68_circles_ok:
+        failures.append("W68: the CC tile grid does not render 64 px "
+                        "circles")
+    if not w69_pills_ok:
+        failures.append("W69: a slider pill is missing its white knob bar")
+    if not w70_rules_ok:
+        failures.append("W70: the CC sheet does not carry exactly 3 "
+                        "hairline rules")
+    if not w71_motion_ok:
+        failures.append("W71: the motion keys (entrance/sheen/press) did "
+                        "not log")
+    if not w76_clear_ok:
+        failures.append("W76: the clear dock bleeds vivid wallpaper color")
     if failures:
         for f in failures:
             log("ASSERT FAILED: " + f)
