@@ -3833,23 +3833,38 @@ def main():
                     time.sleep(8)
                     q.shot("05d-files-light")
                     hl = window_hairline(f"{OUT}/05d-files-light.png")
-                    if hl is not None:
+                    # bt102 forensics: the Files CSD hairline can fail the
+                    # detector on the LIGHT rung (None) while the window
+                    # itself dominates the capture and reads ~209 — route
+                    # None into the center-block fallback instead of
+                    # leaving the body at 0
+                    if hl is None:
+                        log("w77 files hairline None — center-block "
+                            "fallback")
+                        fl = body_lum(f"{OUT}/05d-files-light.png",
+                                      0, 0, 0)
+                    else:
                         log(f"w77 files hairline y={hl[0]} x={hl[1]} "
                             f"w={hl[2]}")
                         fl = body_lum(f"{OUT}/05d-files-light.png",
                                       hl[0], hl[1], hl[2])
-                        w77_files_ok = fl > 180
+                    w77_files_ok = fl > 180
                     serial.run("WAYLAND_DISPLAY=wayland-0 nohup konsole "
                                ">/dev/null 2>&1 & echo L77B", settle=3)
                     time.sleep(8)
                     q.shot("05d-terminal-light")
                     hl2 = window_hairline(f"{OUT}/05d-terminal-light.png")
-                    if hl2 is not None:
+                    if hl2 is None:
+                        log("w77 terminal hairline None — center-block "
+                            "fallback")
+                        tm = body_lum(f"{OUT}/05d-terminal-light.png",
+                                      0, 0, 0)
+                    else:
                         log(f"w77 terminal hairline y={hl2[0]} "
                             f"x={hl2[1]} w={hl2[2]}")
                         tm = body_lum(f"{OUT}/05d-terminal-light.png",
                                       hl2[0], hl2[1], hl2[2])
-                        w77_term_ok = tm > 180
+                    w77_term_ok = tm > 180
                     log(f"w77 light apps: files body {fl:.0f}, terminal "
                         f"body {tm:.0f} — want >180 on the light rung "
                         "(dark ink reads ~19-25) — "
