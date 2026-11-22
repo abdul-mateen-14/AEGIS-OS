@@ -351,6 +351,19 @@ void Util::setDarkMode(bool dark)
         qWarning() << "setDarkMode: kwinrc open failed:"
                    << rout.errorString();
     }
+    // W80 — KWin reads [org.kde.kdecoration2] once and refreshes only on
+    // a reconfigure: a bare session has no KConfigWatcher daemon, so the
+    // raw QSaveFile write above is never observed (bt104 on v0.6.83: the
+    // light flip landed ColorScheme=AegisLight but the fresh Konsole's
+    // titleband still rendered the dark art — white caption on ink).
+    // Ask the compositor to re-read now; the aurorae theme swap lands on
+    // every window live (the same mechanism the Plasma KCM uses).
+    QProcess::startDetached(QStringLiteral("dbus-send"),
+        {QStringLiteral("--session"),
+         QStringLiteral("--dest=org.kde.KWin"),
+         QStringLiteral("--type=method_call"),
+         QStringLiteral("/KWin"),
+         QStringLiteral("org.kde.KWin.reconfigure")});
     // file-based verdict for the boot gate (and honest diagnostics when
     // the config write fails — the state file separates "shell applied"
     // from "kdeglobals written" in the artifacts)
