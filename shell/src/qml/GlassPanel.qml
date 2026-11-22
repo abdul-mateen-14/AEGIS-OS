@@ -20,10 +20,11 @@ import Aegis.Util
 //   (3) bottom inner stroke — white 6% bounce light that separates a
 //       floating panel from a sticker
 Rectangle {
-    // §5.1 material ladder — "panel" (dock tray, Island, top panel),
-    // "sheet" (CC, calendar, launcher, menus) or "chrome" (the AppWindow
-    // 44 px titleband — more transparent than sheets, the single biggest
-    // macOS tell). Per-screen ad-hoc values stay forbidden.
+    // §5.1 material ladder — "panel" (the TOP BAR only since W80: ink
+    // glass for readable status glyphs), "sheet" (CC, calendar,
+    // launcher, menus, dock tray, Island) or "chrome" (the AppWindow
+    // 44 px titleband — more transparent than sheets, the single
+    // biggest macOS tell). Per-screen ad-hoc values stay forbidden.
     property string rung: "panel"
     property int cornerRadius: 0
     radius: cornerRadius
@@ -31,11 +32,11 @@ Rectangle {
         if (!Util.darkMode) {
             if (rung === "sheet") return Tokens.sheetTintLight
             if (rung === "chrome") return Tokens.chromeTintLight
-            return Tokens.glassTintLight
+            return Tokens.barTintLight
         }
         if (rung === "sheet") return Tokens.sheetTint
         if (rung === "chrome") return Tokens.chromeTint
-        return Tokens.glassTint
+        return Tokens.barTint
     }
     border.color: {
         if (!Util.darkMode)

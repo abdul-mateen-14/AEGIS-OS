@@ -127,6 +127,16 @@ QtObject {
     readonly property color glassTint: Qt.rgba(1, 1, 1, 0.14)
     readonly property color glassBorder: Qt.rgba(1, 1, 1, 0.28)   // hairline, 1 px, never scales — carries the shape now that the plate is thin
     readonly property color glassHighlight: Qt.rgba(1, 1, 1, 0.18)
+    // W80 — the TOP BAR rung (GlassPanel's panel default; the top panel
+    // is its only user now that the dock tray/island wear "sheet"): INK
+    // glass, not white-lens. The status glyphs are fg 0.9 — over a
+    // bright wallpaper region the white-lens plate composited to a
+    // washed grey band (the v0.6.83 report: the status strip read grey
+    // over the same wallpaper that kept the dock tray dark). macOS
+    // carries the same ink menubar; wallpaper surfaces keep the white
+    // lens above.
+    readonly property color barTint: Qt.rgba(16/255, 16/255, 18/255, 0.38)
+    readonly property color barTintLight: Qt.rgba(244/255, 246/255, 250/255, 0.34)
     // dock tray — light glass over any wallpaper (macOS dark-mode dock look)
     readonly property color dockGlassTint: Qt.rgba(1, 1, 1, 0.08)
     readonly property color dockGlassBorder: Qt.rgba(1, 1, 1, 0.38)

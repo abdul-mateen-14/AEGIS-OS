@@ -37,15 +37,46 @@ Run from the repo root; writes into the includes tree and gzips in place.
 """
 import gzip
 import os
+import shutil
 
-OUT = os.path.join(os.path.dirname(__file__), "..",
-                   "debian-live/config/includes.chroot/usr/share/aurorae"
-                   "/themes/AegisLights")
+ROOT = os.path.join(os.path.dirname(__file__), "..",
+                    "debian-live/config/includes.chroot/usr/share/aurorae"
+                    "/themes")
 
-# shell dark-rung glass recipe
+# W80 — the rung pair. The aurorae theme paints the 44 px titleband, so
+# the dark/light rungs are THEME ART, not scheme colors: the old single
+# theme hardcoded the ink band + white caption for BOTH rungs and the
+# light rung read as a grey band with white text (the v0.6.83 report:
+# "Aegis Terminal — Konsole" on a mid-grey slab). AegisLights keeps the
+# dark-rung art byte-identical; AegisLightsPaper is the light rung:
+# paper glass band + ink caption + ink hairlines. Util::setDarkMode
+# swaps the [org.kde.kdecoration2] theme line in kwinrc (the same
+# deterministic rewrite pattern as ColorScheme) and KWin reloads the
+# decoration live.
+THEMES = {
+    "AegisLights": {
+        "glass": "#101012", "op": "0.52", "body": "#17181D",
+        "edge_active": "#ffffff24", "edge_inactive": "#ffffff0f",
+        "edge_inner": "#ffffff0d",
+        "text_active": "224,226,232", "text_inactive": "150,155,166",
+        "label": "Aegis Lights",
+    },
+    "AegisLightsPaper": {
+        # paper glass over the blurred wallpaper — §5.1 sheetTintLight
+        # family; the caption reads in the scheme's ink
+        "glass": "#F4F6FA", "op": "0.62", "body": "#F7F9FC",
+        "edge_active": "#10121624", "edge_inactive": "#1012160f",
+        "edge_inner": "#1012160d",
+        "text_active": "24,26,30", "text_inactive": "140,146,156",
+        "label": "Aegis Lights Paper",
+    },
+}
+
+# dark-rung glass recipe (AegisLights — kept byte-identical)
 GLASS = "#101012"        # rgb(16,16,18) = Tokens.glassTint color
 GLASS_OP = "0.52"        # Tokens.glassTint alpha
 BODY = "#17181D"         # opaque app body (AppWindow.qml body rectangle)
+
 
 # hairlines — active vs inactive, shell border white 0.14 dimmed when unfocused
 EDGE_ACTIVE = "#ffffff24"      # white @ 0.14 = Tokens.glassBorder
@@ -249,16 +280,58 @@ def maximized_svg(prefix: str, edge: str, band_bottom: str) -> str:
 '''
 
 
-FRAMES = {
-    "decoration.svgz": frame_svg("", EDGE_ACTIVE, EDGE_ACTIVE),
-    "decoration-inactive.svgz": frame_svg("inactive-", EDGE_INACTIVE,
-                                          EDGE_INACTIVE),
-    "decoration-maximized.svgz": maximized_svg("maximized-", EDGE_ACTIVE,
-                                               EDGE_ACTIVE),
-}
+import re
 
-for name, svg in FRAMES.items():
-    path = os.path.join(OUT, name)
-    with open(path, "wb") as fh:
-        fh.write(gzip.compress(svg.encode("utf-8"), 9))
-    print("wrote", os.path.relpath(path))
+DARK_RC = os.path.join(ROOT, "AegisLights", "AegisLightsrc")
+DARK_META = os.path.join(ROOT, "AegisLights", "metadata.json")
+
+for name, t in THEMES.items():
+    # re-bind the module constants the two svg emitters read as globals
+    globals()["GLASS"] = t["glass"]
+    globals()["GLASS_OP"] = t["op"]
+    globals()["BODY"] = t["body"]
+    globals()["EDGE_INNER"] = t["edge_inner"]
+    ea, ei = t["edge_active"], t["edge_inactive"]
+
+    frames = {
+        "decoration.svgz": frame_svg("", ea, ea),
+        "decoration-inactive.svgz": frame_svg("inactive-", ei, ei),
+        "decoration-maximized.svgz": maximized_svg("maximized-", ea, ea),
+    }
+    out = os.path.join(ROOT, name)
+    os.makedirs(out, exist_ok=True)
+    for fname, svg in frames.items():
+        with open(os.path.join(out, fname), "wb") as fh:
+            fh.write(gzip.compress(svg.encode("utf-8"), 9))
+        print("wrote", os.path.relpath(os.path.join(out, fname)))
+
+    # rc: the checked-in AegisLightsrc carries the W44/W10 [Layout]
+    # metrics — reuse it verbatim and swap ONLY the caption colors
+    with open(DARK_RC) as fh:
+        rc = fh.read()
+    rc = re.sub(r"^ActiveTextColor=.*$",
+                "ActiveTextColor=" + t["text_active"], rc, flags=re.M)
+    rc = re.sub(r"^InactiveTextColor=.*$",
+                "InactiveTextColor=" + t["text_inactive"], rc, flags=re.M)
+    with open(os.path.join(out, name + "rc"), "w") as fh:
+        fh.write(rc)
+    print("wrote", os.path.relpath(os.path.join(out, name + "rc")))
+
+    # buttons: the traffic-light dots are rung-neutral
+    for src in os.listdir(os.path.join(ROOT, "AegisLights")):
+        if src.endswith(".svgz") and src.startswith(("close", "minimize",
+                                                     "maximize")):
+            dst = os.path.join(out, src)
+            if os.path.abspath(dst) != os.path.abspath(
+                    os.path.join(ROOT, "AegisLights", src)):
+                shutil.copy(os.path.join(ROOT, "AegisLights", src), dst)
+    # metadata: same plugin shape, own identity
+    with open(DARK_META) as fh:
+        meta = fh.read()
+    meta = meta.replace('"Name": "Aegis Lights"',
+                        '"Name": "%s"' % t["label"])
+    meta = meta.replace('"Id": "aegis-lights"',
+                        '"Id": "%s"' % t["label"].lower().replace(" ", "-"))
+    with open(os.path.join(out, "metadata.json"), "w") as fh:
+        fh.write(meta)
+    print("wrote", os.path.relpath(os.path.join(out, "metadata.json")))

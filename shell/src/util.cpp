@@ -301,6 +301,56 @@ void Util::setDarkMode(bool dark)
                            << kout.errorString();
         }
     }
+    // W80 — the aurorae titleband is THEME ART (gen-aurorae-frame.py):
+    // the dark rung wears the ink glass band, the light rung the paper
+    // band with an ink caption (AegisLightsPaperrc ActiveTextColor).
+    // The old single theme hardcoded the ink band + white caption for
+    // BOTH rungs and the light titlebar read as a grey slab with white
+    // text (the v0.6.83 report). Swap the [org.kde.kdecoration2] theme
+    // line in kwinrc — the same deterministic rewrite as ColorScheme
+    // above; KWin watches kwinrc and reloads the decoration live.
+    // KConfig cascades: a user file carrying only this group still
+    // inherits every other key from /etc/xdg/kwinrc.
+    const QString krc = home + QStringLiteral("/.config/kwinrc");
+    const QString themeLine = QStringLiteral("theme=__aurorae__svg__")
+        + (dark ? QStringLiteral("AegisLights")
+                : QStringLiteral("AegisLightsPaper"));
+    QFile rin(krc);
+    QString rbody;
+    if (rin.open(QIODevice::ReadOnly | QIODevice::Text)) {
+        QTextStream rts(&rin);
+        rbody = rts.readAll();
+        rin.close();
+    }
+    if (rbody.isEmpty())
+        rbody = QStringLiteral("[org.kde.kdecoration2]\n");
+    if (rbody.contains(QRegularExpression(
+            QStringLiteral("^theme=__aurorae__svg__.*$"),
+            QRegularExpression::MultilineOption))) {
+        rbody.replace(QRegularExpression(
+            QStringLiteral("^theme=__aurorae__svg__.*$"),
+            QRegularExpression::MultilineOption), themeLine);
+    } else if (rbody.contains(QRegularExpression(
+            QStringLiteral("^\\[org\\.kde\\.kdecoration2\\]\\s*$"),
+            QRegularExpression::MultilineOption))) {
+        rbody.replace(QRegularExpression(
+            QStringLiteral("^\\[org\\.kde\\.kdecoration2\\]\\s*$"),
+            QRegularExpression::MultilineOption),
+            QStringLiteral("[org.kde.kdecoration2]\n") + themeLine);
+    } else {
+        rbody += QStringLiteral("\n[org.kde.kdecoration2]\n")
+                 + themeLine + QStringLiteral("\n");
+    }
+    QSaveFile rout(krc);
+    if (rout.open(QIODevice::WriteOnly | QIODevice::Text)) {
+        rout.write(rbody.toUtf8());
+        if (!rout.commit())
+            qWarning() << "setDarkMode: kwinrc commit failed:"
+                       << rout.errorString();
+    } else {
+        qWarning() << "setDarkMode: kwinrc open failed:"
+                   << rout.errorString();
+    }
     // file-based verdict for the boot gate (and honest diagnostics when
     // the config write fails — the state file separates "shell applied"
     // from "kdeglobals written" in the artifacts)

@@ -3737,6 +3737,7 @@ def main():
     # W77 — light-theme apps (fresh Files + Konsole bodies must read
     # paper-luminance after the flip; see the probe below)
     w77_files_ok = w77_term_ok = False
+    w79_titlebar_ok = False
     if serial is not None:
         try:
             serial.run("rm -f ~/.local/state/aegis-shell/aegis/theme; "
@@ -3870,6 +3871,58 @@ def main():
                         "(dark ink reads ~19-25) — "
                         + ("PASS" if w77_files_ok and w77_term_ok else
                            "FAIL — an app stayed dark"))
+                    # W79 — the light titleband: the aurorae band is
+                    # theme art, so the light rung needs its OWN theme
+                    # (AegisLightsPaper) swapped in kwinrc by
+                    # setDarkMode. The old single theme hardcoded the
+                    # ink band + white caption for both rungs and the
+                    # light titlebar read as a grey slab with white
+                    # text (the v0.6.83 report). Assert the band rows
+                    # (window top + 44 px) in BOTH rungs' terminal
+                    # captures: light band reads paper (>150), dark
+                    # band stays ink (<90).
+                    if hl2 is not None:
+                        imL = Image.open(
+                            f"{OUT}/05d-terminal-light.png").convert("RGB")
+                        bx0, bx1 = hl2[1], min(imL.width,
+                                               hl2[1] + hl2[2])
+                        by1 = min(imL.height, hl2[0] + 44)
+                        bl = [imL.getpixel((xx, yy))
+                              for yy in range(hl2[0], by1, 2)
+                              for xx in range(bx0 + 8, bx1 - 8, 4)]
+                        lm = (sum(0.3 * c[0] + 0.6 * c[1] + 0.1 * c[2]
+                                  for c in bl) / max(1, len(bl)))
+                        try:
+                            imD = Image.open(
+                                f"{OUT}/03-terminal.png").convert("RGB")
+                            hd = window_hairline(
+                                f"{OUT}/03-terminal.png")
+                            if hd is None:
+                                dm = -1
+                            else:
+                                db = [imD.getpixel((xx, yy))
+                                      for yy in range(hd[0],
+                                                      min(imD.height,
+                                                          hd[0] + 44), 2)
+                                      for xx in range(hd[1] + 8,
+                                                      min(imD.width,
+                                                          hd[1] + hd[2]
+                                                          - 8), 4)]
+                                dm = (sum(0.3 * c[0] + 0.6 * c[1]
+                                          + 0.1 * c[2] for c in db)
+                                      / max(1, len(db)))
+                            w79_titlebar_ok = lm > 150 and dm > 0 and dm < 90
+                            log(f"w79 titleband: light {lm:.0f} "
+                                f"(want >150 paper), dark {dm:.0f} "
+                                f"(want <90 ink) — "
+                                + ("PASS" if w79_titlebar_ok else
+                                   "FAIL — the light titlebar did not "
+                                   "follow the paper theme"))
+                        except Exception as e:
+                            log(f"w79 dark-band measure failed: {e}")
+                    else:
+                        log("w79 titleband skipped: the light terminal "
+                            "hairline was None (window not located)")
                     serial.run("pkill -f aegis-files >/dev/null 2>&1; "
                                "pkill -x konsole >/dev/null 2>&1; "
                                "echo L77C", settle=2)
@@ -4564,6 +4617,11 @@ def main():
         failures.append("W77: the default apps did not follow the light "
                         "flip — fresh Files/Konsole bodies must read "
                         "paper-luminance (see 05d-*-light.png)")
+    if not w79_titlebar_ok:
+        failures.append("W79: the light titleband did not follow the "
+                        "paper theme — the kwinrc decoration swap or "
+                        "the AegisLightsPaper theme art is broken "
+                        "(see the w79 titleband line)")
 
     if not w67_plate_ok:
         failures.append("W67: the ink-flip assert failed or the probe "

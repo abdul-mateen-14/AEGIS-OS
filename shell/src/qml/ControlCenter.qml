@@ -550,6 +550,28 @@ Window {
         // MouseArea (tileClick) — no second grab.
         property bool pressed: tileClick.pressed
 
+        // W80 — a QML Canvas only paints when something calls
+        // requestPaint(): the first paint is correct, but a checked flip
+        // or a dark-mode flip re-binds the plate and leaves the OLD ink
+        // on it (the v0.6.83 report: the Ethernet circle kept a dark
+        // plug after a state flip). Repaint both glyphs on every state
+        // that feeds their paint.
+        onCheckedChanged: {
+            glyphNarrow.requestPaint()
+            wideGlyph.requestPaint()
+        }
+        onPainterChanged: {
+            glyphNarrow.requestPaint()
+            wideGlyph.requestPaint()
+        }
+        Connections {
+            target: Util
+            function onDarkModeChanged() {
+                glyphNarrow.requestPaint()
+                wideGlyph.requestPaint()
+            }
+        }
+
         Rectangle {
             id: plate
             anchors {
@@ -584,6 +606,7 @@ Window {
             // 2.2 px stroke family); white 0.92 unchecked (W68), white on
             // accent checked
             Canvas {
+                id: glyphNarrow
                 visible: !wide
                 anchors.centerIn: parent
                 width: 26
@@ -710,6 +733,15 @@ Window {
         // mono glyphs ride vertically centered as before)
         height: 36
 
+        // W80 — same stale-canvas ruling as the tiles: repaint the
+        // glyph on every state that feeds its paint.
+        onMutedChanged: sliderGlyph.requestPaint()
+        onPainterChanged: sliderGlyph.requestPaint()
+        Connections {
+            target: Util
+            function onDarkModeChanged() { sliderGlyph.requestPaint() }
+        }
+
         Canvas {
             id: sliderGlyph
             width: 18
@@ -737,16 +769,20 @@ Window {
             // W69 — glass pill sliders (the kit dropped accent-filled
             // levels: volume/brightness read as white liquid; accent
             // stays reserved for toggles and links — color = state,
-            // white = level). Track 28 px radius 14, white 0.16 fill,
-            // 0.18 hairline, the v1.6 lens-depth 2 px inner bottom
-            // shadow; the level fills white 0.85 up to the knob.
+            // white = level). Track 28 px radius 14, white 0.22 fill
+            // (W80: 0.16 left the empty track nearly invisible against
+            // the sheet — the brightness pill read as a hole), 0.18
+            // hairline, the v1.6 lens-depth 2 px inner bottom shadow;
+            // the level fills white 0.80 up to the knob (W80: 0.85 sat
+            // one hairline from the 0.92 knob and the two merged into
+            // one white slab at high values).
             background: Rectangle {
                 x: slider.leftPadding
                 y: slider.topPadding + slider.availableHeight / 2 - 14
                 width: slider.availableWidth
                 height: 28
                 radius: 14
-                color: Util.darkMode ? Qt.rgba(1, 1, 1, 0.16)
+                color: Util.darkMode ? Qt.rgba(1, 1, 1, 0.22)
                                      : Qt.rgba(0, 0, 0, 0.10)
                 border.width: 1
                 border.color: Util.darkMode ? Qt.rgba(1, 1, 1, 0.18)
@@ -757,7 +793,7 @@ Window {
                     width: slider.visualPosition * parent.width
                     height: parent.height
                     radius: 14
-                    color: Util.darkMode ? Qt.rgba(1, 1, 1, 0.85)
+                    color: Util.darkMode ? Qt.rgba(1, 1, 1, 0.80)
                                          : Qt.rgba(0, 0, 0, 0.55)
                 }
 
@@ -777,7 +813,11 @@ Window {
             }
 
             // W69 — the knob is a 24x20 rounded bar (radius 10), white
-            // 0.92, riding the value as before
+            // 0.92. W80 — its rim is INK on the dark rung: the old white
+            // 0.25 rim vanished against the white level fill and the
+            // knob disappeared into the slab at high values (the
+            // volume pill read as one solid bar). macOS wears the same
+            // dark rim on white knobs.
             handle: Rectangle {
                 x: slider.leftPadding + slider.visualPosition * slider.availableWidth - 12
                 y: slider.topPadding + slider.availableHeight / 2 - 10
@@ -786,7 +826,7 @@ Window {
                 radius: 10
                 color: Util.darkMode ? Qt.rgba(1, 1, 1, 0.92) : "#FFFFFF"
                 border.width: 1
-                border.color: Util.darkMode ? Qt.rgba(1, 1, 1, 0.25)
+                border.color: Util.darkMode ? Qt.rgba(0, 0, 0, 0.32)
                                             : Qt.rgba(0, 0, 0, 0.2)
             }
         }

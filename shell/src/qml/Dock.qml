@@ -1,5 +1,4 @@
 import QtQuick
-import QtQuick.Effects
 import QtQuick.Controls
 import Aegis.Util
 import Aegis.Governor
@@ -491,8 +490,9 @@ Window {
                         // plate: every dock icon rides a 52 px glass plate
                         // (white 0.10 ink over the tray's glass, hairline
                         // rim, radius 13) and renders as a WHITE
-                        // monochrome silhouette — alpha-masked via
-                        // MultiEffect's colorization, no custom shader.
+                        // monochrome silhouette — W80: alpha-masked by
+                        // the icon provider's ?tint pass, no GPU layer
+                        // (MultiEffect silently no-ops on llvmpipe).
                         // The wallpaper supplies all color, as on the
                         // reference device; magnification rides the same
                         // spring factor the bare icon used.
@@ -521,21 +521,28 @@ Window {
 
                             Image {
                                 id: icon
-                                source: "image://icons/" + (tile.modelData.icon || "application-x-executable")
+                                // W80 — the white silhouette rides the CPU
+                                // provider tint now: MultiEffect
+                                // colorization is a GPU layer pass that
+                                // silently no-ops on llvmpipe (VMware /
+                                // QEMU) — the v0.6.83 report shows the
+                                // dock back in raw colored icons there.
+                                // image://icons/?tint keeps alpha and
+                                // swaps RGB in a QImage pass, which
+                                // renders on every backend; the
+                                // darkMode term re-fetches on the flip.
+                                source: "image://icons/"
+                                        + (tile.modelData.icon
+                                           || "application-x-executable")
+                                        + "?tint=" + (Util.darkMode
+                                                      ? "%23FFFFFF"
+                                                      : "%23101216")
                                 width: Tokens.iconSize * bounce.k
                                 height: width
                                 anchors.centerIn: parent
                                 fillMode: Image.PreserveAspectFit
                                 mipmap: true
                                 sourceSize: Qt.size(128, 128)
-                                layer.enabled: true
-                                layer.effect: MultiEffect {
-                                    saturation: 0.0
-                                    colorization: 1.0
-                                    colorizationColor: Util.darkMode
-                                                       ? Qt.rgba(1, 1, 1, 0.92)
-                                                       : Qt.rgba(0, 0, 0, 0.80)
-                                }
                             }
                         }
 
