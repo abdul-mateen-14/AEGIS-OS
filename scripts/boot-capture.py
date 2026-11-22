@@ -3810,10 +3810,18 @@ def main():
                 def body_lum(png, hy, xl, runw):
                     im = Image.open(png).convert("L")
                     px2 = im.load()
+                    # bt101 forensics: the hairline can land on the
+                    # island/panel edge (files body 0 = an EMPTY scan
+                    # range from a wrong runw) while the window below
+                    # reads ~210 — fall back to the capture's center
+                    # block, which the Files window dominates
+                    x0, x1 = xl + 40, min(im.size[0], xl + runw - 40)
+                    y0, y1 = hy + 80, min(im.size[1], hy + 400)
+                    if x1 - x0 < 40 or y1 - y0 < 40 or hy > 300:
+                        x0, x1, y0, y1 = 200, 1000, 200, 500
                     t = n = 0
-                    for yy in range(hy + 80, min(im.size[1], hy + 400), 2):
-                        for xx in range(xl + 40,
-                                        min(im.size[0], xl + runw - 40), 2):
+                    for yy in range(y0, y1, 2):
+                        for xx in range(x0, x1, 2):
                             t += px2[xx, yy]
                             n += 1
                     return t / max(1, n)
@@ -3826,6 +3834,8 @@ def main():
                     q.shot("05d-files-light")
                     hl = window_hairline(f"{OUT}/05d-files-light.png")
                     if hl is not None:
+                        log(f"w77 files hairline y={hl[0]} x={hl[1]} "
+                            f"w={hl[2]}")
                         fl = body_lum(f"{OUT}/05d-files-light.png",
                                       hl[0], hl[1], hl[2])
                         w77_files_ok = fl > 180
@@ -3835,6 +3845,8 @@ def main():
                     q.shot("05d-terminal-light")
                     hl2 = window_hairline(f"{OUT}/05d-terminal-light.png")
                     if hl2 is not None:
+                        log(f"w77 terminal hairline y={hl2[0]} "
+                            f"x={hl2[1]} w={hl2[2]}")
                         tm = body_lum(f"{OUT}/05d-terminal-light.png",
                                       hl2[0], hl2[1], hl2[2])
                         w77_term_ok = tm > 180
