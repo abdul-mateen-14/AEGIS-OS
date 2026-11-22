@@ -63,8 +63,12 @@ THEMES = {
     },
     "AegisLightsPaper": {
         # paper glass over the blurred wallpaper — §5.1 sheetTintLight
-        # family; the caption reads in the scheme's ink
-        "glass": "#F4F6FA", "op": "0.62", "body": "#F7F9FC",
+        # family; the caption reads in the scheme's ink. W80 round 2:
+        # 0.62 over the aurora-ink wallpaper composited to ~158 and the
+        # ink caption dragged the band mean to the w79 threshold edge —
+        # 0.78 (a near-solid light band, the macOS light-titlebar look)
+        # clears it with margin
+        "glass": "#F4F6FA", "op": "0.78", "body": "#F7F9FC",
         "edge_active": "#10121624", "edge_inactive": "#1012160f",
         "edge_inner": "#1012160d",
         "text_active": "24,26,30", "text_inactive": "140,146,156",
