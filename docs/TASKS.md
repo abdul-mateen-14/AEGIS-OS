@@ -1,3 +1,53 @@
+## The three user asks SHIPPED — v0.6.82 (16909eb), bt101-103, 2026-11-22
+- THE ASKS: (1) the Aegis mark shipped the white A-glyph on an opaque
+  BLACK square — a black box on every light surface; stripped via
+  alpha=luminance (the glyph is monochrome white, so the black bg
+  becomes alpha and AA edges survive), installed as aegis-mark.png +
+  aegis-mark-white.png (the old -white was a flattened all-white
+  square, useless since it was made) + NEW aegis-mark-ink.png
+  (#101216) for the light rung; Launcher's no-icon fallback and the
+  CC footer pick white/ink per Util.darkMode, Island keeps white (the
+  pill is always dark); calamares + sddm branding copies stripped
+  too. (2) the user's 8 macOS-style 1024px icons replace the theme's
+  hand-written SVGs for 12 names (terminal + utilities-terminal,
+  files + system-file-manager, music, calculator, store, trash +
+  user-trash, settings + preferences-system, photos) as 512px PNGs in
+  apps/scalable; measured fixes: Files/Music/Calculator/Store shipped
+  FULL-BLEED while Terminal/Settings/Photos float at ~82% — all
+  normalized to a uniform 82.5% content box, trash got an alpha floor
+  + slate rim (near-invisible on light wallpaper), settings' gears a
+  contrast remap, terminal's tile a 14% white edge highlight.
+  (3) "default apps stay dark in light mode" — TWO root causes: (i)
+  every process read prefs.json ONCE in Util's ctor, so RUNNING app
+  instances never re-rendered on the CC flip — Util now watches
+  prefs.json AND its parent dir (the first toggle CREATES the file)
+  and loadPrefs emits darkModeChanged/wallpaperChanged; (ii) Konsole
+  ignores kdeglobals entirely: the shipped Aegis.profile pinned
+  ColorScheme=AegisDark and no light palette existed —
+  AegisLight.colorscheme ships in /etc/skel (paper bg 242,244,248,
+  ink fg, ANSI tuned for light contrast) and setDarkMode swaps the
+  profile's line with the same deterministic pattern as kdeglobals.
+- THE VERDICT: bt103 45024051576 GREEN — "w77 light apps: files body
+  239, terminal body 244 — want >180 on the light rung (dark ink
+  reads ~19-25) — PASS", dark tile AegisDark->AegisLight PASS, Shell
+  CI 45013075792 green for the W78 C++. bt101/bt102 were red on ONE
+  probe artifact, a two-run locator lesson: (a) window_hairline
+  matched the island/panel edge band (runw too small) -> body_lum got
+  an EMPTY scan range -> 0.0 (4788b28 added the degenerate-range
+  center-block fallback); (b) window_hairline returned None outright
+  on the light rung (the Files CSD hairline fails the light-rung
+  detector; the terminal's works — y=70 x=70 w=852) and the fallback
+  only ran INSIDE the is-not-None branch (8534722 routes None into
+  the center block explicitly, with a logged marker). The artifacts
+  proved the fixes all along: 05d-files-light.png band profiles
+  IDENTICAL across both runs (y 100-599 mean 200-219).
+- RELEASE-PROCESS RULE (re-learned): the boot test DOWNLOADS the ISO
+  from the release tag — dispatching boot-test with a tag that has no
+  release fails fast with "SHA256SUMS still invalid" (bt101's first
+  attempt). Sequence: push the fix commit -> tag v0.6.82 -> the
+  Release workflow (tag push, run 45014570841) builds + publishes the
+  assets -> THEN dispatch boot-test with that tag.
+
 ## Circle kit v1.7 SHIPPED + the five-run harness-honesty saga — v0.6.81 (3af19a6), bt92-100, 2026-11-21
 - The ISO round shipped (bc903cc build + 30d7717 self-heal + 0f252ed
   W63 v6/v6b): the W63 sidebar strip re-anchored window-relative and
