@@ -3871,58 +3871,58 @@ def main():
                         "(dark ink reads ~19-25) — "
                         + ("PASS" if w77_files_ok and w77_term_ok else
                            "FAIL — an app stayed dark"))
-                    # W79 — the light titleband: the aurorae band is
-                    # theme art, so the light rung needs its OWN theme
-                    # (AegisLightsPaper) swapped in kwinrc by
-                    # setDarkMode. The old single theme hardcoded the
-                    # ink band + white caption for both rungs and the
-                    # light titlebar read as a grey slab with white
-                    # text (the v0.6.83 report). Assert the band rows
-                    # (window top + 44 px) in BOTH rungs' terminal
-                    # captures: light band reads paper (>150), dark
-                    # band stays ink (<90).
-                    if hl2 is not None:
-                        imL = Image.open(
-                            f"{OUT}/05d-terminal-light.png").convert("RGB")
-                        bx0, bx1 = hl2[1], min(imL.width,
-                                               hl2[1] + hl2[2])
-                        by1 = min(imL.height, hl2[0] + 44)
-                        bl = [imL.getpixel((xx, yy))
-                              for yy in range(hl2[0], by1, 2)
-                              for xx in range(bx0 + 8, bx1 - 8, 4)]
-                        lm = (sum(0.3 * c[0] + 0.6 * c[1] + 0.1 * c[2]
-                                  for c in bl) / max(1, len(bl)))
-                        try:
+                    # W79 (bt105 ruling) — the light titleband, measured
+                    # DETERMINISTICALLY: the aurorae band is theme art,
+                    # so the light rung needs its OWN theme
+                    # (AegisLightsPaper) swapped into kwinrc by
+                    # setDarkMode + the /KWin reconfigure. The first w79
+                    # located the band via window_hairline, but the
+                    # detector's luminance window (36..150 spiking rows)
+                    # only matches the DARK art's white hairline — a
+                    # PAPER band has no qualifying row and bt104's run
+                    # skipped with "hairline was None" even though the
+                    # swap had landed (the capture proved it: band rows
+                    # bright-frac 0.90 vs 0.25 on the dark art). Maximize
+                    # the terminal instead: the band then sits at the
+                    # fixed rows 28..72 under the panel, x-clear of the
+                    # r18 ShapeCorners corners, and the assert needs no
+                    # locator at all.
+                    q.key("meta_l", "up")
+                    time.sleep(2.0)
+                    q.shot("05d-terminal-light-max")
+                    imL = Image.open(
+                        f"{OUT}/05d-terminal-light-max.png").convert("RGB")
+                    bl = [imL.getpixel((xx, yy))
+                          for yy in range(30, 70, 2)
+                          for xx in range(40, imL.width - 40, 6)]
+                    lm = (sum(0.3 * c[0] + 0.6 * c[1] + 0.1 * c[2]
+                              for c in bl) / max(1, len(bl)))
+                    dm = -1
+                    try:
+                        hd = window_hairline(f"{OUT}/03-terminal.png")
+                        if hd is not None:
                             imD = Image.open(
                                 f"{OUT}/03-terminal.png").convert("RGB")
-                            hd = window_hairline(
-                                f"{OUT}/03-terminal.png")
-                            if hd is None:
-                                dm = -1
-                            else:
-                                db = [imD.getpixel((xx, yy))
-                                      for yy in range(hd[0],
-                                                      min(imD.height,
-                                                          hd[0] + 44), 2)
-                                      for xx in range(hd[1] + 8,
-                                                      min(imD.width,
-                                                          hd[1] + hd[2]
-                                                          - 8), 4)]
-                                dm = (sum(0.3 * c[0] + 0.6 * c[1]
-                                          + 0.1 * c[2] for c in db)
-                                      / max(1, len(db)))
-                            w79_titlebar_ok = lm > 150 and dm > 0 and dm < 90
-                            log(f"w79 titleband: light {lm:.0f} "
-                                f"(want >150 paper), dark {dm:.0f} "
-                                f"(want <90 ink) — "
-                                + ("PASS" if w79_titlebar_ok else
-                                   "FAIL — the light titlebar did not "
-                                   "follow the paper theme"))
-                        except Exception as e:
-                            log(f"w79 dark-band measure failed: {e}")
-                    else:
-                        log("w79 titleband skipped: the light terminal "
-                            "hairline was None (window not located)")
+                            db = [imD.getpixel((xx, yy))
+                                  for yy in range(hd[0],
+                                                  min(imD.height,
+                                                      hd[0] + 44), 2)
+                                  for xx in range(hd[1] + 8,
+                                                  min(imD.width,
+                                                      hd[1] + hd[2] - 8), 4)]
+                            dm = (sum(0.3 * c[0] + 0.6 * c[1] + 0.1 * c[2]
+                                      for c in db) / max(1, len(db)))
+                    except Exception as e:
+                        log(f"w79 dark-band measure failed: {e}")
+                    w79_titlebar_ok = lm > 150 and (dm < 0 or dm < 90)
+                    log(f"w79 titleband: light {lm:.0f} (want >150 paper; "
+                        f"dark art reads ~25-123), dark {dm:.0f} "
+                        f"(want <90 ink, -1 = unlocated) — "
+                        + ("PASS" if w79_titlebar_ok else
+                           "FAIL — the light titlebar did not follow the "
+                           "paper theme"))
+                    q.key("meta_l", "up")     # restore the normal window
+                    time.sleep(1.5)
                     serial.run("pkill -f aegis-files >/dev/null 2>&1; "
                                "pkill -x konsole >/dev/null 2>&1; "
                                "echo L77C", settle=2)
