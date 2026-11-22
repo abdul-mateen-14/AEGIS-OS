@@ -175,7 +175,11 @@ Window {
                             height: 30
                             source: modelData.icon
                                     ? "image://icons/" + modelData.icon
-                                    : "aegis-mark.png"
+                                    // the mark has no black box anymore —
+                                    // pick the glyph ink per theme so it
+                                    // reads on the light rung too
+                                    : (Util.darkMode ? "aegis-mark.png"
+                                                     : "aegis-mark-ink.png")
                             fillMode: Image.PreserveAspectFit
                             smooth: true
                         }

@@ -1,5 +1,6 @@
 #pragma once
 
+#include <QFileSystemWatcher>
 #include <QObject>
 #include <QTimer>
 #include <QVariantMap>
@@ -336,6 +337,10 @@ private:
     bool m_charging = false;
     int m_minutesToFull = -1;
     bool m_darkMode = true;
+    // W78 — watches $XDG_RUNTIME_DIR/aegis/prefs.json so EVERY process
+    // (the shell and the app hosts) re-renders on a theme flip; the
+    // ctor wiring lives in util.cpp.
+    QFileSystemWatcher *m_prefsWatcher = nullptr;
     bool m_locked = false;
     bool m_ccOpen = false;
     bool m_launcherOpen = false;

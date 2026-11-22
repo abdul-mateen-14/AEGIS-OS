@@ -88,6 +88,39 @@ Util::Util(QObject *parent)
 {
     m_config = readConfig(QStringLiteral("/usr/share/aegis/shell/config.json"));
     loadPrefs();
+    // W78 — live theme sync for EVERY process. The shell writes
+    // prefs.json on the CC dark toggle; app processes (aegis-settings,
+    // aegis-files, ...) build their own Util and used to read the file
+    // ONCE here — a running app never re-rendered until relaunched,
+    // which is exactly the "default apps stay dark in light mode"
+    // report. Watch the file and its parent dir (the first toggle
+    // CREATES prefs.json — a file-only watch would miss that), reload,
+    // and let loadPrefs() emit the changed signals.
+    {
+        const QString prefsDir = QDir(qEnvironmentVariable(
+            "XDG_RUNTIME_DIR", QStringLiteral("/tmp"))).filePath(
+            QStringLiteral("aegis"));
+        const QString prefsFile = prefsDir + QStringLiteral("/prefs.json");
+        QDir().mkpath(prefsDir);
+        m_prefsWatcher = new QFileSystemWatcher(this);
+        m_prefsWatcher->addPath(prefsDir);
+        if (QFile::exists(prefsFile))
+            m_prefsWatcher->addPath(prefsFile);
+        connect(m_prefsWatcher, &QFileSystemWatcher::directoryChanged,
+                this, [this, prefsFile](const QString &) {
+            if (QFile::exists(prefsFile)
+                    && !m_prefsWatcher->files().contains(prefsFile))
+                m_prefsWatcher->addPath(prefsFile);
+            loadPrefs();
+        });
+        connect(m_prefsWatcher, &QFileSystemWatcher::fileChanged,
+                this, [this, prefsFile](const QString &) {
+            if (QFile::exists(prefsFile)
+                    && !m_prefsWatcher->files().contains(prefsFile))
+                m_prefsWatcher->addPath(prefsFile);
+            loadPrefs();
+        });
+    }
     loadAccent();
     if (m_wallpaper.isEmpty())
         m_wallpaper = m_config.value(QStringLiteral("wallpaper")).toString();
@@ -137,8 +170,17 @@ void Util::loadPrefs()
     QFile file(runtime + QStringLiteral("/aegis/prefs.json"));
     if (file.open(QIODevice::ReadOnly)) {
         const auto doc = QJsonDocument::fromJson(file.readAll());
+        const bool wasDark = m_darkMode;
+        const QString wasWall = m_wallpaper;
         m_darkMode = doc.object().value(QStringLiteral("darkMode")).toBool(true);
         m_wallpaper = doc.object().value(QStringLiteral("wallpaper")).toString();
+        // W78 — the watcher path reloads this file in every process;
+        // emit so the running UI re-renders instead of waiting for a
+        // relaunch ("apps stay dark in light mode" report).
+        if (wasDark != m_darkMode)
+            emit darkModeChanged();
+        if (wasWall != m_wallpaper)
+            emit wallpaperChanged();
     }
 }
 
@@ -213,6 +255,51 @@ void Util::setDarkMode(bool dark)
             qWarning() << "setDarkMode: kdeglobals commit failed:" << out.errorString();
     } else {
         qWarning() << "setDarkMode: kdeglobals open failed:" << out.errorString();
+    }
+    // W78 — Konsole carries its own profile colorscheme: kdeglobals'
+    // ColorScheme never reaches the terminal surface because the shipped
+    // Aegis.profile pins ColorScheme=AegisDark and no light palette
+    // existed. Swap the profile's line with the same deterministic
+    // pattern as above; NEW Konsole windows open on the current rung
+    // (a running instance re-reads on its next window). The matching
+    // AegisLight.colorscheme ships in /etc/skel since this commit.
+    const QString kp = home + QStringLiteral(
+        "/.local/share/konsole/Aegis.profile");
+    QFile kin(kp);
+    QString kbody;
+    if (kin.open(QIODevice::ReadOnly | QIODevice::Text)) {
+        QTextStream kts(&kin);
+        kbody = kts.readAll();
+        kin.close();
+    }
+    if (!kbody.isEmpty()) {
+        const QString kSchemeLine = QStringLiteral("ColorScheme=")
+            + (dark ? QStringLiteral("AegisDark")
+                    : QStringLiteral("AegisLight"));
+        if (kbody.contains(QRegularExpression(
+                QStringLiteral("^ColorScheme=.*$"),
+                QRegularExpression::MultilineOption))) {
+            kbody.replace(QRegularExpression(
+                QStringLiteral("^ColorScheme=.*$"),
+                QRegularExpression::MultilineOption), kSchemeLine);
+        } else if (kbody.contains(QRegularExpression(
+                QStringLiteral("^\\[Appearance\\]\\s*$"),
+                QRegularExpression::MultilineOption))) {
+            kbody.replace(QRegularExpression(
+                QStringLiteral("^\\[Appearance\\]\\s*$"),
+                QRegularExpression::MultilineOption),
+                QStringLiteral("[Appearance]\n") + kSchemeLine);
+        } else {
+            kbody += QStringLiteral("\n[Appearance]\n")
+                     + kSchemeLine + QStringLiteral("\n");
+        }
+        QSaveFile kout(kp);
+        if (kout.open(QIODevice::WriteOnly | QIODevice::Text)) {
+            kout.write(kbody.toUtf8());
+            if (!kout.commit())
+                qWarning() << "setDarkMode: konsole profile commit failed:"
+                           << kout.errorString();
+        }
     }
     // file-based verdict for the boot gate (and honest diagnostics when
     // the config write fails — the state file separates "shell applied"

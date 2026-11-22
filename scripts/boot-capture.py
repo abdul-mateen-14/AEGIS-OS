@@ -3734,6 +3734,9 @@ def main():
     # PLUS the kdeglobals token polled up to three times over serial.
     dark_flipped = False
     theme_light = False
+    # W77 — light-theme apps (fresh Files + Konsole bodies must read
+    # paper-luminance after the flip; see the probe below)
+    w77_files_ok = w77_term_ok = False
     if serial is not None:
         try:
             serial.run("rm -f ~/.local/state/aegis-shell/aegis/theme; "
@@ -3796,6 +3799,55 @@ def main():
                 + ("PASS" if dark_flipped and theme_light
                    else "PASS on state file only" if theme_light
                    else "FAIL"))
+            # W77 — light-theme apps, same SHA as the fixes (W72 rule):
+            # the QML apps re-read prefs.json live since W78's watcher
+            # and Konsole follows the profile colorscheme setDarkMode
+            # just swapped (AegisLight now ships). Fresh processes ride
+            # the serial nohup ladder — activateOrLaunch would focus a
+            # dark-themed pre-flip window and fake a fail. Runs only
+            # when the session is genuinely LIGHT.
+            if theme_light:
+                def body_lum(png, hy, xl, runw):
+                    im = Image.open(png).convert("L")
+                    px2 = im.load()
+                    t = n = 0
+                    for yy in range(hy + 80, min(im.size[1], hy + 400), 2):
+                        for xx in range(xl + 40,
+                                        min(im.size[0], xl + runw - 40), 2):
+                            t += px2[xx, yy]
+                            n += 1
+                    return t / max(1, n)
+                try:
+                    fl, tm = 0.0, 0.0
+                    serial.run("WAYLAND_DISPLAY=wayland-0 nohup "
+                               "aegis-files >/dev/null 2>&1 & echo L77A",
+                               settle=3)
+                    time.sleep(8)
+                    q.shot("05d-files-light")
+                    hl = window_hairline(f"{OUT}/05d-files-light.png")
+                    if hl is not None:
+                        fl = body_lum(f"{OUT}/05d-files-light.png",
+                                      hl[0], hl[1], hl[2])
+                        w77_files_ok = fl > 180
+                    serial.run("WAYLAND_DISPLAY=wayland-0 nohup konsole "
+                               ">/dev/null 2>&1 & echo L77B", settle=3)
+                    time.sleep(8)
+                    q.shot("05d-terminal-light")
+                    hl2 = window_hairline(f"{OUT}/05d-terminal-light.png")
+                    if hl2 is not None:
+                        tm = body_lum(f"{OUT}/05d-terminal-light.png",
+                                      hl2[0], hl2[1], hl2[2])
+                        w77_term_ok = tm > 180
+                    log(f"w77 light apps: files body {fl:.0f}, terminal "
+                        f"body {tm:.0f} — want >180 on the light rung "
+                        "(dark ink reads ~19-25) — "
+                        + ("PASS" if w77_files_ok and w77_term_ok else
+                           "FAIL — an app stayed dark"))
+                    serial.run("pkill -f aegis-files >/dev/null 2>&1; "
+                               "pkill -x konsole >/dev/null 2>&1; "
+                               "echo L77C", settle=2)
+                except Exception as e:
+                    log(f"w77 light-apps probe failed: {e}")
             q.click(dark_x, dark_y, W, H)
             time.sleep(1.5)
         except Exception as e:
@@ -4481,6 +4533,10 @@ def main():
                            "kdeglobals ColorScheme did not flip (the "
                            "config write is still broken)")
                         + " — see the dark tile verdict line")
+    if not (w77_files_ok and w77_term_ok):
+        failures.append("W77: the default apps did not follow the light "
+                        "flip — fresh Files/Konsole bodies must read "
+                        "paper-luminance (see 05d-*-light.png)")
 
     if not w67_plate_ok:
         failures.append("W67: the ink-flip assert failed or the probe "

@@ -137,7 +137,8 @@ Window {
                         spacing: 8
 
                         Image {
-                            source: "aegis-mark.png"
+                            source: Util.darkMode ? "aegis-mark.png"
+                                                  : "aegis-mark-ink.png"
                             sourceSize: Qt.size(18, 18)
                             width: 18; height: 18
                             anchors.verticalCenter: parent.verticalCenter
