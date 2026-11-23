@@ -33,7 +33,12 @@ Window {
     // the two 64 px rectangle rows; the sheet keeps the snug fit.
     // W69 — 388 -> 394: the two slider rows grow 32 -> 36 for the pill.
     // W70 — 394 -> 434: three 1 px section rules ride the 12 px flow.
-    height: 434
+    // v0.6.87 — 434 -> 492: the W81 stack (card 40 + circle row 82 +
+    // DND 40 + two 32 sliders + rules + power 36 + footer 26 with the
+    // 84 px header) measures 483 — the 434 sheet clipped the power row
+    // and the footer entirely (the v0.6.86 artifact). The sheet grows
+    // downward, top stays at 40.
+    height: 492
     flags: Qt.FramelessWindowHint
 
     // Tier C shortens every motion token — Table 17 fallback rung.
@@ -162,7 +167,7 @@ Window {
                         width: parent.width
                         // W81 — 10 px rhythm (the macOS card stack) so the
                         // new connectivity card + the DND card + the sliders
-                        // all fit the snug 434 sheet
+                        // all fit the 492 sheet (v0.6.87 growth)
                         spacing: 10
 
                         // W81 — the macOS connectivity card: ONE wide tile
@@ -295,27 +300,12 @@ Window {
                                                      ? parent.horizontalCenter
                                                      : undefined
 
-                            // T15-D6 (W43) — the tile tells the story the
-                            // machine actually has. A radio-less VM (NAT =
-                            // ethernet) shows the wired glyph + accent when
-                            // connected and toggles Disconnect/Reconnect —
-                            // CC and Settings agree.
-                            CcTile {
-                                label: Util.hasWifi ? "Wi-Fi" : "Ethernet"
-                                checked: Util.hasWifi
-                                         ? Util.wifiEnabled
-                                         : Util.wiredConnected
-                                painter: Util.hasWifi ? ccRoot.paintWifi
-                                                      : ccRoot.paintWired
-                                onToggled: {
-                                    if (Util.hasWifi)
-                                        Util.setWifiEnabled(!Util.wifiEnabled)
-                                    else if (Util.wiredConnected)
-                                        Util.disconnectWired(Util.wiredIface)
-                                    else
-                                        Util.reconnectWired(Util.wiredIface)
-                                }
-                            }
+                            // T15-D6 (W43) — the wired/wifi STORY moved up
+                            // into the wide ConnectivityTile (W81); the
+                            // circle row keeps only the toggles that have
+                            // no wide card. A fourth tile here wraps the
+                            // grid (v0.6.86 boot test: Dark Mode landed on
+                            // a second row, every probe under it clipped).
                             CcTile {
                                 label: "Bluetooth"
                                 checked: Util.bluetoothEnabled
@@ -855,8 +845,8 @@ Window {
 
         width: parent ? parent.width : 320
         // W69 — the pill: 28 px track in a 32 px row (W81 trimmed two
-        // px so the connectivity card stack fits the snug 434 sheet;
-        // the 16 px mono glyphs ride vertically centered as before)
+        // px so the connectivity card stack fits; the 16 px mono
+        // glyphs ride vertically centered as before)
         height: 32
 
         // W80 — same stale-canvas ruling as the tiles: repaint the

@@ -1514,6 +1514,15 @@ def dock_geometry(png, n_override=None):
     gap = token("tileGap", 2)
     pad = token("trayPadding", 12)
     n = n_override if n_override else expected_tiles()
+    # v0.6.86 — a garbled serial reply can inflate n_override (the
+    # console ECHOES the probe command, and the echo carries every
+    # TILE literal): clamp n to what physically fits the screen, or
+    # the centers run off-screen, the sanity crop raises
+    # "Coordinate 'right' is less than 'left'" and the click-map
+    # rebuild dies — falling back to an EMPTY config map whose every
+    # .get(cmd, 0) landed on tile 0, the new launcher.
+    fit = max(1, (W - 2 * pad - 8 + gap) // (B + gap))
+    n = max(1, min(n, fit))
 
     row_w = n * B + (n - 1) * gap
     tray_w = row_w + 2 * pad
@@ -1525,6 +1534,8 @@ def dock_geometry(png, n_override=None):
     # max brightness; colourful tiles raise saturation)
     present = 0
     for cx, cy in centers:
+        if not (B // 2 <= cx <= W - B // 2 and 40 <= cy <= H - 40):
+            continue                    # phantom slot — never crop it
         box = im.crop((max(0, cx - 32), max(0, cy - 40),
                        min(W, cx + 32), min(H, cy + 40)))
         hsv = box.convert("HSV")
@@ -1609,8 +1620,19 @@ def resolved_tile_cmds(serial):
     if "TILE-ORDER-END" not in out:
         log("resolved_tile_cmds: reply garbled — keeping the config map")
         return None
-    cmds = re.findall(r"TILE (\S+)", out)
-    if not cmds:
+    # v0.6.86 lesson — the serial console ECHOES the command line, and
+    # the echo carries every "TILE <cmd>" literal: an unanchored
+    # findall doubled the slot count, dock_geometry laid a phantom
+    # wide tray, its sanity crop inverted ("right < left") and the
+    # click map fell back to the EMPTY config dict — every indexed
+    # click landed on tile 0, the new launcher. Anchor to whole lines
+    # (only the real per-slot outputs are exactly "TILE <cmd>"),
+    # dedupe preserving order, and refuse absurd replies outright.
+    cmds = list(dict.fromkeys(re.findall(r"(?m)^TILE (\S+)$", out)))
+    if not cmds or len(cmds) > expected_tiles() + 3:
+        if cmds:
+            log(f"resolved_tile_cmds: reply garbled "
+                f"({len(cmds)} slots) — keeping the config map")
         return None
     # W81 — the dock PREPENDS the all-apps tile (Dock.qml's launcher
     # model head) before the resolved slots: the geometric positions the
@@ -3117,11 +3139,15 @@ def main():
         # ENTIRE probe section (w66/w67-w71/w76 never ran, no failure
         # flag set) and the defensive CC toggle flipped the window state
         # for the whole 05 cluster downstream.
-        CCX1, CCY0, CCH = W - 10, 40, 434   # W70: +3 hairlines
+        CCX1, CCY0, CCH = W - 10, 40, 492   # v0.6.87: the sheet grew
         CCX0 = CCX1 - 348
-        SB = CCY0 + CCH                     # sheet bottom (474)
-        # the second slider track, MEASURED at y 354..381 (bt98 frame)
-        box = (W - 342, SB - 118, W - 322, SB - 95)
+        SB = CCY0 + CCH                     # sheet bottom (532)
+        # the second slider track — the v0.6.87 stack puts the sound
+        # row at CCY0+352..384 (= SB-140..SB-108; the bt98 frame had it
+        # at SB-118..SB-95 under the 434 sheet). The A/B box must ride
+        # the row's glyph zone or it lands on empty glass below the
+        # stack and the gradient energy has nothing to smooth.
+        box = (W - 342, SB - 140, W - 322, SB - 108)
         cc_opened_here = False
         base = grad_energy(f"{OUT}/04j0-files-open.png", box)
         cc_opened_here = True   # the defensive close below must not
@@ -3303,17 +3329,23 @@ def main():
         #    value is logged every run so the next review can re-rule
         #    with numbers, not adjectives.
         # W68 — the CIRCLE probe: W81 layout — the accent story splits
-        # across the WIDE connectivity card (CCY0+46..86) and the
-        # 3-circle toggle row (CCY0+135..217; the dark circle carries
-        # the accent in the harness session). Assert both.
+        # across the WIDE connectivity card (the 40 px card fills
+        # CCY0+84..124 measured on the v0.6.86 artifact) and the
+        # 3-circle toggle row (plates CCY0+136..200; the dark circle
+        # carries the accent in the harness session — bluetooth's
+        # software radio reads disabled in the VM). Assert both.
         w68_circles_ok = False
         try:
             im68 = Image.open(
                 f"{OUT}/04j2-cc-over-files.png").convert("RGB")
-            band = im68.crop((CCX0, CCY0 + 100, CCX1, CCY0 + 180))
-            wideband = im68.crop((CCX0, CCY0 + 44, CCX1, CCY0 + 90))
+            band = im68.crop((CCX0, CCY0 + 130, CCX1, CCY0 + 210))
+            wideband = im68.crop((CCX0, CCY0 + 80, CCX1, CCY0 + 130))
             ACC = (0x3E, 0x8B, 0xFF)   # the default accent (util.cpp)
             mask = set()
+            bpx = band.load()          # v0.6.86: dropped in the W81
+                                       # rewrite — the loop below ate a
+                                       # NameError and the assert never
+                                       # rendered a verdict
             for yy in range(0, band.size[1]):
                 for xx in range(0, band.size[0]):
                     r, g, b = bpx[xx, yy]
@@ -3556,11 +3588,11 @@ def main():
             var = sum((q - m) ** 2 for q in v) / max(1, len(v))
             return m, var ** 0.5
         pm, pv = mean_var(f"{OUT}/05-control-center.png",
-                          (CCX1 - 110, CCY0 + 362, CCX1 - 10,
-                           CCY0 + 382))
+                          (CCX1 - 110, CCY0 + 446, CCX1 - 10,
+                           CCY0 + 456))
         bm, _bv = mean_var(f"{OUT}/05-control-center.png",
-                           (CCX0 - 62, CCY0 + 362, CCX0 - 12,
-                            CCY0 + 382))
+                           (CCX0 - 62, CCY0 + 446, CCX0 - 12,
+                            CCY0 + 456))
         plate, back = pm, bm
         if pv < 6:
             w67_plate_ok = True
@@ -3607,8 +3639,8 @@ def main():
         im69 = Image.open(
             f"{OUT}/05-control-center.png").convert("RGB")
         knobs = []
-        for name, y0, y1 in (("brightness", CCY0 + 266, CCY0 + 294),
-                             ("volume", CCY0 + 314, CCY0 + 342)):
+        for name, y0, y1 in (("brightness", CCY0 + 308, CCY0 + 340),
+                             ("volume", CCY0 + 352, CCY0 + 384)):
             run = None
             best = None
             for xx in range(CCX0 + 34, CCX1):
@@ -3641,48 +3673,50 @@ def main():
         log(f"w69 pill probe failed: {e}")
         failures.append("w69 pill probe could not run: " + str(e)[:120])
 
-    # W70 — the HAIRLINE probe (same SHA): three 1 px rows whose mean
-    # luminance sits ABOVE the glass plate around them (white 0.14
-    # over the plate), at the section boundaries below the circles
-    # row, the DND card and the sliders. Rows are located by SCAN, not
-    # by guessed y (the W72 lesson): inside the sheet column band,
-    # count rows whose mean exceeds the sheet's local plate mean by
-    # 6+ and are flanked by plate rows — expect exactly 3.
+    # W70 — the HAIRLINE probe (same SHA): three 1 px white-0.14 rules
+    # at the section boundaries (circle row | DND card | sliders). The
+    # v0.6.86 scan-based counter died twice over: the W81 grid wrapped
+    # (4 tiles in 3 columns) so only 2 of the 3 rules stayed inside the
+    # scan window, and the 64 px circles' white-0.22 rims are 1 px
+    # spikes a scan counts as extra rule groups. v0.6.87 asserts the
+    # rules AT their computed rows (the stack arithmetic: card
+    # CCY0+84..124, circle row ..218, rule1 CCY0+230, DND ..283,
+    # rule2 CCY0+295, sliders ..384, rule3 CCY0+396, power ..445): a
+    # row within ±8 px whose bright run spans >=80% of the content
+    # width — the rules are the only full-width 1 px features at those
+    # rows (the rims are 62 px islands, the knob a 22 px disc).
     w70_rules_ok = False
     try:
         im70 = Image.open(
             f"{OUT}/05-control-center.png").convert("L").crop(
-                (CCX0 + 30, CCY0 + 150, CCX1 - 30, SB - 30))
+                (CCX0 + 16, CCY0, CCX1 - 16, SB))
         px70 = im70.load()
-        rows = []
-        for yy in range(2, im70.size[1] - 2):
-            t = n = 0
-            for xx in range(0, im70.size[0], 2):
-                t += px70[xx, yy]
-                n += 1
-            rows.append(t / max(1, n))
-        plate70 = sorted(rows)[len(rows) // 2]
-        hot = [i for i, v in enumerate(rows)
-               if v > plate70 + 6 and rows[i - 2] <= plate70 + 6
-               and (i + 2 >= len(rows) or rows[i + 2] <= plate70 + 6)]
-        # collapse adjacent hot rows, then keep only THIN groups:
-        # a rule is a 1 px spike; the cards, sliders and text rows
-        # are FAT hot bands (the bt98 offline run showed 8 groups —
-        # 3 thin rules among the content)
-        groups = []
-        for i in hot:
-            if groups and i - groups[-1][-1] <= 2:
-                groups[-1].append(i)
-            else:
-                groups.append([i])
-        rules70 = [g for g in groups if g[-1] - g[0] <= 3]
-        w70_rules_ok = len(rules70) == 3
-        log(f"w70 hairlines: plate median {plate70:.0f}, "
-            f"{len(rules70)} thin rule group(s) of "
-            f"{len(groups)} hot bands at "
-            f"{[g[0] for g in rules70]} — want exactly 3 — "
-            + ("PASS" if w70_rules_ok else
-               "FAIL — the section rules are missing or doubled"))
+        sw70, sh70 = im70.size
+        samples = [px70[x, y] for y in range(0, sh70, 7)
+                   for x in range(0, sw70, 7)]
+        plate70 = sorted(samples)[len(samples) // 2]
+
+        def rule_at(rule_y):
+            """First row near rule_y with an >=80%-width bright run."""
+            lo = max(2, rule_y - CCY0 - 8)
+            hi = min(sh70 - 2, rule_y - CCY0 + 8)
+            for yy in range(lo, hi + 1):
+                hot = tot = 0
+                for xx in range(0, sw70, 2):
+                    tot += 1
+                    if px70[xx, yy] > plate70 + 6:
+                        hot += 1
+                if hot >= tot * 0.8:
+                    return yy + CCY0
+            return None
+
+        found70 = [rule_at(CCY0 + off) for off in (230, 295, 396)]
+        w70_rules_ok = all(f is not None for f in found70)
+        log(f"w70 hairlines: plate median {plate70:.0f}, rules at "
+            f"{found70} (computed CCY0+230/295/396 ±8) — "
+            + ("PASS — the three section rules sit at their "
+               "computed rows" if w70_rules_ok else
+               "FAIL — a section rule is missing or shifted"))
     except Exception as e:
         log(f"w70 rule probe failed: {e}")
         failures.append("w70 rule probe could not run: " + str(e)[:120])
@@ -3726,15 +3760,14 @@ def main():
             q.shot(name)
             return Image.open(f"{OUT}/{name}.png").convert("RGB")
 
-        # W68 geometry, MEASURED on the bt98 frame (05-control-center):
-        # the header block renders ~56 px (not the 30 the QML math
-        # assumed) — the real rows are circles 123..187, rule 220, DND
-        # card 233..276 (center 255), rules 289/398, sliders 306..333 and
-        # 354..381. bt98's derived clicks sat 6 px above the card and
-        # tripped the RELEASE GATE on a session that was fine.
-        SWITCH = (CCX1 - 48, CCY0 + 215)   # card center row; the 36x20
+        # W68 geometry, computed from the v0.6.87 stack (calibrated
+        # against the v0.6.86 artifact: the header renders 84 px, the
+        # accent card 124..164, the circle row 176..258): rule1 270,
+        # DND card 283..323 (center 303), rule2 335, sliders 348..380
+        # and 392..424, rule3 436, power 449..485, footer 497..523.
+        SWITCH = (CCX1 - 48, CCY0 + 263)   # card center row; the 36x20
                                            # switch rides the right end
-        BODY = (CCX0 + 178, CCY0 + 215)    # tile body (the tile-wide
+        BODY = (CCX0 + 178, CCY0 + 263)    # tile body (the tile-wide
                                            # MouseArea makes it live)
         dnd_on = dnd_capture(SWITCH, "05b-control-center-dnd")
         moved = frame_diff(home, dnd_on)
@@ -3759,10 +3792,9 @@ def main():
 
     # T13 D26 (W37) — the dead-control verdict for the CC dark tile:
     # click the tile center (grid geometry: sheet 348 wide anchored
-    # top-right margins 16, header 30, tiles 152x64 with 12 gaps — the
-    # Dark Mode tile is row 2 col 2, center (1172, 234); cross-checked
-    # against the measured DND knob x 1206-1222 from the v0.6.20
-    # capture — and PROVEN live on the v0.6.52 capture: the sheet
+    # top-right margins 16, the W81 card+circles stack — the Dark Mode
+    # tile is the 3rd circle of the one-row group, center (1172, 208);
+    # PROVEN live on the v0.6.52 capture: the sheet
     # re-rendered light and the tile went unchecked, so the CLICK is
     # good; the v0.6.52 failure was the kdeglobals WRITE, which
     # setDarkMode now performs as a deterministic QSaveFile rewrite
@@ -3782,21 +3814,24 @@ def main():
             before = serial.run("grep ColorScheme "
                                 "~/.config/kdeglobals 2>/dev/null | head -1; "
                                 "echo TOKEN-END", settle=2)
-            # W68 geometry (bt96 forensics) — the dark tile is the 4th
-            # circle of the one-row group; the old LITERAL (1172, 234)
-            # was the old tile row and in the v0.6.81 layout lands on the
-            # DND card (y 192..236), toggling Do Not Disturb instead of
-            # dark mode — exactly bt96's "AegisDark -> AegisDark (state
-            # file: absent)" red. Derived from the sheet constants the
-            # W67 block already computed; the literals are the same
-            # numbers at 1280x800 as the fallback.
+            # W68 geometry (v0.6.86 artifact forensics) — the dark tile
+            # is the 3rd circle of the one-row group (the leftover
+            # ethernet tile that wrapped the v0.6.86 grid is gone): the
+            # grid opens CCY0+136 (the 40 px card + 12 gap under the
+            # 84 px header, measured on the artifact), plates 64 px so
+            # the center rides CCY0+168. The old CCY0+127 sat 9 px ABOVE
+            # the plate — the click hit the inter-section gap and the
+            # v0.6.86 dark flip never applied, cascading W37/W67/W77/W79.
+            # Derived from the sheet constants the W67 block already
+            # computed; the literals are the same numbers at 1280x800
+            # as the fallback.
             try:
                 dark_x = CCX0 + 250   # W81: the 3rd of three 64 px circles
                                       # centered in the 316 content row
                                       # (grid x0 = CCX0+66; 2*(64+12)+32)
-                dark_y = CCY0 + 127   # circle row top CCY0+95 + 32
+                dark_y = CCY0 + 168   # circle row top CCY0+136 + 32
             except NameError:
-                dark_x, dark_y = 1219, 155
+                dark_x, dark_y = 1172, 208
             q.click(dark_x, dark_y, W, H)
             time.sleep(2.5)
             q.shot("05c-dark-toggled")
