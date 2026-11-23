@@ -1816,6 +1816,22 @@ def main():
     except Exception as e:
         log(f"early serial setup failed: {e}")
 
+    # W81 #2 — the map's last line of defense: when the guest rebuild
+    # never ran (no serial, or the probe refused a garbled reply),
+    # tile_index stays EMPTY and every open_app fallback
+    # (tile_index.get(cmd, 0)) lands on tile 0 — the all-apps LAUNCHER
+    # post-W81, not the first app. Seed the config order shifted +1 so
+    # a degraded round still clicks the right column. The guest-rebuilt
+    # map wins whenever it exists (setdefault never overwrites).
+    if not tile_index:
+        try:
+            _cfg = json.load(open("shell/packaging/config.json"))
+            for i, a in enumerate(x for x in _cfg.get("apps", [])
+                                   if x.get("type") != "separator"):
+                tile_index.setdefault(x.get("cmd", ""), i + 1)
+        except Exception:
+            pass
+
     # T20.8 — the magnify probe must be tier-INDEPENDENT: the session may
     # have auto-settled in Calm (the T20 llvmpipe detector — the CI
     # runner's virtio GL is llvmpipe in-guest, serial line "settling in
