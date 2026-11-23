@@ -579,7 +579,13 @@ Window {
                             anchors {
                                 horizontalCenter: parent.horizontalCenter
                                 top: parent.bottom
-                                topMargin: 7      // 1 px clear of the pill
+                                topMargin: 9      // v0.6.89: the plate's
+                                                  // bottom rides y≈776, so
+                                                  // +9 lands the dots at
+                                                  // y 785..789 — 1 px below
+                                                  // the pill's border row
+                                                  // (783-784) ON the strip
+                                                  // instead of straddling it
                             }
                             spacing: 3
                             opacity: tile.winCount > 0 ? 1 : 0

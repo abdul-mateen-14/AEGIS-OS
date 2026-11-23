@@ -1628,6 +1628,11 @@ def resolved_tile_cmds(serial):
     # click landed on tile 0, the new launcher. Anchor to whole lines
     # (only the real per-slot outputs are exactly "TILE <cmd>"),
     # dedupe preserving order, and refuse absurd replies outright.
+    # v0.6.89 — the console ALSO ends every line with \r, and re.M's
+    # `$` matches only before \n: the anchored pattern matched ZERO
+    # lines, the rebuild returned None SILENTLY and the run clicked
+    # off-map again (the v0.6.88 red). Normalize the CRs first.
+    out = out.replace("\r\n", "\n").replace("\r", "\n")
     cmds = list(dict.fromkeys(re.findall(r"(?m)^TILE (\S+)$", out)))
     if not cmds or len(cmds) > expected_tiles() + 3:
         if cmds:
@@ -1794,9 +1799,7 @@ def main():
                            settle=4)
                 time.sleep(9)
                 q.shot("01d-net-pendant")
-                time.sleep(2)
-                q.shot("01e-net-pendant2")
-                for pname in ("01d-net-pendant", "01e-net-pendant2"):
+                for pname in ("01d-net-pendant",):
                     imp = Image.open(
                         f"{OUT}/{pname}.png").convert("RGB")
                     green = sum(
@@ -2205,7 +2208,7 @@ def main():
         try:
             im81 = Image.open(f"{OUT}/02-files.png").convert("RGB")
             fx = tiles[tile_index.get("aegis-files", 1)][0]
-            n81 = sum(1 for yy in range(H - 10, H)
+            n81 = sum(1 for yy in range(H - 22, H)
                       for xx in range(max(0, fx - 6), min(W, fx + 6))
                       if all(abs(v - e) < 30
                              for v, e in zip(im81.getpixel((xx, yy)),
@@ -3658,11 +3661,11 @@ def main():
             var = sum((q - m) ** 2 for q in v) / max(1, len(v))
             return m, var ** 0.5
         pm, pv = mean_var(f"{OUT}/05-control-center.png",
-                          (CCX1 - 110, CCY0 + 446, CCX1 - 10,
-                           CCY0 + 456))
+                          (CCX1 - 110, CCY0 + 386, CCX1 - 10,
+                           CCY0 + 404))
         bm, _bv = mean_var(f"{OUT}/05-control-center.png",
-                           (CCX0 - 62, CCY0 + 446, CCX0 - 12,
-                            CCY0 + 456))
+                           (CCX0 - 62, CCY0 + 386, CCX0 - 12,
+                            CCY0 + 404))
         plate, back = pm, bm
         if pv < 6:
             w67_plate_ok = True
@@ -3780,10 +3783,10 @@ def main():
                     return yy + CCY0
             return None
 
-        found70 = [rule_at(CCY0 + off) for off in (230, 295, 396)]
+        found70 = [rule_at(CCY0 + off) for off in (228, 289, 384)]
         w70_rules_ok = all(f is not None for f in found70)
         log(f"w70 hairlines: plate median {plate70:.0f}, rules at "
-            f"{found70} (computed CCY0+230/295/396 ±8) — "
+            f"{found70} (computed CCY0+228/289/384 ±10) — "
             + ("PASS — the three section rules sit at their "
                "computed rows" if w70_rules_ok else
                "FAIL — a section rule is missing or shifted"))

@@ -75,11 +75,15 @@ class Util : public QObject {
     bool wiredConnected() const { return m_wiredConnected; }
     QString wiredIp() const { return m_wiredIp; }
     QString wiredIface() const { return m_wiredIface; }
-    // W81 — how many tracked windows carry this command head (the dock's
-    // running dots show one dot PER WINDOW; 0 = not running)
-    Q_INVOKABLE int windowCountFor(const QString &cmd) const;
-    Q_INVOKABLE void disconnectWired(const QString &iface);
-    Q_INVOKABLE void reconnectWired(const QString &iface);
+    // W81 — the three toggles/count moved to the PUBLIC section below
+    // (v0.6.89): they were declared in the class's IMPLICIT PRIVATE
+    // zone (the first `public:` sits at line ~94), so the moc
+    // registered them private and QML couldn't see them — 72-76 ×
+    // "TypeError: windowCountFor of object Util is not a function" in
+    // BOTH the v0.6.86 and v0.6.88 serial logs. The running dots were
+    // binding-dead from the day W81 shipped and the dock's
+    // Disconnect/Reconnect toggles were dead too. Q_PROPERTY survives
+    // a private section; Q_INVOKABLE does not.
     // T15-D10 (W47) — calendar popover accessors (the Q_PROPERTY WRITE
     // needs the real method; toggleCalendar is the Q_INVOKABLE face)
     bool calendarOpen() const { return m_calendarOpen; }
@@ -148,6 +152,13 @@ public:
 
     // Runs a command detached ("dolphin", "xdg-open https://...").
     Q_INVOKABLE void launch(const QString &command);
+
+    // W81 (moved here from the implicit-private zone — see the note at
+    // the networkState property; QML calls these, so they must sit
+    // after the first `public:`).
+    Q_INVOKABLE int windowCountFor(const QString &cmd) const;
+    Q_INVOKABLE void disconnectWired(const QString &iface);
+    Q_INVOKABLE void reconnectWired(const QString &iface);
 
     // ── Running apps (dock running dots) ─────────────────────────────
     // Session-level: launch() records every command it starts. W20 (T12)
