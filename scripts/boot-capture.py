@@ -1781,6 +1781,35 @@ def main():
                     + dbg.strip().replace("\n", " | ")[-1500:])
             except Exception as e:
                 log(f"plymouth boot debug dump failed: {e}")
+            # W81 #4 — the island pendant (INFORMATIONAL): a network
+            # CHANGE fires the green-check / yellow-! / red-X cover
+            # plate for ~4.5 s on the shell's 10 s link poll, and no
+            # capture has ever caught it (the fresh-boot fire expires
+            # before 01-home). Force one bounce over serial and shoot
+            # the panel twice inside the window; the next review
+            # re-rules the 4.5 s vs 10 s race with these numbers.
+            try:
+                serial.run("nmcli networking off; sleep 1; "
+                           "nmcli networking on; echo NET-BOUNCE",
+                           settle=4)
+                time.sleep(9)
+                q.shot("01d-net-pendant")
+                time.sleep(2)
+                q.shot("01e-net-pendant2")
+                for pname in ("01d-net-pendant", "01e-net-pendant2"):
+                    imp = Image.open(
+                        f"{OUT}/{pname}.png").convert("RGB")
+                    green = sum(
+                        1 for y in range(0, 40) for x in range(880, W)
+                        if imp.getpixel((x, y))[1]
+                        > imp.getpixel((x, y))[0] + 30
+                        and imp.getpixel((x, y))[1]
+                        > imp.getpixel((x, y))[2] + 30
+                        and imp.getpixel((x, y))[1] > 120)
+                    log(f"w81 net pendant [{pname}]: {green} green px "
+                        "in the panel band (informational)")
+            except Exception as e:
+                log(f"w81 pendant probe skipped: {e}")
         else:
             serial = None
             log("serial login FAILED — no fixtures, no Aegis ID pane shot")
