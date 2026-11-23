@@ -172,7 +172,7 @@ Window {
                         // the medium (Wi-Fi radio / wired disconnect-reconnect).
                         component ConnectivityTile: Rectangle {
                             id: connTile
-                            readonly property bool on:
+                            readonly property bool isOn:
                                 Util.hasWifi ? Util.wifiEnabled
                                              : Util.wiredConnected
                             readonly property string stateText:
@@ -183,14 +183,14 @@ Window {
                                       : (Util.hasWifi ? "Connected"
                                                       : "Connected · Wired")
                             width: parent ? parent.width : 316
-                            height: 44
+                            height: 40
                             radius: 18
-                            color: connTile.on ? Tokens.accent
+                            color: connTile.isOn ? Tokens.accent
                                   : (Util.darkMode
                                      ? Qt.rgba(1, 1, 1, 0.12)
                                      : Qt.rgba(0, 0, 0, 0.06))
                             border.width: 1
-                            border.color: connTile.on
+                            border.color: connTile.isOn
                                           ? Qt.rgba(1, 1, 1, 0.25)
                                           : (Util.darkMode
                                              ? Qt.rgba(1, 1, 1, 0.22)
@@ -225,7 +225,7 @@ Window {
                                     height: 22
                                     anchors.verticalCenter: parent.verticalCenter
                                     onPaint: {
-                                        const c = connTile.on
+                                        const c = connTile.isOn
                                                   ? "#FFFFFF"
                                                   : (Util.darkMode
                                                      ? Qt.rgba(1, 1, 1, 0.92)
@@ -246,14 +246,14 @@ Window {
                                     anchors.verticalCenter: parent.verticalCenter
                                     Text {
                                         text: Util.hasWifi ? "Wi-Fi" : "Ethernet"
-                                        color: connTile.on ? "#FFFFFF" : Tokens.fg
+                                        color: connTile.isOn ? "#FFFFFF" : Tokens.fg
                                         font { family: "Montserrat"
                                                pixelSize: 12
                                                weight: Font.DemiBold }
                                     }
                                     Text {
                                         text: connTile.stateText
-                                        color: connTile.on
+                                        color: connTile.isOn
                                                ? Qt.rgba(1, 1, 1, 0.8)
                                                : (Util.darkMode
                                                   ? Qt.rgba(1, 1, 1, 0.55)
@@ -276,7 +276,7 @@ Window {
                             }
                             Connections {
                                 target: connTile
-                                function onOnChanged() { connGlyph.requestPaint() }
+                                function onIsOnChanged() { connGlyph.requestPaint() }
                             }
                         }
 
@@ -648,7 +648,7 @@ Window {
 
         width: wide ? (parent ? parent.width : 320)
                     : 64          // W81 — fixed 64 px circles, 12 px gaps
-        height: wide ? 44 : 82
+        height: wide ? 40 : 82   // W81 — 40 px wides, the card stack fits
 
         // the WHOLE tile toggles — wide tiles included. The v0.6.20 boot
         // test caught the regression: this MouseArea once carried
@@ -854,9 +854,10 @@ Window {
         signal committed()
 
         width: parent ? parent.width : 320
-        // W69 — the pill is fat: 28 px track in a 36 px row (the 16 px
-        // mono glyphs ride vertically centered as before)
-        height: 36
+        // W69 — the pill: 28 px track in a 32 px row (W81 trimmed two
+        // px so the connectivity card stack fits the snug 434 sheet;
+        // the 16 px mono glyphs ride vertically centered as before)
+        height: 32
 
         // W80 — same stale-canvas ruling as the tiles: repaint the
         // glyph on every state that feeds its paint.
