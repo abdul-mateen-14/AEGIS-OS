@@ -731,6 +731,23 @@ void Util::windowListChanged(const QString &json)
     emit runningCmdsChanged();
 }
 
+// W81 — the dock's running dots show ONE DOT PER WINDOW of the app (the
+// reference dock): count the tracked classes that match the command's
+// head. allIds carries minimized windows too, so a background konsole
+// still lights its dots.
+int Util::windowCountFor(const QString &cmd) const
+{
+    const QString head = cmd.section(QLatin1Char(' '), 0, 0);
+    if (head.isEmpty())
+        return 0;
+    int n = 0;
+    for (const QString &cls : m_windowIds) {
+        if (cls == head || cls.startsWith(head))
+            ++n;
+    }
+    return n;
+}
+
 void Util::activateOrLaunch(const QString &cmd, const QString &resolved)
 {
     // W27 — the reviewer's ruling: "if a window with that app-id exists
@@ -1112,6 +1129,54 @@ void Util::refreshLinkStates()
         }
     }
 
+    // W81 — the connectivity STORY (the island pendant): NetworkManager's
+    // own verdict distinguishes "connected" from "connected with no
+    // internet" (limited / portal / none) — the link states alone cannot.
+    QString connectivity = QStringLiteral("unknown");
+    if (!nmcli.isEmpty()) {
+        QProcess p;
+        p.start(nmcli, {QStringLiteral("networking"),
+                        QStringLiteral("connectivity")});
+        p.waitForFinished(1500);
+        connectivity = QString::fromUtf8(p.readAllStandardOutput())
+                           .trimmed().toLower();
+    }
+    // radio level for the wifi glyph's lit arcs (one per ~34%)
+    m_wifiStrength = 0;
+    if (m_hasWifi && m_wifiEnabled && !nmcli.isEmpty()) {
+        QProcess p;
+        p.start(nmcli, {QStringLiteral("-t"), QStringLiteral("-f"),
+                        QStringLiteral("IN-USE,SIGNAL"),
+                        QStringLiteral("dev"), QStringLiteral("wifi"),
+                        QStringLiteral("list")});
+        p.waitForFinished(2000);
+        int best = 0;
+        const QStringList rows = QString::fromUtf8(p.readAllStandardOutput())
+                                     .split(QLatin1Char('\n'),
+                                            Qt::SkipEmptyParts);
+        for (const QString &ln : rows) {
+            const QStringList f = ln.split(QLatin1Char(':'));
+            if (f.size() >= 2 && f.at(0) == QStringLiteral("yes"))
+                best = qMax(best, f.at(1).toInt());
+        }
+        m_wifiStrength = best;
+    }
+    const bool linked = m_wiredConnected || (m_hasWifi && m_wifiEnabled);
+    QString story;
+    if (!linked)
+        story = QStringLiteral("disconnected");
+    else if (connectivity == QStringLiteral("limited")
+             || connectivity == QStringLiteral("portal")
+             || connectivity == QStringLiteral("none"))
+        story = QStringLiteral("no-internet");
+    else if (m_wiredConnected)
+        story = QStringLiteral("ethernet-connected");
+    else
+        story = QStringLiteral("wifi-connected");
+    if (story != m_networkState) {
+        m_networkState = story;
+        emit networkStateChanged();
+    }
     emit linkStatesChanged();
 }
 

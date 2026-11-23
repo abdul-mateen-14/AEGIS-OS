@@ -59,10 +59,25 @@ class Util : public QObject {
     Q_PROPERTY(bool wiredConnected READ wiredConnected NOTIFY linkStatesChanged)
     Q_PROPERTY(QString wiredIp READ wiredIp NOTIFY linkStatesChanged)
     Q_PROPERTY(QString wiredIface READ wiredIface NOTIFY linkStatesChanged)
+    // W81 — the network STORY for the island pendant: one of
+    // "ethernet-connected" / "wifi-connected" / "no-internet" /
+    // "disconnected", derived from the link states + NetworkManager's
+    // ConnectivityState (4 = full, 3 = limited = connected with no
+    // internet, 2 = portal, 1 = none). The island transforms on every
+    // change (the macOS notch pendant: green check / yellow ! / red X).
+    Q_PROPERTY(QString networkState READ networkState NOTIFY networkStateChanged)
+    QString networkState() const { return m_networkState; }
+    // best-effort radio level 0..100 (0 when no radio / disabled); the
+    // wifi glyph lights one arc per ~34% (the "number of signals")
+    Q_PROPERTY(int wifiStrength READ wifiStrength NOTIFY linkStatesChanged)
+    int wifiStrength() const { return m_wifiStrength; }
     bool hasWifi() const { return m_hasWifi; }
     bool wiredConnected() const { return m_wiredConnected; }
     QString wiredIp() const { return m_wiredIp; }
     QString wiredIface() const { return m_wiredIface; }
+    // W81 — how many tracked windows carry this command head (the dock's
+    // running dots show one dot PER WINDOW; 0 = not running)
+    Q_INVOKABLE int windowCountFor(const QString &cmd) const;
     Q_INVOKABLE void disconnectWired(const QString &iface);
     Q_INVOKABLE void reconnectWired(const QString &iface);
     // T15-D10 (W47) — calendar popover accessors (the Q_PROPERTY WRITE
@@ -275,6 +290,8 @@ signals:
     void ccOpenChanged();
     void launcherOpenChanged();
     void linkStatesChanged();
+    // W81 — the derived network story changed (island pendant)
+    void networkStateChanged();
     // Fired on a charging-state transition (island publishing lives in
     // main.cpp, which forwards this to ActivityService).
     void chargingEvent(bool charging, int percent, int minutesToFull);
@@ -351,6 +368,10 @@ private:
     bool m_wiredConnected = false;
     QString m_wiredIp;
     QString m_wiredIface;
+    // W81 — the network story: NM ConnectivityState + the link states
+    int m_connectivity = -1;      // -1 = not yet answered (unknown)
+    int m_wifiStrength = 0;       // 0..100, 0 = no radio / disabled
+    QString m_networkState = QStringLiteral("disconnected");
     bool m_muted = false;
     qreal m_volume = 0.5;
     qreal m_brightness = -1.0;

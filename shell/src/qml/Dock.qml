@@ -461,8 +461,11 @@ Window {
 
             Repeater {
                 // W8/W9 — the resolved dock model: installed apps only, Tier B
-                // slots wearing their own .desktop marks.
-                model: Util.dockApps
+                // slots wearing their own .desktop marks. W81 — the ALL-APPS
+                // button leads the row: the reference grid mark opens the
+                // Launcher's shortcut view (Util.toggleLauncher()).
+                model: [{ type: "launcher", icon: "aegis-launcher-grid",
+                          name: "All Apps" }].concat(Util.dockApps)
 
                 delegate: Item {
                     id: tile
@@ -470,6 +473,18 @@ Window {
                     required property var modelData
 
                     property bool isSeparator: (modelData.type === "separator")
+                    property bool isLauncher: (modelData.type === "launcher")
+                    // W81 — windows of this app (the dots show one dot PER
+                    // WINDOW). The runningCmds read in the expression makes
+                    // the binding re-evaluate when the windowwatch pushes.
+                    readonly property int winCount: {
+                        const rc = Util.runningCmds
+                        if (tile.isLauncher)
+                            return 0
+                        const cmd = tile.modelData.cmd || ""
+                        return Util.isRunning(cmd)
+                               ? Math.max(1, Util.windowCountFor(cmd)) : 0
+                    }
                     property alias iconItem: icon
                     property Spring spring: Spring {
                         mass: Tokens.dockSpringMass
@@ -521,22 +536,25 @@ Window {
 
                             Image {
                                 id: icon
-                                // W80 — the white silhouette rides the CPU
-                                // provider tint now: MultiEffect
-                                // colorization is a GPU layer pass that
-                                // silently no-ops on llvmpipe (VMware /
-                                // QEMU) — the v0.6.83 report shows the
-                                // dock back in raw colored icons there.
-                                // image://icons/?tint keeps alpha and
-                                // swaps RGB in a QImage pass, which
-                                // renders on every backend; the
-                                // darkMode term re-fetches on the flip.
+                                // W81 — the dock wears the LAUNCHER'S OWN
+                                // ICONS (the user's ruling: the tinted
+                                // silhouettes all read alike; the shortcut
+                                // grid's colorful marks are the identity —
+                                // and the CPU-tint pass stays retired with
+                                // the GPU layer it replaced). Only the two
+                                // transparent marks still pick their
+                                // per-theme twin in light mode (a white A
+                                // on the light plate would wash).
+                                readonly property string rawIcon:
+                                    tile.isLauncher
+                                    ? "aegis-launcher-grid"
+                                    : (tile.modelData.icon
+                                       || "application-x-executable")
                                 source: "image://icons/"
-                                        + (tile.modelData.icon
-                                           || "application-x-executable")
-                                        + "?tint=" + (Util.darkMode
-                                                      ? "%23FFFFFF"
-                                                      : "%23101216")
+                                        + (!Util.darkMode
+                                           && (rawIcon === "os-private-chat"
+                                               || rawIcon === "aegis-browser")
+                                           ? rawIcon + "-ink" : rawIcon)
                                 width: Tokens.iconSize * bounce.k
                                 height: width
                                 anchors.centerIn: parent
@@ -546,22 +564,31 @@ Window {
                             }
                         }
 
-                        // running dot — 4 px, floats 4 px clear of the icon
-                        Rectangle {
-                            width: Tokens.dotSize
-                            height: Tokens.dotSize
-                            radius: Tokens.dotSize / 2
+                        // W81 — the running dots moved UNDER the tray (the
+                        // user's ruling; macOS keeps them inside, ours read
+                        // cleaner on the strip): one dot PER WINDOW, none
+                        // when the app is closed.
+                        Row {
                             anchors {
                                 horizontalCenter: parent.horizontalCenter
-                                bottom: parent.bottom
-                                bottomMargin: -Tokens.dotGap
+                                top: parent.bottom
+                                topMargin: 7      // 1 px clear of the pill
                             }
-                            color: "#E8ECF2"
-                            opacity: Util.isRunning(tile.modelData.cmd || "") ? 1 : 0
+                            spacing: 3
+                            opacity: tile.winCount > 0 ? 1 : 0
                             Behavior on opacity {
                                 NumberAnimation {
                                     duration: Tokens.durQuick
                                     easing.type: Easing.OutCubic
+                                }
+                            }
+                            Repeater {
+                                model: Math.min(5, tile.winCount)
+                                Rectangle {
+                                    width: Tokens.dotSize
+                                    height: Tokens.dotSize
+                                    radius: Tokens.dotSize / 2
+                                    color: "#E8ECF2"
                                 }
                             }
                         }
@@ -601,7 +628,9 @@ Window {
                         acceptedButtons: Qt.LeftButton | Qt.RightButton
                         onClicked: (mouse) => {
                             if (mouse.button === Qt.RightButton) {
-                                if (tile.modelData.web) {
+                                if (tile.isLauncher) {
+                                    return   // no menu on the all-apps tile
+                                } else if (tile.modelData.web) {
                                     // W22 — user-added web shortcuts are
                                     // removable; first-party slots are not
                                     webMenu.webId = tile.modelData.id || ""
@@ -623,6 +652,12 @@ Window {
                                         Util.isRunning(tileMenu.head)
                                     tileMenu.popup()
                                 }
+                                return
+                            }
+                            if (tile.isLauncher) {
+                                // W81 — the all-apps tile rides the
+                                // Launcher's own open/close spring
+                                Util.toggleLauncher()
                                 return
                             }
                             tile.launch()

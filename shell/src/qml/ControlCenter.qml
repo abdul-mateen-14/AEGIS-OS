@@ -160,16 +160,140 @@ Window {
                     // ============ tiles pane ============
                     Column {
                         width: parent.width
-                        spacing: 12
+                        // W81 — 10 px rhythm (the macOS card stack) so the
+                        // new connectivity card + the DND card + the sliders
+                        // all fit the snug 434 sheet
+                        spacing: 10
+
+                        // W81 — the macOS connectivity card: ONE wide tile
+                        // that tells the whole network story (glyph, medium,
+                        // state — Connected / No Internet / Not Connected),
+                        // accent-filled while connected. Clicking toggles
+                        // the medium (Wi-Fi radio / wired disconnect-reconnect).
+                        component ConnectivityTile: Rectangle {
+                            id: connTile
+                            readonly property bool on:
+                                Util.hasWifi ? Util.wifiEnabled
+                                             : Util.wiredConnected
+                            readonly property string stateText:
+                                Util.networkState === "no-internet"
+                                    ? "No Internet"
+                                    : Util.networkState === "disconnected"
+                                      ? "Not Connected"
+                                      : (Util.hasWifi ? "Connected"
+                                                      : "Connected · Wired")
+                            width: parent ? parent.width : 316
+                            height: 44
+                            radius: 18
+                            color: connTile.on ? Tokens.accent
+                                  : (Util.darkMode
+                                     ? Qt.rgba(1, 1, 1, 0.12)
+                                     : Qt.rgba(0, 0, 0, 0.06))
+                            border.width: 1
+                            border.color: connTile.on
+                                          ? Qt.rgba(1, 1, 1, 0.25)
+                                          : (Util.darkMode
+                                             ? Qt.rgba(1, 1, 1, 0.22)
+                                             : Qt.rgba(0, 0, 0, 0.08))
+                            Behavior on color {
+                                ColorAnimation {
+                                    duration: ccRoot.dur(Tokens.durQuick)
+                                }
+                            }
+                            MouseArea {
+                                anchors.fill: parent
+                                cursorShape: Qt.PointingHandCursor
+                                onClicked: {
+                                    if (Util.hasWifi)
+                                        Util.setWifiEnabled(!Util.wifiEnabled)
+                                    else if (Util.wiredConnected)
+                                        Util.disconnectWired(Util.wiredIface)
+                                    else
+                                        Util.reconnectWired(Util.wiredIface)
+                                }
+                            }
+                            Row {
+                                anchors {
+                                    left: parent.left
+                                    leftMargin: 14
+                                    verticalCenter: parent.verticalCenter
+                                }
+                                spacing: 12
+                                Canvas {
+                                    id: connGlyph
+                                    width: 22
+                                    height: 22
+                                    anchors.verticalCenter: parent.verticalCenter
+                                    onPaint: {
+                                        const c = connTile.on
+                                                  ? "#FFFFFF"
+                                                  : (Util.darkMode
+                                                     ? Qt.rgba(1, 1, 1, 0.92)
+                                                     : Qt.rgba(0, 0, 0, 0.72))
+                                        if (Util.hasWifi)
+                                            Glyphs.wifi(getContext("2d"),
+                                                        width, height, c,
+                                                        Util.wifiEnabled
+                                                        ? Math.max(1, Math.round(
+                                                              Util.wifiStrength / 34.0))
+                                                        : 1)
+                                        else
+                                            Glyphs.wired(getContext("2d"),
+                                                         width, height, c)
+                                    }
+                                }
+                                Column {
+                                    anchors.verticalCenter: parent.verticalCenter
+                                    Text {
+                                        text: Util.hasWifi ? "Wi-Fi" : "Ethernet"
+                                        color: connTile.on ? "#FFFFFF" : Tokens.fg
+                                        font { family: "Montserrat"
+                                               pixelSize: 12
+                                               weight: Font.DemiBold }
+                                    }
+                                    Text {
+                                        text: connTile.stateText
+                                        color: connTile.on
+                                               ? Qt.rgba(1, 1, 1, 0.8)
+                                               : (Util.darkMode
+                                                  ? Qt.rgba(1, 1, 1, 0.55)
+                                                  : Qt.rgba(0, 0, 0, 0.5))
+                                        font { family: "Montserrat"
+                                               pixelSize: 10 }
+                                    }
+                                }
+                            }
+                            // W80 ruling — repaint the glyph on every state
+                            // that feeds its paint (no stale ink)
+                            Connections {
+                                target: Util
+                                function onLinkStatesChanged() {
+                                    connGlyph.requestPaint()
+                                }
+                                function onNetworkStateChanged() {
+                                    connGlyph.requestPaint()
+                                }
+                            }
+                            Connections {
+                                target: connTile
+                                function onOnChanged() { connGlyph.requestPaint() }
+                            }
+                        }
+
+                        ConnectivityTile { }
 
                         Grid {
-                            // W68 — one row of four glass circles (the
-                            // mockup's connectivity group; the 2x2 sketch
-                            // was superseded by the approved render)
-                            columns: 4
+                            // W68 — one row of glass circles (the mockup's
+                            // toggles; the connectivity STORY moved up into
+                            // the wide card — W81). Three 64 px circles,
+                            // centered as a group.
+                            columns: 3
                             columnSpacing: 12
                             rowSpacing: 12
-                            width: parent.width
+                            width: 3 * 64 + 2 * 12
+                            anchors.horizontalCenter: parent
+                                                     ? parent.horizontalCenter
+                                                     : undefined
 
                             // T15-D6 (W43) — the tile tells the story the
                             // machine actually has. A radio-less VM (NAT =
@@ -523,7 +647,7 @@ Window {
         signal toggled()
 
         width: wide ? (parent ? parent.width : 320)
-                    : ((parent ? parent.width : 320) - 36) / 4
+                    : 64          // W81 — fixed 64 px circles, 12 px gaps
         height: wide ? 44 : 82
 
         // the WHOLE tile toggles — wide tiles included. The v0.6.20 boot
@@ -663,12 +787,13 @@ Window {
                     Rectangle {
                         anchors.fill: parent
                         radius: 10
+                        // W81 — the iOS switch plate (the reference toggle):
+                        // OFF = an outlined glass pill, ON = solid accent
                         color: checked ? Tokens.accent
-                                       : (Util.darkMode ? Qt.rgba(1, 1, 1, 0.14)
-                                                        : Qt.rgba(0, 0, 0, 0.12))
-                        border.width: 1
-                        border.color: Util.darkMode ? Qt.rgba(1, 1, 1, 0.10)
-                                                    : Qt.rgba(0, 0, 0, 0.08)
+                                       : "transparent"
+                        border.width: checked ? 0 : 1.6
+                        border.color: Util.darkMode ? Qt.rgba(1, 1, 1, 0.45)
+                                                    : Qt.rgba(0, 0, 0, 0.35)
                         Behavior on color {
                             ColorAnimation {
                                 duration: ccRoot.dur(Tokens.durQuick)
@@ -819,11 +944,14 @@ Window {
             // volume pill read as one solid bar). macOS wears the same
             // dark rim on white knobs.
             handle: Rectangle {
-                x: slider.leftPadding + slider.visualPosition * slider.availableWidth - 12
-                y: slider.topPadding + slider.availableHeight / 2 - 10
-                width: 24
-                height: 20
-                radius: 10
+                // W81 — the macOS CC knob: a 22 px round white disc (the
+                // old 24x20 bar read as a chunky pill against the thin
+                // track), ink rim per the W80 contrast ruling
+                x: slider.leftPadding + slider.visualPosition * slider.availableWidth - 11
+                y: slider.topPadding + slider.availableHeight / 2 - 11
+                width: 22
+                height: 22
+                radius: 11
                 color: Util.darkMode ? Qt.rgba(1, 1, 1, 0.92) : "#FFFFFF"
                 border.width: 1
                 border.color: Util.darkMode ? Qt.rgba(0, 0, 0, 0.32)

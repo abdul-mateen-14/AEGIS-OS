@@ -35,29 +35,78 @@ QtObject {
 
     // wifi — pack master geometry (24-grid), size-normalized.
 
-    function wifi(ctx, w, h, color) {
-
+    function wifi(ctx, w, h, color, level) {
+        // W81 — the SOLID fan (the reference plate): a wedge dot plus two
+        // round-capped arc bands. `level` lights the arcs: 3 = all, 2 =
+        // dot + mid, 1 = dot only; anything else (undefined from the old
+        // callers) = all lit. Unlit bands ride at 0.28 alpha.
         ctx.reset()
         const s = Math.min(w, h) / 24
-        _pen(ctx, color, 2)
+        const cx = 12 * s
+        const cy = 17.8 * s
+        const a0 = 3.9270       // 225°
+        const a1 = 5.4978       // 315°
+        const lit = (level === 1 || level === 2 || level === 3) ? level : 3
+        ctx.fillStyle = color
+        // dot — solid wedge, the fan's anchor
         ctx.beginPath()
-        ctx.moveTo(12.00*s, 17.80*s)
-        ctx.arc(12.00*s, 17.80*s, 2.80*s, 3.9270, 5.4978, false)
+        ctx.arc(cx, cy, 2.80 * s, a0, a1, false)
         ctx.closePath()
         ctx.fill()
-        ctx.beginPath()
-        ctx.arc(12.00*s, 17.80*s, 4.30*s, 3.9270, 5.4978, false)
-        ctx.arc(12.00*s, 17.80*s, 6.30*s, 5.4978, 3.9270, true)
-        ctx.closePath()
-        ctx.fill()
-        ctx.beginPath()
-        ctx.arc(12.00*s, 17.80*s, 7.50*s, 3.9270, 5.4978, false)
-        ctx.arc(12.00*s, 17.80*s, 9.50*s, 5.4978, 3.9270, true)
-        ctx.closePath()
-        ctx.fill()
+        // the two bands — strokes with round caps read as the reference
+        ctx.strokeStyle = color
+        ctx.lineCap = "round"
+        ctx.lineWidth = 2.6 * s
+        const band = function(r, isLit) {
+            ctx.globalAlpha = isLit ? 1.0 : 0.28
+            ctx.beginPath()
+            ctx.arc(cx, cy, r, a0, a1, false)
+            ctx.stroke()
+        }
+        band(5.4 * s, lit >= 2)
+        band(8.6 * s, lit >= 3)
+        ctx.globalAlpha = 1.0
     }
 
     // wired — pack master geometry (24-grid), size-normalized.
+
+    // W81 — the island pendant's state marks (the macOS notch pendant:
+    // green check = connected, yellow ! = no internet, red X = dropped).
+    function check(ctx, w, h, color) {
+        ctx.reset()
+        const s = Math.min(w, h) / 24
+        _pen(ctx, color, 2.4)
+        ctx.beginPath()
+        ctx.moveTo(6.0*s, 12.4*s)
+        ctx.lineTo(10.2*s, 16.6*s)
+        ctx.lineTo(18.0*s, 7.6*s)
+        ctx.stroke()
+    }
+
+    function exclaim(ctx, w, h, color) {
+        ctx.reset()
+        const s = Math.min(w, h) / 24
+        _pen(ctx, color, 2.4)
+        ctx.beginPath()
+        ctx.moveTo(12.0*s, 5.4*s)
+        ctx.lineTo(12.0*s, 13.6*s)
+        ctx.stroke()
+        ctx.beginPath()
+        ctx.arc(12.0*s, 17.6*s, 1.35*s, 0, Math.PI * 2)
+        ctx.fill()
+    }
+
+    function cross(ctx, w, h, color) {
+        ctx.reset()
+        const s = Math.min(w, h) / 24
+        _pen(ctx, color, 2.4)
+        ctx.beginPath()
+        ctx.moveTo(7.0*s, 7.0*s)
+        ctx.lineTo(17.0*s, 17.0*s)
+        ctx.moveTo(17.0*s, 7.0*s)
+        ctx.lineTo(7.0*s, 17.0*s)
+        ctx.stroke()
+    }
 
     function wired(ctx, w, h, color) {
 
@@ -81,24 +130,29 @@ QtObject {
         ctx.stroke()
     }
 
-    // Battery — the approved geometry, size-normalized; state travels
-    // (charging bolt / AC-only) exactly as before.
+    // Battery — W81 reference plate: a CHUNKY rounded outline, the level
+    // as one rounded ink chunk, and a rounded nub tab (the old flat
+    // fillRect + pin-thin outline read as a system-tray relic). The
+    // charging bolt stays.
     function battery(ctx, w, h, color, charging, percent) {
         ctx.reset()
         const s = Math.min(w, h) / 24
-        _pen(ctx, color, 1.8)
+        _pen(ctx, color, 2.2)
         ctx.beginPath()
-        _rrectN(ctx, 4.0*s, 7.5*s, 15*s, 9*s, 2.4*s)
+        _rrectN(ctx, 3.2*s, 6.6*s, 16.4*s, 11.0*s, 4.6*s)
         ctx.stroke()
         ctx.beginPath()
-        _rrectN(ctx, 20.4*s, 10.4*s, 1.8*s, 3.2*s, 0.9*s)
+        // the nub — a rounded tab, not a pin
+        _rrectN(ctx, 20.8*s, 10.2*s, 2.0*s, 3.8*s, 1.0*s)
         ctx.fill()
         const hasBattery = percent >= 0
         if (hasBattery) {
             const level = Math.max(0, Math.min(100, percent)) / 100.0
-            ctx.globalAlpha = 0.9
-            ctx.fillRect(5.8*s, 9.2*s, Math.max(1.2*s, 9.6*s * level), 5.6*s)
-            ctx.globalAlpha = 1.0
+            ctx.beginPath()
+            // the level — one rounded chunk growing from the left
+            const lw = Math.max(3.6 * s, 12.4 * s * level)
+            _rrectN(ctx, 5.2*s, 8.6*s, lw, 6.8*s, 2.8*s)
+            ctx.fill()
         }
         if (charging || !hasBattery) {
             ctx.beginPath()

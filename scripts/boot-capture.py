@@ -3297,16 +3297,16 @@ def main():
         #    floor is 2.2:1 (large-caption glass floor) and the measured
         #    value is logged every run so the next review can re-rule
         #    with numbers, not adjectives.
-        # W68 — the CIRCLE probe (same SHA as the shape change): the
-        # tile-grid band (y CCY0+58..CCY0+130) must hold 64 px circles,
-        # accent blobs bounding 64±2 wide; the accent count is logged
-        # (it is session-state: wifi/dark checked on a default run).
+        # W68 — the CIRCLE probe: W81 layout — the accent story splits
+        # across the WIDE connectivity card (CCY0+46..86) and the
+        # 3-circle toggle row (CCY0+135..217; the dark circle carries
+        # the accent in the harness session). Assert both.
         w68_circles_ok = False
         try:
-            band = Image.open(
-                f"{OUT}/04j2-cc-over-files.png").convert("RGB").crop(
-                    (CCX0, CCY0 + 58, CCX1, CCY0 + 130))
-            bpx = band.load()
+            im68 = Image.open(
+                f"{OUT}/04j2-cc-over-files.png").convert("RGB")
+            band = im68.crop((CCX0, CCY0 + 100, CCX1, CCY0 + 180))
+            wideband = im68.crop((CCX0, CCY0 + 44, CCX1, CCY0 + 90))
             ACC = (0x3E, 0x8B, 0xFF)   # the default accent (util.cpp)
             mask = set()
             for yy in range(0, band.size[1]):
@@ -3335,13 +3335,42 @@ def main():
                 ys = [c[1] for c in comp]
                 boxes.append((max(xs) - min(xs) + 1,
                               max(ys) - min(ys) + 1))
-            widths_ok = boxes and all(56 <= wd <= 76 for wd, _h in boxes)
-            w68_circles_ok = widths_ok
-            log(f"w68 circles: {len(boxes)} accent blob(s), "
+            circle_ok = (len(boxes) == 1 and 56 <= boxes[0][0] <= 76)
+            # the wide connectivity card: one accent blob ≥280 wide
+            wbpx = wideband.load()
+            wmask = set()
+            for yy in range(0, wideband.size[1]):
+                for xx in range(0, wideband.size[0]):
+                    r, g, b = wbpx[xx, yy]
+                    if (abs(r - ACC[0]) <= 40 and abs(g - ACC[1]) <= 40
+                            and abs(b - ACC[2]) <= 40):
+                        wmask.add((xx, yy))
+            wwidths = []
+            wseen = set()
+            for p0 in wmask:
+                if p0 in wseen:
+                    continue
+                stack, comp = [p0], set()
+                while stack:
+                    q0 = stack.pop()
+                    if q0 in wseen or q0 not in wmask:
+                        continue
+                    wseen.add(q0)
+                    comp.add(q0)
+                    stack += [(q0[0] + 1, q0[1]), (q0[0] - 1, q0[1]),
+                              (q0[0], q0[1] + 1), (q0[0], q0[1] - 1)]
+                if len(comp) < 400:
+                    continue
+                wwidths.append(max(c[0] for c in comp)
+                               - min(c[0] for c in comp) + 1)
+            wide_ok = bool(wwidths) and max(wwidths) >= 280
+            w68_circles_ok = circle_ok and wide_ok
+            log(f"w68 circles: {len(boxes)} circle blob(s), "
                 + ", ".join(f"{wd}x{ht}" for wd, ht in boxes)
-                + " — want 64±2 wide (radius 32) — "
+                + f"; wide card blobs {wwidths} — want 1 circle 64±2 "
+                + "+ a wide accent card ≥280 — "
                 + ("PASS" if w68_circles_ok else
-                   "FAIL — the circles are not 64 px or absent"))
+                   "FAIL — the circle grid or the connectivity card is off"))
         except Exception as e:
             log(f"w68 circle probe failed: {e}")
 
@@ -3374,11 +3403,14 @@ def main():
         except Exception as e:
             log(f"w71 motion probe failed: {e}")
 
-        # W76 — the CLEAR DOCK probe (same SHA as the plate change): in
-        # the tray band the icons are white silhouettes now — a healthy
-        # near-white glyph population and only wallpaper-bleed vividness.
-        # Thresholds are token-derived (12 plates x stroke glyphs at 1x);
-        # the first capture run confirms them (the W72 honest pattern).
+        # W76 — the DOCK ICON probe: W81 ruling — the dock wears the
+        # LAUNCHER'S OWN ICONS (the user found the uniform white
+        # silhouettes characterless): the tray band must now hold BOTH
+        # populations — the colorful app marks (red music, green wave,
+        # blue folder...) AND the white glyph family (terminal, marks,
+        # folder strokes). Both floors are conservative (bt106 measured
+        # 13774 white / 0 vivid on the silhouette build; the colorful
+        # build multiplies vivid many-fold).
         w76_clear_ok = False
         try:
             im76 = Image.open(
@@ -3396,12 +3428,12 @@ def main():
                         vivid += 1
             wfrac = white / max(1, total)
             vfrac = vivid / max(1, total)
-            w76_clear_ok = white > 600 and vfrac < 0.20
-            log(f"w76 clear dock: white {white} ({wfrac:.1%}), vivid "
-                f"{vivid} ({vfrac:.1%}) — want white > 600, vivid < 20% "
-                "(wallpaper bleed only) — "
+            w76_clear_ok = vivid > 250 and white > 250
+            log(f"w76 dock icons: white {white} ({wfrac:.1%}), vivid "
+                f"{vivid} ({vfrac:.1%}) — want vivid > 250 (colorful app "
+                "marks) AND white > 250 (glyph family) — "
                 + ("PASS" if w76_clear_ok else
-                   "FAIL — the dock icons are not the white family"))
+                   "FAIL — the dock icons are neither colorful nor white"))
         except Exception as e:
             log(f"w76 clear-dock probe failed: {e}")
     except Exception as e:
@@ -3754,8 +3786,10 @@ def main():
             # W67 block already computed; the literals are the same
             # numbers at 1280x800 as the fallback.
             try:
-                dark_x = CCX0 + 16 + 3 * 82 + 35   # cell 4 center (70 px cells, 12 px gaps)
-                dark_y = CCY0 + 115                # measured circle center (155)
+                dark_x = CCX0 + 250   # W81: the 3rd of three 64 px circles
+                                      # centered in the 316 content row
+                                      # (grid x0 = CCX0+66; 2*(64+12)+32)
+                dark_y = CCY0 + 127   # circle row top CCY0+95 + 32
             except NameError:
                 dark_x, dark_y = 1219, 155
             q.click(dark_x, dark_y, W, H)
@@ -4641,7 +4675,8 @@ def main():
         failures.append("W71: the motion keys (entrance/sheen/press) did "
                         "not log")
     if not w76_clear_ok:
-        failures.append("W76: the clear dock bleeds vivid wallpaper color")
+        failures.append("W76: the dock icons are neither the colorful app "
+                        "marks nor the white glyph family")
     if failures:
         for f in failures:
             log("ASSERT FAILED: " + f)

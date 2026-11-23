@@ -133,12 +133,15 @@ def frame_svg(prefix: str, edge: str, band_bottom: str) -> str:
       <stop offset="0" stop-color="#000" stop-opacity="{RING_IN}"/>
       <stop offset="1" stop-color="#000" stop-opacity="{RING_OUT}"/>
     </radialGradient>
+    <clipPath id="clip-{p}tl"><path d="M0 100 L0 38 A38 38 0 0 1 38 0 L62 0 L62 100 Z"/></clipPath>
   </defs>
 
   <g id="decoration-{p}topleft">
-    <rect x="0" y="0" width="{PAD_L}" height="{PAD_T}" fill="url(#ringcorner-{p}tl)"/>
-    <rect x="0" y="{PAD_T}" width="{PAD_L}" height="44" fill="url(#ringsh-{p}l)"/>
-    <rect x="{PAD_L}" y="0" width="{PARTW}" height="{PAD_T}" fill="url(#ringsh-{p}t)"/>
+    <g clip-path="url(#clip-{p}tl)">
+      <rect x="0" y="0" width="{PAD_L}" height="{PAD_T}" fill="url(#ringcorner-{p}tl)"/>
+      <rect x="0" y="{PAD_T}" width="{PAD_L}" height="44" fill="url(#ringsh-{p}l)"/>
+      <rect x="{PAD_L}" y="0" width="{PARTW}" height="{PAD_T}" fill="url(#ringsh-{p}t)"/>
+    </g>
     <g transform="translate({cx},{cy})">
       <path d="{TOPLEFT_PATH}" fill="{GLASS}" fill-opacity="{GLASS_OP}"/>
       <path d="{TOPLEFT_ARC}" fill="none" stroke="{edge}" stroke-width="1"/>
@@ -158,9 +161,11 @@ def frame_svg(prefix: str, edge: str, band_bottom: str) -> str:
 
   <g id="decoration-{p}topright">
     <g transform="translate({PAD_L + PARTW},0) scale(-1,1)">
-      <rect x="0" y="0" width="{PAD_L}" height="{PAD_T}" fill="url(#ringcorner-{p}tl)"/>
-      <rect x="0" y="{PAD_T}" width="{PAD_L}" height="44" fill="url(#ringsh-{p}l)"/>
-      <rect x="{PAD_L}" y="0" width="{PARTW}" height="{PAD_T}" fill="url(#ringsh-{p}t)"/>
+      <g clip-path="url(#clip-{p}tl)">
+        <rect x="0" y="0" width="{PAD_L}" height="{PAD_T}" fill="url(#ringcorner-{p}tl)"/>
+        <rect x="0" y="{PAD_T}" width="{PAD_L}" height="44" fill="url(#ringsh-{p}l)"/>
+        <rect x="{PAD_L}" y="0" width="{PARTW}" height="{PAD_T}" fill="url(#ringsh-{p}t)"/>
+      </g>
       <g transform="translate({cx},{cy})">
         <path d="{TOPLEFT_PATH}" fill="{GLASS}" fill-opacity="{GLASS_OP}"/>
         <path d="{TOPLEFT_ARC}" fill="none" stroke="{edge}" stroke-width="1"/>

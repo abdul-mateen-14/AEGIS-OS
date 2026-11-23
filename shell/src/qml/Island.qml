@@ -69,6 +69,36 @@ Window {
     // script over org.aegis.Shell.windowListChanged.
     readonly property bool windowsActive: Util.workspaceWindows > 0
     readonly property bool idleHidden: stateName === "idle" && windowsActive
+                                       && !netPulse
+
+    // ── W81 — the network pendant (the macOS notch pendant): the island
+    // transforms on every network-story change — green check "Ethernet
+    // Connected", yellow ! "No Internet", red X "Ethernet Disconnect" —
+    // holds ~4.5 s, then falls back to whatever came before (idle glass
+    // or the live activity). ──
+    readonly property string netState: Util.networkState
+    property bool netPulse: false
+    onNetStateChanged: {
+        netPulse = true
+        netTimer.restart()
+    }
+    Timer {
+        id: netTimer
+        interval: 4500
+        onTriggered: islandRoot.netPulse = false
+    }
+    // green check / yellow ! / red X, per the reference plate
+    readonly property color netMarkBg:
+        netState === "no-internet" ? "#FF9F0A"
+        : netState === "disconnected" ? "#FF453A" : "#34C759"
+    readonly property string netLabel:
+        netState === "no-internet" ? "No Internet"
+        : netState === "disconnected" ? "Disconnected"
+        : (netState === "wifi-connected" ? "Wi-Fi Connected"
+                                         : "Ethernet Connected")
+    readonly property var netPainter:
+        netState === "no-internet" ? Glyphs.exclaim
+        : netState === "disconnected" ? Glyphs.cross : Glyphs.check
 
     // split lobes are data-driven too: width per kind, 8 px apart
     function lobeWidth(kind) {
@@ -81,7 +111,9 @@ Window {
         return 108
     }
 
-    property var geo: stateName === "split"
+    property var geo: islandRoot.netPulse
+        ? ({ w: 252, h: 40, r: 20 })
+        : stateName === "split"
         ? ({ w: lobeWidth(pk) + 8 + lobeWidth(sk),
              h: Tokens.islandIdleHeight,
              r: Tokens.islandIdleHeight / 2 })
@@ -165,7 +197,16 @@ Window {
                                                    : Easing.OutCubic
             }
         }
-        gradient: Gradient {
+        // W81 — the IDLE capsule is GLASS now, not ink: the wallpaper
+        // reads through (the v0.6.86 report: the idle pill sat black on
+        // the desktop). Live activities keep the ink capsule for text
+        // contrast; the pendant rides the glass too.
+        color: islandRoot.stateName === "idle" || islandRoot.netPulse
+                   ? Tokens.sheetTint : "transparent"
+        gradient: (islandRoot.stateName === "idle"
+                   || islandRoot.netPulse) ? null : inkGradient
+        Gradient {
+            id: inkGradient
             GradientStop { position: 0; color: Tokens.ink }
             GradientStop { position: 1; color: Tokens.inkDeep }
         }
@@ -173,14 +214,17 @@ Window {
         // ── Idle: Aegis mark 14 px ───────────────────────────────────
         // W60 — the idle pill used to carry a 3 px accent dot of unstated
         // meaning; an unexplained indicator reads as a bug, so it is gone
-        // and the mark is centered alone.
+        // and the mark is centered alone. W81 — the mark goes INK on the
+        // glass pill (white on white-lens would wash).
         Row {
             anchors.centerIn: parent
-            opacity: islandRoot.stateName === "idle" ? 1 : 0
+            opacity: (islandRoot.stateName === "idle"
+                      && !islandRoot.netPulse) ? 1 : 0
             Behavior on opacity { CrossfadeAnim { } }
 
             Image {
-                source: "aegis-mark.png"
+                source: Util.darkMode ? "aegis-mark.png"
+                                      : "aegis-mark-ink.png"
                 width: 14
                 height: 14
                 fillMode: Image.PreserveAspectFit
@@ -188,6 +232,44 @@ Window {
                 mipmap: true
                 smooth: true
                 sourceSize: Qt.size(32, 32)
+            }
+        }
+
+        // ── W81 — the network pendant: colored state disc + label, the
+        // reference plate's green-check / yellow-! / red-X trio. The
+        // cover plate paints over the live-activity rows for the pulse. ──
+        Rectangle {
+            anchors.fill: parent
+            radius: parent.radius
+            color: Tokens.sheetTint
+            visible: islandRoot.netPulse
+        }
+        Row {
+            anchors.centerIn: parent
+            spacing: 10
+            opacity: islandRoot.netPulse ? 1 : 0
+            Behavior on opacity { CrossfadeAnim { } }
+
+            Rectangle {
+                width: 24
+                height: 24
+                radius: 12
+                color: islandRoot.netMarkBg
+                Canvas {
+                    anchors.centerIn: parent
+                    width: 14
+                    height: 14
+                    onPaint: if (islandRoot.netPainter)
+                        islandRoot.netPainter(getContext("2d"),
+                                              width, height, "#FFFFFF")
+                }
+            }
+            Text {
+                text: islandRoot.netLabel
+                color: Tokens.fg
+                anchors.verticalCenter: parent.verticalCenter
+                font { family: "Montserrat"; pixelSize: 12
+                       weight: Font.DemiBold }
             }
         }
 

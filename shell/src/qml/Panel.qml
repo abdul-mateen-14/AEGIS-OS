@@ -137,8 +137,16 @@ Window {
                 // radio or the wired link is up (VMs expose NAT as
                 // ethernet — a Wi-Fi fan on those machines is a lie),
                 // the fan otherwise; dim when nothing is connected.
+                // W81 — the fan lights per signal level (one band per
+                // ~34%); the wired story keeps the W43 ruling (VMs
+                // expose NAT as ethernet — a fan would be a lie), and
+                // the island pendant carries the connected / no-internet
+                // / dropped transformations.
                 PanelGlyph { painter: (Util.hasWifi && !Util.wiredConnected)
-                                       ? panelRoot.paintWifi
+                                       ? ((ctx, w, h, c, m) =>
+                                          panelRoot.paintWifi(ctx, w, h, c, m,
+                                              Math.max(1, Math.round(
+                                                  Util.wifiStrength / 34.0))))
                                        : panelRoot.paintWired
                              tint: (Util.wiredConnected
                                     || (Util.hasWifi && Util.wifiEnabled))
@@ -268,7 +276,9 @@ Window {
     // names and delegates. Every tuned geometry comment lives next to
     // its painter in Glyphs.qml now.
 
-    function paintWifi(ctx, w, h, color) { Glyphs.wifi(ctx, w, h, color) }
+    function paintWifi(ctx, w, h, color, muted, level) {
+        Glyphs.wifi(ctx, w, h, color, level)
+    }
     function paintWired(ctx, w, h, color) { Glyphs.wired(ctx, w, h, color) }
     function paintBattery(ctx, w, h, color, charging, percent) { Glyphs.battery(ctx, w, h, color, charging, percent) }
     function paintSpeaker(ctx, w, h, color, muted) { Glyphs.speaker(ctx, w, h, color, muted) }
