@@ -1605,12 +1605,19 @@ def resolved_tile_cmds(serial):
         "[ \"$ex\" = \"$c\" ] && return 0; "
         "[ \"$te\" = \"$c\" ] && return 0; done; "
         "command -v \"$c\" >/dev/null 2>&1; }")
-    for resolve, cmd in slots:
+    # v0.6.90 — echo the SLOT INDEX, not the head: Files and the Trash
+    # share the head "aegis-files" and the v0.6.89 dedupe collapsed them
+    # into one map entry — the map came back 11 tiles against a 12-tile
+    # row, every click after tile ~5 landed one pitch off (the dot probe
+    # read x 400, the real Files column = 370) and W27/W51/W44 cascaded.
+    # Indices keep both slots, survive drops (the reply = the present
+    # indices, in order) and need no dedupe at all.
+    for idx, (resolve, cmd) in enumerate(slots):
         head = cmd.split(" ")[0]
         if resolve:
-            tests.append(f"if entryhit {head}; then echo TILE {head}; fi")
+            tests.append(f"if entryhit {head}; then echo TILE {idx}; fi")
         else:
-            tests.append(f"echo TILE {head}")
+            tests.append(f"echo TILE {idx}")
     try:
         out = serial.run(prelude + "; " + "; ".join(tests)
                          + "; echo TILE-ORDER-END", settle=14)
@@ -1633,12 +1640,15 @@ def resolved_tile_cmds(serial):
     # lines, the rebuild returned None SILENTLY and the run clicked
     # off-map again (the v0.6.88 red). Normalize the CRs first.
     out = out.replace("\r\n", "\n").replace("\r", "\n")
-    cmds = list(dict.fromkeys(re.findall(r"(?m)^TILE (\S+)$", out)))
-    if not cmds or len(cmds) > expected_tiles() + 3:
-        if cmds:
+    present = re.findall(r"(?m)^TILE (\d+)$", out)
+    if not present or len(present) > len(slots):
+        if present:
             log(f"resolved_tile_cmds: reply garbled "
-                f"({len(cmds)} slots) — keeping the config map")
+                f"({len(present)} slots) — keeping the config map")
         return None
+    # the present config cmds in dock order — FULL cmd strings, so the
+    # Files/Trash pair keeps two distinct map keys
+    cmds = [slots[int(i)][1] for i in present]
     # W81 — the dock PREPENDS the all-apps tile (Dock.qml's launcher
     # model head) before the resolved slots: the geometric positions the
     # caller derives must carry the sentinel or every click after tile 0
@@ -4358,6 +4368,14 @@ def main():
     # still catches a dead A/B: with blur stuck, 04j4 (the OFF half)
     # equals 04j2 and stays flagged.
     ok_dups = {("12-files.png", "12a-files-small.png"),
+               # v0.6.90 — Meta+S closes and RE-OPENS the CC (the toggle
+               # IS the close), so 05c shows the same open-CC scene 05
+               # already captured: byte-equality here PROVES the
+               # shortcut path works. Run 45231172726 flagged it only
+               # because both frames landed inside one clock minute
+               # (the same timing-flap class as 04i/04k2 below).
+               ("05-control-center.png", "05c-cc-shortcut.png"),
+               ("05c-cc-shortcut.png", "05-control-center.png"),
                ("04j2-cc-over-files.png", "04j5-cc-blur-restored.png"),
                # T20.13 — closing the Store restores the exact CoreX view
                # that was open behind it (the idle compositor
