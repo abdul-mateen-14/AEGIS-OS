@@ -31,7 +31,9 @@ Window {
     visible: false
     color: "transparent"
     width: 1280
-    height: 340
+    height: 350   // v0.6.88: +10 for the under-tray dot strip (the
+                  // window is flush to the screen bottom now — the old
+                  // 10 px bottom margin clipped the dots below y 790)
     flags: Qt.FramelessWindowHint
 
     id: dockRoot
@@ -57,8 +59,9 @@ Window {
     // W52 — the exclusive zone follows the tray state so maximized
     // windows keep the macOS contract (stop above the RESTING dock;
     // hidden reclaims the strip). The numbers mirror main.cpp
-    // DOCK_RESERVE: tray iconSize + trayPadding*2 + dotGap, +12 for the
-    // dock window's 10 px bottom margin + the 2 px cushion.
+    // DOCK_RESERVE: tray iconSize + trayPadding*2 + dotGap, +12 = the
+    // 2 px cushion + the 10 px dot strip (inside the window since
+    // v0.6.88 — the old window bottom margin).
     function publishReserve() {
         if (typeof AegisSurfaces === "undefined")
             return
@@ -294,7 +297,11 @@ Window {
         anchors {
             horizontalCenter: parent.horizontalCenter
             bottom: parent.bottom
-            bottomMargin: Tokens.dockMargin
+            // v0.6.88 — the window is flush to the screen bottom (the
+            // C++ DOCK_BOTTOM_MARGIN went 10 -> 0 to host the dot
+            // strip), so the tray keeps the pill at its OLD screen
+            // rows: dockMargin 6 + the former window margin 10.
+            bottomMargin: Tokens.dockMargin + 10
         }
         // keep the blur clip current (the pill's width breathes with
         // magnification)

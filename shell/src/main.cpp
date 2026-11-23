@@ -105,14 +105,19 @@ LayerShellQt::Window *attach(QQuickWindow *win)
 
 // W52 — macOS dock semantics: normal and maximized windows stop ABOVE
 // the dock; only fullscreen covers it. The reserve is the tray's resting
-// height (Tokens.iconSize 48 + trayPadding 6·2 + dotGap 4 = 64) + the
-// dock window's 10 px bottom margin + a 2 px cushion so a maximized
-// window edge sits 2 px clear of the tray hairline (the W52 probe
-// asserts window bottom ≤ dockTop − 2). The sliver/hidden states lower
-// the zone live from QML through SurfaceCtl (Dock.qml).
+// height (Tokens.iconSize 48 + trayPadding 6·2 + dotGap 4 = 64) + a
+// 12 px cushion so a maximized window edge sits 2 px clear of the tray
+// hairline (the W52 probe asserts window bottom ≤ dockTop − 2). The
+// sliver/hidden states lower the zone live from QML through SurfaceCtl
+// (Dock.qml). v0.6.88 — DOCK_BOTTOM_MARGIN 10 -> 0: the W81 running
+// dots ride tile.bottom+7..11 = y 795..799, BELOW a window that ended
+// at y 790 — clipped invisible on every v0.6.86 capture. The window
+// is now flush to the screen bottom and 10 px taller (350), the tray
+// rides bottomMargin 16 inside it — the pill's screen rows are
+// pixel-identical and the dot strip lives INSIDE the window.
 constexpr int DOCK_TRAY_H = 64;        // iconSize + trayPadding*2 + dotGap
-constexpr int DOCK_BOTTOM_MARGIN = 10; // dockWindow QMargins bottom
-constexpr int DOCK_CUSHION = 2;
+constexpr int DOCK_BOTTOM_MARGIN = 0;  // dockWindow QMargins bottom
+constexpr int DOCK_CUSHION = 12;       // 10 px dot strip + 2 px cushion
 constexpr int DOCK_RESERVE = DOCK_TRAY_H + DOCK_BOTTOM_MARGIN + DOCK_CUSHION;
 
 // W52 — QML drives the dock's exclusive zone with the tray state

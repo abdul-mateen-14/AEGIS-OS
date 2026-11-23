@@ -2145,8 +2145,33 @@ def main():
     # further down ran AFTER the probe and re-initialized it to False.
     # It is initialized here, before its first assignment site.
     shadow_b_ok = False
+    # W81 #2 — the running-dot verdict (initialized before the Files
+    # block: the release gate reads it even when the launch failed)
+    w81_dot_ok = False
     if open_app("02-files", "aegis-files", click_idx=0):       # Files
         opens["files"] = True
+        # W81 #2 — the running dots: one #E8ECF2 4 px dot PER WINDOW,
+        # under the tile in the dock window's own strip. The v0.6.86
+        # ISO CLIPPED them below the window (the dots ride
+        # tile.bottom+7..11 = y 795..799; the window ended at y 790) —
+        # zero pixels on every artifact capture. The window is flush
+        # now (DOCK_BOTTOM_MARGIN 0, height 350); the strip must hold
+        # a dot under the just-opened Files tile.
+        try:
+            im81 = Image.open(f"{OUT}/02-files.png").convert("RGB")
+            fx = tiles[tile_index.get("aegis-files", 1)][0]
+            n81 = sum(1 for yy in range(H - 10, H)
+                      for xx in range(max(0, fx - 6), min(W, fx + 6))
+                      if all(abs(v - e) < 30
+                             for v, e in zip(im81.getpixel((xx, yy)),
+                                             (0xE8, 0xEC, 0xF2))))
+            w81_dot_ok = n81 >= 3
+            log(f"w81 running dot: {n81} strip px under the Files tile "
+                f"(x {fx}, y {H - 10}..{H}) — want >= 3 — "
+                + ("PASS" if w81_dot_ok else
+                   "FAIL — the dot is missing (clipped or winCount 0)"))
+        except Exception as e:
+            log(f"w81 dot probe failed: {e}")
         # T13 D20 (W27) — the restore probe: minimize via the pinned
         # Meta+M, dump the payload (allIds keeps the class, ids loses it,
         # active empties), click the Files dock tile, dump again (active
@@ -4708,6 +4733,10 @@ def main():
                         "circles")
     if not w69_pills_ok:
         failures.append("W69: a slider pill is missing its white knob bar")
+    if not w81_dot_ok:
+        failures.append("W81: the dock's under-tray running dot is "
+                        "missing on a Files-open frame (clipped or "
+                        "winCount 0)")
     if not w70_rules_ok:
         failures.append("W70: the CC sheet does not carry exactly 3 "
                         "hairline rules")
