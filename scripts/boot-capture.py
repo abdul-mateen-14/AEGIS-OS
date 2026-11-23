@@ -1612,7 +1612,12 @@ def resolved_tile_cmds(serial):
     cmds = re.findall(r"TILE (\S+)", out)
     if not cmds:
         return None
-    return cmds
+    # W81 — the dock PREPENDS the all-apps tile (Dock.qml's launcher
+    # model head) before the resolved slots: the geometric positions the
+    # caller derives must carry the sentinel or every click after tile 0
+    # is one pitch off (the T11-D5 bug, reborn). Nothing references the
+    # sentinel key — the launcher has no cmd to click.
+    return ["__launcher__"] + cmds
 
 def wait_desktop(q, proc, timeout=DESKTOP_TIMEOUT):
     """Desktop readiness = at least (tiles - 2) of the geometric dock slots
