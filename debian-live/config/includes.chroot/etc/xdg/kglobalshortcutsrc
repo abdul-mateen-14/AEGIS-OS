@@ -35,12 +35,15 @@ Switch One Desktop to the Left=Ctrl+Meta+Left,none,Switch One Desktop to the Lef
 Switch One Desktop Up=Ctrl+Meta+Up,none,Switch One Desktop Up
 Switch One Desktop Down=Ctrl+Meta+Down,none,Switch One Desktop Down
 # ── W82 — completeness pins ─────────────────────────────────────────
-# Quick Tile: the KWin 6.6 ids are Window Quick Tile Left/Right
-# (useractions.cpp); the stock Meta+arrows now cannot drift away.
 # Alt+Tab: the tabbox action ids from tabbox.cpp (Walk Through Windows /
 # Reverse) — pinned so the task switcher never loses its keys.
-Window Quick Tile Left=Meta+Left,none,Quick Tile Left to the Left
-Window Quick Tile Right=Meta+Right,none,Quick Tile Right to the Right
+# Quick Tile Meta+Left/Right is NOT pinned here: the bt92r2 boot test
+# showed the seeded "Window Quick Tile Left" entry DEAD (the window
+# never moved; the ids/defaults match upstream useractions.cpp, so the
+# seed entry itself was the destabilizer) while every runtime
+# registerShortcut key in the aegis-shortcuts KWin script fires. The
+# tile keys ride that proven channel → workspace.slotWindowQuickTileLeft/
+# Right; no config-file entry competes for Meta+Left/Right.
 Walk Through Windows=Alt+Tab,none,Walk Through Windows
 Walk Through Windows (Reverse)=Alt+Shift+Tab,none,Walk Through Windows (Reverse)
 

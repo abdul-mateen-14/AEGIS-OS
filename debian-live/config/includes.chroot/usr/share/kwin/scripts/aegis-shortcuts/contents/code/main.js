@@ -98,4 +98,23 @@ registerShortcut("Aegis Screenshot (Window)",
              "takeScreenshot", "window")
 })
 
-print("aegis-shortcuts: W82 keys registered (files/terminal/lock/center/screenshots)")
+// W82 quick tiling — Meta+Left / Meta+Right via workspace's own slots.
+// The kglobalshortcutsrc pin ("Window Quick Tile Left") was IGNORED by
+// kglobalacceld on KWin 6.6 (bt92r2: Alt+Tab pin fired, tile pin didn't,
+// both-halves-differ pixels = the window never moved), while every
+// registerShortcut key in THIS script demonstrably fires (Print, Meta+N,
+// Meta+E — all green in bt92r2). Same proven channel, slot names per
+// develop.kde.org/docs/plasma/kwin/api.
+registerShortcut("Aegis Quick Tile Left",
+                 "Quick Tile the Active Window to the Left",
+                 "Meta+Left", function () {
+    workspace.slotWindowQuickTileLeft();
+})
+
+registerShortcut("Aegis Quick Tile Right",
+                 "Quick Tile the Active Window to the Right",
+                 "Meta+Right", function () {
+    workspace.slotWindowQuickTileRight();
+})
+
+print("aegis-shortcuts: W82 keys registered (files/terminal/lock/center/screenshots/tile)")

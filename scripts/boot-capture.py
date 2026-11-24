@@ -2363,31 +2363,38 @@ def main():
         except Exception as e:
             log(f"w82 alt-tab probe failed: {e}")
         try:
-            # (b) Quick Tile Left: the window moves into x 0..W/2 (the
-            # right half returns to wallpaper-only). Split-half diff
-            # against the clean home frame beats any color assumption.
-            # NOTE: q.shot appends .png itself — pass the bare stem (bt92 1:
-            # '13-snap-left.png' became '13-snap-left.png.png' on disk).
+            # (b) Quick Tile Left — the DETERMINISTIC anchor (bt92r2: the
+            # plain split-vs-home diff read 104/83 both-high because the
+            # centered window covered both halves; "both high" can't tell
+            # dead-key from layout). Now: right half must (i) LOSE the
+            # window vs the before-frame and (ii) match the wallpaper-only
+            # home frame. The tile key itself rides the KWin script's
+            # registerShortcut (the channel that fired Print/Meta+N/Meta+E
+            # in bt92r2) → workspace.slotWindowQuickTileLeft().
+            q.shot("13-snap-before")
             q.key("meta_l", "left"); time.sleep(2.5)
             q.shot("13-snap-left")
             home82 = Image.open(f"{OUT}/01-home.png").convert("RGB")
-            snap82 = Image.open(f"{OUT}/13-snap-left.png").convert("RGB")
-            dl, dr = 0.0, 0.0
-            for box in ((0, 80, W // 2 - 40, H - 120),
-                        (W // 2 + 40, 80, W, H - 120)):
-                pa = list(home82.crop(box).resize((24, 14)).getdata())
-                pb = list(snap82.crop(box).resize((24, 14)).getdata())
-                dd = sum(abs(p[0] - q2[0]) + abs(p[1] - q2[1])
-                         + abs(p[2] - q2[2]) for p, q2 in zip(pa, pb)) / len(pa)
-                if box[0] == 0:
-                    dl = dd
-                else:
-                    dr = dd
-            w82_snap_ok = dl > 5.0 and dr < 5.0
-            log(f"w82 snap-left: left-half diff={dl:.1f} right-half "
-                f"diff={dr:.1f} — want left>5 right<5 (dark-on-dark: the "
-                f"window is dark glass on a dark wallpaper) — "
-                + ("PASS" if w82_snap_ok else "FAIL"))
+            before82 = Image.open(f"{OUT}/13-snap-before.png").convert("RGB")
+            after82 = Image.open(f"{OUT}/13-snap-left.png").convert("RGB")
+            d_r_home, d_r_change = 0.0, 0.0
+            box = (W // 2 + 40, 80, W, H - 120)
+            pa = list(home82.crop(box).resize((24, 14)).getdata())
+            pb = list(before82.crop(box).resize((24, 14)).getdata())
+            pc = list(after82.crop(box).resize((24, 14)).getdata())
+            d_r_home = sum(abs(p[0] - q2[0]) + abs(p[1] - q2[1])
+                           + abs(p[2] - q2[2])
+                           for p, q2 in zip(pc, pa)) / len(pa)
+            d_r_change = sum(abs(p[0] - q2[0]) + abs(p[1] - q2[1])
+                             + abs(p[2] - q2[2])
+                             for p, q2 in zip(pc, pb)) / len(pb)
+            w82_snap_ok = d_r_home < 5.0 and d_r_change > 5.0
+            log(f"w82 snap-left: right-half vs home={d_r_home:.1f} "
+                f"(<5 = wallpaper back) right-half vs before="
+                f"{d_r_change:.1f} (>5 = the window left the right half) "
+                f"— " + ("PASS" if w82_snap_ok else
+                "FAIL — Meta+Left did not tile (script key check: "
+                "kglobalshortcutsrc Aegis Quick Tile entries)"))
         except Exception as e:
             log(f"w82 snap probe failed: {e}")
         try:
