@@ -1919,6 +1919,19 @@ void Util::writeWebDesktop(const QString &url, const QString &id,
 // CaptureArea with interactive=true (KWin draws its own selection
 // overlay over the request rectangle). Unknown modes are ignored — a
 // typo in the KWin script can never spawn a rogue capture.
+// W82 diagnostics — every takeScreenshot outcome lands in a state file
+// the boot harness can read (file-based verdicts, the T11-D5 pattern):
+// "saved: <path>" or "error: <reason>".
+static void logShotOutcome(const QString &text)
+{
+    const QString stateDir = QDir::home().filePath(
+        QStringLiteral(".local/state"));
+    QDir().mkpath(stateDir);
+    QFile f(stateDir + QStringLiteral("/aegis-last-shot.txt"));
+    if (f.open(QIODevice::WriteOnly | QIODevice::Truncate))
+        f.write(text.toUtf8());
+}
+
 void Util::takeScreenshot(const QString &mode)
 {
     QString method;
@@ -1931,6 +1944,7 @@ void Util::takeScreenshot(const QString &mode)
         method = QStringLiteral("CaptureArea");
         interactive = true;
     } else {
+        logShotOutcome(QStringLiteral("error: unknown mode ") + mode);
         return;
     }
     const QString dir = QDir::home().filePath(
@@ -1938,8 +1952,10 @@ void Util::takeScreenshot(const QString &mode)
     QDir().mkpath(dir);
 
     int fds[2];
-    if (pipe2(fds, O_CLOEXEC) != 0)
+    if (pipe2(fds, O_CLOEXEC) != 0) {
+        logShotOutcome(QStringLiteral("error: pipe2 failed"));
         return;
+    }
 
     QVariantMap options;
     options.insert(QStringLiteral("include-cursor"), false);
@@ -1953,6 +1969,8 @@ void Util::takeScreenshot(const QString &mode)
         QDBusConnection::sessionBus());
     if (!screenShot.isValid()) {
         ::close(fds[1]);
+        logShotOutcome(QStringLiteral(
+            "error: org.kde.KWin.ScreenShot2 service not reachable"));
         return;
     }
     screenShot.setTimeout(120000); // the region overlay waits for the user
@@ -1970,21 +1988,34 @@ void Util::takeScreenshot(const QString &mode)
     QDBusReply<QVariantMap> reply(screenShot.callWithArgumentList(
                                       QDBus::Block, method, args));
     ::close(fds[1]);
-    if (!reply.isValid())
+    if (!reply.isValid()) {
+        logShotOutcome(QStringLiteral("error: dbus reply invalid — ")
+                       + reply.error().name()
+                       + QStringLiteral(" / ")
+                       + reply.error().message());
         return;
+    }
     const QVariantMap meta = reply.value();
     const int width = meta.value(QStringLiteral("width")).toInt();
     const int height = meta.value(QStringLiteral("height")).toInt();
     const int stride = meta.value(QStringLiteral("stride")).toInt();
     const int format = meta.value(QStringLiteral("format")).toInt();
-    if (width <= 0 || height <= 0 || stride <= 0)
+    if (width <= 0 || height <= 0 || stride <= 0) {
+        logShotOutcome(QStringLiteral(
+                           "error: reply metadata missing width/height/"
+                           "stride — keys: ")
+                       + QStringList(meta.keys()).join(QStringLiteral(",")));
         return;
+    }
     // Only the 32-bit packed RGB formats KWin actually emits; anything
     // else means guessing the pixel layout, which we refuse.
     if (format != QImage::Format_ARGB32
         && format != QImage::Format_ARGB32_Premultiplied
-        && format != QImage::Format_RGB32)
+        && format != QImage::Format_RGB32) {
+        logShotOutcome(QStringLiteral("error: unsupported format ")
+                       + QString::number(format));
         return;
+    }
 
     const qint64 need = qint64(stride) * height;
     QByteArray buf;
@@ -1997,14 +2028,23 @@ void Util::takeScreenshot(const QString &mode)
         got += n;
     }
     ::close(fds[0]);
-    if (got < need)
+    if (got < need) {
+        logShotOutcome(QStringLiteral("error: short pipe read ")
+                       + QString::number(got) + QStringLiteral("/")
+                       + QString::number(need));
         return;
+    }
 
     QImage img(width, height, QImage::Format(format));
     for (int row = 0; row < height; ++row)
         memcpy(img.scanLine(row), buf.constData() + qint64(row) * stride,
                size_t(qMin(stride, img.bytesPerLine())));
-    img.save(dir + QStringLiteral("/Screenshot_%1.png")
-                 .arg(QDateTime::currentDateTime().toString(
-                          QStringLiteral("yyyyMMdd_HHmmsszzz"))));
+    const QString path = dir + QStringLiteral("/Screenshot_%1.png")
+                             .arg(QDateTime::currentDateTime().toString(
+                                      QStringLiteral("yyyyMMdd_HHmmsszzz")));
+    if (!img.save(path)) {
+        logShotOutcome(QStringLiteral("error: PNG save failed — ") + path);
+        return;
+    }
+    logShotOutcome(QStringLiteral("saved: ") + path);
 }

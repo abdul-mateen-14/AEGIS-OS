@@ -2342,16 +2342,20 @@ def main():
         opens["files"] = True
         try:
             # (a) Alt-Tab: the active must leave aegis-files on Alt+Tab
-            # and return on Alt+Shift+Tab (tabbox.cpp Walk Through Windows)
+            # and return on Alt+Shift+Tab (tabbox.cpp Walk Through Windows).
+            # The switcher capture rides the FIRST flip (konsole in front)
+            # — capturing after the flip-back would duplicate the Files
+            # frame and trip the W58 duplicate-capture gate (bt92 1).
             st_a = dump_window_state()
             q.key("alt", "tab"); time.sleep(2.5)
+            q.shot("13-alttab")            # konsole in front
             st_b = dump_window_state()
             q.key("alt", "shift", "tab"); time.sleep(2.5)
             st_c = dump_window_state()
-            q.shot("13-alttab.png")
             if st_a is not None and st_b is not None and st_c is not None:
                 w82_tab_ok = (st_a.get("active") == "aegis-files"
-                              and st_b.get("active") == "konsole"
+                              and str(st_b.get("active", "")).endswith(
+                                  "konsole")
                               and st_c.get("active") == "aegis-files")
             log(f"w82 alt-tab: {st_a.get('active')} -> {st_b.get('active')} "
                 f"-> {st_c.get('active')} — want files->konsole->files — "
@@ -2362,8 +2366,10 @@ def main():
             # (b) Quick Tile Left: the window moves into x 0..W/2 (the
             # right half returns to wallpaper-only). Split-half diff
             # against the clean home frame beats any color assumption.
+            # NOTE: q.shot appends .png itself — pass the bare stem (bt92 1:
+            # '13-snap-left.png' became '13-snap-left.png.png' on disk).
             q.key("meta_l", "left"); time.sleep(2.5)
-            q.shot("13-snap-left.png")
+            q.shot("13-snap-left")
             home82 = Image.open(f"{OUT}/01-home.png").convert("RGB")
             snap82 = Image.open(f"{OUT}/13-snap-left.png").convert("RGB")
             dl, dr = 0.0, 0.0
@@ -2389,12 +2395,16 @@ def main():
             # appear in the history), then Meta+N — the glass sheet is now
             # 500 px tall, so the band y 410..480 (BELOW the old 340 px
             # calendar) reads as glass; on the old sheet it was wallpaper.
+            # The CLOSE toggle runs BEFORE the pixel probe (bt92 1: the
+            # probe raised on a bad filename and the sheet stayed open for
+            # the rest of the run, drifting the W38 store-close diff).
             if serial is not None:
                 serial.run(
                     'notify-send "W82 Probe" "notification center check" '
                     '2>/dev/null; echo SEND-END', settle=2)
             q.key("meta_l", "n"); time.sleep(2.5)
-            q.shot("12-notifcenter.png")
+            q.shot("12-notifcenter")
+            q.key("meta_l", "n"); time.sleep(1.5)
             def band_mean(png):
                 im = Image.open(png).convert("RGB")
                 Wd, Hd = im.size
@@ -2409,13 +2419,17 @@ def main():
             log(f"w82 notification center: lower-sheet band delta={bd:.1f} "
                 f"— want >2 (the sheet grew 340->500) — "
                 + ("PASS" if w82_center_ok else "FAIL"))
-            q.key("meta_l", "n"); time.sleep(1.5)
         except Exception as e:
             log(f"w82 center probe failed: {e}")
         q.key("alt", "f4"); time.sleep(4)
     try:
         # (d) Print = a real file, via the shell's takeScreenshot ->
-        # ScreenShot2 CaptureActiveScreen -> ~/Pictures/Screenshots/Screenshot_*.png
+        # ScreenShot2 CaptureActiveScreen -> ~/Pictures/Screenshots/Screenshot_*.png.
+        # The shell also writes ~/.local/state/aegis-last-shot.txt on every
+        # outcome ("saved: …" / "error: …") — cat it on red so the next
+        # iteration needs no blind debugging, and grep the user's
+        # kglobalshortcutsrc for the script-registered keys (the W82 keys
+        # ride kglobalacceld like every KDE app's).
         if serial is not None:
             out = serial.run(
                 "ls ~/Pictures/Screenshots/Screenshot_*.png 2>/dev/null | "
@@ -2428,29 +2442,59 @@ def main():
             q.key("print"); time.sleep(8)
             out2 = serial.run(
                 "ls ~/Pictures/Screenshots/Screenshot_*.png 2>/dev/null | "
-                "wc -l; echo SHOT-END", settle=2)
-            _n1 = 0
+                "wc -l; echo SHOT-END; cat "
+                "~/.local/state/aegis-last-shot.txt 2>/dev/null; "
+                "echo STATE-END; grep -c 'Aegis Screenshot' "
+                "~/.config/kglobalshortcutsrc 2>/dev/null", settle=2)
+            _n1, _state, _reg = 0, "", ""
+            _in_state = False
             for _ln in out2.splitlines():
                 _s = _ln.strip()
-                if _s.isdigit():
-                    _n1 = max(_n1, int(_s))
+                if _s.isdigit() and _n1 == 0 and not _in_state:
+                    _n1 = int(_s)
+                    continue
+                if _s == "STATE-END":
+                    _in_state = False
+                    continue
+                if _in_state and _s:
+                    _state = (_state + " | " + _s)[:200]
+                elif _s and not _s.isdigit():
+                    _in_state = True
+                    _state = _s
+                elif _s.isdigit():
+                    _reg = _s
             w82_shot_ok = _n1 > _n0
             log(f"w82 screenshot: files before={_n0} after={_n1} — want "
                 f"after>before — " + ("PASS" if w82_shot_ok else
                 "FAIL — ScreenShot2 produced no file"))
+            if _state:
+                log(f"w82 screenshot state: {_state}")
+            log(f"w82 screenshot keys registered in kglobalshortcutsrc: "
+                f"{_reg or '0'}")
         else:
             log("w82 screenshot probe skipped: serial lost")
     except Exception as e:
         log(f"w82 shot probe failed: {e}")
     try:
-        # (e) klipper: the session started it (present-or-skip)
+        # (e) klipper: the session started it (present-or-skip). Distinguish
+        # "binary absent from the archive" (informational — the ISO cannot
+        # carry it) from "present but dead" (a real red).
         if serial is not None:
             out = serial.run(
+                "command -v klipper >/dev/null && echo W82_KLIPPER_BIN; "
                 "pgrep -x klipper >/dev/null && echo W82_KLIPPER_UP; "
                 "echo KLIPPER-END", settle=2)
+            has_bin = "W82_KLIPPER_BIN" in out
             w82_klipper_ok = "W82_KLIPPER_UP" in out
-            log("w82 klipper: " + ("running — PASS" if w82_klipper_ok
-                else "NOT running — FAIL"))
+            if w82_klipper_ok:
+                log("w82 klipper: running — PASS")
+            elif has_bin:
+                log("w82 klipper: binary present but NOT running — FAIL")
+                w82_klipper_ok = False
+            else:
+                log("w82 klipper: binary absent from the resolute archive "
+                    "— clipboard history is informational, not gated")
+                w82_klipper_ok = True
         else:
             log("w82 klipper probe skipped: serial lost")
     except Exception as e:
