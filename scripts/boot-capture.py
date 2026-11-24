@@ -2363,36 +2363,37 @@ def main():
         except Exception as e:
             log(f"w82 alt-tab probe failed: {e}")
         try:
-            # (b) Quick Tile Left — the DETERMINISTIC anchor (bt92r2: the
-            # plain split-vs-home diff read 104/83 both-high because the
-            # centered window covered both halves; "both high" can't tell
-            # dead-key from layout). Now: right half must (i) LOSE the
-            # window vs the before-frame and (ii) match the wallpaper-only
-            # home frame. The tile key itself rides the KWin script's
-            # registerShortcut (the channel that fired Print/Meta+N/Meta+E
-            # in bt92r2) → workspace.slotWindowQuickTileLeft().
-            q.shot("13-snap-before")
+            # (b) Quick Tile Left — the DETERMINISTIC anchor, thresholds
+            # MEASURED from the bt92r3 captures (the tile genuinely fired
+            # there — the after-frame shows Files flush at x=0 with konsole
+            # behind on the right; the old probe wrongly demanded the right
+            # half be bare wallpaper, but the terminal probe keeps konsole
+            # open BEHIND Files): vs the before-frame (13-files-w82 — the
+            # identical pre-tile state, no fresh capture → no W58
+            # duplicate), the LEFT-EDGE strip must gain the window
+            # (measured 86.3 when tiled, ~0 when dead) AND the right half
+            # must vacate (measured 23.1 tiled, ~0 dead).
+            before82 = Image.open(f"{OUT}/13-files-w82.png").convert("RGB")
             q.key("meta_l", "left"); time.sleep(2.5)
             q.shot("13-snap-left")
-            home82 = Image.open(f"{OUT}/01-home.png").convert("RGB")
-            before82 = Image.open(f"{OUT}/13-snap-before.png").convert("RGB")
             after82 = Image.open(f"{OUT}/13-snap-left.png").convert("RGB")
-            d_r_home, d_r_change = 0.0, 0.0
-            box = (W // 2 + 40, 80, W, H - 120)
-            pa = list(home82.crop(box).resize((24, 14)).getdata())
-            pb = list(before82.crop(box).resize((24, 14)).getdata())
-            pc = list(after82.crop(box).resize((24, 14)).getdata())
-            d_r_home = sum(abs(p[0] - q2[0]) + abs(p[1] - q2[1])
-                           + abs(p[2] - q2[2])
-                           for p, q2 in zip(pc, pa)) / len(pa)
-            d_r_change = sum(abs(p[0] - q2[0]) + abs(p[1] - q2[1])
-                             + abs(p[2] - q2[2])
-                             for p, q2 in zip(pc, pb)) / len(pb)
-            w82_snap_ok = d_r_home < 5.0 and d_r_change > 5.0
-            log(f"w82 snap-left: right-half vs home={d_r_home:.1f} "
-                f"(<5 = wallpaper back) right-half vs before="
-                f"{d_r_change:.1f} (>5 = the window left the right half) "
-                f"— " + ("PASS" if w82_snap_ok else
+            d_left, d_right = 0.0, 0.0
+            for box, acc in (((0, 80, 60, H - 120), "l"),
+                             ((W // 2 + 40, 80, W, H - 120), "r")):
+                pa = list(before82.crop(box).resize((24, 14)).getdata())
+                pb = list(after82.crop(box).resize((24, 14)).getdata())
+                dd = sum(abs(p[0] - q2[0]) + abs(p[1] - q2[1])
+                         + abs(p[2] - q2[2])
+                         for p, q2 in zip(pa, pb)) / len(pa)
+                if acc == "l":
+                    d_left = dd
+                else:
+                    d_right = dd
+            w82_snap_ok = d_left > 8.0 and d_right > 8.0
+            log(f"w82 snap-left: left-edge gains window={d_left:.1f} (>8) "
+                f"right half vacates={d_right:.1f} (>8) — measured tiled "
+                f"86.3/23.1, dead ~0/~0 — "
+                + ("PASS" if w82_snap_ok else
                 "FAIL — Meta+Left did not tile (script key check: "
                 "kglobalshortcutsrc Aegis Quick Tile entries)"))
         except Exception as e:

@@ -56,6 +56,16 @@ echo "socket_ok=${SOCKET_OK:-NO}; runtime dir: $(ls "$XDG_RUNTIME_DIR" 2>/dev/nu
 
 # Session services — deliberately minimal for M1
 command -v kded6 >/dev/null 2>&1 && kded6 >/dev/null 2>&1 &
+# W82 — rebuild the KSycoca application cache up front. KWin's screenshot
+# authorization resolves the DBus caller via KApplicationTrader::query
+# (KWin serviceutils.h: fetchProcessServiceField matches the desktop
+# file's canonical Exec path against /proc/<pid>/exe) — a cold or stale
+# sycoca made the same binary flip between authorized (bt92r2) and
+# NoAuthorized (bt92r3). kbuildsycoca6 indexes /usr/share/applications
+# (aegis-shell.desktop ships there, Exec=/usr/bin/aegis-shell so the
+# canonical paths can match) and makes the authorization deterministic.
+command -v kbuildsycoca6 >/dev/null 2>&1 && kbuildsycoca6 >/dev/null 2>&1
+echo "sycoca: rebuilt (rc=$?)"
 # D24 (W35) — global shortcuts need the KGlobalAccel daemon (kglobalacceld
 # ships via plasma-workspace Depends >= 6.2.90). Without it the pinned
 # kglobalshortcutsrc dictionary is inert and the aegis-shortcuts script's
