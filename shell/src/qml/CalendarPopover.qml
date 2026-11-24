@@ -2,16 +2,23 @@ import QtQuick
 import QtQuick.Controls
 import Aegis.Util
 import Aegis.Governor
+import Aegis.Activity
 
 // T15-D10 (W47) — the glass calendar popover. The reviewer's §2 W47 item:
 // the shell had NO calendar at all (the panel clock had no click handler),
 // so the calendar interpretation of "calender traffic lights are not
 // working" ships as the §2.4-native surface: click the panel clock -> a
 // glass sheet hangs below the panel (same architecture as the Control
-// Center sheet). ~300x340: month grid, today in the accent, prev/next
-// chevrons. No traffic lights — it is a popover, not a window. Closes on
-// focus loss (a normal window opening) and when the Control Center opens
-// — one sheet at a time, like macOS.
+// Center sheet). No traffic lights — it is a popover, not a window.
+// Closes on focus loss (a normal window opening) and when the Control
+// Center opens — one sheet at a time, like macOS.
+//
+// W82 — Notification Center: the sheet grows to 300×500 and gains the
+// macOS pairing — the month calendar compacted (30 px cells) above, the
+// notification HISTORY below (every banner the shell received, DND or
+// not, newest first, capped at 20 by ActivityService) with a Clear all
+// button. Meta+N (the aegis-shortcuts script) and the clock click both
+// land here, exactly like macOS's notification center.
 Window {
     // KWin's alt+F4 must never destroy a shell surface (the v0.6.5 cascade)
     onClosing: (close) => { close.accepted = false }
@@ -20,7 +27,7 @@ Window {
     visible: Util.calendarOpen
     color: "transparent"
     width: 300
-    height: 340
+    height: 500
     flags: Qt.FramelessWindowHint
 
     property date viewDate: new Date()
@@ -195,7 +202,7 @@ Window {
                     }
                 }
 
-                // ── the month grid (6 rows × 7) ──────────────
+                // ── the month grid (6 rows × 7, W82-compacted) ──
                 Grid {
                     width: parent.width
                     columns: 7
@@ -208,7 +215,7 @@ Window {
                         delegate: Item {
                             required property int index
                             width: (parent.width - 12) / 7
-                            height: 40
+                            height: 30
 
                             readonly property var cellDate: {
                                 const start = calRoot.monthStart(calRoot.viewDate)
@@ -223,7 +230,7 @@ Window {
 
                             Rectangle {
                                 anchors.centerIn: parent
-                                width: 30; height: 30; radius: 15
+                                width: 26; height: 26; radius: 13
                                 visible: isToday
                                 color: Tokens.accent
                             }
@@ -235,6 +242,124 @@ Window {
                                      : inMonth ? Tokens.fg
                                      : Tokens.fgMuted
                                 opacity: inMonth ? 1.0 : 0.45
+                            }
+                        }
+                    }
+                }
+
+                // ── W82: the Notification Center section ────────────
+                Rectangle { // hairline between the calendar and the feed
+                    width: parent.width
+                    height: 1
+                    color: Util.darkMode ? Tokens.glassBorder
+                                         : Tokens.glassBorderLight
+                    opacity: 0.6
+                }
+
+                Item {
+                    width: parent.width
+                    height: 24
+
+                    Text {
+                        text: "Notifications"
+                        color: Tokens.fg
+                        font { family: "Montserrat"; pixelSize: 12; weight: Font.DemiBold }
+                        anchors.left: parent.left
+                        anchors.verticalCenter: parent.verticalCenter
+                    }
+                    AbstractButton {
+                        id: clearBtn
+                        height: 24
+                        anchors.right: parent.right
+                        anchors.verticalCenter: parent.verticalCenter
+                        enabled: Activity.notificationHistory.length > 0
+                        contentItem: Text {
+                            text: "Clear"
+                            font { family: "Montserrat"; pixelSize: 11 }
+                            color: clearBtn.enabled
+                                   ? (clearBtn.hovered ? Tokens.accent : Tokens.fg)
+                                   : Tokens.fgMuted
+                            anchors.verticalCenter: parent.verticalCenter
+                        }
+                        background: Item {}
+                        onClicked: Activity.clearNotificationHistory()
+                    }
+                }
+
+                // The feed: the history rows (app + summary + body + the
+                // arrival time), newest first. Capped at 20 by the service;
+                // 158 px shows ~3 rows with a flickable scroll for the rest.
+                Rectangle {
+                    width: parent.width
+                    height: 150
+                    radius: 12
+                    color: Util.darkMode ? Qt.rgba(1, 1, 1, 0.05)
+                                         : Qt.rgba(0, 0, 0, 0.04)
+
+                    Text {
+                        anchors.centerIn: parent
+                        visible: Activity.notificationHistory.length === 0
+                        text: "No Notifications"
+                        color: Tokens.fgMuted
+                        font { family: "Montserrat"; pixelSize: 12 }
+                    }
+
+                    Flickable {
+                        anchors.fill: parent
+                        anchors.margins: 8
+                        clip: true
+                        contentHeight: histCol.height
+                        flickDeceleration: 2500
+                        maximumFlickVelocity: 1400
+
+                        Column {
+                            id: histCol
+                            width: parent.width
+                            spacing: 6
+
+                            Repeater {
+                                model: Activity.notificationHistory
+
+                                delegate: Rectangle {
+                                    required property var modelData
+                                    width: histCol.width
+                                    height: 44
+                                    radius: 10
+                                    color: Util.darkMode
+                                           ? Qt.rgba(1, 1, 1, 0.06)
+                                           : Qt.rgba(0, 0, 0, 0.045)
+
+                                    Column {
+                                        x: 10
+                                        y: 5
+                                        width: parent.width - 62
+                                        spacing: 1
+
+                                        Text {
+                                            width: parent.width
+                                            text: modelData.summary
+                                            font { family: "Montserrat"; pixelSize: 11; weight: Font.DemiBold }
+                                            color: Tokens.fg
+                                            elide: Text.ElideRight
+                                        }
+                                        Text {
+                                            width: parent.width
+                                            text: modelData.body
+                                            font { family: "Montserrat"; pixelSize: 10 }
+                                            color: Tokens.fg
+                                            opacity: 0.72
+                                            elide: Text.ElideRight
+                                        }
+                                    }
+                                    Text {
+                                        anchors.right: parent.right
+                                        anchors.rightMargin: 10
+                                        anchors.verticalCenter: parent.verticalCenter
+                                        text: modelData.time
+                                        font { family: "Montserrat"; pixelSize: 9 }
+                                        color: Tokens.fgMuted
+                                    }
+                                }
                             }
                         }
                     }

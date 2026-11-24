@@ -34,3 +34,17 @@ Switch One Desktop to the Right=Ctrl+Meta+Right,none,Switch One Desktop to the R
 Switch One Desktop to the Left=Ctrl+Meta+Left,none,Switch One Desktop to the Left
 Switch One Desktop Up=Ctrl+Meta+Up,none,Switch One Desktop Up
 Switch One Desktop Down=Ctrl+Meta+Down,none,Switch One Desktop Down
+# ── W82 — completeness pins ─────────────────────────────────────────
+# Quick Tile: the KWin 6.6 ids are Window Quick Tile Left/Right
+# (useractions.cpp); the stock Meta+arrows now cannot drift away.
+# Alt+Tab: the tabbox action ids from tabbox.cpp (Walk Through Windows /
+# Reverse) — pinned so the task switcher never loses its keys.
+Window Quick Tile Left=Meta+Left,none,Quick Tile Left to the Left
+Window Quick Tile Right=Meta+Right,none,Quick Tile Right to the Right
+Walk Through Windows=Alt+Tab,none,Walk Through Windows
+Walk Through Windows (Reverse)=Alt+Shift+Tab,none,Walk Through Windows (Reverse)
+
+# Klipper clipboard history (plasma-workspace binary, started by the
+# session) — Meta+V pops the history popup like macOS/Windows.
+[klipper]
+Show Klipper Popup=Meta+V,none,Show Klipper Popup

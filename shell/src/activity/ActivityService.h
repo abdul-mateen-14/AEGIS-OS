@@ -26,6 +26,11 @@ class ActivityService : public QObject {
     Q_PROPERTY(QVariantList activities READ activities NOTIFY activitiesChanged)
     Q_PROPERTY(QVariantList banners READ banners NOTIFY bannersChanged)
     Q_PROPERTY(bool bannersVisible READ bannersVisible NOTIFY bannersChanged)
+    // W82 — the Notification Center's history: every banner that arrives
+    // (regardless of DND/calm) is recorded newest-first, capped at 20,
+    // read by the calendar popover's Notifications section.
+    Q_PROPERTY(QVariantList notificationHistory READ notificationHistory
+               NOTIFY notificationHistoryChanged)
     Q_PROPERTY(bool dnd READ dnd WRITE setDnd NOTIFY dndChanged)
     // M3 — Calm Mode: focus chrome. On: notifications pause (banners quiet
     // through dnd), the governor is pinned to Tier C (80 ms rung swaps), and
@@ -37,6 +42,8 @@ public:
 
     QVariantList activities() const;
     QVariantList banners() const;
+    QVariantList notificationHistory() const;
+    Q_INVOKABLE void clearNotificationHistory();
     bool bannersVisible() const { return !m_banners.isEmpty() && !m_dnd; }
     bool dnd() const { return m_dnd; }
     void setDnd(bool dnd);
@@ -84,6 +91,7 @@ public:
 signals:
     void activitiesChanged();
     void bannersChanged();
+    void notificationHistoryChanged();
     void dndChanged();
     void calmChanged();
 
@@ -102,6 +110,7 @@ private:
         QString body;
         QStringList actions; // [key0, label0, key1, label1, ...]
         int ttl;
+        QString time; // arrival clock time (the history rows show it)
     };
 
     int priorityFor(const QString &kind) const;
@@ -114,6 +123,7 @@ private:
 
     QList<Activity> m_activities;
     QList<Banner> m_banners;
+    QList<Banner> m_history; // newest first, capped at 20
     uint m_nextBannerId = 1;
     bool m_dnd = false;
     bool m_calm = false;

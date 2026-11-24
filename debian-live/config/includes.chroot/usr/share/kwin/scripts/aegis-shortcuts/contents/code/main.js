@@ -32,3 +32,70 @@ registerShortcut("Aegis Control Center", "Toggle the Aegis control center",
 
 // boot marker — the boot gate's journal grep asserts this line exists
 print("aegis-shortcuts: loaded")
+
+// ── W82 — the completeness dictionary ───────────────────────────────
+// App keys and the capture suite ride the same org.aegis.Shell surface
+// as the W35 pair. Every binding below is file-assertable (the shortcut
+// lands in the user's kglobalshortcutsrc once kglobalacceld has seen
+// it) and probe-able (the boot harness injects the keys).
+
+// Meta+E — Files (the Windows Explorer reflex)
+registerShortcut("Aegis Files", "Open Aegis Files",
+                 "Meta+E", function () {
+    callDBus("org.aegis.Shell", "/org/aegis/Shell", "org.aegis.Shell",
+             "launch", "aegis-files")
+})
+
+// Ctrl+Alt+T — Terminal (the Ubuntu reflex)
+registerShortcut("Aegis Terminal", "Open Terminal",
+                 "Ctrl+Alt+T", function () {
+    callDBus("org.aegis.Shell", "/org/aegis/Shell", "org.aegis.Shell",
+             "launch", "konsole")
+})
+
+// Meta+L — lock the session (the macOS reflex)
+registerShortcut("Aegis Lock", "Lock the session",
+                 "Meta+L", function () {
+    callDBus("org.aegis.Shell", "/org/aegis/Shell", "org.aegis.Shell",
+             "lock")
+})
+
+// Meta+N — the Notification Center (the calendar popover's history)
+registerShortcut("Aegis Notification Center", "Toggle the notification center",
+                 "Meta+N", function () {
+    callDBus("org.aegis.Shell", "/org/aegis/Shell", "org.aegis.Shell",
+             "toggleCalendar")
+})
+
+// Print — full-screen capture, straight to ~/Pictures/Screenshots
+registerShortcut("Aegis Screenshot (Full Screen)",
+                 "Capture the full screen to Pictures/Screenshots",
+                 "Print", function () {
+    callDBus("org.aegis.Shell", "/org/aegis/Shell", "org.aegis.Shell",
+             "takeScreenshot", "full")
+})
+
+// Shift+Print / Meta+Shift+S — region capture (the Windows snip reflex)
+registerShortcut("Aegis Screenshot (Region)",
+                 "Capture a region to Pictures/Screenshots",
+                 "Shift+Print", function () {
+    callDBus("org.aegis.Shell", "/org/aegis/Shell", "org.aegis.Shell",
+             "takeScreenshot", "region")
+})
+
+registerShortcut("Aegis Screenshot (Snip)",
+                 "Capture a region to Pictures/Screenshots",
+                 "Meta+Shift+S", function () {
+    callDBus("org.aegis.Shell", "/org/aegis/Shell", "org.aegis.Shell",
+             "takeScreenshot", "region")
+})
+
+// Alt+Print — capture the active window
+registerShortcut("Aegis Screenshot (Window)",
+                 "Capture the active window to Pictures/Screenshots",
+                 "Alt+Print", function () {
+    callDBus("org.aegis.Shell", "/org/aegis/Shell", "org.aegis.Shell",
+             "takeScreenshot", "window")
+})
+
+print("aegis-shortcuts: W82 keys registered (files/terminal/lock/center/screenshots)")

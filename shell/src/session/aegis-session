@@ -74,6 +74,28 @@ for KGA in /usr/lib/x86_64-linux-gnu/libexec/kglobalacceld /usr/libexec/kglobala
     [ -x "$KGA" ] && "$KGA" >/dev/null 2>&1 &
     break
 done
+
+# W82 — clipboard history. klipper ships inside plasma-workspace; with
+# kglobalacceld up, the [klipper] pin in kglobalshortcutsrc (Meta+V) pops
+# its history popup. Present-or-skip like kded6: an install without the
+# binary must never wedge the session.
+if command -v klipper >/dev/null 2>&1; then
+    klipper >/dev/null 2>&1 &
+    echo "klipper: started (Meta+V = clipboard history)"
+else
+    echo "klipper: skipped — not installed"
+fi
+
+# W82 — the screenshot suite's save directory + spectaclerc pin. The
+# shell's takeScreenshot() passes -o with an absolute path, but the
+# directory must exist before the first capture, and a manual `spectacle`
+# run (no -o) should land in the same folder.
+mkdir -p "$HOME/Pictures/Screenshots"
+if [ ! -f "$HOME/.config/spectaclerc" ]; then
+    printf '[GuiConfig]\nclipboardGrouping=0\nsaveLocation=%s/Pictures/Screenshots\n' \
+        "$HOME" > "$HOME/.config/spectaclerc"
+fi
+
 for PORTAL in \
     /usr/libexec/xdg-desktop-portal-kde \
     /usr/lib/x86_64-linux-gnu/libexec/xdg-desktop-portal-kde; do

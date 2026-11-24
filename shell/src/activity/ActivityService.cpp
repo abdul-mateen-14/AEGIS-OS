@@ -2,6 +2,8 @@
 
 #include <QDBusConnection>
 #include <QDBusMessage>
+#include <QLocale>
+#include <QTime>
 
 #include <algorithm>
 
@@ -58,6 +60,33 @@ QVariantList ActivityService::banners() const
         out.append(map);
     }
     return out;
+}
+
+// W82 — the Notification Center history: newest first, capped at 20.
+// Records EVERY banner (the DND/calm paths still call pushBanner), so
+// the calendar popover shows what arrived while banners were quiet.
+QVariantList ActivityService::notificationHistory() const
+{
+    QVariantList out;
+    for (const Banner &b : m_history) {
+        QVariantMap map;
+        map.insert(QStringLiteral("id"), b.id);
+        map.insert(QStringLiteral("app"), b.app);
+        map.insert(QStringLiteral("icon"), b.icon);
+        map.insert(QStringLiteral("summary"), b.summary);
+        map.insert(QStringLiteral("body"), b.body);
+        map.insert(QStringLiteral("time"), b.time);
+        out.append(map);
+    }
+    return out;
+}
+
+void ActivityService::clearNotificationHistory()
+{
+    if (m_history.isEmpty())
+        return;
+    m_history.clear();
+    emit notificationHistoryChanged();
 }
 
 void ActivityService::setDnd(bool dnd)
@@ -169,6 +198,16 @@ void ActivityService::publishCharging(int percent, int minutes)
 
 void ActivityService::pushBanner(const Banner &banner)
 {
+    // W82 — record the arrival in the Notification Center history
+    // (newest first, cap 20) before anything else touches the copy.
+    Banner stamped = banner;
+    stamped.time = QLocale::system().toString(QTime::currentTime(),
+                                              QLocale::ShortFormat);
+    m_history.prepend(stamped);
+    while (m_history.size() > 20)
+        m_history.removeLast();
+    emit notificationHistoryChanged();
+
     // Stack ceiling — Table 17: at most three banners; the oldest drops.
     while (m_banners.size() >= 3) {
         const uint dropped = m_banners.first().id;

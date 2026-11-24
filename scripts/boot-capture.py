@@ -2320,6 +2320,141 @@ def main():
                     "the left edge) — probe skipped")
         except Exception as e:
             log(f"lane-B shadow probe failed: {e}")
+    # ── W82 — the completeness dictionary probes ────────────────────────
+    # The terminal is still open here (the D24 block keeps it), so the
+    # Alt-Tab probe has two real windows to walk between. Everything is
+    # verdict-file/serial based, like every other assert: (a) Alt+Tab and
+    # Alt+Shift+Tab flip the ACTIVE window in the windowwatch payload,
+    # (b) Meta+Left quick-tiles the Files window into the left half of
+    # the screen (split-half pixel diff vs the clean 01-home frame),
+    # (c) Meta+N opens the grown 500 px notification-center sheet (the
+    # region BELOW the old 340 px calendar is now glass), (d) Print
+    # produces a real file in ~/Pictures/Screenshots via spectacle -o,
+    # (e) klipper runs with its Meta+V pin. The release gate reads
+    # w82_tab_ok / w82_snap_ok / w82_center_ok / w82_shot_ok / w82_klipper_ok.
+    w82_tab_ok = False
+    w82_snap_ok = False
+    w82_center_ok = False
+    w82_shot_ok = False
+    w82_klipper_ok = False
+    files82 = open_app("13-files-w82", "aegis-files", wait_s=18, click_idx=0)
+    if files82:
+        opens["files"] = True
+        try:
+            # (a) Alt-Tab: the active must leave aegis-files on Alt+Tab
+            # and return on Alt+Shift+Tab (tabbox.cpp Walk Through Windows)
+            st_a = dump_window_state()
+            q.key("alt", "tab"); time.sleep(2.5)
+            st_b = dump_window_state()
+            q.key("alt", "shift", "tab"); time.sleep(2.5)
+            st_c = dump_window_state()
+            q.shot("13-alttab.png")
+            if st_a is not None and st_b is not None and st_c is not None:
+                w82_tab_ok = (st_a.get("active") == "aegis-files"
+                              and st_b.get("active") == "konsole"
+                              and st_c.get("active") == "aegis-files")
+            log(f"w82 alt-tab: {st_a.get('active')} -> {st_b.get('active')} "
+                f"-> {st_c.get('active')} — want files->konsole->files — "
+                + ("PASS" if w82_tab_ok else "FAIL"))
+        except Exception as e:
+            log(f"w82 alt-tab probe failed: {e}")
+        try:
+            # (b) Quick Tile Left: the window moves into x 0..W/2 (the
+            # right half returns to wallpaper-only). Split-half diff
+            # against the clean home frame beats any color assumption.
+            q.key("meta_l", "left"); time.sleep(2.5)
+            q.shot("13-snap-left.png")
+            home82 = Image.open(f"{OUT}/01-home.png").convert("RGB")
+            snap82 = Image.open(f"{OUT}/13-snap-left.png").convert("RGB")
+            dl, dr = 0.0, 0.0
+            for box in ((0, 80, W // 2 - 40, H - 120),
+                        (W // 2 + 40, 80, W, H - 120)):
+                pa = list(home82.crop(box).resize((24, 14)).getdata())
+                pb = list(snap82.crop(box).resize((24, 14)).getdata())
+                dd = sum(abs(p[0] - q2[0]) + abs(p[1] - q2[1])
+                         + abs(p[2] - q2[2]) for p, q2 in zip(pa, pb)) / len(pa)
+                if box[0] == 0:
+                    dl = dd
+                else:
+                    dr = dd
+            w82_snap_ok = dl > 8.0 and dr < 5.0
+            log(f"w82 snap-left: left-half diff={dl:.1f} right-half "
+                f"diff={dr:.1f} — want left>8 right<5 — "
+                + ("PASS" if w82_snap_ok else "FAIL"))
+        except Exception as e:
+            log(f"w82 snap probe failed: {e}")
+        try:
+            # (c) the notification center: a real banner first (it must
+            # appear in the history), then Meta+N — the glass sheet is now
+            # 500 px tall, so the band y 410..480 (BELOW the old 340 px
+            # calendar) reads as glass; on the old sheet it was wallpaper.
+            if serial is not None:
+                serial.run(
+                    'notify-send "W82 Probe" "notification center check" '
+                    '2>/dev/null; echo SEND-END', settle=2)
+            q.key("meta_l", "n"); time.sleep(2.5)
+            q.shot("12-notifcenter.png")
+            def band_mean(png):
+                im = Image.open(png).convert("RGB")
+                Wd, Hd = im.size
+                box = im.crop((Wd - 384, 410, Wd - 84, 480))
+                px = list(box.getdata())
+                n = len(px)
+                return tuple(sum(c[i] for c in px) / n for i in range(3))
+            bd = max(abs(a - b) for a, b in
+                     zip(band_mean(f"{OUT}/12-notifcenter.png"),
+                         band_mean(f"{OUT}/01-home.png")))
+            w82_center_ok = bd > 2.0
+            log(f"w82 notification center: lower-sheet band delta={bd:.1f} "
+                f"— want >2 (the sheet grew 340->500) — "
+                + ("PASS" if w82_center_ok else "FAIL"))
+            q.key("meta_l", "n"); time.sleep(1.5)
+        except Exception as e:
+            log(f"w82 center probe failed: {e}")
+        q.key("alt", "f4"); time.sleep(4)
+    try:
+        # (d) Print = a real file, via the shell's takeScreenshot ->
+        # spectacle -b -n -o ~/Pictures/Screenshots/Screenshot_*.png
+        if serial is not None:
+            out = serial.run(
+                "ls ~/Pictures/Screenshots/Screenshot_*.png 2>/dev/null | "
+                "wc -l; echo SHOT-END", settle=2)
+            _n0 = 0
+            for _ln in out.splitlines():
+                _s = _ln.strip()
+                if _s.isdigit():
+                    _n0 = max(_n0, int(_s))
+            q.key("print"); time.sleep(8)
+            out2 = serial.run(
+                "ls ~/Pictures/Screenshots/Screenshot_*.png 2>/dev/null | "
+                "wc -l; echo SHOT-END", settle=2)
+            _n1 = 0
+            for _ln in out2.splitlines():
+                _s = _ln.strip()
+                if _s.isdigit():
+                    _n1 = max(_n1, int(_s))
+            w82_shot_ok = _n1 > _n0
+            log(f"w82 screenshot: files before={_n0} after={_n1} — want "
+                f"after>before — " + ("PASS" if w82_shot_ok else
+                "FAIL — spectacle produced no file"))
+        else:
+            log("w82 screenshot probe skipped: serial lost")
+    except Exception as e:
+        log(f"w82 shot probe failed: {e}")
+    try:
+        # (e) klipper: the session started it (present-or-skip)
+        if serial is not None:
+            out = serial.run(
+                "pgrep -x klipper >/dev/null && echo W82_KLIPPER_UP; "
+                "echo KLIPPER-END", settle=2)
+            w82_klipper_ok = "W82_KLIPPER_UP" in out
+            log("w82 klipper: " + ("running — PASS" if w82_klipper_ok
+                else "NOT running — FAIL"))
+        else:
+            log("w82 klipper probe skipped: serial lost")
+    except Exception as e:
+        log(f"w82 klipper probe failed: {e}")
+
     # T11 — the dock grew to 11 tiles (M3 apps joined after the separator):
     # Files 0, Terminal 1, Browser 2, OS 3, CoreX 4, Music 5, Calculator 6,
     # Editor 7, Monitor 8, Store 9, Settings 10, Trash 11 — config order
@@ -4812,6 +4947,22 @@ def main():
     if not w76_clear_ok:
         failures.append("W76: the dock icons are neither the colorful app "
                         "marks nor the white glyph family")
+    if not w82_tab_ok:
+        failures.append("W82: Alt+Tab / Alt+Shift+Tab did not flip the "
+                        "active window files->konsole->files")
+    if not w82_snap_ok:
+        failures.append("W82: Meta+Left did not quick-tile Files into the "
+                        "left half of the screen")
+    if not w82_center_ok:
+        failures.append("W82: Meta+N did not open the grown notification-"
+                        "center sheet (no glass below the old calendar "
+                        "bottom)")
+    if not w82_shot_ok:
+        failures.append("W82: Print produced no file in "
+                        "~/Pictures/Screenshots (spectacle/takeScreenshot)")
+    if not w82_klipper_ok:
+        failures.append("W82: klipper is not running (clipboard history "
+                        "dead)")
     if failures:
         for f in failures:
             log("ASSERT FAILED: " + f)

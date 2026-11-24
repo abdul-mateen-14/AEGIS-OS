@@ -217,6 +217,11 @@ public:
     Q_INVOKABLE void toggleControlCenter() { setCcOpen(!m_ccOpen); }
     Q_INVOKABLE void toggleLauncher() { setLauncherOpen(!m_launcherOpen); }
     Q_INVOKABLE void toggleCalendar() { setCalendarOpen(!m_calendarOpen); }
+    // W82 — the screenshot suite: "full" | "region" | "window", driven by
+    // the aegis-shortcuts KWin script (Print / Shift+Print / Alt+Print /
+    // Meta+Shift+S). Runs the session's spectacle detached, with the
+    // save directory pre-created by the session script.
+    Q_INVOKABLE void takeScreenshot(const QString &mode);
     // W20 — pushed by the aegis-windowwatch KWin script on every
     // windowAdded/Removed/Activated. ONE JSON STRING: {"count": n,
     // "anyFull": b, "ids": [...]}. KWin's callDBus marshals JS numbers

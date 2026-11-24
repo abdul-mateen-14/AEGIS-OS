@@ -1896,3 +1896,33 @@ void Util::writeWebDesktop(const QString &url, const QString &id,
     emit webShortcutAdded(true, title);
     emit dockAppsChanged();
 }
+
+// ── W82: the screenshot suite ────────────────────────────────────────
+// Modes: "full" (Print), "region" (Shift+Print / Meta+Shift+S),
+// "window" (Alt+Print). The session script seeds the save directory;
+// the shell also mkpaths defensively. The capture goes straight to the
+// file (spectacle -b) so the hotkey never opens a GUI the user must
+// dismiss. Unknown modes are ignored — a typo in the KWin script can
+// never spawn a rogue process.
+void Util::takeScreenshot(const QString &mode)
+{
+    QString shot;
+    if (mode == QStringLiteral("full"))
+        shot = QStringLiteral("-f");
+    else if (mode == QStringLiteral("region"))
+        shot = QStringLiteral("-r");
+    else if (mode == QStringLiteral("window"))
+        shot = QStringLiteral("-a");
+    else
+        return;
+    const QString dir = QDir::home().filePath(
+        QStringLiteral("Pictures/Screenshots"));
+    QDir().mkpath(dir);
+    const QString file = dir + QStringLiteral("/Screenshot_%1.png")
+        .arg(QDateTime::currentDateTime().toString(
+                 QStringLiteral("yyyyMMdd_HHmmsszzz")));
+    QProcess::startDetached(
+        QStringLiteral("spectacle"),
+        {shot, QStringLiteral("-b"), QStringLiteral("-n"),
+         QStringLiteral("-o"), file});
+}
