@@ -1,3 +1,119 @@
+## W81 — the six reference asks (v0.6.86-v0.6.91): dock launcher icons +
+## all-apps button, stateful network story + island pendant, battery/wifi
+## glyph redraw, macOS CC card, glass island + pendant, light-corner ring
+## clip, per-window dock dots (SHIPPED; boot verdict PENDING)
+
+- THE ROUND: the reviewer's six reference asks landed as 407f394 (the
+  features), 11b7218 (the click-map sentinel), d5be3cc (the CC vertical
+  fit + the isOn rename). v0.6.86 shipped them and the boot test went
+  red on EIGHT asserts (W37/W41/W67/W68/W69/W70/W77/W79) — the forensics
+  below unwound them to ONE QML bug + three harness wounds + one
+  silent-invisible feature, all fixed in c0229d8 + 3fa5226 + a049839.
+- ROOT CAUSE 1 (the QML bug, the whole cascade): the W81 restructure
+  moved the wired/wifi STORY into the wide ConnectivityTile but the old
+  Ethernet CcTile STAYED in the 3-column Grid — 4 tiles wrapped Dark
+  Mode to a second row (the artifact shows accent plates at y 177..238
+  AND y 270..331), the dark-tile click at CCY0+127 landed 9 px above
+  row 1 in the inter-section gap, the light flip never applied, and
+  W37/W67/W77/W79 cascaded red. The 4-tile stack also measured 529 px
+  against the 434 sheet — the sliders, power row and footer clipped
+  below the sheet edge, which is what actually killed w69's knobs and
+  w70's third rule. Fix (c0229d8): the tile is deleted; the sheet grows
+  434 -> 492 (the stack measures 483: header 84 + card 40 + circle row
+  82 + DND 40 + two 32 px sliders + three 1 px rules + power 36 +
+  footer 26 on the 12 px flow — the model reproduces the artifact's
+  measured rows within 1-3 px, scripts/verify-v087-geometry.py).
+- ROOT CAUSE 2 (the harness ate its own verdict): the w68 W81 rewrite
+  dropped `bpx = band.load()` — NameError, no verdict — and both bands
+  guessed the header at ~46 px when it renders 84. Bands now ride the
+  measured card (CCY0+80..130) and circle row (CCY0+130..210).
+- ROOT CAUSE 3 (the click map died silently): resolved_tile_cmds'
+  unanchored `TILE (\S+)` regex matched the serial console's own
+  command ECHO (the echo carries every literal), doubling the slot
+  count; dock_geometry laid a phantom wide tray, its sanity crop
+  inverted ("Coordinate 'right' is less than 'left'"), the rebuild
+  threw, and the fallback map was the EMPTY config dict — every
+  indexed click hit tile 0, the new all-apps launcher (W41's
+  dock-click-only launch died there). Fix: anchor to whole lines
+  (`^TILE (\S+)$`), dedupe preserving order, refuse replies larger
+  than expected+3; dock_geometry clamps n_override to what fits the
+  screen and skips phantom slots instead of cropping off-screen boxes.
+- ROOT CAUSE 4 (the dots shipped dead): the W81 running dots ride
+  tile.bottom+7..11 = y 795..799, but the dock WINDOW ended at y 790
+  (DOCK_BOTTOM_MARGIN 10) — clipped invisible on EVERY capture (02-files
+  with Files open: zero #E8ECF2 px in the strip; the pill rows
+  720..784 measured exactly). No probe had ever looked. Fix (3fa5226):
+  the window goes flush to the screen bottom and 10 px taller
+  (340 -> 350), the tray rides bottomMargin 16 inside it — the pill's
+  screen rows are pixel-identical, the magnify headroom is identical,
+  the exclusive reserve stays 76 (the 10 px strip moved INSIDE the
+  window), the maximized-window stop line does not move. Harness: a
+  new HARD w81 assert (>= 3 dot px under the just-opened Files tile)
+  wired into the release gate; the v0.6.86 zero-hit scan = the negative
+  control.
+- ALSO: w70's scan-based "exactly 3 thin groups" counter ate the 64 px
+  circles' white-0.22 rims as extra rule groups once the layout
+  changed — it now asserts each rule AT its computed row
+  (CCY0+230/295/396 ± 8, a >=80%-width bright run; the rules are the
+  only full-width 1 px features at those rows). The probe constants
+  ride the computed stack: dark tile CCY0+168, DND switch/body
+  CCY0+263, w69 bands +308..340/+352..384, w67 glass band +446..456,
+  w50 blur box SB-140..-108.
+- THE MAP'S LAST LINE OF DEFENSE (e315ca9): when the guest rebuild never
+  ran (no serial, or a refused garble), tile_index stayed EMPTY and every
+  open_app fallback `tile_index.get(cmd, 0)` landed on tile 0 — the
+  all-apps LAUNCHER post-W81 (pre-W81 tile 0 was Files, so the fallback
+  worked by accident). An empty map now seeds the config order shifted
+  +1; setdefault never overwrites the guest-rebuilt map.
+- THE PENDANT GETS EYES (a049839): no capture had ever caught the
+  island's network pendant (the fresh-boot fire expires before
+  01-home; the artifact's panel band has zero green px). The harness
+  now forces one nmcli off/on bounce over serial and shoots the panel
+  twice inside the 4.5 s window (01d/01e-net-pendant), logging
+  green-px counts — INFORMATIONAL this round: the 4.5 s life vs the
+  10 s poll is a timing window a slow runner can miss and a hard gate
+  would cry wolf.
+- THE v0.6.88 BOOT (45213108578, RED on 5): the four CC fixes VERIFIED —
+  w68 PASS (1 circle blob 62x62 + the wide card 314), w69 PASS (both
+  knobs found), the dark tile AegisDark->AegisLight PASS, w77 light
+  bodies 239/242 PASS, w79 titleband 214 PASS. The five remaining reds
+  unwound to: (1) the anchored TILE regex defeated by the console's \r
+  line endings (re.M $ matches only before \n — zero matches, the
+  rebuild returned None silently, W41 clicked off-map); (2) the w70
+  model ran 2/6/12 px above the render (the rules measure 268/329/424);
+  (3) w67's glass band sat ON the footer's TIER badge text (the +10
+  charcoal read = the badge, not glass); (4) the running dots were
+  BINDING-DEAD since W81 shipped — the three W81 Q_INVOKABLEs
+  (windowCountFor, disconnectWired, reconnectWired) sat in the class's
+  IMPLICIT PRIVATE zone (the first public: at line ~94 of util.h), the
+  moc registered them private, QML could never see them: 72-76 x
+  "TypeError: windowCountFor ... is not a function" in BOTH serial
+  logs. The v0.6.88 "window clip" fix was a wrong diagnosis (the pill
+  was unmoved at 720..784; the dot rows 783..787 were inside the old
+  window too); (5) my pendant probe's second capture tripped the W58
+  duplicate-capture gate.
+- THE v0.6.89 FIXES (85f124b): the three invokables move AFTER the
+  first public: (the dock's Disconnect/Reconnect toggles come back to
+  life with them); the dot topMargin 7 -> 9 lands the dots at
+  y 785..789, ON the strip below the pill's border row; the harness
+  normalizes CR before the anchored findall; w70 rides the measured
+  rule rows CCY0+228/289/384 ±10; w67's band moves to CCY0+386..404
+  (the clean glass between rule3 and the power row); the dot probe
+  scans y H-22..H; the pendant probe drops its second capture.
+
+- VERDICT: bt v0.6.90 (45240340838) GREEN — the full chain green: Shell
+  CI 45227616985 + 45236510088 ISO + the release; the captures committed
+  to docs/screenshots/v0.6.90/ (b826272). The w81 running-dot assert
+  found its first positive with the public invokables; the dark flip,
+  w68/w69/w70, W41/W27/W51 and the rest ride the rebuilt 12-tile map.
+  v0.6.89 (45231172726) had caught the dedupe collapse (Files+Trash
+  share the head), fixed by the slot-index echo. The glyphs (wifi fan /
+  hexagon+dots wired / battery dome nub) were found UNREDAWED against
+  the user's plates — the W81 commit had rewritten the comments without
+  the painters — and land in v0.6.91 (fdeb3d6) verified against a PIL
+  re-render of the canvas math.
+
+
 ## The three user asks SHIPPED — v0.6.82 (16909eb), bt101-103, 2026-11-22
 - THE ASKS: (1) the Aegis mark shipped the white A-glyph on an opaque
   BLACK square — a black box on every light surface; stripped via
