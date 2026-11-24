@@ -36,35 +36,38 @@ QtObject {
     // wifi — pack master geometry (24-grid), size-normalized.
 
     function wifi(ctx, w, h, color, level) {
-        // W81 — the SOLID fan (the reference plate): a wedge dot plus two
-        // round-capped arc bands. `level` lights the arcs: 3 = all, 2 =
-        // dot + mid, 1 = dot only; anything else (undefined from the old
-        // callers) = all lit. Unlit bands ride at 0.28 alpha.
+        // v0.6.91 — the reference fan: THREE SOLID tiers with FLAT
+        // radial ends — a true wedge at the bottom, then two filled
+        // annulus bands (~2.5 units ink, ~1 unit gaps, one-subpath
+        // outer-forward/inner-reversed construction). The old
+        // round-capped strokes read as wire arcs, not the plate's fan.
+        // Spread ±60° around vertical. level lights the tiers:
+        // 3 = all, 2 = wedge + mid, 1 = wedge only; anything else
+        // (undefined from the old callers) = all lit. Unlit tiers ride
+        // at 0.28 alpha.
         ctx.reset()
         const s = Math.min(w, h) / 24
         const cx = 12 * s
         const cy = 17.8 * s
-        const a0 = 3.9270       // 225°
-        const a1 = 5.4978       // 315°
+        const a0 = Math.PI * (210 / 180)
+        const a1 = Math.PI * (330 / 180)
         const lit = (level === 1 || level === 2 || level === 3) ? level : 3
         ctx.fillStyle = color
-        // dot — solid wedge, the fan's anchor
-        ctx.beginPath()
-        ctx.arc(cx, cy, 2.80 * s, a0, a1, false)
-        ctx.closePath()
-        ctx.fill()
-        // the two bands — strokes with round caps read as the reference
-        ctx.strokeStyle = color
-        ctx.lineCap = "round"
-        ctx.lineWidth = 2.6 * s
-        const band = function(r, isLit) {
-            ctx.globalAlpha = isLit ? 1.0 : 0.28
+        const tiers = [[0, 3.4], [4.4, 7.0], [8.0, 10.5]]
+        for (let i = 0; i < tiers.length; i++) {
+            const rin = tiers[i][0], rout = tiers[i][1]
+            ctx.globalAlpha = lit >= i + 1 ? 1.0 : 0.28
             ctx.beginPath()
-            ctx.arc(cx, cy, r, a0, a1, false)
-            ctx.stroke()
+            if (rin < 0.01) {
+                ctx.moveTo(cx, cy)
+                ctx.arc(cx, cy, rout * s, a0, a1)
+            } else {
+                ctx.arc(cx, cy, rout * s, a0, a1)
+                ctx.arc(cx, cy, rin * s, a1, a0, true)
+            }
+            ctx.closePath()
+            ctx.fill()
         }
-        band(5.4 * s, lit >= 2)
-        band(8.6 * s, lit >= 3)
         ctx.globalAlpha = 1.0
     }
 
@@ -109,25 +112,37 @@ QtObject {
     }
 
     function wired(ctx, w, h, color) {
-
+        // v0.6.91 — the reference glyph: a wide rounded-hexagon
+        // ENCLOSURE with three separated dots inside (the silhouette
+        // family of the island pendant states). The old RJ45 plug read
+        // as nothing at menu size.
         ctx.reset()
         const s = Math.min(w, h) / 24
         _pen(ctx, color, 2)
+        const V = [[3.5, 12], [7.0, 6], [17.0, 6], [20.5, 12],
+                   [17.0, 18], [7.0, 18]]
         ctx.beginPath()
-        _rrectN(ctx, 8.00*s, 3.50*s, 8.00*s, 8.50*s, 1.40*s)
+        const n = V.length
+        for (let i = 0; i < n; i++) {
+            const p = V[i], prev = V[(i + n - 1) % n], next = V[(i + 1) % n]
+            const d1x = prev[0] - p[0], d1y = prev[1] - p[1]
+            const l1 = Math.hypot(d1x, d1y)
+            const d2x = next[0] - p[0], d2y = next[1] - p[1]
+            const l2 = Math.hypot(d2x, d2y)
+            const ax = p[0] + d1x / l1 * 1.5, ay = p[1] + d1y / l1 * 1.5
+            const bx = p[0] + d2x / l2 * 1.5, by = p[1] + d2y / l2 * 1.5
+            if (i === 0) ctx.moveTo(ax * s, ay * s)
+            else ctx.lineTo(ax * s, ay * s)
+            ctx.quadraticCurveTo(p[0] * s, p[1] * s, bx * s, by * s)
+        }
+        ctx.closePath()
         ctx.stroke()
-        ctx.beginPath()
-        ctx.moveTo(10.20*s, 3.50*s)
-        ctx.lineTo(10.20*s, 6.80*s)
-        ctx.moveTo(12.00*s, 3.50*s)
-        ctx.lineTo(12.00*s, 6.80*s)
-        ctx.moveTo(13.80*s, 3.50*s)
-        ctx.lineTo(13.80*s, 6.80*s)
-        ctx.stroke()
-        ctx.beginPath()
-        ctx.moveTo(12.00*s, 12.00*s)
-        ctx.lineTo(12.00*s, 15.20*s)
-        ctx.stroke()
+        ctx.fillStyle = color
+        for (const off of [-3.4, 0, 3.4]) {
+            ctx.beginPath()
+            ctx.arc(12 * s + off * s, 12 * s, 1.2 * s, 0, Math.PI * 2)
+            ctx.fill()
+        }
     }
 
     // Battery — W81 reference plate: a CHUNKY rounded outline, the level
@@ -142,16 +157,18 @@ QtObject {
         _rrectN(ctx, 3.2*s, 6.6*s, 16.4*s, 11.0*s, 4.6*s)
         ctx.stroke()
         ctx.beginPath()
-        // the nub — a rounded tab, not a pin
-        _rrectN(ctx, 20.8*s, 10.2*s, 2.0*s, 3.8*s, 1.0*s)
+        // the nub — a HALF-DOME attached to the body's right edge (the
+        // reference's semicircular bump, not a square tab)
+        ctx.arc(20.5 * s, 12.1 * s, 1.9 * s, -Math.PI / 2, Math.PI / 2)
+        ctx.closePath()
         ctx.fill()
         const hasBattery = percent >= 0
         if (hasBattery) {
             const level = Math.max(0, Math.min(100, percent)) / 100.0
             ctx.beginPath()
             // the level — one rounded chunk growing from the left
-            const lw = Math.max(3.6 * s, 12.4 * s * level)
-            _rrectN(ctx, 5.2*s, 8.6*s, lw, 6.8*s, 2.8*s)
+            const lw = Math.max(3.0 * s, 12.1 * s * level)
+            _rrectN(ctx, 5.2*s, 9.0*s, lw, 6.0*s, 1.8*s)
             ctx.fill()
         }
         if (charging || !hasBattery) {
