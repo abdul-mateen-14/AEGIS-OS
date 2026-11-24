@@ -86,15 +86,12 @@ else
     echo "klipper: skipped — not installed"
 fi
 
-# W82 — the screenshot suite's save directory + spectaclerc pin. The
-# shell's takeScreenshot() passes -o with an absolute path, but the
-# directory must exist before the first capture, and a manual `spectacle`
-# run (no -o) should land in the same folder.
+# W82 — the screenshot suite's save directory. The shell's
+# takeScreenshot() talks to KWin's org.kde.KWin.ScreenShot2 directly
+# (spectacle is not in the resolute archive) and writes
+# Screenshot_<ts>.png here; the directory must exist before the first
+# capture.
 mkdir -p "$HOME/Pictures/Screenshots"
-if [ ! -f "$HOME/.config/spectaclerc" ]; then
-    printf '[GuiConfig]\nclipboardGrouping=0\nsaveLocation=%s/Pictures/Screenshots\n' \
-        "$HOME" > "$HOME/.config/spectaclerc"
-fi
 
 for PORTAL in \
     /usr/libexec/xdg-desktop-portal-kde \

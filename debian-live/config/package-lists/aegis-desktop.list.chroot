@@ -83,12 +83,6 @@ xdg-desktop-portal
 xdg-desktop-portal-kde
 xdg-desktop-portal-gtk
 
-# W82 — the screenshot suite (Print / Shift+Print / Alt+Print /
-# Meta+Shift+S). spectacle's ScreenShot2 portal path is the one KWin 6
-# Wayland actually allows; the shell drives it detached with -o so the
-# capture lands in ~/Pictures/Screenshots without any GUI round-trip.
-spectacle
-
 # Icon themes — the shell's image://icons provider resolves dock/panel
 # glyphs through QIcon::fromTheme; with no theme installed every lookup
 # returned empty and the dock rendered without icons.

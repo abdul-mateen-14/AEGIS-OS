@@ -2329,7 +2329,7 @@ def main():
     # the screen (split-half pixel diff vs the clean 01-home frame),
     # (c) Meta+N opens the grown 500 px notification-center sheet (the
     # region BELOW the old 340 px calendar is now glass), (d) Print
-    # produces a real file in ~/Pictures/Screenshots via spectacle -o,
+    # produces a real file in ~/Pictures/Screenshots via KWin ScreenShot2,
     # (e) klipper runs with its Meta+V pin. The release gate reads
     # w82_tab_ok / w82_snap_ok / w82_center_ok / w82_shot_ok / w82_klipper_ok.
     w82_tab_ok = False
@@ -2415,7 +2415,7 @@ def main():
         q.key("alt", "f4"); time.sleep(4)
     try:
         # (d) Print = a real file, via the shell's takeScreenshot ->
-        # spectacle -b -n -o ~/Pictures/Screenshots/Screenshot_*.png
+        # ScreenShot2 CaptureActiveScreen -> ~/Pictures/Screenshots/Screenshot_*.png
         if serial is not None:
             out = serial.run(
                 "ls ~/Pictures/Screenshots/Screenshot_*.png 2>/dev/null | "
@@ -2437,7 +2437,7 @@ def main():
             w82_shot_ok = _n1 > _n0
             log(f"w82 screenshot: files before={_n0} after={_n1} — want "
                 f"after>before — " + ("PASS" if w82_shot_ok else
-                "FAIL — spectacle produced no file"))
+                "FAIL — ScreenShot2 produced no file"))
         else:
             log("w82 screenshot probe skipped: serial lost")
     except Exception as e:
@@ -4960,7 +4960,7 @@ def main():
                         "bottom)")
     if not w82_shot_ok:
         failures.append("W82: Print produced no file in "
-                        "~/Pictures/Screenshots (spectacle/takeScreenshot)")
+                        "~/Pictures/Screenshots (ScreenShot2/takeScreenshot)")
     if not w82_klipper_ok:
         failures.append("W82: klipper is not running (clipboard history "
                         "dead)")

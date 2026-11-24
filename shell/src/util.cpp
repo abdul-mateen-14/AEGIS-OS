@@ -8,6 +8,8 @@
 #include <QDBusConnection>
 #include <QDBusMessage>
 #include <QDBusPendingCall>
+#include <QDBusReply>
+#include <QDBusUnixFileDescriptor>
 #include <QDir>
 #include <QFile>
 #include <QFileInfo>
@@ -28,7 +30,9 @@
 
 #include <algorithm>
 #include <cmath>
+#include <fcntl.h>
 #include <pwd.h>
+#include <string.h>
 #include <unistd.h>
 
 // Default session config — mirrors shell/packaging/config.json.
@@ -1898,31 +1902,103 @@ void Util::writeWebDesktop(const QString &url, const QString &id,
 }
 
 // ── W82: the screenshot suite ────────────────────────────────────────
-// Modes: "full" (Print), "region" (Shift+Print / Meta+Shift+S),
-// "window" (Alt+Print). The session script seeds the save directory;
-// the shell also mkpaths defensively. The capture goes straight to the
-// file (spectacle -b) so the hotkey never opens a GUI the user must
-// dismiss. Unknown modes are ignored — a typo in the KWin script can
-// never spawn a rogue process.
+// KWin's own org.kde.KWin.ScreenShot2 (shipped by the kwin package the
+// session already runs). spectacle is NOT in the resolute archive — the
+// v0.6.92 ISO build died on "Unable to locate package spectacle" — and
+// the compositor-owned API is the same channel every KDE screenshot
+// tool uses. The caller passes one end of a pipe; the reply (an a{sv}
+// map) carries width/height/stride/format and arrives BEFORE the pixels
+// are written, so a synchronous call then a full pipe drain cannot
+// deadlock. Authorization: KWin permits callers whose desktop file
+// declares X-KDE-DBUS-Restricted-Interfaces=org.kde.KWin.ScreenShot2 —
+// aegis-shell.desktop ships it.
+// Modes: "full" (Print) → CaptureActiveScreen, "window" (Alt+Print) →
+// CaptureActiveWindow, "region" (Shift+Print / Meta+Shift+S) →
+// CaptureArea with interactive=true (KWin draws its own selection
+// overlay over the request rectangle). Unknown modes are ignored — a
+// typo in the KWin script can never spawn a rogue capture.
 void Util::takeScreenshot(const QString &mode)
 {
-    QString shot;
-    if (mode == QStringLiteral("full"))
-        shot = QStringLiteral("-f");
-    else if (mode == QStringLiteral("region"))
-        shot = QStringLiteral("-r");
-    else if (mode == QStringLiteral("window"))
-        shot = QStringLiteral("-a");
-    else
+    QString method;
+    bool interactive = false;
+    if (mode == QStringLiteral("full")) {
+        method = QStringLiteral("CaptureActiveScreen");
+    } else if (mode == QStringLiteral("window")) {
+        method = QStringLiteral("CaptureActiveWindow");
+    } else if (mode == QStringLiteral("region")) {
+        method = QStringLiteral("CaptureArea");
+        interactive = true;
+    } else {
         return;
+    }
     const QString dir = QDir::home().filePath(
         QStringLiteral("Pictures/Screenshots"));
     QDir().mkpath(dir);
-    const QString file = dir + QStringLiteral("/Screenshot_%1.png")
-        .arg(QDateTime::currentDateTime().toString(
-                 QStringLiteral("yyyyMMdd_HHmmsszzz")));
-    QProcess::startDetached(
-        QStringLiteral("spectacle"),
-        {shot, QStringLiteral("-b"), QStringLiteral("-n"),
-         QStringLiteral("-o"), file});
+
+    int fds[2];
+    if (pipe2(fds, O_CLOEXEC) != 0)
+        return;
+
+    QVariantMap options;
+    options.insert(QStringLiteral("include-cursor"), false);
+    if (interactive)
+        options.insert(QStringLiteral("interactive"), true);
+
+    QDBusMessage call = QDBusMessage::createMethodCall(
+        QStringLiteral("org.kde.KWin.ScreenShot2"),
+        QStringLiteral("/org/kde/KWin/ScreenShot2"),
+        QStringLiteral("org.kde.KWin.ScreenShot2"), method);
+    if (interactive) {
+        // CaptureArea(i x, i y, u width, u height, a{sv} options, h pipe):
+        // a 1x1 request rectangle; with interactive set KWin replaces it
+        // with its selection overlay.
+        call.setArguments({0, 0, 1u, 1u, options,
+                           QVariant::fromValue(
+                               QDBusUnixFileDescriptor(fds[1]))});
+    } else {
+        call.setArguments({options,
+                           QVariant::fromValue(
+                               QDBusUnixFileDescriptor(fds[1]))});
+    }
+    call.setTimeout(120000); // the region overlay waits for the user
+    QDBusReply<QVariantMap> reply =
+        QDBusConnection::sessionBus().call(call);
+    ::close(fds[1]);
+    if (!reply.isValid())
+        return;
+    const QVariantMap meta = reply.value();
+    const int width = meta.value(QStringLiteral("width")).toInt();
+    const int height = meta.value(QStringLiteral("height")).toInt();
+    const int stride = meta.value(QStringLiteral("stride")).toInt();
+    const int format = meta.value(QStringLiteral("format")).toInt();
+    if (width <= 0 || height <= 0 || stride <= 0)
+        return;
+    // Only the 32-bit packed RGB formats KWin actually emits; anything
+    // else means guessing the pixel layout, which we refuse.
+    if (format != QImage::Format_ARGB32
+        && format != QImage::Format_ARGB32_Premultiplied
+        && format != QImage::Format_RGB32)
+        return;
+
+    const qint64 need = qint64(stride) * height;
+    QByteArray buf;
+    buf.resize(int(need));
+    qint64 got = 0;
+    while (got < need) {
+        ssize_t n = ::read(fds[0], buf.data() + got, size_t(need - got));
+        if (n <= 0)
+            break;
+        got += n;
+    }
+    ::close(fds[0]);
+    if (got < need)
+        return;
+
+    QImage img(width, height, QImage::Format(format));
+    for (int row = 0; row < height; ++row)
+        memcpy(img.scanLine(row), buf.constData() + qint64(row) * stride,
+               size_t(qMin(stride, img.bytesPerLine())));
+    img.save(dir + QStringLiteral("/Screenshot_%1.png")
+                 .arg(QDateTime::currentDateTime().toString(
+                          QStringLiteral("yyyyMMdd_HHmmsszzz"))));
 }
