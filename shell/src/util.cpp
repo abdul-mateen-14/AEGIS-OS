@@ -6,10 +6,12 @@
 #include <QDate>
 #include <QDateTime>
 #include <QDBusConnection>
+#include <QDBusInterface>
 #include <QDBusMessage>
 #include <QDBusPendingCall>
 #include <QDBusReply>
 #include <QDBusUnixFileDescriptor>
+#include <QtDBus> // QDBus::Block (CallMode) — umbrella keeps it resolved
 #include <QDir>
 #include <QFile>
 #include <QFileInfo>
@@ -1944,25 +1946,29 @@ void Util::takeScreenshot(const QString &mode)
     if (interactive)
         options.insert(QStringLiteral("interactive"), true);
 
-    QDBusMessage call = QDBusMessage::createMethodCall(
+    QDBusInterface screenShot(
         QStringLiteral("org.kde.KWin.ScreenShot2"),
         QStringLiteral("/org/kde/KWin/ScreenShot2"),
-        QStringLiteral("org.kde.KWin.ScreenShot2"), method);
+        QStringLiteral("org.kde.KWin.ScreenShot2"),
+        QDBusConnection::sessionBus());
+    if (!screenShot.isValid()) {
+        ::close(fds[1]);
+        return;
+    }
+    screenShot.setTimeout(120000); // the region overlay waits for the user
+    QList<QVariant> args;
     if (interactive) {
         // CaptureArea(i x, i y, u width, u height, a{sv} options, h pipe):
         // a 1x1 request rectangle; with interactive set KWin replaces it
         // with its selection overlay.
-        call.setArguments({0, 0, 1u, 1u, options,
-                           QVariant::fromValue(
-                               QDBusUnixFileDescriptor(fds[1]))});
+        args = {0, 0, 1u, 1u, options,
+                QVariant::fromValue(QDBusUnixFileDescriptor(fds[1]))};
     } else {
-        call.setArguments({options,
-                           QVariant::fromValue(
-                               QDBusUnixFileDescriptor(fds[1]))});
+        args = {options,
+                QVariant::fromValue(QDBusUnixFileDescriptor(fds[1]))};
     }
-    call.setTimeout(120000); // the region overlay waits for the user
-    QDBusReply<QVariantMap> reply =
-        QDBusConnection::sessionBus().call(call);
+    QDBusReply<QVariantMap> reply(screenShot.callWithArgumentList(
+                                      QDBus::Block, method, args));
     ::close(fds[1]);
     if (!reply.isValid())
         return;
