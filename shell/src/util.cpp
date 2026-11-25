@@ -63,8 +63,8 @@ QVariantMap Util::defaultConfig() const
                         {"cmd", "aegis-browser-stable"},
                         {"resolve", true}},                     // Tier B — entry: aegis-browser / org.aegisbrowser.Aegis
             QVariantMap{{"name", "OS"}, {"icon", "os-private-chat"},
-                        {"cmd", "os-private-chat"},
-                        {"resolve", true}},                     // Tier B — the Rust deb (W83): resolve re-dresses Icon=/Name= from os-private-chat.desktop and launches its Exec=
+                        {"cmd", "os-chat"},
+                        {"resolve", true}},                     // Tier B — the Rust deb (W83): resolve re-dresses Icon=/Name= from os-private-chat.desktop and launches its Exec=/usr/bin/os-chat (the 3.0.2 binary name; the desktop ID kept os-private-chat — the slot head must match the Exec head or W8 drops the tile, the r1 run proved it)
             QVariantMap{{"name", "CoreX"}, {"icon", "corex"},
                         {"cmd", "corex"},
                         {"resolve", true}},                     // Tier B — the Rust deb (W83): corex 2.0.0, native WebKitGTK (binary renamed from corex-terminal)

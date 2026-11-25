@@ -3031,22 +3031,38 @@ def main():
             seg = out.split("N-OK")[0].strip()
             payload = base64.b64decode(seg).decode(errors="replace").strip()
             log("w55 payload head: " + payload[:200])
-            i, j = payload.find("["), payload.rfind("]")
-            if i >= 0 and j > i:
-                # busctl escapes the quotes INSIDE the string payload
-                # (s "[\"Files\",...]") — run 3's parse died on char 1
-                # (the backslash right after the opening bracket).
-                # Unescape before parsing.
-                cand = payload[i:j + 1].replace('\\"', '"')
-                names = json.loads(cand)
+            names = None
+            # busctl prints the s payload as a SHELL-QUOTED string:
+            # s "[\"Files\",...]" — every inner quote AND backslash is
+            # escaped. The r1 run's naive replace('\\"', '"') died at
+            # char 325 (Invalid \escape: the payload also carries \\
+            # and \n escapes — "OS — Private Chat" etc.). Decode the
+            # quoted literal properly with ast.literal_eval, then parse.
+            m = re.search(r's "(.*)"', payload, re.S)
+            if m:
+                try:
+                    import ast
+                    names = json.loads(ast.literal_eval(
+                        '"' + m.group(1) + '"'))
+                except Exception:
+                    names = None
+            if names is None:
+                # fallback: the v0.6.x slice-and-replace path
+                i, j = payload.find("["), payload.rfind("]")
+                if i >= 0 and j > i:
+                    cand = payload[i:j + 1].replace('\\"', '"')
+                    names = json.loads(cand)
+                else:
+                    names = None
+            if names is not None:
                 dups = sorted({n for n in names if names.count(n) > 1})
                 w55_names_ok = len(dups) == 0
                 log(f"w55 launcher names: {len(names)} entries, dups="
                     f"{dups if dups else 'none'} — "
                     + ("PASS" if w55_names_ok else "FAIL"))
             else:
-                log("w55 launcher names: no JSON payload (busctl said: "
-                    + payload[:120] + ") — FAIL")
+                log("w55 launcher names: no decodable JSON payload "
+                    "(busctl said: " + payload[:120] + ") — FAIL")
         except Exception as e:
             log(f"w55 names probe failed: {e}")
 
@@ -4091,108 +4107,118 @@ def main():
         log(f"dnd toggle capture failed: {e}")
         sys.exit(1)
 
+    # W83 — shared probe geometry: the sheet is TRANSLUCENT glass (Files
+    # bleeds through), so the dark track cannot be luminance-segmented;
+    # the accent connectivity card is pure hue and rides the SAME
+    # content column as the sliders. Track caps relative to it,
+    # measured on the v0.6.92 capture: glyph 18 px + 10 margin + the
+    # QQC2 default 6 px padding put the track's left cap at card_l+34,
+    # and the track ends 3 px short of the card's right edge
+    # (QQC2 right padding) — card_l+34 .. card_r−3.
+    BAND = (930, 330, 1270, 425)        # both slider rows in the sheet
+    CARDBAND = (930, 125, 1280, 175)    # the accent connectivity card
+
+    def _w83_card_column(im):
+        """the accent card's x-extent — the content column anchor."""
+        px = im.crop(CARDBAND)
+        xs = []
+        for y in range(px.size[1]):
+            for x in range(px.size[0]):
+                r, g, b = px.getpixel((x, y))[:3]
+                if b > 150 and b > r + 40 and g > 80:
+                    xs.append(x)
+        if not xs:
+            return (None, None)
+        return (min(xs) + CARDBAND[0], max(xs) + CARDBAND[0])
+
+    def _w83_clusters(im):
+        """y-clusters of near-white rows inside BAND (knobs/liquid)."""
+        px = im.crop(BAND)
+        w, h = px.size
+        rows = []
+        for y in range(h):
+            n = sum(1 for x in range(0, w, 2)
+                    if px.getpixel((x, y)) > 210)
+            rows.append(n >= 8)
+        clusters = []
+        start = None
+        for y, on in enumerate(rows + [False]):
+            if on and start is None:
+                start = y
+            elif not on and start is not None:
+                clusters.append((start, y - 1))
+                start = None
+        # ≥5: a BARE 22 px disc tapers to ~10 hot rows at step 2 — the
+        # r1 frame replay proved a ≥12 filter silently drops it.
+        return [c for c in clusters if c[1] - c[0] >= 5]
+
+    def _w83_white(im, y0, y1):
+        """white-pixel ABSOLUTE x-extent inside BAND rows y0..y1."""
+        px = im.crop(BAND)
+        xs = [x for y in range(y0, y1 + 1)
+              for x in range(px.size[0])
+              if px.getpixel((x, y)) > 210]
+        return ((min(xs) + BAND[0], max(xs) + BAND[0])
+                if xs else (None, None))
+
     # ── W83 — the slider knob stays INSIDE the pill ("the scale bubble
     # goes out of the line at max and min"): the v0.6.92 capture had the
     # 22 px disc hanging 11 px PAST the track at both ends (the handle
-    # rode visualPosition*width − 11 with no clamp). Two captures —
-    # volume 0 then 100 via wpctl — bracket the travel. The pill's cap
-    # geometry is measured off the EMPTY volume track in the min frame
-    # (dark pill, no liquid, no knob overhang), so the asserts are
-    # self-anchored, not hardcoded constants:
-    #   at 0   — the knob's leftmost white ≥ pillLeft − 2
-    #   at 100 — the rightmost white blob ≤ pillRight + 2
-    # (the old build measured 964 vs 975 at min and 1263 vs 1252 at max).
+    # rode visualPosition*width − 11 with no clamp). The r1 run proved
+    # wpctl cannot drive this probe — Util.volume is not watched live,
+    # so the external change never repaints the sheet and both captures
+    # came out byte-identical (the W58 gate caught the pair). The probe
+    # now drives the slider the way a user does: CLICK the track near
+    # the left cap (value → 0), capture, click near the right cap
+    # (value → 1), capture. The track caps anchor on the live-measured
+    # accent card column (track = card_l+34 .. card_r−3, measured on
+    # the v0.6.92 capture; QQC2 padding), the volume row's center y
+    # comes from the CC frame's own bright clusters, and the bare-disc
+    # cluster filter is ≥5 hot rows (the r1 frame replay: a bare 22 px
+    # disc only tapers to ~10 hot rows — the old ≥12 filter silently
+    # dropped it and "clusters []" was the verdict).
     w83_knob_ok = False
     try:
         if serial is not None:
-            serial.run("wpctl set-volume @DEFAULT_AUDIO_SINK@ 0; "
-                       "echo W83-VOL0", settle=2)
-            time.sleep(1.5)
-            q.shot("05e-cc-volmin")
-            serial.run("wpctl set-volume @DEFAULT_AUDIO_SINK@ 1.0; "
-                       "echo W83-VOLMAX", settle=2)
-            time.sleep(1.5)
-            q.shot("05f-cc-volmax")
-
-            BAND = (930, 330, 1270, 425)  # both slider rows in the sheet
-            CARDBAND = (930, 125, 1280, 175)  # the accent connectivity card
-
-            def _clusters(im):
-                """y-clusters of near-white rows inside BAND (knobs)."""
-                px = im.crop(BAND)
-                w, h = px.size
-                rows = []
-                for y in range(h):
-                    n = sum(1 for x in range(0, w, 2)
-                            if px.getpixel((x, y)) > 210)
-                    rows.append(n >= 8)
-                clusters = []
-                start = None
-                for y, on in enumerate(rows + [False]):
-                    if on and start is None:
-                        start = y
-                    elif not on and start is not None:
-                        clusters.append((start, y - 1))
-                        start = None
-                return [c for c in clusters if c[1] - c[0] >= 12]
-
-            def _white_extent(im, y0, y1):
-                px = im.crop(BAND)
-                xs = [x for y in range(y0, y1 + 1)
-                      for x in range(px.size[0])
-                      if px.getpixel((x, y)) > 210]
-                return (min(xs), max(xs)) if xs else (None, None)
-
-            def _card_column(im):
-                """the accent card's x-extent — the content column anchor.
-
-                The sheet is TRANSLUCENT glass (Files bleeds through),
-                so the dark track cannot be luminance-segmented; the
-                accent card is pure hue and rides the same content
-                column as the sliders. Track caps relative to it,
-                measured on the v0.6.92 capture: the slider glyph 18 px
-                + 10 margin + the QQC2 default 6 px padding put the
-                track's left cap at card_l + 34, and the track ends
-                3 px short of the card's right edge (QQC2 right
-                padding) — card_l+34 .. card_r−3.
-                """
-                px = im.crop(CARDBAND)
-                xs = []
-                for y in range(px.size[1]):
-                    for x in range(px.size[0]):
-                        r, g, b = px.getpixel((x, y))[:3]
-                        if b > 150 and b > r + 40 and g > 80:
-                            xs.append(x)
-                if not xs:
-                    return (None, None)
-                return (min(xs) + CARDBAND[0], max(xs) + CARDBAND[0])
-
-            vmax_rgb = Image.open(
-                f"{OUT}/05f-cc-volmax.png").convert("RGB")
-            card_l, card_r = _card_column(vmax_rgb)
-            vmin = Image.open(f"{OUT}/05e-cc-volmin.png").convert("L")
-            vmax = Image.open(f"{OUT}/05f-cc-volmax.png").convert("L")
-            cvmin, cvmax = _clusters(vmin), _clusters(vmax)
-            if cvmin and cvmax and card_l is not None:
+            cc0 = Image.open(f"{OUT}/05-control-center.png")
+            card_l, card_r = _w83_card_column(cc0)
+            cl0 = _w83_clusters(cc0.convert("L"))
+            if cl0 and card_l is not None:
                 tr_l, tr_r = card_l + 34, card_r - 3
-                # the volume slider is the BOTTOM row in both frames
-                vy0, vy1 = cvmin[-1]
-                knob_l, _knob_r = _white_extent(vmin, vy0, vy1)
-                _m0, _m1 = cvmax[-1]
-                _blob_l, blob_r = _white_extent(vmax, _m0, _m1)
-                min_ok = (knob_l is not None
-                          and knob_l >= tr_l - 4)
-                max_ok = (blob_r is not None
-                          and blob_r <= tr_r + 4)
-                w83_knob_ok = min_ok and max_ok
-                log(f"w83 knob: track {tr_l}..{tr_r} (card-anchored) — "
-                    f"min knob left {knob_l} (want >= {tr_l}−4), max "
-                    f"blob right {blob_r} (want <= {tr_r}+4) — "
-                    + ("PASS" if w83_knob_ok else
-                       "FAIL — the knob disc leaves the track at an end"))
+                vy0, vy1 = cl0[-1]
+                vy = (vy0 + vy1) // 2 + BAND[1]
+                q.click(tr_l + 8, vy, W, H)
+                time.sleep(1.5)
+                q.shot("05e-cc-volmin")
+                q.click(tr_r - 8, vy, W, H)
+                time.sleep(1.5)
+                q.shot("05f-cc-volmax")
+                vmin = Image.open(f"{OUT}/05e-cc-volmin.png").convert("L")
+                vmax = Image.open(f"{OUT}/05f-cc-volmax.png").convert("L")
+                cvmin, cvmax = _w83_clusters(vmin), _w83_clusters(vmax)
+                if cvmin and cvmax:
+                    vy0m, vy1m = cvmin[-1]
+                    knob_l, _kr = _w83_white(vmin, vy0m, vy1m)
+                    _m0, _m1 = cvmax[-1]
+                    _bl, blob_r = _w83_white(vmax, _m0, _m1)
+                    min_ok = (knob_l is not None
+                              and knob_l >= tr_l - 4)
+                    max_ok = (blob_r is not None
+                              and blob_r <= tr_r + 4)
+                    w83_knob_ok = min_ok and max_ok
+                    log(f"w83 knob: track {tr_l}..{tr_r} row {vy} — min "
+                        f"knob left {knob_l} (want >= {tr_l}−4), max "
+                        f"blob right {blob_r} (want <= {tr_r}+4) — "
+                        + ("PASS" if w83_knob_ok else
+                           "FAIL — the knob disc leaves the track at an "
+                           "end"))
+                else:
+                    log(f"w83 knob: slider rows not found after the "
+                        f"clicks (min clusters {len(cvmin)}, max "
+                        f"{len(cvmax)}) — FAIL")
             else:
-                log(f"w83 knob: sliders/card not found (clusters "
-                    f"{cvmin and len(cvmin)}, card {card_l}) — FAIL")
+                log(f"w83 knob: card/sliders not found in the CC frame "
+                    f"(card {card_l}) — FAIL")
         else:
             log("w83 knob probe skipped: serial lost")
     except Exception as e:

@@ -20,7 +20,7 @@
     {
       "name": "OS",
       "icon": "os-private-chat",
-      "cmd": "os-private-chat",
+      "cmd": "os-chat",
       "resolve": true
     },
     {

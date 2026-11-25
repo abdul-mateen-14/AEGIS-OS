@@ -42,6 +42,20 @@ else
     [ -d /usr/share/themes/adw-gtk3 ] || GTK_THEME=Adwaita
 fi
 export GTK_THEME
+
+# W83 r1 forensics — the Rust webview apps (Tauri/wry: corex 2.0.0,
+# os-private-chat 3.0.2) PANIC at webview creation under Wayland:
+# "webview — is libwebkit2gtk-4.1-0 installed?: UnsupportedWindowHandle"
+# (the launch logfile caught both dead with no process alive; corex
+# died on both r1 attempts, os-chat needed a retry). wry cannot take
+# the GTK Wayland raw handle in this environment, and XWayland is
+# always present — webkit2gtk's X11 path is the battle-tested one.
+# The dmabuf renderer additionally goes off: these VMs have no GL
+# (every libEGL call in the logs fails dri2) and WebKit's dmabuf
+# path degrades to black frames there.
+GDK_BACKEND=x11
+WEBKIT_DISABLE_DMABUF_RENDERER=1
+export GDK_BACKEND WEBKIT_DISABLE_DMABUF_RENDERER
 VM=0
 if [ "$AEGIS_VM_MODE" = "1" ]; then
     VM=1
