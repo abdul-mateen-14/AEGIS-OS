@@ -20,12 +20,14 @@
     {
       "name": "OS",
       "icon": "os-private-chat",
-      "cmd": "aegis-webshell os-chat https://os-cloudflare.pages.dev/app"
+      "cmd": "os-private-chat",
+      "resolve": true
     },
     {
       "name": "CoreX",
-      "icon": "corex-terminal",
-      "cmd": "aegis-webshell corex https://corex-2hl.pages.dev"
+      "icon": "corex",
+      "cmd": "corex",
+      "resolve": true
     },
     {
       "type": "separator"
