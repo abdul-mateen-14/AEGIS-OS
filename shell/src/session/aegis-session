@@ -28,6 +28,19 @@ LOG="${AEGIS_SESSION_LOG:-/tmp/aegis-session.log}"
 exec >> "$LOG" 2>&1
 echo "=== aegis-session start $(date) uid=$(id -u) seat=${XDG_SEAT:-UNSET} vt=${XDG_VTNR:-UNSET} XDG_RUNTIME_DIR=${XDG_RUNTIME_DIR:-UNSET} ==="
 
+# W82 — the ScreenShot2 authorization escape hatch, verified against
+# kwin 6.3 screenshotdbusinterface2.cpp (checkPermissions: static bool
+# permissionCheckDisabled = qEnvironmentVariableIntValue(
+# "KWIN_SCREENSHOT_NO_PERMISSION_CHECKS") == 1). bt92r4 proved the
+# desktop-file route is NOT deterministic in this image even with
+# Exec=/usr/bin/aegis-shell and kbuildsycoca6 rc=0 (KApplicationTrader::
+# query still found no matching service — the exact sycoca/service
+# internals diverge in the resolute kwin build). The restricted-interfaces
+# declaration stays shipped in aegis-shell.desktop; on this single-user
+# reference OS the first-party shell is the only session-bus UI process,
+# so the documented upstream bypass is the honest deterministic choice.
+export KWIN_SCREENSHOT_NO_PERMISSION_CHECKS=1
+
 kwin_wayland --xwayland &
 KWIN_PID=$!
 echo "kwin started pid=$KWIN_PID"
