@@ -112,36 +112,30 @@ QtObject {
     }
 
     function wired(ctx, w, h, color) {
-        // v0.6.91 — the reference glyph: a wide rounded-hexagon
-        // ENCLOSURE with three separated dots inside (the silhouette
-        // family of the island pendant states). The old RJ45 plug read
-        // as nothing at menu size.
+        // W83 — the RJ45 double-plug (the settings_ethernet family, the
+        // universal wired-network symbol): two filled connector blocks
+        // with pin combs facing each other across the middle gap. The
+        // v0.6.91 hexagon-with-dots read as a CHAT BUBBLE at menu size
+        // (the v0.6.92 CC captures — a message glyph on the network
+        // card), and the pre-0.6.91 bare plug read as nothing; blocks +
+        // pins read as ethernet at 16 px and still draw at 24.
         ctx.reset()
         const s = Math.min(w, h) / 24
-        _pen(ctx, color, 2)
-        const V = [[3.5, 12], [7.0, 6], [17.0, 6], [20.5, 12],
-                   [17.0, 18], [7.0, 18]]
-        ctx.beginPath()
-        const n = V.length
-        for (let i = 0; i < n; i++) {
-            const p = V[i], prev = V[(i + n - 1) % n], next = V[(i + 1) % n]
-            const d1x = prev[0] - p[0], d1y = prev[1] - p[1]
-            const l1 = Math.hypot(d1x, d1y)
-            const d2x = next[0] - p[0], d2y = next[1] - p[1]
-            const l2 = Math.hypot(d2x, d2y)
-            const ax = p[0] + d1x / l1 * 1.5, ay = p[1] + d1y / l1 * 1.5
-            const bx = p[0] + d2x / l2 * 1.5, by = p[1] + d2y / l2 * 1.5
-            if (i === 0) ctx.moveTo(ax * s, ay * s)
-            else ctx.lineTo(ax * s, ay * s)
-            ctx.quadraticCurveTo(p[0] * s, p[1] * s, bx * s, by * s)
-        }
-        ctx.closePath()
-        ctx.stroke()
         ctx.fillStyle = color
-        for (const off of [-3.4, 0, 3.4]) {
+        _rrectN(ctx, 3 * s, 8.5 * s, 5.5 * s, 7 * s, 1.2 * s)
+        ctx.fill()
+        _rrectN(ctx, 15.5 * s, 8.5 * s, 5.5 * s, 7 * s, 1.2 * s)
+        ctx.fill()
+        _pen(ctx, color, 1.8)
+        for (const y of [10.4, 12.0, 13.6]) {
             ctx.beginPath()
-            ctx.arc(12 * s + off * s, 12 * s, 1.2 * s, 0, Math.PI * 2)
-            ctx.fill()
+            ctx.moveTo(8.5 * s, y * s)
+            ctx.lineTo(11.2 * s, y * s)
+            ctx.stroke()
+            ctx.beginPath()
+            ctx.moveTo(15.5 * s, y * s)
+            ctx.lineTo(12.8 * s, y * s)
+            ctx.stroke()
         }
     }
 
@@ -152,6 +146,30 @@ QtObject {
     function battery(ctx, w, h, color, charging, percent) {
         ctx.reset()
         const s = Math.min(w, h) / 24
+        // W83 — AC-only machines wear the POWER PLUG (two prongs, a
+        // filled head, a cord): the old battery-outline-with-bolt read
+        // as an unreadable badge at 16 px (the v0.6.92 captures) and
+        // implied a battery pack the machine does not have. With a
+        // battery present, the body/nub/level story below is unchanged.
+        if (percent < 0) {
+            _pen(ctx, color, 2)
+            ctx.beginPath()
+            ctx.moveTo(9.4 * s, 3.8 * s)
+            ctx.lineTo(9.4 * s, 7.4 * s)
+            ctx.stroke()
+            ctx.beginPath()
+            ctx.moveTo(14.6 * s, 3.8 * s)
+            ctx.lineTo(14.6 * s, 7.4 * s)
+            ctx.stroke()
+            ctx.fillStyle = color
+            _rrectN(ctx, 6.8 * s, 7.4 * s, 10.4 * s, 6.2 * s, 2.2 * s)
+            ctx.fill()
+            ctx.beginPath()
+            ctx.moveTo(12 * s, 13.6 * s)
+            ctx.lineTo(12 * s, 19.8 * s)
+            ctx.stroke()
+            return
+        }
         _pen(ctx, color, 2.2)
         ctx.beginPath()
         _rrectN(ctx, 3.2*s, 6.6*s, 16.4*s, 11.0*s, 4.6*s)
@@ -171,7 +189,7 @@ QtObject {
             _rrectN(ctx, 5.2*s, 9.0*s, lw, 6.0*s, 1.8*s)
             ctx.fill()
         }
-        if (charging || !hasBattery) {
+        if (charging) {
             ctx.beginPath()
             ctx.moveTo(11.4*s, 8.6*s)
             ctx.lineTo(8.4*s, 13.4*s)

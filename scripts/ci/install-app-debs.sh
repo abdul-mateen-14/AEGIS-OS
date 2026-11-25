@@ -43,9 +43,54 @@ fetch() {
     fi
 }
 
+# "latest:owner/repo" — pick the NEWEST *.deb in a public GitHub repo's
+# default branch (W83, "always use latest version"): the contents API is
+# version-sorted and the winner is fetched raw. Auth rides GITHUB_TOKEN
+# when the runner provides one (the unauthenticated 60/hr pool 403s under
+# CI traffic); a failed resolution falls back to the pinned URL on the
+# directive ("latest:owner/repo|https://…") and only then warns + skips.
+fetch_latest() {
+    local repo="$1"
+    local fallback="${1#*|}"
+    repo="${1%%|*}"
+    [ "$fallback" = "$1" ] && fallback=""
+    local auth=()
+    [ -n "${GITHUB_TOKEN:-}" ] && auth=(-H "Authorization: Bearer ${GITHUB_TOKEN}")
+    local pick
+    pick="$(curl -fsSL --retry 3 --retry-delay 2 "${auth[@]}" \
+        "https://api.github.com/repos/${repo}/contents/" \
+        | python3 -c '
+import json, sys
+try:
+    entries = json.load(sys.stdin)
+except Exception:
+    sys.exit(0)
+names = sorted(
+    (e["name"] for e in entries
+     if isinstance(e, dict) and e.get("name", "").endswith(".deb")),
+    key=lambda n: [int(p) if p.isdigit() else p
+                   for p in n.replace("_", ".").split(".")])
+print(names[-1] if names else "")')" || true
+    if [ -z "$pick" ]; then
+        if [ -n "$fallback" ]; then
+            echo "WARNING: latest:${repo} unresolved — using the pinned fallback"
+            fetch "$fallback"
+            return
+        fi
+        echo "WARNING: no .deb resolvable in ${repo} — slot skipped"
+        return 1
+    fi
+    echo "latest:${repo} -> ${pick}"
+    fetch "https://github.com/${repo}/raw/main/${pick}"
+}
+
 if [ -n "${AEGIS_APPS_DEB_URLS:-}" ]; then
     while IFS= read -r url; do
-        [ -n "$url" ] && fetch "$url" || true
+        [ -n "$url" ] || continue
+        case "$url" in
+            latest:*) fetch_latest "${url#latest:}" || true ;;
+            *) fetch "$url" || true ;;
+        esac
     done <<< "$AEGIS_APPS_DEB_URLS"
 fi
 
@@ -53,7 +98,10 @@ URLS_FILE="$ROOT/debian-live/app-deb-urls.txt"
 if [ -f "$URLS_FILE" ]; then
     while IFS= read -r url || [ -n "$url" ]; do
         if [ -z "$url" ] || [[ "$url" =~ ^# ]]; then continue; fi
-        fetch "$url" || true
+        case "$url" in
+            latest:*) fetch_latest "${url#latest:}" || true ;;
+            *) fetch "$url" || true ;;
+        esac
     done < "$URLS_FILE"
 fi
 

@@ -8,8 +8,10 @@
   dock config references the family names instead of stock theme names
 """
 import re, os, sys
+from pathlib import Path
 
-THEME = "/home/z/my-project/work/aegis-os/debian-live/config/includes.chroot/usr/share/icons/Aegis"
+THEME = str(Path(__file__).resolve().parent.parent
+       / "debian-live/config/includes.chroot/usr/share/icons/Aegis")
 APPS = f"{THEME}/apps/scalable"
 
 # reference squircle template (identical for all icons)

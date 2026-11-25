@@ -937,8 +937,15 @@ Window {
             handle: Rectangle {
                 // W81 — the macOS CC knob: a 22 px round white disc (the
                 // old 24x20 bar read as a chunky pill against the thin
-                // track), ink rim per the W80 contrast ruling
-                x: slider.leftPadding + slider.visualPosition * slider.availableWidth - 11
+                // track), ink rim per the W80 contrast ruling.
+                // W83 — the disc is CLAMPED inside the pill: the travel
+                // is availableWidth − knobWidth, so at 0 its left edge
+                // kisses the left cap and at 1 its right edge kisses the
+                // right cap (the v0.6.92 capture had the disc hanging
+                // 11 px PAST the track at both ends — the "scale bubble
+                // out of the line" report).
+                x: slider.leftPadding
+                   + slider.visualPosition * (slider.availableWidth - 22)
                 y: slider.topPadding + slider.availableHeight / 2 - 11
                 width: 22
                 height: 22

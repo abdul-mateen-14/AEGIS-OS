@@ -63,11 +63,11 @@ QVariantMap Util::defaultConfig() const
                         {"cmd", "aegis-browser-stable"},
                         {"resolve", true}},                     // Tier B — entry: aegis-browser / org.aegisbrowser.Aegis
             QVariantMap{{"name", "OS"}, {"icon", "os-private-chat"},
-                        {"cmd", "aegis-webshell os-chat "
-                                "https://os-cloudflare.pages.dev/app"}},  // Tier B — PWA window (aegis-webshell), the Electron deb retired
-            QVariantMap{{"name", "CoreX"}, {"icon", "corex-terminal"},
-                        {"cmd", "aegis-webshell corex "
-                                "https://corex-2hl.pages.dev"}},          // Tier B — PWA window (aegis-webshell), the Electron deb retired
+                        {"cmd", "os-private-chat"},
+                        {"resolve", true}},                     // Tier B — the Rust deb (W83): resolve re-dresses Icon=/Name= from os-private-chat.desktop and launches its Exec=
+            QVariantMap{{"name", "CoreX"}, {"icon", "corex"},
+                        {"cmd", "corex"},
+                        {"resolve", true}},                     // Tier B — the Rust deb (W83): corex 2.0.0, native WebKitGTK (binary renamed from corex-terminal)
             QVariantMap{{"type", "separator"}},
             QVariantMap{{"name", "Music"}, {"icon", "aegis-music"},
                         {"cmd", "aegis-music"}},               // Tier A — first-party Music (M3)

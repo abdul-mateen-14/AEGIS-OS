@@ -3074,27 +3074,57 @@ def main():
     # this catches). The dock clicks ride the guest-resolved map
     # (browser 2, os 3, corex 4); the W24 launch logs land in
     # ~/.local/state/aegis/launch/ for the diag dump.
-    # Rust stage 1 (v0.6.79) — os/corex are no longer Electron debs: the
-    # slots ride aegis-webshell (the shipped aegis-browser-stable in
-    # --app mode, per-app profile — docs/RUST-MIGRATION.md). No .desktop
-    # resolution anymore: the multi-word cmd rides Util.launch directly
-    # (util.cpp runs the command under /bin/sh), and the webshell script
-    # deliberately stays as the parent process so the failure-path
-    # pgrep -af aegis-webshell annotation still finds it.
+    # Rust stage 2 (W83, v0.6.93) — the webshell slots are UN-RETIRED:
+    # both repos ship native WebKitGTK debs (os-private-chat 3.0.2,
+    # corex 2.0.0 — 218/488 KB vs the 93–102 MB Electron wrappers), so
+    # the slots ride the REAL products again. The dock's W8 resolve
+    # re-dresses Icon=/Name= from the debs' own desktop entries (the
+    # ORIGINAL vendor icons) and launches their Exec=; the open_app cmd
+    # is the bare head the .desktop lookup and tile tracking match by.
     if open_app("04g-browser", "aegis-browser-stable", wait_s=30,
                 click_idx=2, launch_cmd="desktop"):
         opens["browser"] = True
         q.key("alt", "f4"); time.sleep(5)
-    if open_app("04h-os", "aegis-webshell os-chat "
-                "https://os-cloudflare.pages.dev/app",
-                wait_s=30, click_idx=3):
+    if open_app("04h-os", "os-private-chat",
+                wait_s=30, click_idx=3, launch_cmd="desktop"):
         opens["os"] = True
         q.key("alt", "f4"); time.sleep(5)
-    if open_app("04i-corex", "aegis-webshell corex "
-                "https://corex-2hl.pages.dev",
-                wait_s=45, click_idx=4):
+    if open_app("04i-corex", "corex",
+                wait_s=45, click_idx=4, launch_cmd="desktop"):
         opens["corex"] = True
         q.key("alt", "f4"); time.sleep(5)
+
+    # W83 — the Rust debs landed with their ORIGINAL vendor icons: both
+    # packages installed, the real binaries executable, and the hicolor
+    # PNGs the dock resolve dresses the tiles with on disk (the v0.6.92
+    # webshell slots had neither the apps nor any icon behind them).
+    w83_apps_ok = False
+    try:
+        if serial is not None:
+            out = serial.run(
+                "echo W83-PKGS=$(dpkg -l corex os-private-chat "
+                "2>/dev/null | grep -c ^ii); "
+                "test -x /usr/bin/corex && echo W83-COREX-BIN; "
+                "test -x /usr/bin/os-chat && echo W83-OSCHAT-BIN; "
+                "echo W83-ICONS=$(find /usr/share/icons/hicolor "
+                "-name corex.png -o -name os-private-chat.png "
+                "2>/dev/null | wc -l); echo W83-APPS-END", settle=2)
+            _pkgs = re.search(r"W83-PKGS=(\d+)", out)
+            _icons = re.search(r"W83-ICONS=(\d+)", out)
+            _bins = ("W83-COREX-BIN" in out and "W83-OSCHAT-BIN" in out)
+            w83_apps_ok = (_pkgs and int(_pkgs.group(1)) == 2
+                           and _icons and int(_icons.group(1)) >= 4
+                           and _bins)
+            log(f"w83 apps: packages={_pkgs.group(1) if _pkgs else '?'} "
+                f"binaries={'ok' if _bins else 'MISSING'} "
+                f"hicolor icon files={_icons.group(1) if _icons else '?'} "
+                "— want 2 / ok / >=4 — " + ("PASS" if w83_apps_ok else
+                                            "FAIL — the Rust debs did not "
+                                            "install"))
+        else:
+            log("w83 apps probe skipped: serial lost")
+    except Exception as e:
+        log(f"w83 apps probe failed: {e}")
 
     # T14 — the Store: the apt-backed app store opens with the curated
     # catalog rendered (the diff gate proves the window). T15-D3 (W38) —
@@ -4061,6 +4091,113 @@ def main():
         log(f"dnd toggle capture failed: {e}")
         sys.exit(1)
 
+    # ── W83 — the slider knob stays INSIDE the pill ("the scale bubble
+    # goes out of the line at max and min"): the v0.6.92 capture had the
+    # 22 px disc hanging 11 px PAST the track at both ends (the handle
+    # rode visualPosition*width − 11 with no clamp). Two captures —
+    # volume 0 then 100 via wpctl — bracket the travel. The pill's cap
+    # geometry is measured off the EMPTY volume track in the min frame
+    # (dark pill, no liquid, no knob overhang), so the asserts are
+    # self-anchored, not hardcoded constants:
+    #   at 0   — the knob's leftmost white ≥ pillLeft − 2
+    #   at 100 — the rightmost white blob ≤ pillRight + 2
+    # (the old build measured 964 vs 975 at min and 1263 vs 1252 at max).
+    w83_knob_ok = False
+    try:
+        if serial is not None:
+            serial.run("wpctl set-volume @DEFAULT_AUDIO_SINK@ 0; "
+                       "echo W83-VOL0", settle=2)
+            time.sleep(1.5)
+            q.shot("05e-cc-volmin")
+            serial.run("wpctl set-volume @DEFAULT_AUDIO_SINK@ 1.0; "
+                       "echo W83-VOLMAX", settle=2)
+            time.sleep(1.5)
+            q.shot("05f-cc-volmax")
+
+            BAND = (930, 330, 1270, 425)  # both slider rows in the sheet
+            CARDBAND = (930, 125, 1280, 175)  # the accent connectivity card
+
+            def _clusters(im):
+                """y-clusters of near-white rows inside BAND (knobs)."""
+                px = im.crop(BAND)
+                w, h = px.size
+                rows = []
+                for y in range(h):
+                    n = sum(1 for x in range(0, w, 2)
+                            if px.getpixel((x, y)) > 210)
+                    rows.append(n >= 8)
+                clusters = []
+                start = None
+                for y, on in enumerate(rows + [False]):
+                    if on and start is None:
+                        start = y
+                    elif not on and start is not None:
+                        clusters.append((start, y - 1))
+                        start = None
+                return [c for c in clusters if c[1] - c[0] >= 12]
+
+            def _white_extent(im, y0, y1):
+                px = im.crop(BAND)
+                xs = [x for y in range(y0, y1 + 1)
+                      for x in range(px.size[0])
+                      if px.getpixel((x, y)) > 210]
+                return (min(xs), max(xs)) if xs else (None, None)
+
+            def _card_column(im):
+                """the accent card's x-extent — the content column anchor.
+
+                The sheet is TRANSLUCENT glass (Files bleeds through),
+                so the dark track cannot be luminance-segmented; the
+                accent card is pure hue and rides the same content
+                column as the sliders. Track caps relative to it,
+                measured on the v0.6.92 capture: the slider glyph 18 px
+                + 10 margin + the QQC2 default 6 px padding put the
+                track's left cap at card_l + 34, and the track ends
+                3 px short of the card's right edge (QQC2 right
+                padding) — card_l+34 .. card_r−3.
+                """
+                px = im.crop(CARDBAND)
+                xs = []
+                for y in range(px.size[1]):
+                    for x in range(px.size[0]):
+                        r, g, b = px.getpixel((x, y))[:3]
+                        if b > 150 and b > r + 40 and g > 80:
+                            xs.append(x)
+                if not xs:
+                    return (None, None)
+                return (min(xs) + CARDBAND[0], max(xs) + CARDBAND[0])
+
+            vmax_rgb = Image.open(
+                f"{OUT}/05f-cc-volmax.png").convert("RGB")
+            card_l, card_r = _card_column(vmax_rgb)
+            vmin = Image.open(f"{OUT}/05e-cc-volmin.png").convert("L")
+            vmax = Image.open(f"{OUT}/05f-cc-volmax.png").convert("L")
+            cvmin, cvmax = _clusters(vmin), _clusters(vmax)
+            if cvmin and cvmax and card_l is not None:
+                tr_l, tr_r = card_l + 34, card_r - 3
+                # the volume slider is the BOTTOM row in both frames
+                vy0, vy1 = cvmin[-1]
+                knob_l, _knob_r = _white_extent(vmin, vy0, vy1)
+                _m0, _m1 = cvmax[-1]
+                _blob_l, blob_r = _white_extent(vmax, _m0, _m1)
+                min_ok = (knob_l is not None
+                          and knob_l >= tr_l - 4)
+                max_ok = (blob_r is not None
+                          and blob_r <= tr_r + 4)
+                w83_knob_ok = min_ok and max_ok
+                log(f"w83 knob: track {tr_l}..{tr_r} (card-anchored) — "
+                    f"min knob left {knob_l} (want >= {tr_l}−4), max "
+                    f"blob right {blob_r} (want <= {tr_r}+4) — "
+                    + ("PASS" if w83_knob_ok else
+                       "FAIL — the knob disc leaves the track at an end"))
+            else:
+                log(f"w83 knob: sliders/card not found (clusters "
+                    f"{cvmin and len(cvmin)}, card {card_l}) — FAIL")
+        else:
+            log("w83 knob probe skipped: serial lost")
+    except Exception as e:
+        log(f"w83 knob probe failed: {e}")
+
     # T13 D26 (W37) — the dead-control verdict for the CC dark tile:
     # click the tile center (grid geometry: sheet 348 wide anchored
     # top-right margins 16, the W81 card+circles stack — the Dark Mode
@@ -5016,6 +5153,13 @@ def main():
     if not w82_klipper_ok:
         failures.append("W82: klipper is not running (clipboard history "
                         "dead)")
+    if not w83_apps_ok:
+        failures.append("W83: the Rust app debs (corex, os-private-chat) "
+                        "did not install with their original hicolor "
+                        "icons")
+    if not w83_knob_ok:
+        failures.append("W83: the CC slider knob disc leaves the track "
+                        "at the min or max level")
     if failures:
         for f in failures:
             log("ASSERT FAILED: " + f)

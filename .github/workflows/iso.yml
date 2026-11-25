@@ -69,6 +69,10 @@ jobs:
           bash scripts/ci/install-app-debs.sh
         env:
           AEGIS_APPS_DEB_URLS: ${{ vars.AEGIS_APPS_DEB_URLS }}
+          # W83 — the latest: resolver hits the contents API authed (the
+          # unauthenticated 60/hr pool 403s under CI traffic); the pinned
+          # |fallback URLs cover a total API outage either way.
+          GITHUB_TOKEN: ${{ secrets.AEGIS_TOKEN || secrets.GITHUB_TOKEN }}
 
       - name: Build the ISO (inside privileged ubuntu:resolute container)
         run: bash scripts/ci/run-in-container.sh bash scripts/build-iso.sh
