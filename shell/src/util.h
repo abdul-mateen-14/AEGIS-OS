@@ -186,6 +186,31 @@ public:
     Q_PROPERTY(QString activeWindowClass READ activeWindowClass NOTIFY windowTrackingChanged)
     QString activeWindowClass() const { return m_activeClass; }
 
+    // W84 — macOS dock auto-hide: the dock slides fully INVISIBLE after
+    // the idle timeout and the bottom-edge hover brings it back ("make
+    // dock become invisible and come back when dragging cursor to its
+    // position"). Persists in prefs.json (the darkMode pattern); the
+    // shipped default is OFF so the boot-test dock-click maps stay
+    // deterministic — the user flips it in Settings → Dock.
+    Q_PROPERTY(bool dockAutoHide READ dockAutoHide WRITE setDockAutoHide
+               NOTIFY dockAutoHideChanged)
+    bool dockAutoHide() const { return m_dockAutoHide; }
+    void setDockAutoHide(bool on);
+
+    // W84 — Hibernate joins the CC power row only where the machine can
+    // actually do it: the kernel must expose the disk sleep state AND a
+    // swap target must exist (a live ISO without swap cannot hibernate —
+    // the button stays out of the row there instead of failing silently).
+    Q_PROPERTY(bool hibernateAvailable READ hibernateAvailable CONSTANT)
+    Q_INVOKABLE bool hibernateAvailable() const;
+
+    // W84 — running apps that are NOT pinned on the dock (macOS semantics:
+    // the dock shows opened-but-unpinned apps too). One map entry per
+    // tracked resourceClass outside the pinned heads, wearing the
+    // installed .desktop name/icon when one exists (the ORIGINAL vendor
+    // icons — the same resolve the pinned Tier B tiles ride).
+    Q_INVOKABLE QVariantList transientDockApps() const;
+
     // W27 — a dock click must bring an existing window back, not spawn
     // a second instance: when the command head matches a tracked window
     // (minimized included), the request rides kwinrc
@@ -301,6 +326,7 @@ public:
 signals:
     void batteryChanged();
     void darkModeChanged();
+    void dockAutoHideChanged();   // W84 — the Settings → Dock toggle
     void accentChanged();
     void wallpaperChanged();
     void lockedChanged();
@@ -359,6 +385,7 @@ private:
     QVariantMap m_config;
     QString m_accent = QStringLiteral("#3E8BFF");
     QString m_wallpaper;
+    bool m_dockAutoHide = false;   // W84 — prefs-backed dock auto-hide
     // W67 — backdropLuminance() cache, keyed by the wallpaper path
     QString m_backdropFor;
     int m_backdropLum = -2;    // -2 = never computed; -1 = unreadable

@@ -246,10 +246,16 @@ Window {
 
     Timer {
         id: idleHideTimer
-        interval: Tokens.idleHideMs
-        running: Tokens.idleHideMs > 0
-                 && dockRoot.stateName === "expanded" && dockRoot.hoverIndex < 0
-        onTriggered: dockRoot.stateName = "sliver"
+        // W84 — macOS auto-hide: after the idle timeout the dock slides
+        // FULLY invisible ("hidden") and the bottom-edge hover brings it
+        // back ("make dock to become invisible and come back when
+        // dragging cursor to its position"). The legacy sliver state
+        // stays the fallback when the config turns dockAutoHide off.
+        interval: Tokens.idleHideMs > 0 ? Tokens.idleHideMs : 1200
+        running: dockRoot.stateName === "expanded" && dockRoot.hoverIndex < 0
+                 && (Tokens.idleHideMs > 0 || Util.dockAutoHide)
+        onTriggered: dockRoot.stateName = Util.dockAutoHide ? "hidden"
+                                                            : "sliver"
     }
 
     // Table 4 — reveal: pointer in bottom 8 px for 150 ms
@@ -262,14 +268,20 @@ Window {
     HoverHandler {
         id: edgeProbe
         enabled: dockRoot.stateName !== "expanded"
-        onPointChanged: {
-            if (dockRoot.stateName === "sliver" && !probeTimer.running)
+        function _maybeProbe(p) {
+            if (dockRoot.stateName === "expanded")
+                return
+            // W84 — the reveal fires only when the cursor reaches the
+            // dock's own strip at the bottom edge: hovers higher up the
+            // transparent window must not pop the tray while the user
+            // works over it.
+            if (p.position.y < dockRoot.height - 18)
+                return
+            if (!probeTimer.running)
                 probeTimer.restart()
         }
-        onHoveredChanged: {
-            if (hovered && dockRoot.stateName !== "expanded")
-                probeTimer.restart()
-        }
+        onPointChanged: _maybeProbe(point)
+        onHoveredChanged: if (hovered) _maybeProbe(point)
     }
 
     // Sliver — 120×4 px pill of light, 0.04% of the canvas (Edge Glass)
@@ -471,8 +483,26 @@ Window {
                 // slots wearing their own .desktop marks. W81 — the ALL-APPS
                 // button leads the row: the reference grid mark opens the
                 // Launcher's shortcut view (Util.toggleLauncher()).
-                model: [{ type: "launcher", icon: "aegis-launcher-grid",
-                          name: "All Apps" }].concat(Util.dockApps)
+                // W84 — opened-but-unpinned apps ride the dock too (macOS
+                // semantics): one transient tile per tracked resourceClass
+                // outside the pinned heads, inserted before the Trash slot.
+                // The runningCmds read in the binding re-evaluates the model
+                // whenever the windowwatch pushes.
+                model: {
+                    const _rc = Util.runningCmds
+                    const base = [{ type: "launcher", icon: "aegis-launcher-grid",
+                                    name: "All Apps" }].concat(Util.dockApps)
+                    const trans = Util.transientDockApps()
+                    if (!trans.length)
+                        return base
+                    const trashIdx = base.length - 1
+                    const trash = base[trashIdx] && base[trashIdx].cmd
+                                  && base[trashIdx].cmd.indexOf("trash") >= 0
+                                  ? base[trashIdx] : null
+                    const head = trash ? base.slice(0, trashIdx) : base
+                    const out = head.concat([{ type: "separator" }]).concat(trans)
+                    return trash ? out.concat([trash]) : out
+                }
 
                 delegate: Item {
                     id: tile
@@ -482,15 +512,19 @@ Window {
                     property bool isSeparator: (modelData.type === "separator")
                     property bool isLauncher: (modelData.type === "launcher")
                     // W81 — windows of this app (the dots show one dot PER
-                    // WINDOW). The runningCmds read in the expression makes
-                    // the binding re-evaluate when the windowwatch pushes.
+                    // WINDOW). W84 — the count reads the windowwatch
+                    // payload DIRECTLY (windowCountFor): the old
+                    // isRunning() gate consulted the launch-recorded list
+                    // too, which is never cleared on close — the dot
+                    // survived every app close (the user's report). The
+                    // payload is the source of truth: zero windows = no
+                    // dot, a crashed launch shows none either.
                     readonly property int winCount: {
                         const rc = Util.runningCmds
                         if (tile.isLauncher)
                             return 0
                         const cmd = tile.modelData.cmd || ""
-                        return Util.isRunning(cmd)
-                               ? Math.max(1, Util.windowCountFor(cmd)) : 0
+                        return Util.windowCountFor(cmd)
                     }
                     property alias iconItem: icon
                     property Spring spring: Spring {

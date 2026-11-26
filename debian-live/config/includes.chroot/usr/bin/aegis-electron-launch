@@ -53,9 +53,31 @@ export GTK_THEME
 # The dmabuf renderer additionally goes off: these VMs have no GL
 # (every libEGL call in the logs fails dri2) and WebKit's dmabuf
 # path degrades to black frames there.
-GDK_BACKEND=x11
+#
+# W84 bt94 forensics — r2 still lost CoreX: the launch log caught
+# "(corex:8527): Gtk-WARNING: cannot open display: " — the wrapper
+# forced GDK_BACKEND=x11 while the shell's env (Wayland-first, spawned
+# by the session script with no DISPLAY export) had NO DISPLAY AT ALL,
+# so the X11 backend died on the empty display value. os-chat survived
+# only because its attempt-2 launch raced in after the activation env
+# had grown DISPLAY. Fix: discover the XWayland socket explicitly
+# (/tmp/.X11-unix/X0 or X1 — kwin_wayland keeps XWayland alive for X11
+# clients); when no socket exists, stay on Wayland rather than dying.
+if [ -z "$DISPLAY" ]; then
+    for _d in 0 1; do
+        if [ -S "/tmp/.X11-unix/X$_d" ]; then
+            DISPLAY=":$_d"
+            export DISPLAY
+            break
+        fi
+    done
+fi
+if [ -n "$DISPLAY" ]; then
+    GDK_BACKEND=x11
+    export GDK_BACKEND
+fi
 WEBKIT_DISABLE_DMABUF_RENDERER=1
-export GDK_BACKEND WEBKIT_DISABLE_DMABUF_RENDERER
+export WEBKIT_DISABLE_DMABUF_RENDERER
 VM=0
 if [ "$AEGIS_VM_MODE" = "1" ]; then
     VM=1

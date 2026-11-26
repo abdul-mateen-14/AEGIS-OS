@@ -61,6 +61,11 @@ public:
     QVariantList devices() const { return m_devices; }
     QString recoveryKey() const { return m_recoveryKey; }
 
+    // W84 — re-ping the backend on demand (the Settings panel's Retry):
+    // the state line otherwise froze at the startup probe's answer, so
+    // a machine whose network came up late showed "unreachable" forever.
+    Q_INVOKABLE void probeBackend();
+
     Q_INVOKABLE void signIn(const QString &email, const QString &password);
     Q_INVOKABLE void registerAccount(const QString &email,
                                      const QString &password);

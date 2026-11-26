@@ -3142,6 +3142,26 @@ def main():
     except Exception as e:
         log(f"w83 apps probe failed: {e}")
 
+    # W84 — calamares diag: the user's ISO hit "Calamares Initialization
+    # Failed: finish@finish could not be loaded" (the installer dead on
+    # arrival). Informational only, not gated: the packaged module set
+    # + the version, so any future load failure names its file instead
+    # of a screenshot guess.
+    try:
+        if serial is not None:
+            out = serial.run(
+                "calamares --version 2>/dev/null | head -1; "
+                "ls /usr/lib/*/calamares/modules/ 2>/dev/null | head -40; "
+                "echo CALA-DIAG-END", settle=2)
+            lines = [l.strip() for l in out.splitlines()
+                     if l.strip() and "CALA-DIAG-END" not in l
+                     and "aegis@" not in l and not l.startswith("└")]
+            log("w84 calamares diag: " + " | ".join(lines)[:700])
+        else:
+            log("w84 calamares diag skipped: serial lost")
+    except Exception as e:
+        log(f"w84 calamares diag failed: {e}")
+
     # T14 — the Store: the apt-backed app store opens with the curated
     # catalog rendered (the diff gate proves the window). T15-D3 (W38) —
     # the window rides the AppWindow anatomy now: the three traffic

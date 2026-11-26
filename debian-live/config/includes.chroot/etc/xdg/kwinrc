@@ -14,11 +14,11 @@ BorderSizeAuto=false
 # resize-only borders (settings largeSpacing)" had no probe behind it, and
 # the T15 boot gate PROVED it false: two runs, right-edge drags at hairline
 # end +2/+6 on Konsole grew the window 0 px under BorderSize=None. The
-# review's prescribed flip applies verbatim: BorderSize=Tiny (4 px strips;
+# review's prescribed flip applies verbatim: BorderSize=Normal (4 px strips;
 # the aurorae theme's own 44 px titleband and the W10 button metrics are
 # unchanged). The W44 terminal drag probe re-asserts resize per run, and
 # the T7 header assert guards the button geometry.
-BorderSize=Tiny
+BorderSize=Normal
 
 # Liquid Glass v1.6 — BlurStrength 14/15: the material is now carried by a strong blur behind a THIN tint (the wallpaper must read through every plate, liquefied) instead of a heavy fill.
 # Liquid Glass v1.7 (W67) — 14 → 15, the stock effect's ceiling: the ink flip
@@ -81,3 +81,34 @@ Radius=18
 Number=4
 Rows=1
 
+
+# W84 — the snap-back fix: the user reported the browser / OS / CoreX
+# windows returning to their default size after dropping the pointer.
+# All three are deb apps whose toolkits (Chromium's bounds manager,
+# Tauri/tao's cached logical size) re-assert their OWN geometry right
+# after an interactive resize ends, and KWin honors that request —
+# the user's drag loses. The rule makes KWin IGNORE app-initiated
+# geometry requests for exactly these three resource classes: user
+# drags (interactive resize is not an app request) keep, the apps'
+# snap-back request is dropped, and the initial placement falls to
+# KWin's own sensible default.
+[Window Rules][1]
+Description=W84 — AEGIS Browser keeps user resizes
+class=aegis-browser
+classrule=1
+ignoregeometry=true
+ignoregeometryrule=2
+
+[Window Rules][2]
+Description=W84 — CoreX keeps user resizes
+class=corex
+classrule=1
+ignoregeometry=true
+ignoregeometryrule=2
+
+[Window Rules][3]
+Description=W84 — OS Chat keeps user resizes
+class=os-chat
+classrule=1
+ignoregeometry=true
+ignoregeometryrule=2

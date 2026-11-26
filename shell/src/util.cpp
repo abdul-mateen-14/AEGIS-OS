@@ -180,6 +180,14 @@ void Util::loadPrefs()
         const QString wasWall = m_wallpaper;
         m_darkMode = doc.object().value(QStringLiteral("darkMode")).toBool(true);
         m_wallpaper = doc.object().value(QStringLiteral("wallpaper")).toString();
+        // W84 — the dock auto-hide preference rides the same pref store
+        // (OFF by default: the boot-test dock-click maps assume the
+        // resting tray; the user flips it in Settings → Dock).
+        const bool wasAutoHide = m_dockAutoHide;
+        m_dockAutoHide = doc.object().value(QStringLiteral("dockAutoHide"))
+                             .toBool(false);
+        if (wasAutoHide != m_dockAutoHide)
+            emit dockAutoHideChanged();
         // W78 — the watcher path reloads this file in every process;
         // emit so the running UI re-renders instead of waiting for a
         // relaunch ("apps stay dark in light mode" report).
@@ -199,16 +207,29 @@ void Util::savePrefs() const
     if (file.open(QIODevice::WriteOnly | QIODevice::Truncate)) {
         QJsonObject prefs{
             {QStringLiteral("darkMode"), m_darkMode}};
+        // W84 — the dock auto-hide preference persists beside darkMode
+        prefs.insert(QStringLiteral("dockAutoHide"), m_dockAutoHide);
         if (!m_wallpaper.isEmpty())
             prefs.insert(QStringLiteral("wallpaper"), m_wallpaper);
         file.write(QJsonDocument(prefs).toJson(QJsonDocument::Compact));
     }
 }
 
+// W84 — Settings → Dock toggle: persist + notify so Dock.qml's state
+// machine flips live (the tray pops back out immediately when turned
+// off; it slides invisible on the next idle when turned on).
+void Util::setDockAutoHide(bool on)
+{
+    if (m_dockAutoHide == on)
+        return;
+    m_dockAutoHide = on;
+    savePrefs();
+    emit dockAutoHideChanged();
+}
+
 void Util::setDarkMode(bool dark)
 {
-    if (m_darkMode == dark)
-        return;
+    if (m_darkMode == dark)        return;
     m_darkMode = dark;
     savePrefs();
     // M4 — light theme parity: the KDE-facing surfaces (Konsole, the
@@ -912,16 +933,103 @@ void Util::powerAction(const QString &action)
         lock();
         return;
     }
-    QString systemctlAction;
-    if (action == QStringLiteral("suspend"))
-        systemctlAction = QStringLiteral("suspend");
-    else if (action == QStringLiteral("reboot"))
-        systemctlAction = QStringLiteral("reboot");
-    else if (action == QStringLiteral("shutdown"))
-        systemctlAction = QStringLiteral("poweroff");
-    else
+    // W84 — the live-ISO restart trap, from the user's own VMware run
+    // (v0.6.94 round): the CC Restart fired the wall broadcast but the
+    // firmware fell to PXE — the ISO stayed attached and the boot order
+    // is CD-first, the EXACT W46.2 installer trap. The reboot path now
+    // reuses the installer's eject-before-reboot command verbatim (it
+    // ejects /dev/sr0, syncs, then reboots; on an installed system with
+    // no optical drive the eject is a no-op). Shut Down syncs first so
+    // nothing rides an unsynced page cache into the poweroff.
+    QString cmd;
+    if (action == QStringLiteral("suspend")) {
+        QProcess::startDetached(QStringLiteral("systemctl"),
+                                {QStringLiteral("suspend")});
         return;
-    QProcess::startDetached(QStringLiteral("systemctl"), {systemctlAction});
+    }
+    if (action == QStringLiteral("hibernate")) {
+        QProcess::startDetached(QStringLiteral("systemctl"),
+                                {QStringLiteral("hibernate")});
+        return;
+    }
+    if (action == QStringLiteral("reboot")) {
+        cmd = QStringLiteral(
+            "if test -x /usr/bin/aegis-install-finish; then "
+            "exec /usr/bin/aegis-install-finish; "
+            "else exec systemctl -i reboot; fi");
+    } else if (action == QStringLiteral("shutdown")) {
+        cmd = QStringLiteral("sync; systemctl -i poweroff");
+    } else {
+        return;
+    }
+    QProcess::startDetached(QStringLiteral("/bin/sh"),
+                            {QStringLiteral("-c"), cmd});
+}
+
+// W84 — Hibernate joins the CC power row only where the machine can
+// actually do it: the kernel must expose the disk sleep state and a
+// swap target must exist (the live ISO has none — there the button
+// stays out of the row instead of failing silently).
+bool Util::hibernateAvailable() const
+{
+    QFile states(QStringLiteral("/sys/power/state"));
+    bool hasDisk = states.open(QIODevice::ReadOnly)
+                   && states.readAll().contains("disk");
+    int swaps = 0;
+    QFile sw(QStringLiteral("/proc/swaps"));
+    if (sw.open(QIODevice::ReadOnly)) {
+        const auto lines = sw.readAll().split('\n');
+        for (int i = 1; i < lines.size(); ++i)
+            if (!lines[i].trimmed().isEmpty())
+                ++swaps;
+    }
+    return hasDisk && swaps > 0;
+}
+
+// W84 — macOS dock semantics: opened-but-unpinned apps appear on the
+// dock as transient tiles. One entry per tracked resourceClass outside
+// the pinned heads; the .desktop entry dresses name/icon (the ORIGINAL
+// vendor icons — the same resolve the pinned Tier B tiles ride), and
+// the click activates through the windowwatch ActivateRequest path.
+QVariantList Util::transientDockApps() const
+{
+    QVariantList out;
+    QStringList pinnedHeads;
+    const auto pinned = m_config.value(QStringLiteral("apps")).toList();
+    for (const QVariant &v : pinned) {
+        const QVariantMap slot = v.toMap();
+        const QString cmd = slot.value(QStringLiteral("cmd")).toString();
+        if (!cmd.isEmpty())
+            pinnedHeads << cmd.section(QLatin1Char(' '), 0, 0);
+    }
+    QStringList seen;
+    for (const QString &cls : m_windowIds) {
+        if (cls.isEmpty() || cls.startsWith(QLatin1String("aegis-shell"))
+            || cls.startsWith(QLatin1String("aegis-launcher"))
+            || pinnedHeads.contains(cls) || seen.contains(cls))
+            continue;
+        seen.append(cls);
+        QVariantMap entry = findInstalledEntry(cls);
+        const QString name =
+            entry.value(QStringLiteral("name")).toString().isEmpty()
+                ? cls
+                : entry.value(QStringLiteral("name")).toString();
+        const QString icon =
+            entry.value(QStringLiteral("icon")).toString().isEmpty()
+                ? cls
+                : entry.value(QStringLiteral("icon")).toString();
+        QVariantMap t{{QStringLiteral("name"), name},
+                      {QStringLiteral("icon"), icon},
+                      {QStringLiteral("cmd"), cls},
+                      {QStringLiteral("head"), cls},
+                      {QStringLiteral("transient"), true}};
+        if (!entry.value(QStringLiteral("exec")).toString().isEmpty())
+            t.insert(QStringLiteral("launch"),
+                     QStringLiteral("aegis-electron-launch ")
+                         + entry.value(QStringLiteral("exec")).toString());
+        out.append(t);
+    }
+    return out;
 }
 
 void Util::lock()

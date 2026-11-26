@@ -325,6 +325,43 @@ int main(int argc, char *argv[])
     // writes apply locally and must NOT be re-forwarded over DBus
     util.setOwnsDBus(true);
 
+    // W84 — the QQC2 "Basic" style paints Menu/ComboBox highlights from
+    // the application QPalette, which the shell never set: highlighted
+    // menu items rendered with the default palette against the dark
+    // glass (the user's "selected from menu becomes invisible"). Apply
+    // the Aegis palette — the same values the AegisDark/AegisLight
+    // color-schemes carry ([Colors:Window] Background/Foreground, the
+    // accent Highlight) — at startup and on every dark flip.
+    auto applyAegisPalette = [](bool dark) {
+        QPalette p;
+        const QColor window = dark ? QColor(22, 24, 28)
+                                   : QColor(250, 251, 253);
+        const QColor windowAlt = dark ? QColor(30, 32, 38)
+                                      : QColor(238, 241, 246);
+        const QColor fg = dark ? QColor(242, 244, 248)
+                               : QColor(28, 30, 36);
+        p.setColor(QPalette::Window, window);
+        p.setColor(QPalette::Base, window);
+        p.setColor(QPalette::AlternateBase, windowAlt);
+        p.setColor(QPalette::Text, fg);
+        p.setColor(QPalette::WindowText, fg);
+        p.setColor(QPalette::ButtonText, fg);
+        p.setColor(QPalette::Button, windowAlt);
+        p.setColor(QPalette::ToolTipBase, windowAlt);
+        p.setColor(QPalette::ToolTipText, fg);
+        p.setColor(QPalette::PlaceholderText, QColor(150, 155, 166));
+        p.setColor(QPalette::Highlight, QColor(62, 139, 255));
+        p.setColor(QPalette::HighlightedText, QColor(255, 255, 255));
+        p.setColor(QPalette::Light, windowAlt);
+        p.setColor(QPalette::Dark, QColor(12, 13, 16));
+        QGuiApplication::setPalette(p);
+    };
+    applyAegisPalette(util.darkMode());
+    QObject::connect(&util, &Util::darkModeChanged, &app,
+                     [&applyAegisPalette, &util]() {
+                         applyAegisPalette(util.darkMode());
+                     });
+
     qmlRegisterSingletonInstance("Aegis.Util", 1, 0, "Util", &util);
     qmlRegisterSingletonInstance("Aegis.Activity", 1, 0, "Activity", &activity);
     qmlRegisterSingletonInstance("Aegis.Governor", 1, 0, "Governor", &governor);

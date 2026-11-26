@@ -777,17 +777,37 @@ Window {
                         // W34 — the state line the review asked for: is the
                         // backend even connected? Last attempt time makes a
                         // silent-failure session diagnosable.
-                        Text {
-                            text: AegisId.backendState === "reachable"
-                                  ? "Backend: reachable · last attempt " + AegisId.lastAttempt
-                                  : AegisId.backendState === "unreachable"
-                                    ? "Backend: unreachable · last attempt " + AegisId.lastAttempt
-                                    : "Backend: not tried yet this session"
-                            font.pixelSize: 10
-                            color: AegisId.backendState === "reachable"
-                                       ? Tokens.fgMuted
-                                       : (AegisId.backendState === "unreachable"
-                                              ? Tokens.danger : Tokens.fgMuted)
+                        Row {
+                            spacing: 10
+                            Text {
+                                text: AegisId.backendState === "reachable"
+                                      ? "Backend: reachable · last attempt " + AegisId.lastAttempt
+                                      : AegisId.backendState === "unreachable"
+                                        ? "Backend: unreachable · last attempt " + AegisId.lastAttempt
+                                        : "Backend: not tried yet this session"
+                                font.pixelSize: 10
+                                color: AegisId.backendState === "reachable"
+                                           ? Tokens.fgMuted
+                                           : (AegisId.backendState === "unreachable"
+                                                  ? Tokens.danger : Tokens.fgMuted)
+                            }
+                            // W84 — the user's "why is aegis id backend not
+                            // connected yet": the state froze at the
+                            // startup probe's answer (a machine whose
+                            // network came up late stayed "unreachable"
+                            // forever). Retry re-pings the cheapest
+                            // endpoint and refreshes the state honestly.
+                            Text {
+                                text: "Retry"
+                                font { family: "Montserrat"; pixelSize: 10
+                                       weight: Font.DemiBold }
+                                color: Tokens.accent
+                                MouseArea {
+                                    anchors.fill: parent
+                                    cursorShape: Qt.PointingHandCursor
+                                    onClicked: AegisId.probeBackend()
+                                }
+                            }
                         }
                     }
                 }
@@ -1113,6 +1133,16 @@ Window {
                 font.pixelSize: 13
                 checked: Util.wallpaperRotateDaily
                 onToggled: Util.setWallpaperRotateDaily(checked)
+            }
+            GlassSwitch {
+                // W84 — macOS auto-hide: the dock slides fully invisible
+                // after ~1.2 s idle ("the dock do not show" request) and
+                // dragging the cursor to the bottom edge brings it back.
+                // Persists in prefs.json via Util.setDockAutoHide.
+                text: "Auto-hide the dock"
+                font.pixelSize: 13
+                checked: Util.dockAutoHide
+                onToggled: Util.setDockAutoHide(checked)
             }
             GlassSwitch {
                 // T15-D4 (W39.1) — REAL: the wallpaperDim governor override

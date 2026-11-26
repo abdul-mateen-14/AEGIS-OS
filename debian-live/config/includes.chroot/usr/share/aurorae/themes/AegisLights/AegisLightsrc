@@ -19,7 +19,7 @@ LeftButtons=XIA
 RightButtons=
 
 [Layout]
-# T15-D7 (W44) — 4 px side/bottom borders (the session BorderSize=Tiny
+# W84 — 6 px side/bottom borders: the W44 4 px strips left the CORNER grab zones 4x4 px (the user: "pointer for windows resizing does not work at corners") — 6 px under the session BorderSize=Normal gives hittable corners while the 44 px titleband and the W10 metrics stay. (W44 history: the session BorderSize=Tiny
 # clamps these to exactly 4). The W44 boot probe PROVED the old 0/44/0/0
 # declaration non-resizable (two runs of right-edge drags grew Konsole
 # 0 px — there was NO interactive margin to hit), so the decorated path
@@ -27,9 +27,9 @@ RightButtons=
 # metrics and the r18 ShapeCorners corners are unchanged; the client
 # sits 4 px inside the frame on the sides/bottom (the review accepted
 # this trade verbatim).
-BorderLeft=4
-BorderRight=4
-BorderBottom=4
+BorderLeft=6
+BorderRight=6
+BorderBottom=6
 BorderTop=44
 TitleEdgeTop=10
 TitleEdgeBottom=10

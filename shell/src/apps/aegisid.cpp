@@ -301,8 +301,17 @@ void AegisId::clearTokens()
 
 // ── HTTP ──────────────────────────────────────────────────────────────────
 
-void AegisId::post(const QString &path, const QJsonObject &body, bool authed,
-                   int attempt)
+// W84 — re-ping the backend on demand (Settings → Aegis ID → Retry).
+// Any HTTP answer (even 4xx) flips the state to reachable; only a
+// transport failure stays unreachable — the same honest contract the
+// W34 probe established (the probe GET is unauthenticated and
+// email-keyed like the login flow's first call).
+void AegisId::probeBackend()
+{
+    get(QStringLiteral("/v1/auth/kdf-params?email=aegis-probe"), false);
+}
+
+void AegisId::post(const QString &path, const QJsonObject &body, bool authed,                   int attempt)
 {
     QNetworkRequest req{QUrl(m_baseUrl + path)};
     req.setHeader(QNetworkRequest::ContentTypeHeader,

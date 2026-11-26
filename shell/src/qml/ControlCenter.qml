@@ -406,21 +406,44 @@ Window {
                             spacing: 10
 
                             Repeater {
-                                // W41 — "Lock Screen" leads the row (macOS
-                                // order). The row sits BELOW the sliders, so
-                                // adding the fourth button cannot shift the
-                                // w66 calibrated strip; the row height (36)
-                                // is unchanged.
-                                model: [
-                                    { label: "Lock Screen", action: "lock" },
-                                    { label: "Suspend",   action: "suspend" },
-                                    { label: "Restart",   action: "reboot" },
-                                    { label: "Shut Down", action: "shutdown" }
-                                ]
+                                // W41 — "Lock" leads the row (macOS order).
+                                // W84 — the row grew to FIVE actions: Sleep
+                                // (the VM-legal S3 suspend) and Hibernate
+                                // now sit side by side ("why is there
+                                // suspend and no hibernate") — Hibernate
+                                // only renders where the kernel exposes
+                                // the disk state AND a swap target exists,
+                                // so it disappears on a live ISO without
+                                // swap instead of failing silently. Restart
+                                // and Shut Down ride the eject-aware paths.
+                                // The row sits BELOW the sliders, so adding
+                                // buttons cannot shift the w66 calibrated
+                                // strip; the row height (36) is unchanged.
+                                id: repeater
+                                model: {
+                                    const m = [
+                                        { label: "Lock",      action: "lock" },
+                                        { label: "Sleep",     action: "suspend" }
+                                    ]
+                                    if (Util.hibernateAvailable)
+                                        m.push({ label: "Hibernate",
+                                                 action: "hibernate" })
+                                    m.push({ label: "Restart",
+                                             action: "reboot" })
+                                    m.push({ label: "Shut Down",
+                                             action: "shutdown" })
+                                    return m
+                                }
 
                                 delegate: Rectangle {
                                     required property var modelData
-                                    width: (parent.width - 30) / 4
+                                    // W84 — five buttons share the row: the
+                                    // width formula reads the live model
+                                    // length (the spacing is 10)
+                                    readonly property int nButtons:
+                                        repeater.model.length
+                                    width: (parent.width
+                                            - 10 * (nButtons - 1)) / nButtons
                                     height: 36
                                     radius: 10
                                     color: powerMa.containsMouse
@@ -431,7 +454,7 @@ Window {
                                         anchors.centerIn: parent
                                         text: parent.modelData.label
                                         color: Tokens.fgMuted
-                                        font { family: "Montserrat"; pixelSize: 11 }
+                                        font { family: "Montserrat"; pixelSize: 10 }
                                     }
                                     MouseArea {
                                         id: powerMa
