@@ -1,0 +1,50 @@
+#!/bin/sh
+# W85 — the REAL vendor icons must win on the dock and in the launcher.
+# Two failure classes killed them before:
+#  (1) the Aegis theme shipped bare-glyph placeholders under the vendor
+#      names (os-private-chat.png / aegis-browser.png as the Aegis A
+#      triangle) — the themed lookup searches the ACTIVE theme first, so
+#      the placeholders shadowed the debs' real icons forever (CoreX only
+#      escaped because the theme had no corex.png and hicolor won);
+#      the placeholders are DELETED from the theme (see the Dock.qml W85
+#      comment), and this hook installs the genuine marks where every
+#      lookup path ends:
+#        - os-private-chat: the OS deb ships hicolor 128px — verify it,
+#          loud-fail the build if the deb ever stops shipping it;
+#        - aegis-browser: the r45 deb carries its product logo only
+#          under /opt/aegis-browser/browser/ (product_logo_256.png, the
+#          black squircle mark) — symlink it into /usr/share/pixmaps and
+#          hicolor so QIcon::fromTheme finds it on every theme chain.
+#  (2) the old 0700 hook ran BEFORE 0900-app-debs-fallback: when apt
+#      missed the browser deb and the fallback installed it, the symlink
+#      was silently skipped ([ -f ] guard, no else) and the tile rode the
+#      fallback glyph. This hook runs AFTER the fallback, and a missing
+#      logo for an installed browser FAILS the build — no silent skips.
+set -e
+
+fail() { echo "aegis-icons-assert: $1" >&2; exit 1; }
+
+# OS (private chat) — the deb's own hicolor icon is the vendor mark.
+if [ -f /usr/share/applications/os-private-chat.desktop ]; then
+    FOUND=""
+    for d in /usr/share/icons/hicolor/*/apps/os-private-chat.png; do
+        [ -f "$d" ] && FOUND="$d" && break
+    done
+    [ -n "$FOUND" ] || fail "os-private-chat is installed but ships no hicolor icon"
+    echo "aegis-icons-assert: os-private-chat vendor icon at $FOUND"
+fi
+
+# AEGIS Browser — install the product logo into the lookup paths.
+if [ -f /usr/share/applications/aegis-browser.desktop ]; then
+    LOGO=/opt/aegis-browser/browser/product_logo_256.png
+    if [ -f "$LOGO" ]; then
+        ln -sf "$LOGO" /usr/share/pixmaps/aegis-browser.png
+        mkdir -p /usr/share/icons/hicolor/256x256/apps
+        ln -sf "$LOGO" /usr/share/icons/hicolor/256x256/apps/aegis-browser.png
+        echo "aegis-icons-assert: browser product logo linked into pixmaps + hicolor"
+    else
+        fail "aegis-browser is installed but /opt/aegis-browser/browser/product_logo_256.png is missing"
+    fi
+fi
+
+exit 0

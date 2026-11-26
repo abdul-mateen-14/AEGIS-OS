@@ -1,9 +1,12 @@
 #!/bin/sh
-# AEGIS Browser (aegis-browser-stable .deb r31, see docs/APP-SLOTS.md) ships
+# AEGIS Browser (aegis-browser-stable .deb, see docs/APP-SLOTS.md) ships
 # its product logos only under /opt/aegis-browser/browser/ — its stock desktop
 # entries use Icon=aegis-browser, which resolves through /usr/share/pixmaps.
-# Expose the 256px logo there; the Aegis squircle dock tiles keep their own
-# theme icons (web-browser / aegis-cloud / aegis-corex).
+# Expose the 256px logo there. W85: the Aegis theme's own placeholder
+# files under the vendor names are DELETED (they shadowed this real logo
+# — the themed lookup searches the active theme first); hook 0910
+# re-links this after the deb fallback and fails the build if the logo
+# is missing for an installed browser.
 set -e
 
 OPT_LOGO=/opt/aegis-browser/browser/product_logo_256.png

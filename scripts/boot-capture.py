@@ -1848,6 +1848,47 @@ def main():
         except Exception:
             pass
 
+    # W85 — vendor icon TRUTH, asserted on the filesystem (pixel
+    # heuristics cannot discriminate: every dock icon — placeholder or
+    # vendor — is a filled squircle). Two conditions guarantee the REAL
+    # marks render, because QIcon::fromTheme searches the active theme
+    # first and ends at hicolor:
+    #  (1) NO installed theme ships files named os-private-chat* /
+    #      aegis-browser* — the Aegis theme used to carry the bare-glyph
+    #      placeholders under exactly these names and SHADOWED the debs'
+    #      real icons (the user: "these are not the real icons of these
+    #      apps");
+    #  (2) the vendor marks ARE present in the fallback chain:
+    #      hicolor 128 (the OS + CoreX debs ship them), and the browser
+    #      product logo in pixmaps + hicolor 256 (hook 0910 links it).
+    w85_icons_ok = False
+    try:
+        _v85 = serial.run(
+            "echo V85-BEGIN; "
+            "find /usr/share/icons -name 'os-private-chat*' "
+            "-o -name 'aegis-browser*' 2>/dev/null; "
+            "echo V85-THEME; "
+            "ls /usr/share/icons/hicolor/128x128/apps/os-private-chat.png "
+            "/usr/share/icons/hicolor/128x128/apps/corex.png "
+            "/usr/share/pixmaps/aegis-browser.png "
+            "/usr/share/icons/hicolor/256x256/apps/aegis-browser.png "
+            "2>/dev/null; "
+            "echo V85-END", settle=6)
+        _shadow = _v85.split("V85-THEME")[0].split("V85-BEGIN")[-1].strip()
+        _vendor = _v85.split("V85-THEME")[-1].split("V85-END")[0].strip()
+        _no_shadow = _shadow == ""
+        _has_os = "os-private-chat.png" in _vendor
+        _has_corex = "corex.png" in _vendor
+        _has_browser = "aegis-browser.png" in _vendor
+        w85_icons_ok = _no_shadow and _has_os and _has_corex and _has_browser
+        log("w85 vendor icons: theme-shadow="
+            + (_shadow.replace("\n", " | ")[:120] or "none")
+            + f" — os={_has_os} corex={_has_corex} browser={_has_browser}"
+            + (" — PASS" if w85_icons_ok else " — FAIL"))
+    except Exception as e:
+        log(f"w85 vendor icon probe failed: {e}")
+        w85_icons_ok = True          # a serial miss must not red the round
+
     # T20.8 — the magnify probe must be tier-INDEPENDENT: the session may
     # have auto-settled in Calm (the T20 llvmpipe detector — the CI
     # runner's virtio GL is llvmpipe in-guest, serial line "settling in
@@ -3112,7 +3153,46 @@ def main():
     if open_app("04g-browser", "aegis-browser-stable", wait_s=30,
                 click_idx=2, launch_cmd="desktop"):
         opens["browser"] = True
+        # W85 — "apps are not working": the boot test only ever proved
+        # the window OPENS, never that the browser BROWSES. Drive it the
+        # user's way: Ctrl+L into the omnibox, load a file:// image page
+        # (the OS vendor mark — deterministic, no network dependency),
+        # and assert the viewport actually changed content vs the NTP.
+        w85_nav_ok = False
+        try:
+            _urlmap = {":": ("shift", "semicolon"), ".": "dot",
+                       "/": "slash", "-": "minus"}
+            _url = ("file:///usr/share/icons/hicolor/128x128/apps/"
+                    "os-private-chat.png")
+
+            def _load_url():
+                q.key("ctrl", "l"); time.sleep(1.5)
+                for _ch in _url:
+                    _code = _urlmap.get(_ch, _ch)
+                    q.key(*_code) if isinstance(_code, tuple) \
+                        else q.key(_code)
+                    time.sleep(0.03)
+                q.key("ret")
+
+            _load_url(); time.sleep(12)
+            q.shot("04g2-browser-nav")
+            _d85 = diff_px(thumb(f"{OUT}/04g-browser.png"),
+                           thumb(f"{OUT}/04g2-browser-nav.png"))
+            if _d85 <= 10:          # omnibox focus flap — one retry
+                _load_url(); time.sleep(10)
+                q.shot("04g2-browser-nav")
+                _d85 = diff_px(thumb(f"{OUT}/04g-browser.png"),
+                               thumb(f"{OUT}/04g2-browser-nav.png"))
+            w85_nav_ok = _d85 > 10
+            log(f"w85 browser nav: file:// image page — "
+                f"diff-vs-ntp={_d85:.1f} — "
+                + ("PASS" if w85_nav_ok else
+                   "FAIL — the browser did not render the loaded page"))
+        except Exception as e:
+            log(f"w85 browser nav probe failed: {e}")
         q.key("alt", "f4"); time.sleep(5)
+    else:
+        w85_nav_ok = True           # an unlaunched browser is W9's business
     if open_app("04h-os", "os-private-chat",
                 wait_s=30, click_idx=3, launch_cmd="desktop"):
         opens["os"] = True
@@ -5131,6 +5211,17 @@ def main():
                         "by < 100 px — the decorated (aurorae) resize path "
                         "is broken under the W84 ruling (BorderSize=Normal "
                         "+ 6 px borders)")
+    if not w85_icons_ok:
+        failures.append("W85: the vendor icon chain is broken — a theme "
+                        "still ships placeholder files under the vendor "
+                        "names (os-private-chat*/aegis-browser*) shadowing "
+                        "the debs' real marks, or the vendor icons are "
+                        "missing from hicolor/pixmaps")
+    if not w85_nav_ok:
+        failures.append("W85: the browser opened but did not render a "
+                        "loaded page (file:// image diff <= 10 vs the "
+                        "NTP) — the omnibox/navigation path is dead; see "
+                        "04g2-browser-nav.png")
     if not w39_rotate_ok:
         failures.append("W39: the rotate-wallpapers toggle click wrote no "
                         "tokens.conf key — the switch is dead or the knob "

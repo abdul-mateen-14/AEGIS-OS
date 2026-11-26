@@ -591,11 +591,20 @@ Window {
                                     ? "aegis-launcher-grid"
                                     : (tile.modelData.icon
                                        || "application-x-executable")
-                                source: "image://icons/"
-                                        + (!Util.darkMode
-                                           && (rawIcon === "os-private-chat"
-                                               || rawIcon === "aegis-browser")
-                                           ? rawIcon + "-ink" : rawIcon)
+                                // W85 — the vendor icon renders as-is on
+                                // BOTH plates: the old light-mode "-ink"
+                                // swap (dark outline variants) made the
+                                // Tier-B tiles nearly invisible on the
+                                // dark glass, and the theme's bare-glyph
+                                // placeholders shadowed the REAL vendor
+                                // icons the debs install (the OS chat
+                                // squircle, the browser product logo —
+                                // the user: "these are not the real
+                                // icons of these apps"). Those theme
+                                // files are deleted; the lookup falls
+                                // through to hicolor/pixmaps and the
+                                // full-color vendor mark wins.
+                                source: "image://icons/" + rawIcon
                                 width: Tokens.iconSize * bounce.k
                                 height: width
                                 anchors.centerIn: parent
