@@ -986,52 +986,6 @@ bool Util::hibernateAvailable() const
     return hasDisk && swaps > 0;
 }
 
-// W84 — macOS dock semantics: opened-but-unpinned apps appear on the
-// dock as transient tiles. One entry per tracked resourceClass outside
-// the pinned heads; the .desktop entry dresses name/icon (the ORIGINAL
-// vendor icons — the same resolve the pinned Tier B tiles ride), and
-// the click activates through the windowwatch ActivateRequest path.
-QVariantList Util::transientDockApps() const
-{
-    QVariantList out;
-    QStringList pinnedHeads;
-    const auto pinned = m_config.value(QStringLiteral("apps")).toList();
-    for (const QVariant &v : pinned) {
-        const QVariantMap slot = v.toMap();
-        const QString cmd = slot.value(QStringLiteral("cmd")).toString();
-        if (!cmd.isEmpty())
-            pinnedHeads << cmd.section(QLatin1Char(' '), 0, 0);
-    }
-    QStringList seen;
-    for (const QString &cls : m_windowIds) {
-        if (cls.isEmpty() || cls.startsWith(QLatin1String("aegis-shell"))
-            || cls.startsWith(QLatin1String("aegis-launcher"))
-            || pinnedHeads.contains(cls) || seen.contains(cls))
-            continue;
-        seen.append(cls);
-        QVariantMap entry = findInstalledEntry(cls);
-        const QString name =
-            entry.value(QStringLiteral("name")).toString().isEmpty()
-                ? cls
-                : entry.value(QStringLiteral("name")).toString();
-        const QString icon =
-            entry.value(QStringLiteral("icon")).toString().isEmpty()
-                ? cls
-                : entry.value(QStringLiteral("icon")).toString();
-        QVariantMap t{{QStringLiteral("name"), name},
-                      {QStringLiteral("icon"), icon},
-                      {QStringLiteral("cmd"), cls},
-                      {QStringLiteral("head"), cls},
-                      {QStringLiteral("transient"), true}};
-        if (!entry.value(QStringLiteral("exec")).toString().isEmpty())
-            t.insert(QStringLiteral("launch"),
-                     QStringLiteral("aegis-electron-launch ")
-                         + entry.value(QStringLiteral("exec")).toString());
-        out.append(t);
-    }
-    return out;
-}
-
 void Util::lock()
 {
     if (!m_locked) {
@@ -1553,6 +1507,52 @@ QVariantList Util::dockApps() const
     }
     return out;
 }
+// W84 — macOS dock semantics: opened-but-unpinned apps appear on the
+// dock as transient tiles. One entry per tracked resourceClass outside
+// the pinned heads; the .desktop entry dresses name/icon (the ORIGINAL
+// vendor icons — the same resolve the pinned Tier B tiles ride), and
+// the click activates through the windowwatch ActivateRequest path.
+QVariantList Util::transientDockApps() const
+{
+    QVariantList out;
+    QStringList pinnedHeads;
+    const auto pinned = m_config.value(QStringLiteral("apps")).toList();
+    for (const QVariant &v : pinned) {
+        const QVariantMap slot = v.toMap();
+        const QString cmd = slot.value(QStringLiteral("cmd")).toString();
+        if (!cmd.isEmpty())
+            pinnedHeads << cmd.section(QLatin1Char(' '), 0, 0);
+    }
+    QStringList seen;
+    for (const QString &cls : m_windowIds) {
+        if (cls.isEmpty() || cls.startsWith(QLatin1String("aegis-shell"))
+            || cls.startsWith(QLatin1String("aegis-launcher"))
+            || pinnedHeads.contains(cls) || seen.contains(cls))
+            continue;
+        seen.append(cls);
+        QVariantMap entry = findInstalledEntry(cls);
+        const QString name =
+            entry.value(QStringLiteral("name")).toString().isEmpty()
+                ? cls
+                : entry.value(QStringLiteral("name")).toString();
+        const QString icon =
+            entry.value(QStringLiteral("icon")).toString().isEmpty()
+                ? cls
+                : entry.value(QStringLiteral("icon")).toString();
+        QVariantMap t{{QStringLiteral("name"), name},
+                      {QStringLiteral("icon"), icon},
+                      {QStringLiteral("cmd"), cls},
+                      {QStringLiteral("head"), cls},
+                      {QStringLiteral("transient"), true}};
+        if (!entry.value(QStringLiteral("exec")).toString().isEmpty())
+            t.insert(QStringLiteral("launch"),
+                     QStringLiteral("aegis-electron-launch ")
+                         + entry.value(QStringLiteral("exec")).toString());
+        out.append(t);
+    }
+    return out;
+}
+
 
 static QVariantMap parseDesktopFile(const QString &path)
 {
