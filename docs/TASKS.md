@@ -3373,3 +3373,142 @@ from docs/MILESTONES.md.
   dictionary, drift-proof switcher/tiling pins, and an informational
   klipper (a first-party clipboard manager remains a future round — the
   binary is absent from the resolute archive).
+## W83 — the Rust app round (v0.6.93 → v0.6.95): native WebKitGTK debs,
+## original vendor icons, the knob clamp — closed on v0.6.94 evidence,
+## the CoreX display red fixed in v0.6.95
+- THE ROUND: the two flagship slots (OS chat, CoreX) had been retired to
+  Electron wrappers in v0.6.79 because the app repos carried 93-102 MB
+  packages. The repos now ship native WebKitGTK builds (os-private- chat
+  3.0.2 = 218 KB, corex 2.0.0 = 488 KB), so the slots are UN-RETIRED:
+  the dock configs point at the real Rust heads (os-chat after the 3.0.2
+  binary rename, corex) with resolve:true, and the W8 resolve re-
+  dresses Icon=/Name=/Exec= from the debs' own desktop entries — the
+  ORIGINAL vendor marks on the dock tiles, the W8 "never a generic
+  stand-in glyph" ruling finally honored for the webshell slots.
+- ALWAYS-LATEST: install-app-debs.sh learns latest:owner/repo — the
+  contents API is version-sorted, the winner is fetched raw with
+  GITHUB_TOKEN auth (the unauth 60/hr pool 403s under CI traffic, hit
+  live during verification) and a pinned fallback URL per directive, so
+  every ISO build picks up whatever the repos carry that day.
+- GLYPH FIXES: Glyphs.wired redrawn as the RJ45 double-plug (the
+  v0.6.91 hexagon read as a chat bubble at menu size) and Glyphs.battery
+  draws a POWER PLUG on AC-only machines instead of a battery outline
+  implying hardware the machine lacks. The CcSlider knob disc is CLAMPED
+  inside the pill (travel = availableWidth − 22): the v0.6.92 capture
+  had it hanging 11 px past the track at BOTH ends — the "scale bubble
+  out of the line" report.
+- PROBES: the w83 knob probe CLICKS the track near the left cap then
+  near the right cap (the user path — Util.volume is not watched live,
+  the sheet never repainted, 05f == 05e byte-identical caught by the W58
+  gate), brackets the travel on the live-measured accent card column,
+  and anchors with _w83_white returning ABSOLUTE x (the replay on the r1
+  frame failed at relative 43 vs absolute track 973 before the fix; the
+  old unclamped v0.6.92 frame still FAILS the max side 1257 > 1253+4, so
+  the probe discriminates). The w55 names probe decodes busctl's shell-
+  quoted payload with ast.literal_eval (the naive replace died on \n
+  escapes next to 'OS — Private Chat'); the w83 apps probe asserts both
+  packages ii + real binaries + the hicolor originals on disk.
+- R1 REDS → FIXES: the OS slot DROPPED (12 tiles, no OS slot) because
+  the 3.0.2 deb renamed the binary to /usr/bin/os-chat while the desktop
+  ID stayed os-private-chat — the slot head is now os-chat across
+  packaging/config.json, the util.cpp fallback and the includes copy.
+  CoreX PANICKED at webview creation ("thread main panicked at
+  src/main.rs:204: webview — is libwebkit2gtk-4.1-0 installed?:
+  UnsupportedWindowHandle" — wry cannot take the GTK Wayland raw
+  handle): the aegis-electron-launch guard exports GDK_BACKEND=x11 and
+  WEBKIT_DISABLE_DMABUF_RENDERER=1.
+- R2 RED → FIX IN v0.6.95: CoreX "cannot open display: " — the r2
+  wrapper forced GDK_BACKEND=x11 into a Wayland-first env with NO
+  DISPLAY. The wrapper now discovers the XWayland socket
+  (/tmp/.X11-unix/X0|X1) and only picks x11 when one exists.
+- VERDICT: boot test on v0.6.94 — w55 (27 names, no dups) ✓, w83 apps
+  (2 packages, 12 icons) ✓, w83 knob PASS with the clamp verified live
+  (track 973..1249, max blob right 1246); the last red was the CoreX
+  display probe, its fix shipped in v0.6.95. Boot test 45815213475 on
+  v0.6.95 — GREEN: CoreX resolves, launches over the bus
+  (LAUNCH-04i-corex-OK) and renders a real window (diff-vs-home 21.3),
+  w55 27 names no dups, w83 apps and the knob clamp PASS, W38/W44/W58
+  clean — W83 CLOSED.
+## W84 — the complete-OS round (v0.6.95): installer, power row, dock
+## semantics, resize, theme parity — the user's VMware report closed
+
+- THE REPORT: the user ran the v0.6.94 ISO in VMware and shipped four
+  screenshots plus a written list. Every report is fixed with its own
+  evidence: (1) the INSTALLER was dead on arrival — "Calamares
+  Initialization Failed: finish@finish could not be loaded": the finish
+  config carried the two DEPRECATED keys (restartNowEnabled,
+  restartNowChecked) that resolute's newer Calamares schema-checks
+  reject at LOAD time; finish.conf is modernized to the
+  restartNowMode/restartNowCommand pair only (the W46.2 eject-on-restart
+  command stays), the source settings.conf now carries the
+  grub-os-prober instance that had only been edited into the includes
+  copy (the sync would have overwritten it away — the same
+  includes-vs-source staleness class as the W83 dock config), and the
+  harness logs a calamares diag (version + the packaged module set) so
+  any future load failure names its file.
+- POWER: restart "not working" was the W46.2 trap AGAIN, on the live
+  session — the user's screenshots show the wall broadcast then PXE
+  "Operating System not found". The CC reboot now rides
+  /usr/bin/aegis-install-finish (eject sr0 + sync + reboot, the
+  installer's own command), Shut Down syncs before poweroff, and the row
+  grew Suspend→Sleep plus a real HIBERNATE action that only renders when
+  the kernel exposes the disk state AND a swap target exists
+  (Util.hibernateAvailable — on a live ISO without swap the button stays
+  out of the row instead of failing silently).
+- THEME PARITY: the INFO CENTER wore Ubuntu's logo — kinfocenter reads
+  the os-release LOGO= field, which the branding hook never set; the
+  hook now installs the Aegis mark as a themed icon (hicolor 256
+  aegis-os) and appends LOGO=aegis-os. "Selected from menu becomes
+  invisible": the shell forces QT_QUICK_CONTROLS_STYLE=Basic, whose
+  menu/ComboBox highlights come from the application QPalette the shell
+  never set — main.cpp now applies the Aegis palette (the exact
+  AegisDark/AegisLight values: window 22,24,28 / text 242,244,248 /
+  accent 62,139,255 highlight + white highlighted text) at startup and
+  on every dark flip. "Aegis id backend is not connected": the state
+  line froze at the startup probe's answer — AegisId.probeBackend() plus
+  a Retry affordance re-ping honestly (any HTTP answer = reachable, the
+  W34 contract).
+- RESIZE: the aurorae theme's 4 px strips left CORNER grab zones 4x4 px
+  ("corners don't work") — borders to 6 px with the session
+  BorderSize=Normal. The SNAP-BACK (browser/OS/CoreX returning to
+  default size after the pointer drops — all three re-assert their own
+  geometry post-resize) is fixed with kwin ignoregeometry=Force rules
+  scoped to exactly those three resource classes.
+- DOCK: auto-hide ships as a Settings toggle (prefs.json-backed, default
+  OFF so the boot-test dock-click maps stay deterministic) — the tray
+  slides fully invisible after 1.2 s idle and the bottom-edge hover
+  (within 18 px) brings it back. The running dot read the
+  launch-recorded list that is never cleared on close (the dot survived
+  every app close) — winCount now reads the windowwatch payload
+  directly (zero windows = no dot). Opened-but-unpinned apps now appear
+  on the dock as transient tiles (Util.transientDockApps: one tile per
+  tracked class outside the pinned heads, dressed with the installed
+  .desktop name/icon — the ORIGINAL vendor marks — inserted before
+  Trash, clicking activates through the windowwatch path).
+- CI: the round rode two build fixes (main.cpp missed
+  #include <QPalette>; transientDockApps sat above the static
+  findInstalledEntry it calls and moved below dockApps() into scope) and
+  one transient infra red (the ISO build's apt hit archive.ubuntu.com
+  mid-mirror-sync, Packages.xz hash mismatch — re-run on a fresh runner,
+  green).
+- HARNESS: the first boot test on v0.6.95 (45808677333) went red on
+  three asserts, each a piece of W84's own fallout, none a product
+  regression: the BorderSize config assert still pinned the W44 ruling
+  (Tiny) against the session's new Normal; the W39 dim probe's cluster
+  index 1 flipped the NEW auto-hide row (the toggle visually flipped and
+  stuck while governor.conf never saw the key — the telemetry named the
+  row swap); and the W58 gate flagged 05f-cc-volmax == 05-control-center
+  (the CC opens at the VM's default 100% sink volume, so the max-click
+  legitimately restores the pre-probe frame byte-for-byte while the knob
+  telemetry proves both clicks landed). The assert follows the W84
+  supersession, the dim click moves to index 2 (the QML order rotate /
+  auto-hide / dim, pinned in a comment), and the knob pair joins the
+  ok_dups by-design list with the mirror 05e/05 case (30a568d).
+- VERDICT: boot test 45815213475 on v0.6.95 (the published ISO, no
+  rebuild) — GREEN. The focus-dim toggle writes governor.conf (PASS),
+  CoreX launches and renders (LAUNCH-04i-corex-OK, diff-vs-home 21.3),
+  w55 (27 names, no dups), w83 apps (2 packages, 12 icons) and the w83
+  knob clamp (track 973..1249, min knob 973 / max blob 1246) all PASS,
+  W38/W44/W58 clean. All ten user-reported items are fixed with evidence
+  and the captures are committed to docs/screenshots/v0.6.95/ — W84
+  CLOSED.
