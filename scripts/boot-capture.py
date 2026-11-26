@@ -143,7 +143,7 @@ def diff_px(a, b):
             t += abs(ra - rb) + abs(ga - gb) + abs(ba - bb); n += 1
     return t / n / 3
 
-def window_hairline(png, scan_to=260, y_from=40):
+def window_hairline(png, scan_to=260, y_from=30):
     """T7 anchor — the window's top hairline. Both anatomies draw one: the
     Files CSD GlassPanel borders white @ 0.14, the aurorae AegisLights
     frame's top edge stroke is the same white @ 0.14. A hairline row is a
@@ -157,7 +157,14 @@ def window_hairline(png, scan_to=260, y_from=40):
     KWin centers windows in the WORK AREA, and a ~680 px store window now
     sits with its top hairline at y≈30 — ABOVE the old 40 floor, so the
     w38 triple scanned the toolbar row instead and read MISSING. The
-    store probe passes y_from=26; every other probe keeps 40."""
+    store probe passes y_from=26; every other probe keeps 40.
+    W86 — the reserve rose 76 -> 152 (the input-hole fix): every centered
+    window sits ~40 px HIGHER and the Files top hairline lands at y≈30,
+    just below the 28 px panel — the DEFAULT floor drops to 30 so the
+    topmost hairline is found again (bt97 run 1: the scan caught the
+    toolbar hairline at y=71 and the red-dot check failed on a perfectly
+    healthy titlebar — the artifact's 02-files.png shows the lights
+    rendered, the scan just never looked that high)."""
     im = Image.open(png).convert("L")
     W, H = im.size
     px = im.load()
