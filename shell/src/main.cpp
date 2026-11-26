@@ -23,6 +23,7 @@
 #include <QGuiApplication>
 #include <QIcon>
 #include <QDBusConnection>
+#include <QPalette>
 #include <QQuickImageProvider>
 #include <QQuickStyle>
 #include <QQuickWindow>
