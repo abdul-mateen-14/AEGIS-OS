@@ -14,9 +14,11 @@ BorderSizeAuto=false
 # resize-only borders (settings largeSpacing)" had no probe behind it, and
 # the T15 boot gate PROVED it false: two runs, right-edge drags at hairline
 # end +2/+6 on Konsole grew the window 0 px under BorderSize=None. The
-# review's prescribed flip applies verbatim: BorderSize=Normal (4 px strips;
-# the aurorae theme's own 44 px titleband and the W10 button metrics are
-# unchanged). The W44 terminal drag probe re-asserts resize per run, and
+# review's prescribed flip applies verbatim: BorderSize=Normal. W84
+# supersedes the W44 strip width: the aurorae borders grew to 6 px (the
+# 4 px strips left the corner grab zones 4x4 px — the user's VMware
+# report), the 44 px titleband and the W10 button metrics are unchanged.
+# The W44 terminal drag probe re-asserts resize per run, and
 # the T7 header assert guards the button geometry.
 BorderSize=Normal
 

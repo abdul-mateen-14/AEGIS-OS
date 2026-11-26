@@ -1240,11 +1240,14 @@ def config_assert(diag_path):
     need(kwinrc, "ButtonsOnLeft=XIA",
          "ButtonsOnLeft drifted from XIA (close dot must lead on the left)")
     # T15-D7 (W44) — None was PROVEN non-resizable by the edge-drag probe
-    # (two runs, 0 px growth on Konsole); the review ruling flips to Tiny
-    # (4 px strips, the 44 px titleband and W10 metrics unchanged).
-    need(kwinrc, "BorderSize=Tiny",
-         "BorderSize drifted (W44 resize ruling — Tiny after None proved "
-         "non-resizable)")
+    # (two runs, 0 px growth on Konsole); the review ruling flipped to
+    # Tiny. W84 supersedes the pin: the user's VMware report ("pointer
+    # for windows resizing does not work at corners") traced to the 4 px
+    # strips leaving 4x4 px corner grab zones — the aurorae borders grew
+    # to 6 px under BorderSize=Normal, so the session pin follows.
+    need(kwinrc, "BorderSize=Normal",
+         "BorderSize drifted (W84 resize ruling — Normal with the 6 px "
+         "aurorae borders; Tiny superseded)")
     need(kwinrc, "kwin4_effect_shapecornersEnabled=true",
          "ShapeCorners effect disabled (Table 18 r18 corners)")
     need(kwinrc, "aegis-windowwatchEnabled=true",
@@ -2583,10 +2586,11 @@ def main():
             log(f"xkb typing probe failed: {e}")
 
     # T15-D7 (W44.2) — the DECORATED window resize proof: the same edge
-    # drag on Konsole (aurorae band). kwinrc carries BorderSize=None and
-    # the shipped comment claims the resize-only borders still exist —
-    # this probe is that claim's proof. A red here flips the ruling to
-    # BorderSize=Tiny (review W44.2), not another silent carry-over.
+    # drag on Konsole (aurorae band). The session runs BorderSize=Normal
+    # with the W84 6 px aurorae borders (the corner-grab fix) — this
+    # probe re-asserts per run that the decorated resize path really
+    # grows the window; a red here is a resize regression, not a config
+    # drift (the W84 pin lives in the config assert above).
     try:
         q.shot("03b-term-before")
         grew = drag_right_edge(q, f"{OUT}/03b-term-before.png",
@@ -2887,7 +2891,14 @@ def main():
                 q.shot("04n2-wallpaper-on")
                 # restore off — the knob moved; re-scan
                 click_knob(f"{OUT}/04n2-wallpaper-on.png", 0)
-            if click_knob(f"{OUT}/04n-wallpaper.png", 1):
+            if click_knob(f"{OUT}/04n-wallpaper.png", 2):
+                # W84 — the auto-hide toggle row landed BETWEEN rotate and
+                # dim (SettingsApp.qml order: rotate 0, auto-hide 1, dim
+                # 2), so index 1 now flips auto-hide — bt95 run
+                # 45808677333 proved it: knob 1 visually flipped and
+                # stuck while governor.conf never saw the key. The dim
+                # toggle is the LAST GlassSwitch of the pane's toggle
+                # group; index 2 pins the QML order.
                 # same timing flap as the rotate grep above (bt84: the
                 # post-click re-scan showed the knob at (441, 381) —
                 # the UI toggled, the write lagged)
@@ -2904,9 +2915,10 @@ def main():
                     + ("governor.conf verdict PASS" if w39_dim_ok
                        else "FAIL — " + out.strip()[-80:]))
                 q.shot("04n3-wallpaper-dim")
-                # the dim knob is cluster index 1 (rotate row sits above
-                # it and its knob is back on the left after the restore)
-                click_knob(f"{OUT}/04n3-wallpaper-dim.png", 1)
+                # the dim knob is cluster index 2 (W84 row order: rotate,
+                # auto-hide, dim) and its knob is back on the left after
+                # the restore
+                click_knob(f"{OUT}/04n3-wallpaper-dim.png", 2)
             q.key("alt", "f4"); time.sleep(5)
 
             # effects pane (2): blurLive first row. The knob may already
@@ -4767,7 +4779,20 @@ def main():
                # BEFORE "05e-" ('3' < 'e'), so the dedup tuple arrives
                # REVERSED from creation order; register both.
                ("05d3-calendar-autoclosed.png", "05e-home-ref.png"),
-               ("05e-home-ref.png", "05d3-calendar-autoclosed.png")}
+               ("05e-home-ref.png", "05d3-calendar-autoclosed.png"),
+               # W83 knob probe (bt95 45808677333) — the CC opens at the
+               # session's default sink volume, which on the test VM is
+               # 100%: after the min-click (05e, knob measured at the
+               # left cap 973) the max-click (05f) restores EXACTLY the
+               # pre-probe state, so 05f == 05 byte-for-byte BY DESIGN.
+               # The geometry assert carries the judgment — a dead click
+               # pair would leave the min knob at the right cap and fail
+               # w83_knob_ok separately. The 05e/05 pair is the mirror
+               # case for a min-default session; register both orders.
+               ("05-control-center.png", "05f-cc-volmax.png"),
+               ("05f-cc-volmax.png", "05-control-center.png"),
+               ("05-control-center.png", "05e-cc-volmin.png"),
+               ("05e-cc-volmin.png", "05-control-center.png")}
     # T20.9 — on Wayland the blur toggle CANNOT move pixels (the
     # KWindowEffects consumer is X11-only), so the 04j2/04j4 pair is
     # by-design equal there too. On X11 the pair stays judged: equality
@@ -5104,8 +5129,8 @@ def main():
     if not w44_terminal_ok:
         failures.append("W44: the Konsole right-edge drag grew the window "
                         "by < 100 px — the decorated (aurorae) resize path "
-                        "is broken; flip kwinrc to BorderSize=Tiny per the "
-                        "review ruling")
+                        "is broken under the W84 ruling (BorderSize=Normal "
+                        "+ 6 px borders)")
     if not w39_rotate_ok:
         failures.append("W39: the rotate-wallpapers toggle click wrote no "
                         "tokens.conf key — the switch is dead or the knob "
