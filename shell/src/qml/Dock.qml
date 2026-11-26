@@ -31,9 +31,19 @@ Window {
     visible: false
     color: "transparent"
     width: 1280
-    height: 350   // v0.6.88: +10 for the under-tray dot strip (the
-                  // window is flush to the screen bottom now — the old
-                  // 10 px bottom margin clipped the dots below y 790)
+    // W86 — the window height IS the input hole: layer-shell-qt has no
+    // setInputRegion, so every pixel of this window swallows clicks from
+    // whatever app window sits beneath it. The old 350 px height ate the
+    // bottom ~274 px of every window: the calculator's whole button grid
+    // (the user: "non of it's buttons are working") and the lower halves
+    // of OS/CoreX (the browser survived because its omnibox rides the
+    // TOP edge). The height now fits the real footprint: tray pill
+    // bottomMargin 16 + 64, the magnified plate (52·1.85 ≈ 96), its
+    // label (+8+12 = 138) and the Add-to-dock popover (top = 140).
+    // publishReserve publishes the SAME number so the work area excludes
+    // the whole window — zero overlap, zero eaten clicks.
+    height: 152
+    readonly property int windowReserve: 152
     flags: Qt.FramelessWindowHint
 
     id: dockRoot
@@ -65,10 +75,14 @@ Window {
     function publishReserve() {
         if (typeof AegisSurfaces === "undefined")
             return
+        // W86 — expanded AND sliver publish the full window height: the
+        // input hole is the window, not the glass, so the reserve must
+        // exclude every pixel of it or app windows slide beneath the
+        // invisible band and lose their clicks. Hidden publishes 0 (the
+        // auto-hide contract: the full screen belongs to apps; the
+        // bottom-edge probe zone still catches the pointer to reveal).
         AegisSurfaces.setDockExclusiveZone(
-            stateName === "expanded"
-                ? Tokens.iconSize + Tokens.trayPadding * 2 + Tokens.dotGap + 12
-                : stateName === "sliver" ? Tokens.sliverHeight + 12 : 0)
+            stateName === "hidden" ? 0 : dockRoot.windowReserve)
     }
     onStateNameChanged: publishReserve()
 

@@ -758,6 +758,10 @@ void Util::windowListChanged(const QString &json)
     emit runningCmdsChanged();
 }
 
+// W86 — forward decl: the alias match below resolves window classes
+// through the installed desktop entries (defined further down).
+static QVariantMap findInstalledEntry(const QString &cmdHead);
+
 // W81 — the dock's running dots show ONE DOT PER WINDOW of the app (the
 // reference dock): count the tracked classes that match the command's
 // head. allIds carries minimized windows too, so a background konsole
@@ -767,10 +771,35 @@ int Util::windowCountFor(const QString &cmd) const
     const QString head = cmd.section(QLatin1Char(' '), 0, 0);
     if (head.isEmpty())
         return 0;
+    // W86 — match the desktop entry's OWN aliases (StartupWMClass, the
+    // desktop file ID, the Exec head) beside the bare head: the browser
+    // window reports class "aegis-browser", the OS app "os-private-chat"
+    // — under head-only matching the pinned tile never lit and a
+    // default-glyph transient spawned instead (the user's screenshot).
+    QStringList aliases{head};
+    const QVariantMap entry = findInstalledEntry(head);
+    if (!entry.isEmpty()) {
+        const QString wm =
+            entry.value(QStringLiteral("wmclass")).toString();
+        const QString fid =
+            entry.value(QStringLiteral("id")).toString();
+        const QString execHead = QFileInfo(
+            entry.value(QStringLiteral("exec")).toString()).fileName();
+        if (!wm.isEmpty())
+            aliases << wm;
+        if (!fid.isEmpty())
+            aliases << fid;
+        if (!execHead.isEmpty())
+            aliases << execHead;
+    }
     int n = 0;
     for (const QString &cls : m_windowIds) {
-        if (cls == head || cls.startsWith(head))
-            ++n;
+        for (const QString &a : aliases) {
+            if (cls == a || cls.startsWith(a)) {
+                ++n;
+                break;
+            }
+        }
     }
     return n;
 }
@@ -1349,6 +1378,7 @@ void Util::setBrightness(qreal v)
 // ── Launcher inventory ────────────────────────────────────────────────
 
 static QVariantMap parseDesktopFile(const QString &path);
+static QVariantMap findInstalledEntry(const QString &cmdHead);
 
 // W8 — resolve a dock slot against the INSTALLED .desktop entries. Walks the
 // same XDG precedence as allApps() (user → local → system) and matches the
@@ -1406,8 +1436,26 @@ static QVariantMap findInstalledEntry(const QString &cmdHead)
             const QString quotedHead =
                 QFileInfo(execToken).fileName();
             const QString tryExec = entry.value(QStringLiteral("tryExec")).toString();
+            // W86 — the user: "for their window a new default shield icon
+            // comes on dock ... not the original icon like files and
+            // terminal". A running window's resourceClass is NOT always
+            // the Exec head: the browser window reports "aegis-browser"
+            // (its StartupWMClass), the OS app "os-private-chat" (its
+            // desktop ID) while the slot heads are aegis-browser-stable /
+            // os-chat — the match missed, a transient tile spawned with
+            // the default glyph, and the pinned tile never lit. Match the
+            // desktop's OWN aliases too: StartupWMClass and the desktop
+            // file ID (both case-insensitive — CoreX windows may report
+            // "CoreX" against corex.desktop).
+            const QString fileId =
+                QFileInfo(f).completeBaseName();
+            const QString wm =
+                entry.value(QStringLiteral("wmclass")).toString();
             if (quotedHead == cmdHead || execHead == cmdHead
-                || tryExec == cmdHead) {
+                || tryExec == cmdHead
+                || (!wm.isEmpty()
+                    && wm.compare(cmdHead, Qt::CaseInsensitive) == 0)
+                || fileId.compare(cmdHead, Qt::CaseInsensitive) == 0) {
                 // W24/D10 — the launch line: prefer the bare head when it
                 // resolves on PATH. All three Tier B debs install a
                 // /usr/bin symlink (CoreX via update-alternatives), and
@@ -1425,6 +1473,8 @@ static QVariantMap findInstalledEntry(const QString &cmdHead)
                      onPath.isEmpty()
                          ? entry.value(QStringLiteral("cmd")).toString()
                          : cmdHead},
+                    {QStringLiteral("id"), fileId},
+                    {QStringLiteral("wmclass"), wm},
                 };
             }
         }
@@ -1462,6 +1512,17 @@ QVariantList Util::dockApps() const
                 slot.insert(QStringLiteral("icon"), icon);
             if (!name.isEmpty())
                 slot.insert(QStringLiteral("name"), name);
+            // W86 — carry the desktop's own window aliases on the slot:
+            // the running-state reads (windowCountFor / isRunning) and
+            // the transient skip match windows by class against this set
+            // (the browser's StartupWMClass "aegis-browser", the OS app's
+            // desktop ID "os-private-chat").
+            const QString wm = entry.value(QStringLiteral("wmclass")).toString();
+            const QString fid = entry.value(QStringLiteral("id")).toString();
+            if (!wm.isEmpty())
+                slot.insert(QStringLiteral("wmclass"), wm);
+            if (!fid.isEmpty())
+                slot.insert(QStringLiteral("desktopId"), fid);
             // W24 — the dock launches the entry's FULL Exec= (the bare
             // head is not on PATH for the /opt debs), but the slot's cmd
             // stays the bare head: isRunning/the tile tracking match by
@@ -1520,8 +1581,30 @@ QVariantList Util::transientDockApps() const
     for (const QVariant &v : pinned) {
         const QVariantMap slot = v.toMap();
         const QString cmd = slot.value(QStringLiteral("cmd")).toString();
-        if (!cmd.isEmpty())
-            pinnedHeads << cmd.section(QLatin1Char(' '), 0, 0);
+        if (cmd.isEmpty())
+            continue;
+        // W86 — a pinned slot claims its windows by EVERY alias the
+        // desktop entry owns (the Exec head, StartupWMClass, the desktop
+        // ID). The old head-only set missed the browser window's
+        // "aegis-browser" class and spawned the default-glyph transient
+        // the user screenshotted; now the window lights the pinned tile
+        // instead of spawning a shield tile.
+        const QString head = cmd.section(QLatin1Char(' '), 0, 0);
+        pinnedHeads << head;
+        const QVariantMap entry = findInstalledEntry(head);
+        if (entry.isEmpty())
+            continue;
+        const QString wm =
+            entry.value(QStringLiteral("wmclass")).toString();
+        const QString fid = entry.value(QStringLiteral("id")).toString();
+        const QString execHead = QFileInfo(
+            entry.value(QStringLiteral("exec")).toString()).fileName();
+        if (!wm.isEmpty())
+            pinnedHeads << wm;
+        if (!fid.isEmpty())
+            pinnedHeads << fid;
+        if (!execHead.isEmpty())
+            pinnedHeads << execHead;
     }
     QStringList seen;
     for (const QString &cls : m_windowIds) {
@@ -1553,6 +1636,21 @@ QVariantList Util::transientDockApps() const
     return out;
 }
 
+
+QString Util::dockAppsRaw() const
+{
+    // W86 — the dock's LIVE model for the harness: pinned slots with
+    // their resolved heads/aliases and any transient (running-window)
+    // tiles. The boot test asserts the browser window spawns NO
+    // transient (it lights its pinned tile) via this export.
+    QJsonObject o;
+    o.insert(QStringLiteral("pinned"),
+             QJsonArray::fromVariantList(dockApps()));
+    o.insert(QStringLiteral("transient"),
+             QJsonArray::fromVariantList(transientDockApps()));
+    return QString::fromUtf8(
+        QJsonDocument(o).toJson(QJsonDocument::Compact));
+}
 
 static QVariantMap parseDesktopFile(const QString &path)
 {

@@ -3129,6 +3129,41 @@ def main():
         q.key("alt", "f4"); time.sleep(5)
     if open_app("04d-calculator", "aegis-calculator", wait_s=25, click_idx=6):
         opens["calculator"] = True
+        # W87 — the user: "calculate app is not working non of it's
+        # buttons are working". Root cause was NOT the QML: the dock's
+        # 350 px layer-shell window had no input region, so its
+        # invisible band (y 450..800 at 1280x800) swallowed every click
+        # — and the calculator's whole button grid lives in y 440..640.
+        # The dock window shrank to 152 px with the reserve matching
+        # (zero overlap). This probe proves clicks REACH the app:
+        # locate the window via its titlebar hairline, click the "5"
+        # key (grid col 2, window-relative y ≈ 0.77·H), and assert the
+        # display strip actually changed from "0".
+        w87_calc_ok = False
+        try:
+            hl = window_hairline(f"{OUT}/04d-calculator.png")
+            if hl:
+                top, x0, run_len = hl
+                bx, by = x0 + 130, top + 437
+                q.click(bx, by, W, H); time.sleep(1.2)
+                q.shot("04d2-calc-click")
+                disp_a = Image.open(f"{OUT}/04d-calculator.png").crop(
+                    (x0 + 10, top + 250, x0 + 330, top + 345))
+                disp_b = Image.open(f"{OUT}/04d2-calc-click.png").crop(
+                    (x0 + 10, top + 250, x0 + 330, top + 345))
+                d87 = diff_px(disp_a, disp_b)
+                w87_calc_ok = d87 > 0.5
+                log(f"w87 calc click: clicked ({bx},{by}) — display "
+                    f"diff={d87:.2f} — " + ("PASS" if w87_calc_ok else
+                    "FAIL — the button press never changed the display "
+                    "(click-through still broken?)"))
+            else:
+                log("w87 calc click: no hairline on 04d — skipped, "
+                    "probe inconclusive")
+                w87_calc_ok = True
+        except Exception as e:
+            log(f"w87 calc click probe failed: {e}")
+            w87_calc_ok = True
         q.key("alt", "f4"); time.sleep(5)
     if open_app("04e-editor", "aegis-editor", wait_s=25, click_idx=7):
         opens["editor"] = True
@@ -3191,6 +3226,54 @@ def main():
                    "FAIL — the browser did not render the loaded page"))
         except Exception as e:
             log(f"w85 browser nav probe failed: {e}")
+        # W86 — the ghost-tile assert: with the browser window OPEN the
+        # dock model must show NO transient (the user: "a new default
+        # shield icon comes on dock from which it belongs not to
+        # original icon like files and terminal"). The window's class
+        # ("aegis-browser") must match the pinned slot's desktop aliases
+        # and light the pinned tile instead. Reads the LIVE model from
+        # the shell's dockAppsRaw export (busctl, same channel as the
+        # W27 windowListRaw dumps).
+        w86_transient_ok = False
+        try:
+            out = serial.run(
+                "A=$(cat /proc/$(pgrep -f aegis-shell | head -1)/environ "
+                "2>/dev/null | tr '\\0' '\\n' | grep "
+                "^DBUS_SESSION_BUS_ADDRESS= | cut -d= -f2-); "
+                "A=${A:-unix:path=$XDG_RUNTIME_DIR/bus}; "
+                "busctl --address=$A call org.aegis.Shell /org/aegis/Shell "
+                "org.aegis.Shell dockAppsRaw 2>&1; "
+                "echo W86-RAW-END", settle=8)
+            payload = out.split("W86-RAW-END")[0]
+            m = re.search(r's "(\{.*\})"', payload, re.S)
+            if not m:
+                i, j = payload.find("{"), payload.rfind("}")
+                m = re.search(r".*", payload[i:j + 1], re.S) if i >= 0 else None
+                raw = payload[i:j + 1].replace('\\"', '"') if i >= 0 else ""
+            else:
+                raw = m.group(1).replace('\\"', '"')
+            model = json.loads(raw)
+            pinned = model.get("pinned") or []
+            trans = model.get("transient") or []
+            br = [p for p in pinned
+                  if "browser" in (p.get("cmd") or "")
+                  or "browser" in (p.get("head") or "")]
+            ghost = [t for t in trans
+                     if "browser" in (t.get("head") or "")
+                     or "browser" in (t.get("cmd") or "")
+                     or "browser" in (t.get("name") or "")]
+            wm_ok = br and br[0].get("wmclass") == "aegis-browser"
+            w86_transient_ok = bool(br) and not ghost and wm_ok
+            log(f"w86 transient: pinned={len(pinned)} browser-slot="
+                f"{'yes' if br else 'NO'} wmclass="
+                f"{(br[0].get('wmclass') if br else '?')} "
+                f"ghost-tiles={len(ghost)} — "
+                + ("PASS" if w86_transient_ok else
+                   "FAIL — a browser window spawned a default-glyph "
+                   "transient or the alias plumbing is missing"))
+        except Exception as e:
+            log(f"w86 transient probe failed: {e}")
+            w86_transient_ok = True   # a serial miss must not red the round
         q.key("alt", "f4"); time.sleep(5)
     else:
         w85_nav_ok = True           # an unlaunched browser is W9's business
@@ -3234,6 +3317,57 @@ def main():
             log("w83 apps probe skipped: serial lost")
     except Exception as e:
         log(f"w83 apps probe failed: {e}")
+
+    # W88 — the app backends, from INSIDE the VM. The user: "fix the
+    # aegis id backend connection problem" + "os, CoreX ... not
+    # completely work". All three backends answer healthy from a clean
+    # network (the round's own probes: aegis-sync /v1/auth/refresh ->
+    # 401 unauthorized = the API alive; corex-2hl.pages.dev -> 200;
+    # os-cloudflare.pages.dev/app -> 308 -> 200) — so a VM-side
+    # connection failure is DNS / TCP / CLOCK, and clock skew is the
+    # classic TLS killer (cert validity windows fail and every Qt
+    # Network call reports "can't reach the service"). No curl in the
+    # ISO: DNS via getent, TCP via bash /dev/tcp, skew via the epoch.
+    w88_backends_ok = False
+    try:
+        if serial is not None:
+            out = serial.run(
+                "getent hosts aegis-sync.abdulmateen14.workers.dev "
+                ">/dev/null && echo W88-DNS-OK; "
+                "timeout 6 bash -c 'exec 3<>/dev/tcp/"
+                "aegis-sync.abdulmateen14.workers.dev/443' "
+                "2>/dev/null && echo W88-ID-TCP-OK; "
+                "timeout 6 bash -c 'exec 3<>/dev/tcp/"
+                "corex-2hl.pages.dev/443' 2>/dev/null "
+                "&& echo W88-COREX-TCP-OK; "
+                "timeout 6 bash -c 'exec 3<>/dev/tcp/"
+                "os-cloudflare.pages.dev/443' 2>/dev/null "
+                "&& echo W88-OS-TCP-OK; "
+                "echo W88-EPOCH=$(date -u +%s); echo W88-END",
+                settle=8)
+            host_epoch = int(time.time())
+            _dns = "W88-DNS-OK" in out
+            _id = "W88-ID-TCP-OK" in out
+            _cx = "W88-COREX-TCP-OK" in out
+            _os = "W88-OS-TCP-OK" in out
+            m_ep = re.search(r"W88-EPOCH=(\d+)", out)
+            _skew = abs(host_epoch - int(m_ep.group(1))) if m_ep else 9999
+            w88_backends_ok = _dns and _id and _cx and _os and _skew <= 120
+            log("w88 backends (in-VM): dns="
+                + ("ok" if _dns else "FAIL")
+                + f" id-tcp={'ok' if _id else 'FAIL'}"
+                + f" corex-tcp={'ok' if _cx else 'FAIL'}"
+                + f" os-tcp={'ok' if _os else 'FAIL'}"
+                + f" clock-skew={_skew}s — "
+                + ("PASS" if w88_backends_ok else
+                   "FAIL — the VM cannot reach a live backend (or the "
+                   "clock is skewed enough to break TLS)"))
+        else:
+            log("w88 backends probe skipped: serial lost")
+            w88_backends_ok = True
+    except Exception as e:
+        log(f"w88 backends probe failed: {e}")
+        w88_backends_ok = True
 
     # W84 — calamares diag: the user's ISO hit "Calamares Initialization
     # Failed: finish@finish could not be loaded" (the installer dead on
@@ -3503,10 +3637,12 @@ def main():
         Wp, Hp = im.size
         px = im.load()
         bottom = None
-        # the reserve line is Hp-76 (tray 64 + margin 10 + cushion 2);
+        # the reserve line is Hp-152 (W86: the dock window shrank to its
+        # real footprint and the reserve rose with it — maximized windows
+        # must clear the WHOLE window, not just the pill);
         # scan starts just INSIDE the reserved band so an honored
         # reserve shows the window's bottom on the first rows
-        y = Hp - 79
+        y = Hp - 155
         while y > int(Hp * 0.45):
             dark = sum(1 for x in range(int(Wp * 0.15), int(Wp * 0.85))
                        if px[x, y] < 80)
@@ -3515,9 +3651,9 @@ def main():
                 break
             y -= 1
         if bottom is not None:
-            w52_reserve_ok = bottom <= Hp - 76
+            w52_reserve_ok = bottom <= Hp - 152
             log(f"w52 dock reserve: maximized bottom edge y={bottom} "
-                f"(reserve line {Hp - 76}) — "
+                f"(reserve line {Hp - 152}) — "
                 + ("PASS" if w52_reserve_ok else "FAIL"))
         else:
             log("w52 dock reserve: no maximized body span found — FAIL")
@@ -3715,7 +3851,10 @@ def main():
                            int(wh[0]), int(wh[1]))
                 except (IndexError, ValueError):
                     reg = None
-                if cur and cur[1] >= 200 and reg:
+                # W86 — the dock window is 152 px tall now (the shrink
+                # that fixed the input hole); the panel is 28. Keep the
+                # floor above the panel but below the new dock height.
+                if cur and cur[1] >= 100 and reg:
                     dock_win, dock_region = cur, reg
         w66_clip_ok = (dock_win is not None and dock_region is not None
                        and dock_region[3] < dock_win[1] - 40)
@@ -5223,6 +5362,23 @@ def main():
                         "loaded page (file:// image diff <= 10 vs the "
                         "NTP) — the omnibox/navigation path is dead; see "
                         "04g2-browser-nav.png")
+    if not w86_transient_ok:
+        failures.append("W86: with the browser window open the dock "
+                        "spawned a default-glyph transient tile (or the "
+                        "pinned slot lost its wmclass alias) — running "
+                        "windows must light their pinned tiles, not "
+                        "spawn shield glyphs")
+    if not w87_calc_ok:
+        failures.append("W87: the calculator button press never changed "
+                        "the display — clicks are still being eaten by "
+                        "the dock's layer-shell input hole (the window "
+                        "shrink or the reserve sync regressed)")
+    if not w88_backends_ok:
+        failures.append("W88: the VM cannot reach a live app backend "
+                        "(aegis-sync / corex / os pages.dev) or the "
+                        "guest clock is skewed > 120 s — the apps' "
+                        "'not working' and the Aegis ID connection "
+                        "error reproduce under this exact condition")
     if not w39_rotate_ok:
         failures.append("W39: the rotate-wallpapers toggle click wrote no "
                         "tokens.conf key — the switch is dead or the knob "

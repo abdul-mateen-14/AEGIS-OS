@@ -170,7 +170,15 @@ public:
     QStringList runningCmds() const { return m_runningCmds; }
     Q_INVOKABLE bool isRunning(const QString &cmd) const
     {
-        return m_runningCmds.contains(cmd) || m_windowIds.contains(cmd);
+        // W86 — the alias match rides windowCountFor for BARE commands
+        // only: an argumented cmd (trash's "aegis-files --path trash:///")
+        // must never read as running because its HEAD matches the plain
+        // Files window — the W51 ruling. A bare head matching one of the
+        // desktop entry's own aliases (the browser's StartupWMClass, the
+        // OS app's desktop ID) does light its tile.
+        return m_runningCmds.contains(cmd) || m_windowIds.contains(cmd)
+               || (cmd.section(QLatin1Char(' '), 0, 0) == cmd.trimmed()
+                   && windowCountFor(cmd) > 0);
     }
     // W20 — the island auto-hide predicate source: count of trackable
     // normal windows on the ACTIVE workspace + any maximized/fullscreen
@@ -178,6 +186,11 @@ public:
     // later; the ruling's hide predicate is workspaceWindows > 0).
     Q_PROPERTY(int workspaceWindows READ workspaceWindows NOTIFY windowTrackingChanged)
     Q_PROPERTY(bool anyWindowFull READ anyWindowFull NOTIFY windowTrackingChanged)
+    // W86 — the harness reads the dock's LIVE model (pinned + transient)
+    // over DBus to assert the transient-tile behavior: with the browser
+    // window open there must be NO shield-glyph transient — the window
+    // lights its pinned tile. JSON: {"pinned": [...], "transient": [...]}.
+    Q_INVOKABLE QString dockAppsRaw() const;
     int workspaceWindows() const { return m_workspaceWindows; }
     bool anyWindowFull() const { return m_anyWindowFull; }
     // T13 D20 (W27) — the resourceClass of the currently ACTIVE window
