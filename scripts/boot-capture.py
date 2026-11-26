@@ -1865,8 +1865,9 @@ def main():
     try:
         _v85 = serial.run(
             "echo V85-BEGIN; "
-            "find /usr/share/icons -name 'os-private-chat*' "
-            "-o -name 'aegis-browser*' 2>/dev/null; "
+            "find /usr/share/icons -path '*hicolor*' -prune -o "
+            "\\( -name 'os-private-chat*' -o -name 'aegis-browser*' \\) "
+            "-print 2>/dev/null; "
             "echo V85-THEME; "
             "ls /usr/share/icons/hicolor/128x128/apps/os-private-chat.png "
             "/usr/share/icons/hicolor/128x128/apps/corex.png "
