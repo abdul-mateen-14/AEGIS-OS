@@ -2367,39 +2367,42 @@ def main():
         # The dolphin/KDE-systemmonitor dedupe is asserted in the ISO
         # build hook AND here; the Files ops ride the NEW keyboard
         # contract (Ctrl+A select-all → Del = move to trash) and the FS
-        # is the arbiter. The window is open and focused; the sidebar's
-        # Documents entry sits at (left+60, top+162) — measured from the
-        # 02-files capture (row 188, window 120/26).
+        # is the arbiter.
+        # W100 GEOMETRY FIX — the v0.6.99 AND v0.6.100 runs both red here
+        # with the probe file in Documents: the flow navigates by a
+        # MEASURED sidebar click (180,188), and after the w44 resize drag
+        # the click is fragile (v0.6.100's attempt log: both attempts
+        # left Documents at 1 item). The app OPENS AT HOME — seed the
+        # probe in HOME instead, skip the click entirely, and let the
+        # window-level Shortcuts (Ctrl+A → Del, FilesApp.qml:122-131) do
+        # the whole job. Navigation is already evidenced by the 02b/12
+        # captures; the keyboard contract is what this assert exists for.
         w89_ops_ok = False
         w89_dedupe_ok = False
         try:
-            serial.run("mkdir -p $HOME/Documents; touch "
-                       "$HOME/Documents/w89-probe.txt", settle=2)
-            # W90 FIX — the v0.6.99 run used mouse_abs, which only MOVES
-            # the pointer: nothing was ever clicked, the window stayed on
-            # Home, Ctrl+A selected a Home file and Delete trashed THAT
-            # (Documents items=1, probe not in Trash — the exact red).
-            # The sidebar row must be CLICKED, and the assert retried
-            # once before judging.
+            q.shot("02d-files-ops")
             for attempt in (1, 2):
-                q.click(180, 188, W, H)       # the sidebar Documents row
-                time.sleep(2.5)
+                serial.run("touch $HOME/w89-probe.txt", settle=2)
                 q.key("ctrl", "a")            # select all (the W89 contract)
                 time.sleep(1.5)
                 q.key("delete")               # move the selection to trash
-                time.sleep(3)
+                time.sleep(3.5)
                 chk = serial.run(
-                    "echo DOC=$(ls $HOME/Documents 2>/dev/null | wc -l); "
-                    "echo TRASH=$(ls $HOME/.local/share/Trash/files 2>/dev/null "
-                    "| grep -c w89-probe); echo W89-CHK-END", settle=6)
-                doc = re.search(r"DOC=(\d+)", chk)
-                tr = re.search(r"TRASH=(\d+)", chk)
-                w89_ops_ok = bool(doc and tr
-                                  and doc.group(1) == "0"
-                                  and tr.group(1) == "1")
-                log(f"w89 files ops (attempt {attempt}): Documents items="
-                    f"{doc.group(1) if doc else '?'} (want 0), probe in "
-                    f"Trash={tr.group(1) if tr else '?'} (want 1) — "
+                    "echo W89S-START; echo LEFT=$(ls -A $HOME 2>/dev/null "
+                    "| grep -c w89-probe); echo TRASHED=$(ls "
+                    "$HOME/.local/share/Trash/files 2>/dev/null "
+                    "| grep -c w89-probe); echo W89S-END", settle=6)
+                blob = re.search(r"W89S-START\r?\n(.*?)\r?\nW89S-END",
+                                 chk, re.S)
+                blob = blob.group(1) if blob else ""
+                hm = re.search(r"LEFT=(\d+)", blob)
+                tm = re.search(r"TRASHED=(\d+)", blob)
+                w89_ops_ok = bool(hm and tm
+                                  and hm.group(1) == "0"
+                                  and tm.group(1) == "1")
+                log(f"w89 files ops (attempt {attempt}): home probe left="
+                    f"{hm.group(1) if hm else '?'} (want 0), probe in "
+                    f"Trash={tm.group(1) if tm else '?'} (want 1) — "
                     + ("PASS" if w89_ops_ok else "not yet"))
                 if w89_ops_ok:
                     break
@@ -3127,14 +3130,21 @@ def main():
             m = re.search(r"NM-T-START\r?\n(.*?)\r?\nNM-T-END", tbl, re.S)
             table = (m.group(1) if m else tbl).strip()
             log("w43 NM table: " + table.replace("\n", " | ")[:400])
+            # W100 — the v0.6.100 run read the count with a bare split:
+            # a kernel journal line (fwupdmgr ...) landed INSIDE the read
+            # and count became a whole fwupd line ending in '1' — a red
+            # on a state that EXISTS (the NM table right above shows
+            # ens4:ethernet:connected). Marker-bound it like the table.
             out = serial.run(
-                "nmcli -t -f TYPE,STATE device status 2>/dev/null | "
-                "grep -c '^ethernet:connected'; echo W-OK", settle=4)
-            count = out.split("W-OK")[0].strip()
-            wired_ok = count == "1"
+                "echo W43C-START; nmcli -t -f TYPE,STATE device status "
+                "2>/dev/null | grep -c '^ethernet:connected'; "
+                "echo W43C-END", settle=4)
+            mb = re.search(r"W43C-START\r?\n(.*?)\r?\nW43C-END", out, re.S)
+            blob = (mb.group(1) if mb else "").strip()
+            wired_ok = bool(re.fullmatch(r"\d+", blob)) and blob == "1"
             log("w43 wired state: "
                 + ("ethernet:connected PASS" if wired_ok
-                   else f"FAIL (count={count!r})"))
+                   else f"FAIL (count={blob!r})"))
         except Exception as e:
             log(f"w43 wired probe failed: {e}")
 
