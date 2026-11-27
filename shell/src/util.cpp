@@ -1591,6 +1591,17 @@ QVariantList Util::transientDockApps() const
         // instead of spawning a shield tile.
         const QString head = cmd.section(QLatin1Char(' '), 0, 0);
         pinnedHeads << head;
+        // W86 r7 — a slot may declare runtime aliases for window ids
+        // its desktop entries never carry: the Aegis Browser is a
+        // Chromium fork and its Wayland app_id is the UPSTREAM
+        // "chromium-browser" (the v0.6.98 transient log named it), so
+        // no desktop-file arm could ever match. Data-driven: any slot
+        // can list "aliases" in config.json.
+        const QStringList extra = slot.value(
+            QStringLiteral("aliases")).toStringList();
+        for (const QString &a : extra)
+            if (!a.isEmpty())
+                pinnedHeads << a;
         const QVariantMap entry = findInstalledEntry(head);
         if (entry.isEmpty())
             continue;

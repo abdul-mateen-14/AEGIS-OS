@@ -15,7 +15,10 @@
       "name": "AEGIS Browser",
       "icon": "aegis-browser",
       "cmd": "aegis-browser-stable",
-      "resolve": true
+      "resolve": true,
+      "aliases": [
+        "chromium-browser"
+      ]
     },
     {
       "name": "OS",
