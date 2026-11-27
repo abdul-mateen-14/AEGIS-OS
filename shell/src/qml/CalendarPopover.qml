@@ -31,6 +31,8 @@ Window {
     flags: Qt.FramelessWindowHint
 
     property date viewDate: new Date()
+    // W90 — the clicked day (null = none); resets with the view
+    property var selectedDay: null
 
     function monthStart(d) {
         const m = new Date(d.getFullYear(), d.getMonth(), 1)
@@ -40,7 +42,7 @@ Window {
         return m
     }
 
-    onVisibleChanged: if (visible) { viewDate = new Date(); springIn.restart() }
+    onVisibleChanged: if (visible) { viewDate = new Date(); selectedDay = null; springIn.restart() }
 
     // ── the W20-style predicates: one sheet at a time, gone on focus loss ──
     Connections {
@@ -190,6 +192,13 @@ Window {
                         model: ["Mo", "Tu", "We", "Th", "Fr", "Sa", "Su"]
                         Text {
                             required property int index
+                            // W90 — declaring ANY required property on a
+                            // delegate disables Qt 6's automatic modelData
+                            // injection, so text: modelData threw
+                            // 'ReferenceError: modelData is not defined'
+                            // on every render (7× in the boot run's log)
+                            // and the weekday row rendered blank.
+                            required property string modelData
                             text: modelData
                             width: parent.width / 7
                             height: parent.height
@@ -227,21 +236,45 @@ Window {
                                 cellDate.getMonth() === calRoot.viewDate.getMonth()
                             readonly property bool isToday:
                                 cellDate.toDateString() === new Date().toDateString()
+                            // W90 — the day cells were a dead surface: they
+                            // rendered but had NO click handler (the user's
+                            // "placeholders" class). Clicking selects the
+                            // day — a visible ring + the date echoes in the
+                            // header row's caption, so the click answers.
+                            readonly property bool selected:
+                                calRoot.selectedDay
+                                && cellDate.toDateString()
+                                   === calRoot.selectedDay.toDateString()
+
+                            TapHandler {
+                                acceptedButtons: Qt.LeftButton
+                                onTapped: calRoot.selectedDay = cellDate
+                            }
 
                             Rectangle {
                                 anchors.centerIn: parent
                                 width: 26; height: 26; radius: 13
-                                visible: isToday
-                                color: Tokens.accent
+                                visible: isToday || selected
+                                color: selected ? Qt.darker(Tokens.accent, 1.25)
+                                                : Tokens.accent
+                                opacity: selected ? 1 : (isToday ? 1 : 0)
+                            }
+                            Rectangle {
+                                anchors.centerIn: parent
+                                width: 26; height: 26; radius: 13
+                                visible: selected && !isToday
+                                color: "transparent"
+                                border.width: 1.5
+                                border.color: Tokens.accent
                             }
                             Text {
                                 anchors.centerIn: parent
                                 text: cellDate.getDate()
-                                font { family: "Montserrat"; pixelSize: 11; weight: isToday ? Font.DemiBold : Font.Normal }
-                                color: isToday ? "#FFFFFF"
+                                font { family: "Montserrat"; pixelSize: 11; weight: isToday || selected ? Font.DemiBold : Font.Normal }
+                                color: isToday || selected ? "#FFFFFF"
                                      : inMonth ? Tokens.fg
                                      : Tokens.fgMuted
-                                opacity: inMonth ? 1.0 : 0.45
+                                opacity: inMonth || selected ? 1.0 : 0.45
                             }
                         }
                     }

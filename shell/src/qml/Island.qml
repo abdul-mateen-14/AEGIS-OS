@@ -273,17 +273,42 @@ Window {
             }
         }
 
-        // ── Now Playing: 64 px art · title/artist · 3-bar visualizer ──
-        Row {
-            anchors.centerIn: parent
-            spacing: 12
+        // ── Now Playing — the EXPANDED card (§2.4 plate, 356×96 r32) ──
+        // W90 — the user: "the expansion doesn't match the visual in
+        // proposal, it is really worse". The old render centered a plain
+        // Row in the capsule: three 3 px bars, a 200 px text column and
+        // ~100 px of dead space on the right. This is the plate's
+        // anatomy now: artwork LEFT with an ambient color bleed behind
+        // it, title/artist stack, a 5-bar visualizer on the RIGHT, and
+        // an optional progress track across the bottom (progress is an
+        // optional publish key — the track simply does not render
+        // without it).
+        Item {
+            anchors.fill: parent
             opacity: islandRoot.stateName === "nowPlaying" ? 1 : 0
             Behavior on opacity { CrossfadeAnim { } }
 
+            // ambient bleed — the art colors halo out behind the artwork
             Rectangle {
-                width: 64
-                height: 64
-                radius: 12
+                x: 10
+                y: (parent.height - 84) / 2
+                width: 84; height: 84; radius: 28
+                opacity: 0.35
+                gradient: Gradient {
+                    GradientStop {
+                        position: 0
+                        color: islandRoot.pd.artColor1 || "#5A9BFF"
+                    }
+                    GradientStop {
+                        position: 1
+                        color: islandRoot.pd.artColor2 || "#1E3E8C"
+                    }
+                }
+            }
+            Rectangle {
+                x: 16
+                y: (parent.height - 64) / 2
+                width: 64; height: 64; radius: 12
                 gradient: Gradient {
                     GradientStop {
                         position: 0
@@ -305,43 +330,65 @@ Window {
                 }
             }
             Column {
+                x: 96
                 anchors.verticalCenter: parent.verticalCenter
-                spacing: 4
+                spacing: 5
                 Text {
                     text: islandRoot.pd.title || "Now Playing"
                     color: Tokens.paper
                     elide: Text.ElideRight
-                    width: Math.min(implicitWidth, 200)
-                    font { family: "Montserrat"; pixelSize: 13; weight: Font.DemiBold }
+                    width: Math.min(implicitWidth, 170)
+                    font { family: "Montserrat"; pixelSize: 14; weight: Font.DemiBold }
                 }
                 Text {
                     text: islandRoot.pd.artist || ""
                     color: Qt.rgba(1, 1, 1, 0.55)
                     elide: Text.ElideRight
-                    width: Math.min(implicitWidth, 200)
+                    width: Math.min(implicitWidth, 170)
                     visible: text !== ""
                     font { family: "Montserrat"; pixelSize: 11 }
                 }
-                Row {
-                    spacing: 3
-                    // the only permanently animating element (off on tier C)
-                    Repeater {
-                        model: 3
-                        delegate: Rectangle {
-                            required property int index
-                            width: 3
-                            height: 14
-                            radius: 1.5
-                            color: Tokens.accent
-                            anchors.bottom: parent.bottom
-                            SequentialAnimation on scale {
-                                running: Governor.tier !== "C"
-                                loops: Animation.Infinite
-                                NumberAnimation { from: 0.3; to: 1.0; duration: 380 + index * 90; easing.type: Easing.InOutQuad }
-                                NumberAnimation { from: 1.0; to: 0.3; duration: 380 + index * 90; easing.type: Easing.InOutQuad }
-                            }
+            }
+            Row {
+                anchors.right: parent.right
+                anchors.rightMargin: 20
+                anchors.verticalCenter: parent.verticalCenter
+                spacing: 4
+                // the only permanently animating element (off on tier C)
+                Repeater {
+                    model: 5
+                    delegate: Rectangle {
+                        required property int index
+                        width: 3.5
+                        height: [10, 17, 8, 14, 11][index]
+                        radius: 1.75
+                        color: Tokens.accent
+                        anchors.bottom: parent.bottom
+                        SequentialAnimation on scale {
+                            running: Governor.tier !== "C"
+                            loops: Animation.Infinite
+                            NumberAnimation { from: 0.4; to: 1.0; duration: 380 + index * 90; easing.type: Easing.InOutQuad }
+                            NumberAnimation { from: 1.0; to: 0.4; duration: 380 + index * 90; easing.type: Easing.InOutQuad }
                         }
                     }
+                }
+            }
+            // progress track — optional publish key (0..1)
+            Rectangle {
+                visible: islandRoot.pd.progress !== undefined
+                x: 96
+                y: parent.height - 13
+                width: parent.width - 96 - 20
+                height: 3
+                radius: 1.5
+                color: Qt.rgba(1, 1, 1, 0.16)
+                Rectangle {
+                    width: parent.width
+                           * Math.min(1, Math.max(0,
+                                 islandRoot.pd.progress || 0))
+                    height: parent.height
+                    radius: 1.5
+                    color: Tokens.accent
                 }
             }
         }

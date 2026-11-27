@@ -2375,27 +2375,37 @@ def main():
         try:
             serial.run("mkdir -p $HOME/Documents; touch "
                        "$HOME/Documents/w89-probe.txt", settle=2)
-            q.mouse_abs(180, 188, W, H)   # the sidebar Documents row
-            time.sleep(2.5)
-            q.key("ctrl", "a")            # select all (the W89 contract)
-            time.sleep(1.5)
-            q.key("delete")               # move the selection to trash
-            time.sleep(3)
-            chk = serial.run(
-                "echo DOC=$(ls $HOME/Documents 2>/dev/null | wc -l); "
-                "echo TRASH=$(ls $HOME/.local/share/Trash/files 2>/dev/null "
-                "| grep -c w89-probe); echo W89-CHK-END", settle=6)
-            doc = re.search(r"DOC=(\d+)", chk)
-            tr = re.search(r"TRASH=(\d+)", chk)
-            w89_ops_ok = bool(doc and tr
-                              and doc.group(1) == "0"
-                              and tr.group(1) == "1")
-            log(f"w89 files ops: Documents items={doc.group(1) if doc else '?'} "
-                f"(want 0), probe in Trash={tr.group(1) if tr else '?'} "
-                f"(want 1) — "
-                + ("PASS" if w89_ops_ok else
-                   "FAIL — the selection/trash keyboard contract did not "
-                   "move the file (see 02d-files-ops.png)"))
+            # W90 FIX — the v0.6.99 run used mouse_abs, which only MOVES
+            # the pointer: nothing was ever clicked, the window stayed on
+            # Home, Ctrl+A selected a Home file and Delete trashed THAT
+            # (Documents items=1, probe not in Trash — the exact red).
+            # The sidebar row must be CLICKED, and the assert retried
+            # once before judging.
+            for attempt in (1, 2):
+                q.click(180, 188, W, H)       # the sidebar Documents row
+                time.sleep(2.5)
+                q.key("ctrl", "a")            # select all (the W89 contract)
+                time.sleep(1.5)
+                q.key("delete")               # move the selection to trash
+                time.sleep(3)
+                chk = serial.run(
+                    "echo DOC=$(ls $HOME/Documents 2>/dev/null | wc -l); "
+                    "echo TRASH=$(ls $HOME/.local/share/Trash/files 2>/dev/null "
+                    "| grep -c w89-probe); echo W89-CHK-END", settle=6)
+                doc = re.search(r"DOC=(\d+)", chk)
+                tr = re.search(r"TRASH=(\d+)", chk)
+                w89_ops_ok = bool(doc and tr
+                                  and doc.group(1) == "0"
+                                  and tr.group(1) == "1")
+                log(f"w89 files ops (attempt {attempt}): Documents items="
+                    f"{doc.group(1) if doc else '?'} (want 0), probe in "
+                    f"Trash={tr.group(1) if tr else '?'} (want 1) — "
+                    + ("PASS" if w89_ops_ok else "not yet"))
+                if w89_ops_ok:
+                    break
+            if not w89_ops_ok:
+                log("w89 files ops: FAIL — the selection/trash keyboard "
+                    "contract did not move the file (see 02d-files-ops.png)")
         except Exception as e:
             log(f"w89 files ops probe failed: {e}")
         try:
@@ -3386,6 +3396,13 @@ def main():
                 "busctl --address=$A call org.aegis.Shell /org/aegis/Shell "
                 "org.aegis.Shell dockAppsRaw 2>&1 | base64 -w 76; "
                 "echo W86-B64-END", settle=8)
+        except Exception as e:
+            # W90 — a genuine serial miss must not red the round; a PARSE
+            # failure is deterministic and must (that policy gap is why
+            # the v0.6.99 run's octal regression stayed green).
+            log(f"w86 serial miss (does not red the round): {e}")
+            w86_transient_ok = True
+        else:
             b64 = out.split("W86-B64-END")[0].strip()
             raw = base64.b64decode(
                 "".join(b64.split())).decode("utf-8", "replace")
@@ -3394,18 +3411,6 @@ def main():
             if raw.startswith('"') and raw.endswith('"'):
                 raw = (raw[1:-1].replace("\\\\", "\x00")
                        .replace('\\"', '"').replace("\x00", "\\"))
-            # r3/r4/r5 ALL died at 'Invalid \\escape: char 453' — the SAME
-            # byte through the raw AND the base64 transport: a LONE
-            # backslash in the payload itself (busctl does not JSON-escape
-            # value bytes; a literal \ in a desktop value becomes an
-            # invalid JSON escape). Neutralize any backslash that does
-            # not open a valid JSON escape, and log the offender.
-            _bad = re.search(r'\\(?!["\\/bfnrtu])', raw)
-            if _bad:
-                _s = max(0, _bad.start() - 80)
-                log(f"w86 raw: lone backslash at char {_bad.start()}: "
-                    f"...{raw[_s:_bad.start() + 60]!r}...")
-                raw = re.sub(r'\\(?!["\\/bfnrtu])', r'\\\\', raw)
             # W89 — busctl's value printer renders non-ASCII bytes as
             # OCTAL escapes: the OS deb's Name is a RAW UTF-8 em dash
             # (E2 80 94 — verified with cat -v in the actual deb,
@@ -3413,37 +3418,50 @@ def main():
             # and busctl prints it as \342\200\224. The harness b64-encodes
             # busctl's ALREADY-MANGLED text, which is why the failure was
             # identical across the raw AND base64 transports (r3-r6).
-            # Decode the octal runs into bytes and re-read as UTF-8 — the
-            # lone-backslash sanitizer above stays as a belt for anything
-            # else a desktop value might carry.
+            # W90 ORDER FIX — the octal decode MUST run BEFORE the
+            # lone-backslash sanitizer: the sanitizer escapes \342 into
+            # \\342 first, the octal regex then matches only the second
+            # backslash and leaves a lone \ behind, and json.loads dies on
+            # 'Invalid \\escape' again (exactly what the v0.6.99 run did).
             def _oct(m):
                 return bytes([int(m.group(1), 8)]).decode("utf-8", "replace")
             raw = re.sub(r'\\([0-3][0-7]{2})', _oct, raw)
-            model = json.loads(raw)
-            pinned = model.get("pinned") or []
-            trans = model.get("transient") or []
-            log("w86 transients: " + json.dumps(
-                [{k: t.get(k) for k in ("name", "cmd", "icon")}
-                 for t in trans])[:300])
-            br = [p for p in pinned
-                  if "browser" in (p.get("cmd") or "")
-                  or "browser" in (p.get("head") or "")]
-            ghost = [t for t in trans
-                     if "browser" in (t.get("head") or "")
-                     or "browser" in (t.get("cmd") or "")
-                     or "browser" in (t.get("name") or "")]
-            wm_ok = br and br[0].get("wmclass") == "aegis-browser"
-            w86_transient_ok = bool(br) and not ghost and wm_ok
-            log(f"w86 transient: pinned={len(pinned)} browser-slot="
-                f"{'yes' if br else 'NO'} wmclass="
-                f"{(br[0].get('wmclass') if br else '?')} "
-                f"ghost-tiles={len(ghost)} — "
-                + ("PASS" if w86_transient_ok else
-                   "FAIL — a browser window spawned a default-glyph "
-                   "transient or the alias plumbing is missing"))
-        except Exception as e:
-            log(f"w86 transient probe failed: {e}")
-            w86_transient_ok = True   # a serial miss must not red the round
+            # the lone-backslash sanitizer stays as a belt for anything
+            # else a desktop value might carry
+            _bad = re.search(r'\\(?!["\\/bfnrtu])', raw)
+            if _bad:
+                _s = max(0, _bad.start() - 80)
+                log(f"w86 raw: lone backslash at char {_bad.start()}: "
+                    f"...{raw[_s:_bad.start() + 60]!r}...")
+                raw = re.sub(r'\\(?!["\\/bfnrtu])', r'\\\\', raw)
+            try:
+                model = json.loads(raw)
+            except Exception as e:
+                log(f"w86 parse FAILED (deterministic — reds the round): "
+                    f"{e}; context: ...{raw[max(0, 440):520]!r}...")
+                w86_transient_ok = False
+            else:
+                pinned = model.get("pinned") or []
+                trans = model.get("transient") or []
+                log("w86 transients: " + json.dumps(
+                    [{k: t.get(k) for k in ("name", "cmd", "icon")}
+                     for t in trans])[:300])
+                br = [p for p in pinned
+                      if "browser" in (p.get("cmd") or "")
+                      or "browser" in (p.get("head") or "")]
+                ghost = [t for t in trans
+                         if "browser" in (t.get("head") or "")
+                         or "browser" in (t.get("cmd") or "")
+                         or "browser" in (t.get("name") or "")]
+                wm_ok = br and br[0].get("wmclass") == "aegis-browser"
+                w86_transient_ok = bool(br) and not ghost and wm_ok
+                log(f"w86 transient: pinned={len(pinned)} browser-slot="
+                    f"{'yes' if br else 'NO'} wmclass="
+                    f"{(br[0].get('wmclass') if br else '?')} "
+                    f"ghost-tiles={len(ghost)} — "
+                    + ("PASS" if w86_transient_ok else
+                       "FAIL — a browser window spawned a default-glyph "
+                       "transient or the alias plumbing is missing"))
         q.key("alt", "f4"); time.sleep(5)
     else:
         w85_nav_ok = True           # an unlaunched browser is W9's business
@@ -5289,6 +5307,29 @@ def main():
         failures.append("W89: dolphin or the KDE system monitor entry "
                         "survived the 0920 dedupe hook, or the "
                         "inode/directory default is no longer aegis-files")
+    # W90 — the QML hygiene gate: the session's OWN log is the audit.
+    # The v0.6.99 run carried 'ReferenceError: modelData is not defined'
+    # (the calendar's weekday row) and two 'Unable to assign [undefined]
+    # to bool' (the missing calm Q_PROPERTY) — classes the user felt as
+    # dead buttons and placeholder surfaces. Any QML runtime error in
+    # serial.log reds the round from now on.
+    w90_qml_ok = True
+    try:
+        _slog = open("serial.log", "r", errors="replace").read()
+        _errs = sorted(set(re.findall(
+            r"[^\n]*\.qml:\d+[:\d]*\s+(?:ReferenceError|TypeError|"
+            r"Unable to assign)[^\n]*", _slog)))
+        if _errs:
+            w90_qml_ok = False
+            for _e in _errs[:6]:
+                log(f"w90 qml hygiene: {_e[:150]}")
+    except Exception as e:
+        log(f"w90 qml hygiene scan skipped: {e}")
+    if not w90_qml_ok:
+        failures.append("W90: the session log carries QML runtime errors "
+                        "(ReferenceError / TypeError / Unable to assign) — "
+                        "a handler or binding is resolving against a dead "
+                        "scope; the offending files are in the w90 log lines")
     if not w61_island_ok:
         failures.append("W61: the island margins darken over a maximized "
                         "window — something still paints behind the "

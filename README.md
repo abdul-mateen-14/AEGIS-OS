@@ -2,7 +2,7 @@
 
 Liquid-glass desktop OS — a **KWin 6 Wayland compositor with a Qt Quick 6 shell**, built entirely on **GitHub Actions free runners**.
 
-> Hardened by default. Quiet chrome, colorful content. Calm. Fast.
+> Private. Secure. Beautiful. Fast.
 
 This repository implements the [Aegis OS UI Design Proposal v1.3](docs/DESIGN-TOKENS.md) as a real, buildable OS: a live ISO with the Aegis Shell (28 px glass panel, floating dock with macOS-grade magnification, Dynamic Island), the M2 surfaces (Control Center, Launcher, notification banners, lock screen, adaptive effects governor), branded Plymouth boot splash, glass tokens as code, and a fully graphical installer.
 

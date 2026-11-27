@@ -32,6 +32,12 @@ class ActivityService : public QObject {
     Q_PROPERTY(QVariantList notificationHistory READ notificationHistory
                NOTIFY notificationHistoryChanged)
     Q_PROPERTY(bool dnd READ dnd WRITE setDnd NOTIFY dndChanged)
+    // W90 — the calm Q_PROPERTY was MISSING: the getter/setter/signal all
+    // existed but QML read `Activity.calm` as undefined (Panel.qml:37 and
+    // ControlCenter.qml:323 'Unable to assign [undefined] to bool' in the
+    // boot log) and `Activity.calm = true` wrote a throwaway JS property —
+    // the Calm Mode tile could never actually engage calm.
+    Q_PROPERTY(bool calm READ calm WRITE setCalm NOTIFY calmChanged)
     // M3 — Calm Mode: focus chrome. On: notifications pause (banners quiet
     // through dnd), the governor is pinned to Tier C (80 ms rung swaps), and
     // the top panel collapses its content (hover peeks it back). Session

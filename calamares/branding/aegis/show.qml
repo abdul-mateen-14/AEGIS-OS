@@ -53,7 +53,7 @@ Rectangle {
 
     // Rotating feature statements
     readonly property var lines: [
-        "Hardened by default. Quiet chrome, colorful content.",
+        "Private. Secure. Beautiful. Fast.",
         "The island lives on your desktop — apps fold into it, one tap away.",
         "Files, Terminal, Browser, Cloud — first-party, cohesive, fast.",
         "Your machine, your rules: zram tuned, ports closed, updates calm.",
