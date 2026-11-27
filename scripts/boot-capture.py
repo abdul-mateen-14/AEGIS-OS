@@ -3338,6 +3338,9 @@ def main():
             model = json.loads(raw)
             pinned = model.get("pinned") or []
             trans = model.get("transient") or []
+            log("w86 transients: " + json.dumps(
+                [{k: t.get(k) for k in ("name", "cmd", "icon")}
+                 for t in trans])[:300])
             br = [p for p in pinned
                   if "browser" in (p.get("cmd") or "")
                   or "browser" in (p.get("head") or "")]

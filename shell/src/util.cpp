@@ -1614,6 +1614,27 @@ QVariantList Util::transientDockApps() const
             continue;
         seen.append(cls);
         QVariantMap entry = findInstalledEntry(cls);
+        // W86 r6 — a window may carry an app-id that matches a SECOND
+        // desktop file of the same app: the browser ships both
+        // aegis-browser.desktop and org.aegisbrowser.Aegis.desktop, and
+        // Chromium takes the org form as its Wayland app_id. The pinned
+        // aliases (built from the FIRST, alphabetical entry) missed it
+        // and the tile spawned a shield ghost (r6's dock crop: the
+        // ghost appears exactly when the browser opens). If the id's
+        // OWN entry resolves to the same identity (wmclass / desktop id
+        // / exec head) as a pinned slot, it IS that app — light the
+        // pinned tile, never a transient.
+        if (!entry.isEmpty()) {
+            const QString ewm =
+                entry.value(QStringLiteral("wmclass")).toString();
+            const QString efid =
+                entry.value(QStringLiteral("id")).toString();
+            const QString eex = QFileInfo(
+                entry.value(QStringLiteral("exec")).toString()).fileName();
+            if (pinnedHeads.contains(ewm) || pinnedHeads.contains(efid)
+                || (!eex.isEmpty() && pinnedHeads.contains(eex)))
+                continue;
+        }
         const QString name =
             entry.value(QStringLiteral("name")).toString().isEmpty()
                 ? cls
@@ -1652,6 +1673,43 @@ QString Util::dockAppsRaw() const
         QJsonDocument(o).toJson(QJsonDocument::Compact));
 }
 
+// W86 — some vendor entries (the OS deb's Name "OS \342\200\224 Private
+// Chat") store non-ASCII as UTF-8 OCTAL escapes instead of raw UTF-8.
+// The freedesktop spec only defines \s \n \t \r \\, so the octal showed
+// through as literal text, and worse: the backslashes rode the
+// dockAppsRaw JSON as invalid JSON escapes (r3-r6's deterministic
+// 'Invalid \escape: char 453'). Decode spec escapes AND 3-digit octal
+// runs, then re-interpret the bytes as UTF-8 so the em dash renders.
+static QString unescapeDesktopValue(const QString &raw)
+{
+    const QByteArray u8 = raw.toUtf8();
+    QByteArray out;
+    out.reserve(u8.size());
+    for (int i = 0; i < u8.size(); ++i) {
+        const char ch = u8.at(i);
+        if (ch != '\\' || i + 1 >= u8.size()) {
+            out.append(ch);
+            continue;
+        }
+        const char n = u8.at(i + 1);
+        if (n == 's') { out.append(' '); ++i; }
+        else if (n == 'n') { out.append('\n'); ++i; }
+        else if (n == 't') { out.append('\t'); ++i; }
+        else if (n == 'r') { out.append('\r'); ++i; }
+        else if (n == '\\') { out.append('\\'); ++i; }
+        else if (n >= '0' && n <= '3' && i + 3 < u8.size()
+                 && u8.at(i + 2) >= '0' && u8.at(i + 2) <= '7'
+                 && u8.at(i + 3) >= '0' && u8.at(i + 3) <= '7') {
+            out.append(char(((n - '0') << 6) | ((u8.at(i + 2) - '0') << 3)
+                            | (u8.at(i + 3) - '0')));
+            i += 3;
+        } else {
+            out.append(ch);
+        }
+    }
+    return QString::fromUtf8(out);
+}
+
 static QVariantMap parseDesktopFile(const QString &path)
 {
     QFile file(path);
@@ -1683,7 +1741,7 @@ static QVariantMap parseDesktopFile(const QString &path)
         if (key == QLatin1String("Type"))
             app.insert(QStringLiteral("type"), value);
         else if (key == QLatin1String("Name"))
-            app.insert(QStringLiteral("name"), value);
+            app.insert(QStringLiteral("name"), unescapeDesktopValue(value));
         else if (key == QLatin1String("Exec"))
             app.insert(QStringLiteral("cmd"), value);
         else if (key == QLatin1String("Icon"))
