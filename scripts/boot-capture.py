@@ -2380,9 +2380,24 @@ def main():
         w89_ops_ok = False
         w89_dedupe_ok = False
         try:
-            q.shot("02d-files-ops")
             for attempt in (1, 2):
                 serial.run("touch $HOME/w89-probe.txt", settle=2)
+                # W100 r2 — the w44 CSD resize drag runs IMMEDIATELY before
+                # this probe, and every failing run (v0.6.99, v0.6.100,
+                # r2) shows the same signature: clicks elsewhere work but
+                # the Files window swallows the whole keyboard sequence,
+                # and 02d == 02c pixel-identical (W58 fired on the pair).
+                # That is a stuck post-drag grab / lost keyboard focus, so
+                # the probe now RECOVERS FOCUS first: Escape clears any
+                # pending interactive resize, and a click on the window
+                # body (empty grid area) re-focuses the window.
+                q.key("escape")
+                q.click(640, 520, W, H)       # the empty grid body
+                time.sleep(1.2)
+                if attempt == 1:
+                    # the watcher shows the seeded probe — distinct from
+                    # 02c (the W58 pair) and proves the model refreshed
+                    q.shot("02d-files-ops")
                 q.key("ctrl", "a")            # select all (the W89 contract)
                 time.sleep(1.5)
                 q.key("delete")               # move the selection to trash
