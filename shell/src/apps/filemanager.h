@@ -13,6 +13,8 @@
 #include <QMimeData>
 #include <QProcess>
 #include <QStandardPaths>
+#include <QStorageInfo>
+#include <QTextStream>
 #include <QUrl>
 
 // Small file-system bridge for Aegis Files — the operations the spec needs
@@ -24,6 +26,14 @@
 // guessing), hidden-item count for the status footer, Open With choices from
 // the .desktop database, a properties map, and the Files view-prefs store
 // (grid/sort) that the Aegis ID sync reads as files.prefs.
+//
+// W89 (v0.6.99) — the user: "dolphin is working accurately but the files app
+// is mostly placeholders" (Dolphin shipped in the ISO from the M1 era and
+// gets deleted in the same round; the parity it had over Files is exactly
+// this list). Adds the real Dolphin-parity backend: mounted volumes for the
+// sidebar Devices (QStorageInfo — the Removable row had NO onClicked at
+// all), the XDG trash ledger (list/restore/empty — the trash view could
+// show files but nothing else), permanent delete and duplicate.
 class FileManager : public QObject {
     Q_OBJECT
 public:
@@ -37,13 +47,32 @@ public:
     // emptying trash via gio is out of skeleton scope (M4).
     Q_INVOKABLE QUrl trashUrl() const
     {
-        const QString base = QStandardPaths::writableLocation(
-                                 QStandardPaths::GenericDataLocation)
-                             + QStringLiteral("/Trash/files");
-        return QUrl::fromLocalFile(base);
+        return QUrl::fromLocalFile(trashBase() + QStringLiteral("/files"));
     }
 
     Q_INVOKABLE QString pathOf(const QUrl &u) const { return u.toLocalFile(); }
+
+    // W89 — selection helpers for the QML keyboard contract: the paths of
+    // a folder (sorted dirs-first like FolderListModel's default) so
+    // Ctrl+A / Shift-range can build the selection without a get() API
+    // (FolderListModel exposes none), and a plain is-dir probe.
+    Q_INVOKABLE QStringList listPaths(const QUrl &folder) const
+    {
+        const QDir dir(folder.toLocalFile());
+        QStringList dirs, files;
+        for (const QFileInfo &fi : dir.entryInfoList(
+                 QDir::AllEntries | QDir::Hidden | QDir::NoDotAndDotDot)) {
+            (fi.isDir() ? dirs : files) << fi.absoluteFilePath();
+        }
+        dirs.sort(Qt::CaseInsensitive);
+        files.sort(Qt::CaseInsensitive);
+        return dirs + files;
+    }
+
+    Q_INVOKABLE bool isDir(const QUrl &f) const
+    {
+        return QFileInfo(f.toLocalFile()).isDir();
+    }
 
     Q_INVOKABLE bool makeDir(const QUrl &parent, const QString &name)
     {
@@ -62,6 +91,196 @@ public:
             return false;
         return QFile::rename(fi.absoluteFilePath(),
                              fi.dir().absoluteFilePath(newName));
+    }
+
+    // ── W89 — Dolphin parity: volumes / trash ledger / permanent ops ─────
+
+    // Mounted filesystems for the sidebar Devices rail. Skips pseudo-fs
+    // (proc/sys/run/devtmpfs, squashfs live medium, snap loop mounts) so
+    // the list matches what a file manager should offer: the root
+    // filesystem ("System") plus every real block device, removable
+    // flags included. [{name, path, icon, removable, free, capacity}]
+    Q_INVOKABLE QVariantList volumes() const
+    {
+        QVariantList out;
+        const auto all = QStorageInfo::mountedVolumes();
+        for (const QStorageInfo &si : all) {
+            if (!si.isValid() || !si.isReady())
+                continue;
+            const QString fs = QString::fromUtf8(si.fileSystemType());
+            const QString mp = si.rootPath();
+            if (fs == QLatin1String("proc") || fs == QLatin1String("sysfs")
+                || fs == QLatin1String("devtmpfs")
+                || fs == QLatin1String("tmpfs")
+                || fs == QLatin1String("squashfs")
+                || fs == QLatin1String("efivarfs")
+                || fs.startsWith(QLatin1String("fuse."))
+                || mp.startsWith(QLatin1String("/snap/"))
+                || mp.startsWith(QLatin1String("/sys/"))
+                || mp.startsWith(QLatin1String("/proc/"))
+                || mp.startsWith(QLatin1String("/run/"))
+                || mp.startsWith(QLatin1String("/dev/"))
+                || mp == QLatin1String("/boot/efi"))
+                continue;
+            const QString label = si.displayName().isEmpty()
+                                      ? mp : si.displayName();
+            out.append(QVariantMap{
+                {QStringLiteral("name"), label},
+                {QStringLiteral("path"), mp},
+                {QStringLiteral("icon"),
+                 si.isRoot() ? QStringLiteral("drive-harddisk-root")
+                             : (si.isReadOnly()
+                                    ? QStringLiteral("drive-removable")
+                                    : QStringLiteral("drive-harddisk"))},
+                {QStringLiteral("removable"), si.isReadOnly() || !si.isRoot()},
+                {QStringLiteral("free"),
+                 QString::number(si.bytesFree() / 1073741824.0, 'f', 0)},
+                {QStringLiteral("capacity"),
+                 QString::number(si.bytesTotal() / 1073741824.0, 'f', 0)},
+            });
+        }
+        return out;
+    }
+
+    static QString trashBase()
+    {
+        return QStandardPaths::writableLocation(
+                   QStandardPaths::GenericDataLocation)
+               + QStringLiteral("/Trash");
+    }
+
+    // The XDG trash ledger: files/ holds the payloads, info/*.trashinfo
+    // holds Path= (URL-encoded) and DeletionDate=. Full records so the
+    // trash view can show where a file came from and when it died.
+    // [{name, path, originalPath, deletionDate, isDir, tint, label, icon}]
+    Q_INVOKABLE QVariantList trashItems() const
+    {
+        QVariantList out;
+        const QDir files(trashBase() + QStringLiteral("/files"));
+        const QDir info(trashBase() + QStringLiteral("/info"));
+        for (const QFileInfo &fi : files.entryInfoList(
+                 QDir::AllEntries | QDir::Hidden | QDir::NoDotAndDotDot)) {
+            QVariantMap m = metaFor(fi);
+            const QFileInfo ti(info.filePath(fi.fileName()
+                                            + QStringLiteral(".trashinfo")));
+            if (ti.exists()) {
+                QFile f(ti.absoluteFilePath());
+                if (f.open(QIODevice::ReadOnly)) {
+                    QTextStream ts(&f);
+                    QString line;
+                    while (ts.readLineInto(&line)) {
+                        if (line.startsWith(QLatin1String("Path=")))
+                            m.insert(QStringLiteral("originalPath"),
+                                     QUrl::fromPercentEncoding(
+                                         line.mid(5).trimmed().toUtf8()));
+                        else if (line.startsWith(
+                                     QLatin1String("DeletionDate=")))
+                            m.insert(QStringLiteral("deletionDate"),
+                                     line.mid(13).trimmed()
+                                         .replace(QLatin1Char('T'),
+                                                  QLatin1Char(' ')));
+                    }
+                }
+            }
+            m.insert(QStringLiteral("path"), fi.absoluteFilePath());
+            out.append(m);
+        }
+        return out;
+    }
+
+    // Restore: move the payload back to its recorded Path= (creating the
+    // parent when it vanished), then drop the .trashinfo.
+    Q_INVOKABLE bool restoreFromTrash(const QString &trashPath)
+    {
+        const QFileInfo fi(trashPath);
+        const QFileInfo ti(QDir(trashBase() + QStringLiteral("/info"))
+                               .filePath(fi.fileName()
+                                         + QStringLiteral(".trashinfo")));
+        QString original;
+        if (ti.exists()) {
+            QFile f(ti.absoluteFilePath());
+            if (f.open(QIODevice::ReadOnly)) {
+                QTextStream ts(&f);
+                QString line;
+                while (ts.readLineInto(&line))
+                    if (line.startsWith(QLatin1String("Path=")))
+                        original = QUrl::fromPercentEncoding(
+                            line.mid(5).trimmed().toUtf8());
+            }
+        }
+        if (original.isEmpty())
+            return false;
+        QDir().mkpath(QFileInfo(original).absolutePath());
+        if (!QFile::rename(fi.absoluteFilePath(), original))
+            return false;
+        QFile::remove(ti.absoluteFilePath());
+        return true;
+    }
+
+    // Empty the trash: payloads + info records. Returns how many items
+    // went (the UI toast).
+    Q_INVOKABLE int emptyTrash()
+    {
+        int n = 0;
+        const QDir files(trashBase() + QStringLiteral("/files"));
+        const QDir info(trashBase() + QStringLiteral("/info"));
+        for (const QFileInfo &fi : files.entryInfoList(
+                 QDir::AllEntries | QDir::Hidden | QDir::NoDotAndDotDot)) {
+            const bool ok = fi.isDir()
+                                ? QDir(fi.absoluteFilePath())
+                                      .removeRecursively()
+                                : QFile::remove(fi.absoluteFilePath());
+            if (ok)
+                ++n;
+            QFile::remove(info.filePath(fi.fileName()
+                                        + QStringLiteral(".trashinfo")));
+        }
+        return n;
+    }
+
+    // Shift+Delete — no recycle, no undo.
+    Q_INVOKABLE bool deletePermanently(const QUrl &f)
+    {
+        const QFileInfo fi(f.toLocalFile());
+        return fi.isDir()
+                   ? QDir(fi.absoluteFilePath()).removeRecursively()
+                   : QFile::remove(fi.absoluteFilePath());
+    }
+
+    // Dolphin's "Duplicate Here": copy in place as "name copy" (then
+    // "name copy 2", ...) — never overwrites anything.
+    Q_INVOKABLE QString duplicate(const QUrl &f)
+    {
+        const QFileInfo fi(f.toLocalFile());
+        QDir dir = fi.dir();
+        QString base = fi.fileName();
+        const QString dot = fi.completeSuffix().isEmpty()
+                                ? QString()
+                                : QStringLiteral(".")
+                                      + fi.completeSuffix();
+        if (!dot.isEmpty())
+            base.chop(dot.length());
+        QString candidate = base + QStringLiteral(" copy") + dot;
+        for (int i = 2; dir.exists(candidate); ++i)
+            candidate = base + QStringLiteral(" copy ") + QString::number(i)
+                        + dot;
+        const QString dst = dir.filePath(candidate);
+        const bool ok = fi.isDir()
+                            ? copyRecursively(fi.absoluteFilePath(), dst)
+                            : QFile::copy(fi.absoluteFilePath(), dst);
+        return ok ? dst : QString();
+    }
+
+    // Open a terminal in the folder (Dolphin parity — the context menu
+    // item the user expects in a file manager).
+    Q_INVOKABLE bool openTerminalHere(const QUrl &folder)
+    {
+        const QString path = folder.toLocalFile();
+        if (path.isEmpty() || !QDir(path).exists())
+            return false;
+        return QProcess::startDetached(
+            QStringLiteral("konsole"),
+            {QStringLiteral("--workdir"), path});
     }
 
     // ── W1 — clipboard (cut / copy / paste) ──────────────────────────────
@@ -281,6 +500,28 @@ private:
         dirs << QStringLiteral("/usr/local/share/applications")
              << QStringLiteral("/usr/share/applications");
         return dirs;
+    }
+
+    // QDir::copyRecursively does not exist in QDir itself (QDir::cp was
+    // Qt 6.7+ and not on Kubuntu's 6.4 at the time of the M1 build);
+    // fold directories by hand for Duplicate.
+    static bool copyRecursively(const QString &src, const QString &dst)
+    {
+        const QFileInfo sfi(src);
+        if (sfi.isFile())
+            return QFile::copy(src, dst);
+        if (!QDir().mkpath(dst))
+            return false;
+        const QDir s(src);
+        bool ok = true;
+        for (const QFileInfo &fi : s.entryInfoList(
+                 QDir::AllEntries | QDir::Hidden | QDir::NoDotAndDotDot)) {
+            ok = copyRecursively(
+                     fi.absoluteFilePath(),
+                     dst + QLatin1Char('/') + fi.fileName())
+                 && ok;
+        }
+        return ok;
     }
 
     // Minimal .desktop parse — Name/Icon/Exec/MimeType of [Desktop Entry].

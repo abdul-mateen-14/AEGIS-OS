@@ -22,7 +22,13 @@ kscreen
 sddm
 
 # M1 first-party surfaces: Files · Terminal
-dolphin
+# W89 — DOLPHIN IS GONE: it was staged in the M1 era when the session
+# had no file manager; Aegis Files is first-party since then and the
+# user's W89 report ("delete the dolphin app, put all backend logic in
+# files app so files app work accurately") is the ruling. The 0920 hook
+# also purges any straggler pulled by dependencies and clears the KDE
+# System Monitor entry so the launcher carries ONE monitor
+# (aegis-monitor).
 konsole
 
 # Network (auto-connect on boot; GUI tray arrives in M2)

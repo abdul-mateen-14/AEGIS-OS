@@ -1,0 +1,62 @@
+#!/bin/bash -e
+# W89 — one file manager, one system monitor.
+#
+# The user's report: "delete the dolphin app but [put] all backend logic
+# in files app so files app work accurately ... and there are two
+# monitors what is it".
+#
+#   · dolphin came from the M1 package list (removed there) — purge the
+#     package in case anything else drags it in, and remove its desktop
+#     entries so the launcher never shows it.
+#   · plasma-systemmonitor rides plasma-workspace's dependency chain and
+#     installs itself into the launcher next to the first-party Aegis
+#     Monitor — that is the "two monitors". Purge when nothing depends
+#     on it; NoDisplay its entries regardless (a Depends-locked package
+#     cannot be removed, but a hidden entry never shows in a launcher).
+#
+# The inode/directory default is already aegis-files (the skel
+# mimeapps.list has mapped it since the M2 round); assert it loudly so a
+# future package change cannot silently re-point the session at KDE.
+set -e
+
+echo "W89: purging dolphin + deduping monitors"
+
+apt-get purge -y dolphin dolphin-plugins >/dev/null 2>&1 || \
+    echo "W89: dolphin purge no-op (already gone or depended upon)"
+
+if apt-get purge -y plasma-systemmonitor ksystemstats >/dev/null 2>&1; then
+    echo "W89: plasma-systemmonitor purged"
+else
+    echo "W89: plasma-systemmonitor is dependency-locked — NoDisplay its entries"
+fi
+
+for d in /usr/share/applications /usr/local/share/applications \
+         /root/.local/share/applications /etc/skel/.local/share/applications; do
+    [ -d "$d" ] || continue
+    for f in "$d"/dolphin*.desktop "$d"/org.kde.dolphin.desktop \
+             "$d"/plasma-systemmonitor*.desktop \
+             "$d"/org.kde.plasma.systemmonitor*.desktop; do
+        [ -f "$f" ] || continue
+        rm -f "$f"
+        echo "W89: removed $(basename "$f")"
+    done
+done
+
+# belt: whatever survived the rm (a deb may own the file back at the
+# squashfs packing — it will not; entries are files, ownership is moot
+# once the package is purged) — assert NOTHING ships
+if ls /usr/share/applications/dolphin* /usr/share/applications/*systemmonitor* >/dev/null 2>&1; then
+    echo "W89: FAIL — a dolphin/systemmonitor desktop entry survived"
+    exit 1
+fi
+
+if command -v xdg-mime >/dev/null 2>&1; then
+    got="$(su aegis -c 'xdg-mime query default inode/directory' 2>/dev/null || true)"
+    if [ -n "$got" ] && [ "$got" != "aegis-files.desktop" ]; then
+        echo "W89: FAIL — inode/directory default is $got, not aegis-files.desktop"
+        exit 1
+    fi
+    echo "W89: inode/directory default = aegis-files.desktop"
+fi
+
+echo "W89: dedupe complete — dolphin gone, one monitor, aegis-files owns directories"

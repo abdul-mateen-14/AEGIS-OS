@@ -34,6 +34,102 @@ Window {
     // cut/copy clipboard selection (paths), held by the Files singleton
     property var clipSelection: []
 
+    // ── W89 — real selection + trash management (the "placeholders" the
+    // user reported) ──────────────────────────────────────────────────────
+    // The selected paths (Ctrl+tap toggles, Shift+tap takes a range,
+    // Ctrl+A selects the folder). Every context-menu action and keyboard
+    // op works on the SELECTION, not just the tapped card.
+    property var selection: []
+    // the trash ledger is a C++ list — bump to re-read after ops
+    property int trashRev: 0
+    readonly property bool trashMode:
+        win.current.toString() === Files.trashUrl().toString()
+
+    function toggleSelect(path, additive) {
+        if (!additive) { win.selection = [path]; return }
+        const rest = win.selection.filter(function(p) { return p !== path })
+        win.selection = (rest.length === win.selection.length)
+            ? rest.concat([path]) : rest
+    }
+    function selectRange(fromIdx, toIdx) {
+        const paths = Files.listPaths(win.current)
+        const a = Math.min(fromIdx, toIdx), b = Math.max(fromIdx, toIdx)
+        win.selection = paths.slice(a, b + 1)
+    }
+    function selectAll() {
+        win.selection = Files.listPaths(win.current)
+    }
+    function clearSelection() { if (win.selection.length) win.selection = [] }
+    // the targets an action should run on: the selection when non-empty
+    // (delegates right-select the tapped card first), else the tapped
+    // path itself, else nothing (a bare keyboard call with no selection)
+    function targets(tapped) {
+        if (win.selection.length > 0)
+            return win.selection
+        if (tapped && tapped.length > 0)
+            return [tapped]
+        return []
+    }
+    function trashSelection() {
+        const items = win.targets(rootTapped || "")
+        for (let i = 0; i < items.length; ++i)
+            Files.moveToTrash(items[i])
+        win.selection = []
+        win.trashRev++
+    }
+    function deleteSelectionPermanently() {
+        const items = win.targets(rootTapped || "")
+        for (let i = 0; i < items.length; ++i)
+            Files.deletePermanently(items[i])
+        win.selection = []
+        win.trashRev++
+    }
+    function copySelection(cut) {
+        const items = win.targets(rootTapped || "")
+        if (!items.length) return
+        win.clipSelection = items
+        if (cut) Files.cutPaths(items); else Files.copyPaths(items)
+    }
+    function duplicateSelection() {
+        const items = win.targets(rootTapped || "")
+        for (let i = 0; i < items.length; ++i)
+            Files.duplicate(items[i])
+    }
+    function renameSelection() {
+        if (win.selection.length === 1)
+            renameDialog.openFor(win.selection[0])
+    }
+    function openSelection() {
+        if (!win.selection.length) return
+        const p = win.selection[0]
+        if (Files.isDir(p)) win.navigateTo(p)
+        else Util.launch("xdg-open \"" + p + "\"")
+    }
+    // the last right-tapped path — the menu actions read it when the tap
+    // was outside the selection
+    property string rootTapped: ""
+    // Shift-range anchors on the last plain tap
+    property int lastTapIndex: 0
+    function goUp() {
+        const p = Files.pathOf(win.current)
+        if (!p || p === "/") return
+        const parent = p.replace(/\/+$/, "").replace(/\/[^\/]*$/, "") || "/"
+        if (parent === Files.pathOf(Files.homeUrl())
+            || parent.length > 1) win.navigateTo("file://" + parent)
+    }
+
+    // ── W89 — the Dolphin keyboard contract ──────────────────────────────
+    Shortcut { sequence: "Ctrl+C"; onActivated: win.copySelection(false) }
+    Shortcut { sequence: "Ctrl+X"; onActivated: win.copySelection(true) }
+    Shortcut { sequence: "Ctrl+V"; onActivated: win.doPaste() }
+    Shortcut { sequence: "Ctrl+A"; onActivated: win.selectAll() }
+    Shortcut { sequence: "Del"; onActivated: win.trashMode ? win.deleteSelectionPermanently() : win.trashSelection() }
+    Shortcut { sequence: "Shift+Del"; onActivated: win.deleteSelectionPermanently() }
+    Shortcut { sequence: "F2"; onActivated: win.renameSelection() }
+    Shortcut { sequence: "Backspace"; onActivated: win.goUp() }
+    Shortcut { sequence: "Return"; onActivated: win.openSelection() }
+    Shortcut { sequence: "Enter"; onActivated: win.openSelection() }
+
     // W64 — icon size presets (glyph / card / cell). Small is the
     // DEFAULT — the user's taste is the ruling and the proposal fixes
     // no grid size; Standard keeps the proposal plates honest; Large
@@ -238,12 +334,23 @@ Window {
                 color: Tokens.fg; placeholderTextColor: Tokens.fgMuted
                 background: Rectangle { radius: 14; color: Util.darkMode ? "#23252B" : "#FFFFFF"; border.color: Tokens.glassBorder }
             },
-            // New Folder
+            // New Folder — meaningful only in real folders; the trash
+            // mode swaps in its own Empty action
             AbstractButton {
                 Layout.preferredWidth: 92; Layout.preferredHeight: 28
                 Layout.alignment: Qt.AlignVCenter
+                visible: !win.trashMode
                 contentItem: Text { text: "New Folder"; font.pixelSize: 12; color: Tokens.accent; horizontalAlignment: Text.AlignHCenter; verticalAlignment: Text.AlignVCenter }
-                onClicked: Files.makeDir(flm.folder, "New Folder")
+                onClicked: { Files.makeDir(flm.folder, "New Folder"); win.trashRev++ }
+            },
+            // W89 — empty the trash (the trash view had NO management at
+            // all before this round)
+            AbstractButton {
+                Layout.preferredWidth: 96; Layout.preferredHeight: 28
+                Layout.alignment: Qt.AlignVCenter
+                visible: win.trashMode
+                contentItem: Text { text: "Empty Trash"; font.pixelSize: 12; color: "#FA2D48"; horizontalAlignment: Text.AlignHCenter; verticalAlignment: Text.AlignVCenter }
+                onClicked: emptyTrashSheet.visible = true
             }
         ]
 
@@ -299,15 +406,26 @@ Window {
                         color: Tokens.fgMuted
                         leftPadding: 10
                     }
+                    // W89 — REAL mounted volumes (QStorageInfo in the
+                    // backend): the old "Removable" row was a literal
+                    // placeholder — it rendered and its delegate had no
+                    // onClicked, so clicking it did nothing. Now every
+                    // mount navigates on click and shows its free/capacity.
                     Repeater {
-                        model: [{ label: "Removable", icon: "drive-removable" }]
+                        model: Files.volumes()
                         delegate: AbstractButton {
+                            required property var modelData
                             width: parent.width; height: 34
                             contentItem: Row {
                                 spacing: 10; leftPadding: 10
-                                Image { source: "image://icons/" + modelData.icon; sourceSize: "18x18"; width: 18; height: 18; anchors.verticalCenter: parent.verticalCenter }
-                                Text { text: modelData.label; font.pixelSize: 13; color: Tokens.fg; anchors.verticalCenter: parent.verticalCenter }
+                                Image { source: "image://icons/" + (modelData.icon || "drive-harddisk"); sourceSize: "18x18"; width: 18; height: 18; anchors.verticalCenter: parent.verticalCenter }
+                                Column {
+                                    anchors.verticalCenter: parent.verticalCenter
+                                    Text { text: modelData.name; font.pixelSize: 13; color: Tokens.fg; elide: Text.ElideRight; width: 150 }
+                                    Text { text: modelData.free + " / " + modelData.capacity + " GB"; font.pixelSize: 10; color: Tokens.fgMuted }
+                                }
                             }
+                            onClicked: win.navigateTo("file://" + modelData.path)
                         }
                     }
                 }
@@ -342,12 +460,23 @@ Window {
                     id: pasteMenu
                     MenuItem {
                         text: "Paste"
-                        enabled: Files.hasClipboard()
+                        enabled: Files.hasClipboard() && !win.trashMode
                         onTriggered: win.doPaste()
                     }
                     MenuItem {
                         text: "New Folder"
+                        visible: !win.trashMode
                         onTriggered: Files.makeDir(flm.folder, "New Folder")
+                    }
+                    MenuItem {
+                        text: "Empty Trash"
+                        visible: win.trashMode
+                        onTriggered: emptyTrashSheet.visible = true
+                    }
+                    MenuItem {
+                        text: "Open Terminal Here"
+                        visible: !win.trashMode
+                        onTriggered: Files.openTerminalHere(flm.folder)
                     }
                 }
 
@@ -357,6 +486,7 @@ Window {
                     anchors.centerIn: parent
                     spacing: 16
                     visible: flm.count === 0 && search.text.length === 0
+                             && !win.trashMode
 
                     Repeater {
                         model: [
@@ -402,6 +532,72 @@ Window {
                     }
                 }
 
+                // W89 — the trash ledger view: name · came from · deleted
+                // · Restore / Delete permanently. The old trash "folder"
+                // could only list payloads — no restore, no empty, no
+                // origin (the dead-end the user read as placeholders).
+                ListView {
+                    id: trashList
+                    anchors.fill: parent
+                    anchors.margins: 20
+                    anchors.bottomMargin: 48
+                    visible: win.trashMode
+                    clip: true
+                    spacing: 2
+                    model: {
+                        win.trashRev
+                        return Files.trashItems()
+                    }
+                    delegate: Rectangle {
+                        id: trashRow
+                        required property var modelData
+                        width: trashList.width; height: 36; radius: 8
+                        color: trashMa.containsMouse
+                                   ? (Util.darkMode ? "#262930" : "#E8ECF4")
+                                   : "transparent"
+                        Row {
+                            anchors.verticalCenter: parent.verticalCenter
+                            leftPadding: 10; spacing: 10
+                            Image {
+                                source: "image://icons/"
+                                        + (trashRow.modelData.icon || "text-x-generic")
+                                sourceSize: "18x18"; width: 18; height: 18
+                                anchors.verticalCenter: parent.verticalCenter
+                            }
+                            Text { text: trashRow.modelData.name; font.pixelSize: 13; color: Tokens.fg; width: 200; elide: Text.ElideMiddle; anchors.verticalCenter: parent.verticalCenter }
+                            Text { text: trashRow.modelData.originalPath || "?"; font.pixelSize: 11; color: Tokens.fgMuted; width: 220; elide: Text.ElideMiddle; anchors.verticalCenter: parent.verticalCenter }
+                            Text { text: trashRow.modelData.deletionDate || ""; font.pixelSize: 11; color: Tokens.fgMuted; anchors.verticalCenter: parent.verticalCenter }
+                        }
+                        Row {
+                            anchors { verticalCenter: parent.verticalCenter; right: parent.right; rightMargin: 10 }
+                            spacing: 6
+                            AbstractButton {
+                                width: 74; height: 24
+                                background: Rectangle { radius: 6; color: Util.darkMode ? "#2E3138" : "#D7DEEC" }
+                                contentItem: Text { text: "Restore"; font.pixelSize: 11; color: Tokens.accent; horizontalAlignment: Text.AlignHCenter; verticalAlignment: Text.AlignVCenter }
+                                onClicked: {
+                                    if (Files.restoreFromTrash(trashRow.modelData.path))
+                                        win.trashRev++
+                                }
+                            }
+                            AbstractButton {
+                                width: 74; height: 24
+                                background: Rectangle { radius: 6; color: Util.darkMode ? "#262930" : "#E8ECF4" }
+                                contentItem: Text { text: "Delete"; font.pixelSize: 11; color: "#FA2D48"; horizontalAlignment: Text.AlignHCenter; verticalAlignment: Text.AlignVCenter }
+                                onClicked: {
+                                    Files.deletePermanently(trashRow.modelData.path)
+                                    win.trashRev++
+                                }
+                            }
+                        }
+                        TapHandler {
+                            id: trashMa
+                            acceptedButtons: Qt.RightButton
+                            gesturePolicy: TapHandler.ReleaseWithinBounds
+                        }
+                    }
+                }
+
                 GridView {
                     id: grid
                     anchors.fill: parent
@@ -411,7 +607,7 @@ Window {
                     // their 16/6 rhythm at every size.
                     anchors.margins: 20
                     anchors.bottomMargin: 48
-                    visible: win.gridMode
+                    visible: win.gridMode && !win.trashMode
                     model: flm
                     cellWidth: win.sizePresets[win.sizePreset].cellW
                     cellHeight: win.sizePresets[win.sizePreset].cellH
@@ -423,6 +619,10 @@ Window {
                         // §8.1 — one sniffed call per card; the tint drives
                         // the hover hairline (folders blue, PDFs red, …)
                         property var meta: Files.fileMeta(filePath)
+                        // W89 — the card is part of the keyboard/menu
+                        // selection model
+                        readonly property bool selected:
+                            win.selection.indexOf(filePath) >= 0
                         // W64 — the preset this card renders at
                         readonly property var pre:
                             win.sizePresets[win.sizePreset]
@@ -434,8 +634,12 @@ Window {
                             anchors.horizontalCenter: parent.horizontalCenter
                             anchors.top: parent.top
                             color: Util.darkMode ? "#20222A" : "#FFFFFF"
-                            border.color: gridMa.containsMouse ? gridCard.meta.tint : Tokens.glassBorder
-                            border.width: gridMa.containsMouse ? 2 : 1
+                            border.color: gridCard.selected
+                                ? Tokens.accent
+                                : (gridMa.containsMouse
+                                   ? gridCard.meta.tint : Tokens.glassBorder)
+                            border.width: (gridCard.selected
+                                           || gridMa.containsMouse) ? 2 : 1
 
                             Image {
                                 anchors.centerIn: parent
@@ -467,19 +671,38 @@ Window {
                             id: gridMa
                             acceptedButtons: Qt.LeftButton | Qt.RightButton
                             onTapped: (eventPoint, button) => {
-                                if (button === Qt.RightButton) { fileMenu.popup(); return }
+                                win.rootTapped = filePath
+                                if (button === Qt.RightButton) {
+                                    if (!gridCard.selected)
+                                        win.selection = [filePath]
+                                    fileMenu.popup()
+                                    return
+                                }
+                                if (eventPoint.modifiers & Qt.ControlModifier) {
+                                    win.toggleSelect(filePath, true); return
+                                }
+                                if (eventPoint.modifiers & Qt.ShiftModifier) {
+                                    win.selectRange(win.lastTapIndex, index)
+                                    win.lastTapIndex = index; return
+                                }
+                                win.lastTapIndex = index
+                                if (win.selection.length > 1) {
+                                    win.selection = [filePath]; return
+                                }
                                 if (fileIsDir) win.navigateTo(filePath)
                                 else Util.launch("xdg-open \"" + filePath + "\"")
                             }
                         }
                         Menu {
                             id: fileMenu
-                            MenuItem { text: "Cut"; onTriggered: { win.clipSelection = [filePath]; Files.cutPaths([filePath]) } }
-                            MenuItem { text: "Copy"; onTriggered: { win.clipSelection = [filePath]; Files.copyPaths([filePath]) } }
-                            MenuItem { text: "Open With\u2026"; onTriggered: openWithSheet.openFor(filePath) }
-                            MenuItem { text: "Rename\u2026"; onTriggered: renameDialog.openFor(filePath) }
-                            MenuItem { text: "Move to Trash"; onTriggered: Files.moveToTrash(fileURL) }
-                            MenuItem { text: "Properties"; onTriggered: propsSheet.openFor(filePath) }
+                            MenuItem { text: "Cut"; onTriggered: win.copySelection(true) }
+                            MenuItem { text: "Copy"; onTriggered: win.copySelection(false) }
+                            MenuItem { text: "Duplicate"; onTriggered: win.duplicateSelection() }
+                            MenuItem { text: "Open With\u2026"; onTriggered: openWithSheet.openFor(win.rootTapped) }
+                            MenuItem { text: "Rename\u2026"; onTriggered: renameDialog.openFor(win.rootTapped) }
+                            MenuItem { text: "Move to Trash"; onTriggered: win.trashSelection() }
+                            MenuItem { text: "Delete permanently"; onTriggered: win.deleteSelectionPermanently() }
+                            MenuItem { text: "Properties"; onTriggered: propsSheet.openFor(win.rootTapped) }
                         }
                     }
                 }
@@ -489,7 +712,7 @@ Window {
                     anchors.fill: parent
                     anchors.margins: 20
                     anchors.bottomMargin: 48
-                    visible: !win.gridMode
+                    visible: !win.gridMode && !win.trashMode
                     model: flm
                     clip: true
                     spacing: 2
@@ -498,7 +721,15 @@ Window {
                         id: listRow
                         width: list.width; height: 32; radius: 8
                         property var meta: Files.fileMeta(filePath)
-                        color: listMa.containsMouse ? (Util.darkMode ? "#262930" : "#E8ECF4") : "transparent"
+                        readonly property bool selected:
+                            win.selection.indexOf(filePath) >= 0
+                        color: listRow.selected
+                            ? (Util.darkMode ? "#2E3138" : "#D7DEEC")
+                            : (listMa.containsMouse
+                               ? (Util.darkMode ? "#262930" : "#E8ECF4")
+                               : "transparent")
+                        border.width: listRow.selected ? 1 : 0
+                        border.color: Tokens.accent
                         Row {
                             anchors.verticalCenter: parent.verticalCenter
                             leftPadding: 10; spacing: 10
@@ -514,19 +745,38 @@ Window {
                             id: listMa
                             acceptedButtons: Qt.LeftButton | Qt.RightButton
                             onTapped: (eventPoint, button) => {
-                                if (button === Qt.RightButton) { fileMenu2.popup(); return }
+                                win.rootTapped = filePath
+                                if (button === Qt.RightButton) {
+                                    if (!listRow.selected)
+                                        win.selection = [filePath]
+                                    fileMenu2.popup()
+                                    return
+                                }
+                                if (eventPoint.modifiers & Qt.ControlModifier) {
+                                    win.toggleSelect(filePath, true); return
+                                }
+                                if (eventPoint.modifiers & Qt.ShiftModifier) {
+                                    win.selectRange(win.lastTapIndex, index)
+                                    win.lastTapIndex = index; return
+                                }
+                                win.lastTapIndex = index
+                                if (win.selection.length > 1) {
+                                    win.selection = [filePath]; return
+                                }
                                 if (fileIsDir) win.navigateTo(filePath)
                                 else Util.launch("xdg-open \"" + filePath + "\"")
                             }
                         }
                         Menu {
                             id: fileMenu2
-                            MenuItem { text: "Cut"; onTriggered: { win.clipSelection = [filePath]; Files.cutPaths([filePath]) } }
-                            MenuItem { text: "Copy"; onTriggered: { win.clipSelection = [filePath]; Files.copyPaths([filePath]) } }
-                            MenuItem { text: "Open With\u2026"; onTriggered: openWithSheet.openFor(filePath) }
-                            MenuItem { text: "Rename\u2026"; onTriggered: renameDialog.openFor(filePath) }
-                            MenuItem { text: "Move to Trash"; onTriggered: Files.moveToTrash(fileURL) }
-                            MenuItem { text: "Properties"; onTriggered: propsSheet.openFor(filePath) }
+                            MenuItem { text: "Cut"; onTriggered: win.copySelection(true) }
+                            MenuItem { text: "Copy"; onTriggered: win.copySelection(false) }
+                            MenuItem { text: "Duplicate"; onTriggered: win.duplicateSelection() }
+                            MenuItem { text: "Open With\u2026"; onTriggered: openWithSheet.openFor(win.rootTapped) }
+                            MenuItem { text: "Rename\u2026"; onTriggered: renameDialog.openFor(win.rootTapped) }
+                            MenuItem { text: "Move to Trash"; onTriggered: win.trashSelection() }
+                            MenuItem { text: "Delete permanently"; onTriggered: win.deleteSelectionPermanently() }
+                            MenuItem { text: "Properties"; onTriggered: propsSheet.openFor(win.rootTapped) }
                         }
                     }
                 }
@@ -542,11 +792,22 @@ Window {
                         font.pixelSize: 11
                         color: Tokens.fgMuted
                         text: {
-                            let t = flm.count + (flm.count === 1 ? " item" : " items")
-                            if (!win.showHidden && win.hiddenCount > 0)
-                                t += " \u00b7 " + win.hiddenCount + " hidden"
-                            if (search.text.length > 0)
-                                t += " \u00b7 filtered"
+                            let t
+                            if (win.trashMode) {
+                                win.trashRev
+                                const n = Files.trashItems().length
+                                t = n + (n === 1 ? " item in Trash" : " items in Trash")
+                            } else {
+                                t = flm.count + (flm.count === 1 ? " item" : " items")
+                                if (!win.showHidden && win.hiddenCount > 0)
+                                    t += " \u00b7 " + win.hiddenCount + " hidden"
+                                if (search.text.length > 0)
+                                    t += " \u00b7 filtered"
+                            }
+                            if (win.selection.length > 0)
+                                t += " \u00b7 " + win.selection.length + " selected"
+                            if (win.trashToast > 0)
+                                t += " \u00b7 emptied " + win.trashToast
                             return t
                         }
                     }
@@ -558,6 +819,8 @@ Window {
                               ? (win.clipSelection.length + " on clipboard") : ""
                     }
                 }
+                // the emptied-N toast lives until navigation changes it
+                property int trashToast: 0
 
                 // rename dialog (F2-style)
                 Rectangle {
@@ -625,6 +888,44 @@ Window {
                                 onClicked: {
                                     Files.paste(flm.folder, true)
                                     overwriteDialog.visible = false
+                                }
+                            }
+                        }
+                    }
+                }
+
+                // ── W89 — empty-trash confirmation ───────────────────────
+                Rectangle {
+                    id: emptyTrashSheet
+                    anchors.centerIn: parent
+                    width: 300; height: 120; radius: 18
+                    color: Util.darkMode ? "#23252B" : "#FFFFFF"
+                    border.color: Tokens.glassBorder
+                    visible: false
+                    z: 21
+                    Column {
+                        anchors { fill: parent; margins: 12 }
+                        spacing: 10
+                        Text { text: "Empty Trash?"; font.pixelSize: 13; font.weight: Font.Medium; color: Tokens.fg }
+                        Text { width: parent.width; wrapMode: Text.WordWrap; font.pixelSize: 12; color: Tokens.fgMuted; text: "All items will be deleted permanently. This cannot be undone." }
+                        RowLayout {
+                            width: parent.width
+                            spacing: 8
+                            Item { Layout.fillWidth: true }
+                            AbstractButton {
+                                Layout.preferredHeight: 28; Layout.preferredWidth: 64
+                                contentItem: Text { text: "Cancel"; font.pixelSize: 12; color: Tokens.fg; horizontalAlignment: Text.AlignHCenter; verticalAlignment: Text.AlignVCenter }
+                                background: Rectangle { radius: 8; color: Util.darkMode ? "#262930" : "#E8ECF4" }
+                                onClicked: emptyTrashSheet.visible = false
+                            }
+                            AbstractButton {
+                                Layout.preferredHeight: 28; Layout.preferredWidth: 88
+                                contentItem: Text { text: "Empty"; font.pixelSize: 12; color: "#FFFFFF"; horizontalAlignment: Text.AlignHCenter; verticalAlignment: Text.AlignVCenter }
+                                background: Rectangle { radius: 8; color: "#FA2D48" }
+                                onClicked: {
+                                    win.trashToast = Files.emptyTrash()
+                                    emptyTrashSheet.visible = false
+                                    win.trashRev++
                                 }
                             }
                         }

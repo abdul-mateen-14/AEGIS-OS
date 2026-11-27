@@ -2279,6 +2279,11 @@ def main():
     # W81 #2 — the running-dot verdict (initialized before the Files
     # block: the release gate reads it even when the launch failed)
     w81_dot_ok = False
+    # W89 — the Files ops + the dolphin/monitor dedupe (initialized
+    # before the Files block: the release gate reads them even when the
+    # launch failed)
+    w89_ops_ok = False
+    w89_dedupe_ok = False
     if open_app("02-files", "aegis-files", click_idx=0):       # Files
         opens["files"] = True
         # W81 #2 — the running dots: one #E8ECF2 4 px dot PER WINDOW,
@@ -2357,6 +2362,72 @@ def main():
             w44_files_ok = grew >= 100
         except Exception as e:
             log(f"w44 files resize probe failed: {e}")
+        # ── W89 — Files is REAL (the user: "dolphin is working accurately
+        # but the files app is mostly placeholders") ─────────────────────
+        # The dolphin/KDE-systemmonitor dedupe is asserted in the ISO
+        # build hook AND here; the Files ops ride the NEW keyboard
+        # contract (Ctrl+A select-all → Del = move to trash) and the FS
+        # is the arbiter. The window is open and focused; the sidebar's
+        # Documents entry sits at (left+60, top+162) — measured from the
+        # 02-files capture (row 188, window 120/26).
+        w89_ops_ok = False
+        w89_dedupe_ok = False
+        try:
+            serial.run("mkdir -p $HOME/Documents; touch "
+                       "$HOME/Documents/w89-probe.txt", settle=2)
+            q.mouse_abs(180, 188, W, H)   # the sidebar Documents row
+            time.sleep(2.5)
+            q.key("ctrl", "a")            # select all (the W89 contract)
+            time.sleep(1.5)
+            q.key("delete")               # move the selection to trash
+            time.sleep(3)
+            chk = serial.run(
+                "echo DOC=$(ls $HOME/Documents 2>/dev/null | wc -l); "
+                "echo TRASH=$(ls $HOME/.local/share/Trash/files 2>/dev/null "
+                "| grep -c w89-probe); echo W89-CHK-END", settle=6)
+            doc = re.search(r"DOC=(\d+)", chk)
+            tr = re.search(r"TRASH=(\d+)", chk)
+            w89_ops_ok = bool(doc and tr
+                              and doc.group(1) == "0"
+                              and tr.group(1) == "1")
+            log(f"w89 files ops: Documents items={doc.group(1) if doc else '?'} "
+                f"(want 0), probe in Trash={tr.group(1) if tr else '?'} "
+                f"(want 1) — "
+                + ("PASS" if w89_ops_ok else
+                   "FAIL — the selection/trash keyboard contract did not "
+                   "move the file (see 02d-files-ops.png)"))
+        except Exception as e:
+            log(f"w89 files ops probe failed: {e}")
+        try:
+            q.mouse_abs(W // 2, int(H * NEUTRAL_Y), W, H)
+            time.sleep(1.5)
+            shot(f"{OUT}/02d-files-ops.png", q, W, H)
+        except Exception:
+            pass
+        try:
+            chk = serial.run(
+                "echo DOLPHIN=$(ls /usr/share/applications 2>/dev/null "
+                "| grep -ci dolphin); "
+                "echo KMON=$(ls /usr/share/applications 2>/dev/null "
+                "| grep -ci 'systemmonitor\\|ksystemstats'); "
+                "echo FMDEF=$(xdg-mime query default inode/directory 2>/dev/null); "
+                "echo W89-DEDUPE-END", settle=6)
+            dol = re.search(r"DOLPHIN=(\d+)", chk)
+            km = re.search(r"KMON=(\d+)", chk)
+            fm = re.search(r"FMDEF=(\S+)", chk)
+            w89_dedupe_ok = bool(dol and km
+                                 and dol.group(1) == "0"
+                                 and km.group(1) == "0"
+                                 and fm and "aegis-files" in fm.group(1))
+            log(f"w89 dedupe: dolphin entries={dol.group(1) if dol else '?'} "
+                f"kde-monitor entries={km.group(1) if km else '?'} "
+                f"file-manager default="
+                f"{fm.group(1) if fm else '?'} — "
+                + ("PASS" if w89_dedupe_ok else
+                   "FAIL — a dolphin/systemmonitor entry survived the 0920 "
+                   "hook, or the directory default left aegis-files"))
+        except Exception as e:
+            log(f"w89 dedupe probe failed: {e}")
         q.key("alt", "f4"); time.sleep(5)
     if open_app("03-terminal", "konsole", wait_s=18, click_idx=1):   # Terminal
         opens["terminal"] = True
@@ -3335,6 +3406,19 @@ def main():
                 log(f"w86 raw: lone backslash at char {_bad.start()}: "
                     f"...{raw[_s:_bad.start() + 60]!r}...")
                 raw = re.sub(r'\\(?!["\\/bfnrtu])', r'\\\\', raw)
+            # W89 — busctl's value printer renders non-ASCII bytes as
+            # OCTAL escapes: the OS deb's Name is a RAW UTF-8 em dash
+            # (E2 80 94 — verified with cat -v in the actual deb,
+            # os-private-chat_3.0.2: 'Name=OS M-bM-^@M-^T Private Chat'),
+            # and busctl prints it as \342\200\224. The harness b64-encodes
+            # busctl's ALREADY-MANGLED text, which is why the failure was
+            # identical across the raw AND base64 transports (r3-r6).
+            # Decode the octal runs into bytes and re-read as UTF-8 — the
+            # lone-backslash sanitizer above stays as a belt for anything
+            # else a desktop value might carry.
+            def _oct(m):
+                return bytes([int(m.group(1), 8)]).decode("utf-8", "replace")
+            raw = re.sub(r'\\([0-3][0-7]{2})', _oct, raw)
             model = json.loads(raw)
             pinned = model.get("pinned") or []
             trans = model.get("transient") or []
@@ -5197,6 +5281,14 @@ def main():
     if not w38_close_ok:
         failures.append("W38: the Store red light click did not close the "
                         "window (payload or pixels unchanged)")
+    if not w89_ops_ok:
+        failures.append("W89: the Files keyboard contract did not move a "
+                        "file to the trash (Ctrl+A select-all + Delete) — "
+                        "the file manager is still a placeholder surface")
+    if not w89_dedupe_ok:
+        failures.append("W89: dolphin or the KDE system monitor entry "
+                        "survived the 0920 dedupe hook, or the "
+                        "inode/directory default is no longer aegis-files")
     if not w61_island_ok:
         failures.append("W61: the island margins darken over a maximized "
                         "window — something still paints behind the "
