@@ -47,4 +47,27 @@ if [ -f /usr/share/applications/aegis-browser.desktop ]; then
     fi
 fi
 
+# W86 — the INSTALLER: calamares is not a dock slot, so its running
+# window rides the transient-tile path (transientDockApps ->
+# findInstalledEntry('calamares') -> the desktop's Icon=calamares). The
+# name resolves since v0.6.97's alias arms, but NO calamares icon file
+# ships in the lookup chain — the tile would ride the default glyph
+# again (the user: "the same problem ... with apps like installer").
+# The aegis branding ships logo.png — link it where Icon=calamares
+# looks: pixmaps + hicolor 256/128/64/48.
+if [ -f /usr/share/applications/calamares.desktop ]; then
+    LOGO=/usr/share/calamares/branding/aegis/logo.png
+    if [ -f "$LOGO" ]; then
+        mkdir -p /usr/share/icons/hicolor/256x256/apps
+        ln -sf "$LOGO" /usr/share/pixmaps/calamares.png
+        for s in 256x256 128x128 64x64 48x48; do
+            mkdir -p "/usr/share/icons/hicolor/$s/apps"
+            ln -sf "$LOGO" "/usr/share/icons/hicolor/$s/apps/calamares.png"
+        done
+        echo "aegis-icons-assert: calamares branding logo linked into pixmaps + hicolor"
+    else
+        fail "calamares is installed but /usr/share/calamares/branding/aegis/logo.png is missing"
+    fi
+fi
+
 exit 0
