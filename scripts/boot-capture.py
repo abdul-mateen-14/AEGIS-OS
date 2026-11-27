@@ -2545,6 +2545,19 @@ def main():
                 elif _s.isdigit():
                     _reg = _s
             w82_shot_ok = _n1 > _n0
+            if not w82_shot_ok:
+                # r5 flake: the Print press produced nothing on a run
+                # where r3/r4 landed it — one retry before judging.
+                q.key("print"); time.sleep(8)
+                out2 = serial.run(
+                    "ls ~/Pictures/Screenshots/Screenshot_*.png 2>/dev/null | "
+                    "wc -l; echo SHOT-END", settle=2)
+                _n1 = max(_n1, _n0)
+                for _ln in out2.split("SHOT-END")[0].splitlines():
+                    if _ln.strip().isdigit():
+                        _n1 = int(_ln.strip())
+                w82_shot_ok = _n1 > _n0
+                log("w82 screenshot: retry press done")
             log(f"w82 screenshot: files before={_n0} after={_n1} — want "
                 f"after>before — " + ("PASS" if w82_shot_ok else
                 "FAIL — ScreenShot2 produced no file"))
@@ -3310,6 +3323,18 @@ def main():
             if raw.startswith('"') and raw.endswith('"'):
                 raw = (raw[1:-1].replace("\\\\", "\x00")
                        .replace('\\"', '"').replace("\x00", "\\"))
+            # r3/r4/r5 ALL died at 'Invalid \\escape: char 453' — the SAME
+            # byte through the raw AND the base64 transport: a LONE
+            # backslash in the payload itself (busctl does not JSON-escape
+            # value bytes; a literal \ in a desktop value becomes an
+            # invalid JSON escape). Neutralize any backslash that does
+            # not open a valid JSON escape, and log the offender.
+            _bad = re.search(r'\\(?!["\\/bfnrtu])', raw)
+            if _bad:
+                _s = max(0, _bad.start() - 80)
+                log(f"w86 raw: lone backslash at char {_bad.start()}: "
+                    f"...{raw[_s:_bad.start() + 60]!r}...")
+                raw = re.sub(r'\\(?!["\\/bfnrtu])', r'\\\\', raw)
             model = json.loads(raw)
             pinned = model.get("pinned") or []
             trans = model.get("transient") or []
@@ -5268,8 +5293,13 @@ def main():
                                 clip_box)
     # the dock SHARES the "panel" rung with the top bar (configureSurface
     # names both "panel") — bt73's rung grepped "dock" and found nothing
+    # r4/r5: this SECOND picker still had tail -8 AND the stale >= 200
+    # gate — the dock window is 152 px since W86, so even an intact log
+    # excluded its pair and clipped read NO forever. Cat the panel lines
+    # whole (the grep keeps the volume tiny) and use the 100 floor like
+    # the w66 picker (panel 28 < 100 < dock 152).
     blog = serial.run("cat $XDG_RUNTIME_DIR/aegis/blurlog 2>/dev/null "
-                      "| grep -E 'reset panel|region panel' | tail -8; "
+                      "| grep -E 'reset panel|region panel'; "
                       "echo BL-DOCK", settle=3)
     blog_body = blog.split("BL-DOCK")[0].strip()
     log("w41 dock blurlog tail:\n" + "\n".join(
@@ -5291,9 +5321,10 @@ def main():
                 reg_h = int(wh[1])
             except (IndexError, ValueError):
                 reg_h = None
-            # the dock is the TALL panel-class window (340 px); the top
-            # bar is 28 px — keep the last tall window's region pair
-            if cur and cur[1] >= 200 and reg_h is not None:
+            # the dock is the TALL panel-class window (152 px since the
+            # W86 shrink); the top bar is 28 px — keep the last tall
+            # window's region pair
+            if cur and cur[1] >= 100 and reg_h is not None:
                 win_h, clip_h = cur[1], reg_h
     clipped = (win_h is not None and clip_h is not None
                and clip_h < win_h - 40)
