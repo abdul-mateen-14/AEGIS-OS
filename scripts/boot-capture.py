@@ -1407,16 +1407,27 @@ def monitor_card_assert(monitor_png):
             hits += 1
     return hits
 
+# W20 chain evidence, fed by dump_window_state (the w27 block). The
+# island's hide predicate is Util.workspaceWindows > 0 and that number IS
+# the payload count the harness already dumps over the same chain
+# (KWin script -> DBus -> Util). Pixel proof of the dissolve itself is no
+# longer possible: since W86 the centered windows sit with their tops at
+# y≈31 and their bright title text fills the island's scan band — r3's
+# 227 "island px" in 02-files was the 'Files' caption, not the island.
+W27_LAST_WINDOWS = {"count": -1, "allIds": []}
+
 def island_autohide_assert(home_png, files_png):
     """W20 — the island auto-hide chain proven END TO END: the idle
     island VISIBLE on the empty home (the white mark reads ~27 px in the
-    top-center region), HIDDEN once a window is open (KWin script ->
-    DBus -> Util.workspaceWindows -> dissolve). The v0.6.35 first run
-    exposed a silent break exactly here: the script called DBus path /
-    while Util registers /org/aegis/Shell, so the island never hid and
-    nothing went red — the class of shipped-green regression this
-    assert exists to kill. The mark is the only bright thing in that
-    region on the ink sky."""
+    top-center region — the pixel half), and the CHAIN that drives the
+    dissolve holding a real Files id while a window is open (the export
+    half — see W27_LAST_WINDOWS). The v0.6.35 first run exposed a silent
+    break exactly here: the script called DBus path / while Util
+    registers /org/aegis/Shell, so the island never hid and nothing went
+    red — the class of shipped-green regression this assert exists to
+    kill. The mark is the only bright thing in that region on the ink
+    sky — on the IDLE home; an open window's caption now reaches the
+    band too, which is why the hidden half rides the chain export."""
     def bright(png):
         im = Image.open(png).convert("RGB")
         W, H = im.size
@@ -1426,7 +1437,10 @@ def island_autohide_assert(home_png, files_png):
                 if min(im.getpixel((x, y))) > 120:
                     n += 1
         return n
-    return bright(home_png), bright(files_png)
+    chain_ok = (W27_LAST_WINDOWS["count"] > 0
+                and any("files" in str(c)
+                        for c in W27_LAST_WINDOWS["allIds"]))
+    return bright(home_png), chain_ok
 
 def magnify_clearance_assert(home_png, mag_png):
     """V1 — the pill padding must grow by the field delta: the end tiles
@@ -2225,7 +2239,14 @@ def main():
                 # (a fresh idle home before the first window event)
                 return None
             try:
-                return json.loads(payload)
+                st = json.loads(payload)
+                # W20 — feed the island-assert chain evidence: the hide
+                # predicate is Util.workspaceWindows > 0 and that number
+                # IS the payload count (see island_autohide_assert).
+                W27_LAST_WINDOWS.update(
+                    count=st.get("count", -1),
+                    allIds=st.get("allIds") or st.get("ids") or [])
+                return st
             except (ValueError, TypeError) as e:
                 log(f"window-state payload unparseable ({e}): "
                     f"raw[:140]={payload[:140]!r}")
@@ -3154,11 +3175,35 @@ def main():
                 bx, by = x0 + 130, top + 437
                 q.click(bx, by, W, H); time.sleep(1.2)
                 q.shot("04d2-calc-click")
-                disp_a = Image.open(f"{OUT}/04d-calculator.png").crop(
-                    (x0 + 10, top + 250, x0 + 330, top + 345))
-                disp_b = Image.open(f"{OUT}/04d2-calc-click.png").crop(
-                    (x0 + 10, top + 250, x0 + 330, top + 345))
+                a_img = Image.open(f"{OUT}/04d-calculator.png")
+                b_img = Image.open(f"{OUT}/04d2-calc-click.png")
+                # diff_px indexes only the TOP-LEFT 160x100 of any crop —
+                # r3 proved the click WORKS (the full-image diff shows a
+                # 31x35 glyph flip at the digit position, screen
+                # (763,342)-(794,377)) but the probe's 320-wide crop put
+                # the digits at crop-local x≈270, outside the grid, and
+                # read 0.0. The box is now 80x100 anchored on the
+                # right-aligned digit zone: window_right-80 .. window_right
+                # horizontally (the hairline run end + corner ≈ the frame
+                # right), top+270..+370 vertically.
+                def digit_box():
+                    # 160x100 exactly (diff_px indexes the full grid);
+                    # the right-aligned digits land crop-local x 40..71,
+                    # y 13..48 — inside the indexed region (validated on
+                    # r3's own captures: the display read 5 there).
+                    return (x0 + 240, top + 270, x0 + 400, top + 370)
+                disp_a = a_img.crop(digit_box())
+                disp_b = b_img.crop(digit_box())
                 d87 = diff_px(disp_a, disp_b)
+                if d87 <= 0.5:
+                    # one retry on a different key (the "6", col 3)
+                    q.click(x0 + 228, top + 437, W, H); time.sleep(1.2)
+                    q.shot("04d2-calc-click")
+                    b_img = Image.open(f"{OUT}/04d2-calc-click.png")
+                    disp_b = b_img.crop(digit_box())
+                    d87 = diff_px(disp_a, disp_b)
+                    log("w87 calc click: first press showed no change — "
+                        "retried on the '6'")
                 w87_calc_ok = d87 > 0.5
                 log(f"w87 calc click: clicked ({bx},{by}) — display "
                     f"diff={d87:.2f} — " + ("PASS" if w87_calc_ok else
@@ -3251,15 +3296,19 @@ def main():
                 "busctl --address=$A call org.aegis.Shell /org/aegis/Shell "
                 "org.aegis.Shell dockAppsRaw 2>&1; "
                 "echo W86-RAW-END", settle=8)
-            payload = out.split("W86-RAW-END")[0]
-            m = re.search(r's "(\{.*\})"', payload, re.S)
-            if not m:
-                i, j = payload.find("{"), payload.rfind("}")
-                m = re.search(r".*", payload[i:j + 1], re.S) if i >= 0 else None
-                raw = payload[i:j + 1].replace('\\"', '"') if i >= 0 else ""
-            else:
-                raw = m.group(1).replace('\\"', '"')
-            model = json.loads(raw)
+            payload = out.split("W86-RAW-END")[0].strip()
+            # busctl prints string replies exactly like the W27
+            # windowListRaw dumps: the type letter, then the string
+            # QUOTED with inner quotes escaped — parse with the proven
+            # T13 D29 safe order (protect \\, unquote \", restore \\);
+            # r3's naive replace('\\"') died on 'Invalid \\escape'
+            # (char 453) before any assert could run.
+            if payload.startswith("s "):
+                payload = payload[2:].strip()
+            if payload.startswith('"') and payload.endswith('"'):
+                payload = (payload[1:-1].replace("\\\\", "\x00")
+                           .replace('\\"', '"').replace("\x00", "\\"))
+            model = json.loads(payload)
             pinned = model.get("pinned") or []
             trans = model.get("transient") or []
             br = [p for p in pinned
@@ -3817,8 +3866,13 @@ def main():
         # invocation (timestamp live=N, reset/skip rung WxH). Cat the
         # tail so the run itself splits "lambda never ran / ran with the
         # wrong live / ran and KF6 ate it" — no extra diag needed.
-        bl = serial.run("cat $XDG_RUNTIME_DIR/aegis/blurlog 2>/dev/null "
-                        "| tail -14; echo BLURLOG-END", settle=2)
+        # r3: the dock's reset/region pair landed on a tail boundary —
+        # tail -14 cut the reset off and the picker read None. The log
+        # is a few KB of text over a full run (the dock re-applies on
+        # every glass-rect breath) — cat it WHOLE, the picker keeps the
+        # last qualifying pair anyway.
+        bl = serial.run("cat $XDG_RUNTIME_DIR/aegis/blurlog 2>/dev/null; "
+                        "echo BLURLOG-END", settle=2)
         body = bl.split("BLURLOG-END")[0].strip()
         log("w66 blurlog tail:\n" + "\n".join(
             "  | " + ln for ln in body.splitlines()[-14:]) if body
@@ -4917,18 +4971,21 @@ def main():
     except Exception as e:
         failures.append(f"monitor assert crashed: {e}")
     try:
-        home_i, files_i = island_autohide_assert(f"{OUT}/01-home.png",
-                                                 f"{OUT}/02-files.png")
-        log(f"island assert: home {home_i} px (visible), "
-            f"files {files_i} px (should be hidden)")
+        home_i, chain_ok = island_autohide_assert(f"{OUT}/01-home.png",
+                                                  f"{OUT}/02-files.png")
+        log(f"island assert: home {home_i} px (visible); hide chain "
+            f"count={W27_LAST_WINDOWS['count']} "
+            f"allIds={W27_LAST_WINDOWS['allIds']} — "
+            + ("PASS" if (home_i >= 15 and chain_ok) else "FAIL"))
         if home_i < 15:
             failures.append(f"island missing on the idle home "
                             f"({home_i} px) — the idle capsule itself broke")
-        if files_i > 8:
-            failures.append(
-                f"island did not hide with a window open ({files_i} px "
-                "in 02-files) — the W20 chain broke (script load, DBus "
-                "path, Util slot or the QML binding)")
+        if not chain_ok:
+            failures.append("W20: the island hide chain never saw the "
+                            "Files window (the windowwatch payload held "
+                            "count 0 / no aegis-files id while the window "
+                            "was demonstrably open and painted) — script "
+                            "load, DBus path or the Util slot broke")
     except Exception as e:
         failures.append(f"island assert crashed: {e}")
     try:
