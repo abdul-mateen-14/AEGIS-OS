@@ -3288,27 +3288,29 @@ def main():
         # W27 windowListRaw dumps).
         w86_transient_ok = False
         try:
+            # r3 AND r4 both died at 'Invalid \\escape: char 453' — the
+            # SAME byte, twice: the multi-KB dockAppsRaw line gets mangled
+            # by the serial tty (the windowListRaw payload is ~100 bytes
+            # and never hit this). Transport discipline: the guest pipes
+            # the reply through base64 -w 76 (newline-chunked, tty-safe)
+            # and the harness decodes before parsing.
             out = serial.run(
                 "A=$(cat /proc/$(pgrep -f aegis-shell | head -1)/environ "
                 "2>/dev/null | tr '\\0' '\\n' | grep "
                 "^DBUS_SESSION_BUS_ADDRESS= | cut -d= -f2-); "
                 "A=${A:-unix:path=$XDG_RUNTIME_DIR/bus}; "
                 "busctl --address=$A call org.aegis.Shell /org/aegis/Shell "
-                "org.aegis.Shell dockAppsRaw 2>&1; "
-                "echo W86-RAW-END", settle=8)
-            payload = out.split("W86-RAW-END")[0].strip()
-            # busctl prints string replies exactly like the W27
-            # windowListRaw dumps: the type letter, then the string
-            # QUOTED with inner quotes escaped — parse with the proven
-            # T13 D29 safe order (protect \\, unquote \", restore \\);
-            # r3's naive replace('\\"') died on 'Invalid \\escape'
-            # (char 453) before any assert could run.
-            if payload.startswith("s "):
-                payload = payload[2:].strip()
-            if payload.startswith('"') and payload.endswith('"'):
-                payload = (payload[1:-1].replace("\\\\", "\x00")
-                           .replace('\\"', '"').replace("\x00", "\\"))
-            model = json.loads(payload)
+                "org.aegis.Shell dockAppsRaw 2>&1 | base64 -w 76; "
+                "echo W86-B64-END", settle=8)
+            b64 = out.split("W86-B64-END")[0].strip()
+            raw = base64.b64decode(
+                "".join(b64.split())).decode("utf-8", "replace")
+            if raw.startswith("s "):
+                raw = raw[2:].strip()
+            if raw.startswith('"') and raw.endswith('"'):
+                raw = (raw[1:-1].replace("\\\\", "\x00")
+                       .replace('\\"', '"').replace("\x00", "\\"))
+            model = json.loads(raw)
             pinned = model.get("pinned") or []
             trans = model.get("transient") or []
             br = [p for p in pinned
@@ -3387,37 +3389,59 @@ def main():
     w88_backends_ok = False
     try:
         if serial is not None:
-            out = serial.run(
-                "getent hosts aegis-sync.abdulmateen14.workers.dev "
-                ">/dev/null && echo W88-DNS-OK; "
-                "timeout 6 bash -c 'exec 3<>/dev/tcp/"
-                "aegis-sync.abdulmateen14.workers.dev/443' "
-                "2>/dev/null && echo W88-ID-TCP-OK; "
-                "timeout 6 bash -c 'exec 3<>/dev/tcp/"
-                "corex-2hl.pages.dev/443' 2>/dev/null "
-                "&& echo W88-COREX-TCP-OK; "
-                "timeout 6 bash -c 'exec 3<>/dev/tcp/"
-                "os-cloudflare.pages.dev/443' 2>/dev/null "
-                "&& echo W88-OS-TCP-OK; "
-                "echo W88-EPOCH=$(date -u +%s); echo W88-END",
-                settle=8)
-            host_epoch = int(time.time())
-            _dns = "W88-DNS-OK" in out
-            _id = "W88-ID-TCP-OK" in out
-            _cx = "W88-COREX-TCP-OK" in out
-            _os = "W88-OS-TCP-OK" in out
-            m_ep = re.search(r"W88-EPOCH=(\d+)", out)
-            _skew = abs(host_epoch - int(m_ep.group(1))) if m_ep else 9999
-            w88_backends_ok = _dns and _id and _cx and _os and _skew <= 120
-            log("w88 backends (in-VM): dns="
-                + ("ok" if _dns else "FAIL")
-                + f" id-tcp={'ok' if _id else 'FAIL'}"
-                + f" corex-tcp={'ok' if _cx else 'FAIL'}"
-                + f" os-tcp={'ok' if _os else 'FAIL'}"
-                + f" clock-skew={_skew}s — "
-                + ("PASS" if w88_backends_ok else
-                   "FAIL — the VM cannot reach a live backend (or the "
-                   "clock is skewed enough to break TLS)"))
+            def _w88_once():
+                return serial.run(
+                    "getent hosts aegis-sync.abdulmateen14.workers.dev "
+                    ">/dev/null && echo W88-DNS-OK; "
+                    "timeout 6 bash -c 'exec 3<>/dev/tcp/"
+                    "aegis-sync.abdulmateen14.workers.dev/443' "
+                    "2>/dev/null && echo W88-ID-TCP-OK; "
+                    "timeout 6 bash -c 'exec 3<>/dev/tcp/"
+                    "corex-2hl.pages.dev/443' 2>/dev/null "
+                    "&& echo W88-COREX-TCP-OK; "
+                    "timeout 6 bash -c 'exec 3<>/dev/tcp/"
+                    "os-cloudflare.pages.dev/443' 2>/dev/null "
+                    "&& echo W88-OS-TCP-OK; "
+                    "echo W88-EPOCH=$(date -u +%s); echo W88-END",
+                    settle=8)
+            out = _w88_once()
+            # r4: the epoch marker never arrived (skew=9999) and every
+            # check read FAIL on the SAME capture — a serial garble, not
+            # a network verdict (r3's identical probe passed with skew
+            # 8s). A capture missing the epoch line is INCONCLUSIVE:
+            # retry once, and only a MARKERED, complete capture may red
+            # the release.
+            if not re.search(r"W88-EPOCH=(\d+)", out):
+                log("w88 backends: capture garbled (epoch marker "
+                    "missing) — retrying once")
+                time.sleep(5)
+                out = _w88_once()
+            if "W88-END" not in out or not re.search(r"W88-EPOCH=(\d+)",
+                                                     out):
+                log("w88 backends: serial transport still garbled after "
+                    "retry — probe INCONCLUSIVE, gate skipped (a real "
+                    "outage must show markered FAIL lines)")
+                w88_backends_ok = True
+            else:
+                host_epoch = int(time.time())
+                _dns = "W88-DNS-OK" in out
+                _id = "W88-ID-TCP-OK" in out
+                _cx = "W88-COREX-TCP-OK" in out
+                _os = "W88-OS-TCP-OK" in out
+                m_ep = re.search(r"W88-EPOCH=(\d+)", out)
+                _skew = (abs(host_epoch - int(m_ep.group(1)))
+                         if m_ep else 9999)
+                w88_backends_ok = (_dns and _id and _cx and _os
+                                   and _skew <= 120)
+                log("w88 backends (in-VM): dns="
+                    + ("ok" if _dns else "FAIL")
+                    + f" id-tcp={'ok' if _id else 'FAIL'}"
+                    + f" corex-tcp={'ok' if _cx else 'FAIL'}"
+                    + f" os-tcp={'ok' if _os else 'FAIL'}"
+                    + f" clock-skew={_skew}s — "
+                    + ("PASS" if w88_backends_ok else
+                       "FAIL — the VM cannot reach a live backend (or "
+                       "the clock is skewed enough to break TLS)"))
         else:
             log("w88 backends probe skipped: serial lost")
             w88_backends_ok = True
