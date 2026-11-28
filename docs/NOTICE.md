@@ -32,6 +32,8 @@ kept out of the product front page by design, but never out of the credits.
 | SDDM | GPL-2.0+ |
 | Dolphin / Konsole (KDE Apps) | GPL-2.0+ |
 | NetworkManager | GPL-2.0+ / LGPL-2.1+ |
+| cutefishos (compositor, fishui, qt-plugins, filemanager, cutefish-core) | BSD 3-clause (© 2026 Reion Wong) — see `docs/MIGRATION-cutefish.md` |
+| cutefishos statusbar | GPL-3.0 (NOT redistributed; surveyed only) |
 
 The above remain the property of their respective authors and are
 redistributed under their own licenses. Aegis OS-specific work (the Aegis

@@ -1,0 +1,6 @@
+[package]
+name = "island-core"
+version = "0.1.0"
+edition = "2021"
+license = "GPL-3.0-or-later"
+description = "The Aegis Dynamic Island's brain: state machine, geometry table, spring solver and priority stack — ported from shell/src/qml/Island.qml and Tokens.qml (§2.4 Table 5b)."

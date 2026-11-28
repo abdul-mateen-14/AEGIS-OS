@@ -4,6 +4,8 @@ Liquid-glass desktop OS — a **KWin 6 Wayland compositor with a Qt Quick 6 shel
 
 > Private. Secure. Beautiful. Fast.
 
+The desktop layer is being rebuilt on the [cutefishos](https://github.com/cutefishos) compositor (BSD 3-clause) with the Aegis shell logic ported to Rust (`aegis-rs/`) — see [`docs/MIGRATION-cutefish.md`](docs/MIGRATION-cutefish.md).
+
 This repository implements the [Aegis OS UI Design Proposal v1.3](docs/DESIGN-TOKENS.md) as a real, buildable OS: a live ISO with the Aegis Shell (28 px glass panel, floating dock with macOS-grade magnification, Dynamic Island), the M2 surfaces (Control Center, Launcher, notification banners, lock screen, adaptive effects governor), branded Plymouth boot splash, glass tokens as code, and a fully graphical installer.
 
 For engineers: platform lineage, components and licenses live in [`docs/NOTICE.md`](docs/NOTICE.md).
