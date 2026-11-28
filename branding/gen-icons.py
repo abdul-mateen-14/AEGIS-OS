@@ -161,7 +161,7 @@ for n, b in DEVICES.items():
 open(f"{THEME}/index.theme", "w").write("""[Icon Theme]
 Name=Aegis
 Comment=Aegis OS squircle icon language (proposal plate 09)
-Inherits=breeze,hicolor
+Inherits=cutefish,hicolor
 Directories=apps/scalable,places/scalable,devices/scalable
 
 [apps/scalable]
