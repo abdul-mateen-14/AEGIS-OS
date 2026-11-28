@@ -1,0 +1,6 @@
+aegis-desktop (0.1.0) unstable; urgency=medium
+
+  * New system metapackage (W102): depends on aegis-compositor; grows
+    with the Rust migration rounds.
+
+ -- Aegis OS <z@z.ai>  Fri, 28 Nov 2026 05:30:00 +0000

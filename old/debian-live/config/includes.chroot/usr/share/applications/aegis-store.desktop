@@ -1,0 +1,11 @@
+[Desktop Entry]
+Type=Application
+Name=Store
+GenericName=App Store
+Comment=Install the famous Ubuntu and Debian apps — the Aegis first-party Store
+Exec=aegis-store
+Icon=aegis-store
+Terminal=false
+Categories=Qt;Utility;
+StartupNotify=true
+X-Aegis-FirstParty=true

@@ -1,0 +1,16 @@
+Source: aegis-desktop
+Section: metapackages
+Priority: optional
+Maintainer: Aegis OS <z@z.ai>
+Build-Depends: debhelper-compat (= 13)
+Standards-Version: 4.6.2
+Rules-Requires-Root: no
+
+Package: aegis-desktop
+Architecture: amd64
+Depends: aegis-compositor, ${misc:Depends}
+Description: The AEGIS OS desktop (metapackage)
+ Pulls in the complete AEGIS desktop: the Rust compositor, the shell
+ (island + dock), the Aegis apps, the icon theme and the branding.
+ As the Rust migration rounds land (terminal, files, music, store,
+ settings), each becomes a Depends here.

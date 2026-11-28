@@ -1,0 +1,11 @@
+[Desktop Entry]
+Type=Application
+Name=Editor
+GenericName=Text Editor
+Comment=Plain text and code — the Aegis first-party Editor
+Exec=aegis-editor
+Icon=aegis-editor
+Terminal=false
+Categories=Qt;Utility;TextEditor;
+StartupNotify=true
+X-Aegis-FirstParty=true

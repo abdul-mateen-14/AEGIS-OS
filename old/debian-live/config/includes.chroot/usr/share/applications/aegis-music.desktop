@@ -1,0 +1,11 @@
+[Desktop Entry]
+Type=Application
+Name=Music
+GenericName=Music Player
+Comment=Play the ~/Music library — the Aegis first-party Music surface
+Exec=aegis-music
+Icon=aegis-music
+Terminal=false
+Categories=Qt;AudioVideo;Audio;Music;
+StartupNotify=true
+X-Aegis-FirstParty=true

@@ -1,0 +1,13 @@
+#!/usr/bin/make -f
+
+%:
+	dh $@
+
+override_dh_auto_build:
+	cargo build --release --manifest-path ../../../aegis-rs/compositor/Cargo.toml
+
+override_dh_auto_install:
+	install -Dm755 ../../../aegis-rs/target/release/aegis-compositor \
+		debian/aegis-compositor/usr/bin/aegis-compositor
+	install -Dm644 ../../plymouth/aegis-logo/aegis-logo.plymouth \
+		debian/aegis-compositor/usr/share/plymouth/themes/aegis-logo/aegis-logo.plymouth

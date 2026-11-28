@@ -1,0 +1,26 @@
+# Aegis OS — Calamares branding
+---
+componentName: aegis
+
+strings:
+    productName:         "Aegis OS"
+    shortProductName:    "Aegis"
+    version:             "0.2"
+    shortVersion:        "0.2"
+    versionedName:       "Aegis OS 0.2"
+    shortVersionedName:  "Aegis 0.2"
+    bootloaderEntryName: "Aegis"
+
+images:
+    productLogo:         "logo.png"
+    productIcon:         "logo.png"
+    productWelcome:      "logo.png"
+
+slideshow: "show.qml"
+slideshowForFinished: false
+
+style:
+    sidebarBackground:    "#101216"
+    sidebarText:          "#F2F4F8"
+    sidebarTextSelect:    "#3E8BFF"
+    sidebarBackgroundSelect: "#1E2430"

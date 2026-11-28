@@ -1,103 +1,52 @@
 # Aegis OS
 
-Liquid-glass desktop OS — a **KWin 6 Wayland compositor with a Qt Quick 6 shell**, built entirely on **GitHub Actions free runners**.
-
 > Private. Secure. Beautiful. Fast.
 
-The desktop layer is being rebuilt on the [cutefishos](https://github.com/cutefishos) compositor (BSD 3-clause) with the Aegis shell logic ported to Rust (`aegis-rs/`) — see [`docs/MIGRATION-cutefish.md`](docs/MIGRATION-cutefish.md).
+**The Rust system.** AEGIS OS is being rebuilt from scratch as a fully
+Rust desktop — compositor, shell (Dynamic Island + dock), launcher and
+apps — on the cutefishos design and packaging model, shipping as a Debian
+live ISO. The previous Qt/QML system (100 rounds of iterations) is
+quarantined under [`old/`](old/) and will be deleted once the new stack
+passes its boot matrix.
 
-This repository implements the [Aegis OS UI Design Proposal v1.3](docs/DESIGN-TOKENS.md) as a real, buildable OS: a live ISO with the Aegis Shell (28 px glass panel, floating dock with macOS-grade magnification, Dynamic Island), the M2 surfaces (Control Center, Launcher, notification banners, lock screen, adaptive effects governor), branded Plymouth boot splash, glass tokens as code, and a fully graphical installer.
+- The honest Rust answer: it is not automatically faster or leaner than
+  C++ — the wins are memory safety in the compositor, dropping Qt's
+  runtime weight, and a migration the compiler can carry. See
+  [`docs/MIGRATION.md`](docs/MIGRATION.md).
+- Provenance and third-party licenses: [`docs/NOTICE.md`](docs/NOTICE.md).
+- Preserved designs: [`branding/`](branding/) — the user's icon theme
+  (settings, store, music, terminal, files, corex …), wallpapers, logos,
+  sddm theme — and the island's behavior contract
+  ([`docs/DESIGN-TOKENS.md`](docs/DESIGN-TOKENS.md),
+  [`docs/LIVE-ACTIVITY-API.md`](docs/LIVE-ACTIVITY-API.md)).
 
-For engineers: platform lineage, components and licenses live in [`docs/NOTICE.md`](docs/NOTICE.md).
+## What exists today (W102)
 
----
-
-## Status — M2 · Surfaces
-
-| Delivers | Done when |
+| Piece | State |
 | --- | --- |
-| M1 shell core (see [MILESTONES](docs/MILESTONES.md)) + **Control Center** (348 px sheet — tiles, sliders, live tier badge → governor popover), **Launcher** (8×3 glass grid, type-to-filter), **notification banners** (356×84, stack ≤ 3, `org.freedesktop.Notifications` compatible), **lock screen** (118 px thin clock, PAM unlock), **adaptive effects governor** (tier A↔B↔C, live badge), **Live Activity API** (`org.aegis.Island`) | All overlays open/dismiss under their motion budgets; tier badge truth-checked against KWin |
+| `aegis-rs/island-core` | the Dynamic Island's brain in Rust — priority stack, geometry records, spring solver; 10 unit tests pinning the contract |
+| `aegis-rs/compositor` (`aegis-compositor`) | the Wayland compositor on Smithay — nested winit backend, xdg-shell window mapping, stack-layout seed; the DRM/udev + layer-shell rounds follow |
+| `iso/packaging/` | per-component `debian/` dirs + `build.sh` (the cutefish packaging model), `aegis-desktop` metapackage |
+| `iso/plymouth/aegis-logo/` | boot splash — abyss background, Aegis mark |
+| `old/` | the complete previous OS, read-only, until round 8 |
 
-M1 record and M3/M4 roadmap: [`docs/MILESTONES.md`](docs/MILESTONES.md). App-facing island docs: [`docs/LIVE-ACTIVITY-API.md`](docs/LIVE-ACTIVITY-API.md).
+## The migration rounds
 
-## Repository map
+Full map in [`docs/MIGRATION.md`](docs/MIGRATION.md). Short form:
+compositor on real hardware + the island renderer (r3) → terminal +
+launcher (r4) → files + control center (r5) → music, store, CoreX (r6) →
+the ISO assembles itself in live-build (r7) → boot matrix, effects,
+`old/` deleted (r8).
 
-```
-.github/workflows/iso.yml        free-runner ISO pipeline (on push, dispatch, callable)
-.github/workflows/release.yml    tag v* → ISO → GitHub Release
-.github/workflows/shell-ci.yml   aegis-shell .deb compile check
-debian-live/                     live-build config: package lists, includes, chroot hooks
-shell/                           Aegis Shell (Qt Quick 6 + LayerShellQt) + Debian packaging
-  └ src/qml/Tokens.qml           design tokens as code — every proposal table maps here
-  └ src/governor/                adaptive effects governor (tier A↔B↔C)
-  └ src/activity/                Live Activity API + notifications daemon
-  └ src/auth/                    setuid PAM verifier for the lock screen
-theme/                           wallpapers · Plymouth · color schemes · desktop entries
-calamares/                       installer settings, modules, Aegis branding
-scripts/                         build-iso.sh · build-shell.sh · ci/ helpers
-docs/                            BUILD · CI free tier · MILESTONES · DESIGN-TOKENS · LIVE-ACTIVITY-API · APP-SLOTS · SECRETS
-```
+## CI
 
-## Quickstart — your first ISO (zero local setup)
+`Rust CI` runs on every push: `cargo test --workspace` + clippy (strict)
+over `aegis-rs/`, plus a packaging-structure check over `iso/`.
 
-Push anything under `debian-live/`, `shell/`, `calamares/` or `scripts/` to `main` (or run **Actions → ISO → Run workflow**). The pipeline:
+## Attribution
 
-1. reclaims ~30 GB on the free `ubuntu-latest` runner (72 GB disk),
-2. builds `aegis-shell_*.deb` inside an `ubuntu:resolute` container,
-3. stages the shell + first-party app `.deb`s,
-4. runs live-build inside the container → `AegisOS-*-amd64.iso` (~2.5–3.5 GB),
-5. uploads the ISO + sha256 as an artifact (releases on `v*` tags).
-
-Free-tier details and cost math: [`docs/CI-FREE-TIER.md`](docs/CI-FREE-TIER.md).
-
-## Local build (any Linux box with Docker)
-
-```bash
-bash scripts/ci/run-in-container.sh bash scripts/build-iso.sh
-# → AegisOS-*-amd64.iso in the repo root
-```
-
-Shell-only rebuild: `bash scripts/ci/run-in-container.sh bash scripts/build-shell.sh` → `artifacts/aegis-shell_*.deb`. Full guide: [`docs/BUILD.md`](docs/BUILD.md).
-
-## First-party apps (AEGIS Browser · OS Cloud · CoreX)
-
-The ISO reserves three `.deb` slots. Until the real links land, the dock shows stopgap launchers (OS Cloud and CoreX open their web apps; AEGIS Browser points at the `aegis-browser` binary name). Drop-in mechanisms: [`docs/APP-SLOTS.md`](docs/APP-SLOTS.md).
-
-## The v1.4 island override
-
-Per product decision, the Dynamic Island idles at the **iPhone Pro-class pill — 104×32 px** (proposal v1.3 had 148×30). One-line tunables: `Tokens.islandIdleWidth` / `Tokens.islandIdleHeight` in [`shell/src/qml/Tokens.qml`](shell/src/qml/Tokens.qml). Split and Charging states track the idle height; radius always tracks height.
-
-## Download a release ISO
-
-Grab the ISO from [Releases](https://github.com/abdul-mateen-14/AEGIS-OS/releases). It ships as numbered parts plus a checksum file — reassemble and verify:
-
-```bash
-cat *.iso.part-* > AegisOS.iso
-sha256sum -c SHA256SUMS
-```
-
-## Boot it
-
-```bash
-# bare metal: flash the ISO to USB (Ventoy/dd/Rufus)
-# or try it in QEMU with UEFI + KVM:
-qemu-system-x86_64 -enable-kvm -m 4096 -bios /usr/share/ovmf/OVMF.fd \
-    -cdrom AegisOS-*-amd64.iso
-```
-
-Login (live session): user `aegis`, autologin on, empty password via sudo NOPASSWD. The **Aegis** session is the featured one; a stock compatibility session ships as fallback.
-
-M2 quick tour: click the right half of the top panel (or the sliders glyph) for **Control Center** — flip tiles, drag Display/Sound, and tap the tier badge to drive the effects governor by hand. Open the **Launcher** from a shell surface or via DBus (`busctl --user call org.aegis.Shell /org/aegis/Shell org.aegis.Shell toggleLauncher`) and just type to filter. Lock with `aegis-lock`. Feed the island a live activity:
-
-```bash
-aegis-activity publish demo media title="Aurora Drift" artist="Aegis Sound"
-aegis-activity end demo
-```
-
-Hover the dock for the magnification field; fold it to the sliver by leaving it idle for 4 s and poke the bottom edge to spring it back.
-
-## Third-party components
-
-Platform lineage and license notices: [`docs/NOTICE.md`](docs/NOTICE.md).
-
-License: MIT — see [`LICENSE`](LICENSE).
+The compositor is built on [Smithay](https://github.com/Smithay/smithay)
+(MIT); the boot splash derives from the cutefish-logo plymouth theme
+(GPL-2.0+); the packaging model follows
+[cutefishos](https://github.com/cutefishos). Details and license rows:
+[`docs/NOTICE.md`](docs/NOTICE.md).

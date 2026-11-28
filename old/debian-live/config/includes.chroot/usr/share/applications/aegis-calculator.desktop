@@ -1,0 +1,11 @@
+[Desktop Entry]
+Type=Application
+Name=Calculator
+GenericName=Calculator
+Comment=Basic arithmetic with a history tape — the Aegis first-party Calculator
+Exec=aegis-calculator
+Icon=aegis-calculator
+Terminal=false
+Categories=Qt;Utility;Calculator;
+StartupNotify=true
+X-Aegis-FirstParty=true

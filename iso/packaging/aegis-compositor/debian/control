@@ -1,0 +1,18 @@
+Source: aegis-compositor
+Section: x11
+Priority: optional
+Maintainer: Aegis OS <z@z.ai>
+Build-Depends: debhelper-compat (= 13), cargo, rustc, pkg-config, libegl-dev, libgl-dev
+Standards-Version: 4.6.2
+Rules-Requires-Root: no
+
+Package: aegis-compositor
+Architecture: amd64
+Depends: ${misc:Depends}, ${shlibs:Depends}
+Description: The AEGIS Wayland compositor (Rust)
+ Window management, output composition and the Wayland server for the
+ AEGIS desktop, one process. Built on Smithay (MIT). This is the new
+ Rust system (W102); the old QML shell stack lives under old/.
+ .
+ The upstream source may be obtained from the AEGIS-OS repository
+ (github.com/abdul-mateen-14/AEGIS-OS) under iso/packaging.

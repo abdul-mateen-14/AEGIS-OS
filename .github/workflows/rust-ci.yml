@@ -1,0 +1,55 @@
+name: Rust CI
+
+on:
+  push:
+    branches: [main]
+    paths: ['aegis-rs/**', 'iso/**', 'branding/**', '.github/workflows/rust-ci.yml']
+  pull_request:
+    paths: ['aegis-rs/**', 'iso/**', 'branding/**']
+  workflow_dispatch:
+
+concurrency:
+  group: rust-ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  rust-workspace:
+    name: aegis-rs workspace — test + clippy
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          components: clippy
+
+      - name: cargo test (the behavior contracts)
+        working-directory: aegis-rs
+        run: cargo test --workspace
+
+      - name: clippy
+        working-directory: aegis-rs
+        run: cargo clippy --workspace --all-targets -- -D warnings
+
+  packaging-sanity:
+    name: iso/packaging structure
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: debian dirs well-formed
+        run: |
+          for d in iso/packaging/*/debian; do
+            test -f "$d/control" || { echo "missing $d/control"; exit 1; }
+            test -f "$d/changelog" || { echo "missing $d/changelog"; exit 1; }
+            test -f "$d/copyright" || { echo "missing $d/copyright"; exit 1; }
+            test -x "$d/rules" || { echo "missing/not-executable $d/rules"; exit 1; }
+          done
+          test -f iso/plymouth/aegis-logo/aegis-logo.plymouth
+          test -f iso/plymouth/aegis-logo/logo.png
+          echo "packaging OK"

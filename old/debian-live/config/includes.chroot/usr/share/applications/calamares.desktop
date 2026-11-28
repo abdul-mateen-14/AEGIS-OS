@@ -1,0 +1,11 @@
+[Desktop Entry]
+Type=Application
+Name=Install Aegis OS
+GenericName=System Installer
+Comment=Install Aegis OS to this computer with the guided installer
+Exec=calamares
+Icon=calamares
+Terminal=false
+Categories=Qt;System;
+StartupNotify=true
+X-Aegis-FirstParty=true

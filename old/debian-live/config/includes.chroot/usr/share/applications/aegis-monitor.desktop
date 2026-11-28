@@ -1,0 +1,11 @@
+[Desktop Entry]
+Type=Application
+Name=Monitor
+GenericName=System Monitor
+Comment=CPU, memory, network and processes — the Aegis first-party Monitor
+Exec=aegis-monitor
+Icon=aegis-monitor
+Terminal=false
+Categories=Qt;System;Monitor;
+StartupNotify=true
+X-Aegis-FirstParty=true

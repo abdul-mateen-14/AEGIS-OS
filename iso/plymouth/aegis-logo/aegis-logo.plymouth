@@ -1,0 +1,8 @@
+[Plymouth Theme]
+Name=Aegis Logo
+Description=Aegis OS boot splash
+ModuleName=script
+
+[script]
+ImageDir=/usr/share/plymouth/themes/aegis-logo
+ScriptFile=/usr/share/plymouth/themes/aegis-logo/aegis-logo.script

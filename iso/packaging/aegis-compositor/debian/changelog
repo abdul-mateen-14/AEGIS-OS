@@ -1,0 +1,7 @@
+aegis-compositor (0.1.0) unstable; urgency=medium
+
+  * First Rust compositor of the new system (W102): nested winit backend,
+    xdg-shell window mapping, stack layout seed. Adapted from Smithay's
+    minimal example (MIT).
+
+ -- Aegis OS <z@z.ai>  Fri, 28 Nov 2026 05:30:00 +0000
