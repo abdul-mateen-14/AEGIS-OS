@@ -19,12 +19,13 @@ Smithay compositor lab, Store/CoreX plumbing. The previous Qt/QML system
   [`docs/DESIGN-TOKENS.md`](docs/DESIGN-TOKENS.md),
   [`docs/LIVE-ACTIVITY-API.md`](docs/LIVE-ACTIVITY-API.md).
 
-## What exists today (W103)
+## What exists today (W105)
 
 | Piece | State |
 | --- | --- |
 | `desktop/` | the adopted cutefish C++ stack — 14 pinned submodules, never fork-patched; rebrand applied at package time |
 | `desktop/aegis-id/` | the Aegis-original identity module: avatar, device name, OS version, privacy contract |
+| `services/aegis-sync-os/` | the OS sync backend (Cloudflare Worker + D1, LIVE): OS-owned data, identity reused read-only from the browser's primary `aegis-sync` — [docs/SYNC-OS.md](docs/SYNC-OS.md) |
 | `branding/` + `aegis-icons` package | the user's squircle icon theme as the DEFAULT (fallback: cutefish icons → hicolor) |
 | `aegis-rs/island-core` | the island's brain in Rust — priority stack, geometry records, spring solver; 10 unit tests |
 | `aegis-rs/compositor` | the Smithay compositor (research track) — compiles, tests green |

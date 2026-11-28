@@ -1,0 +1,21 @@
+name = "aegis-sync-os"
+main = "src/index.js"
+compatibility_date = "2025-10-01"
+
+# OS-owned storage. The BROWSER binding is the primary aegis-sync database
+# and is READ-ONLY (src/guard.js rejects any non-SELECT statement against it).
+[[d1_databases]]
+binding = "OS"
+database_name = "aegis-sync-os"
+database_id = "98400df3-d6ba-4958-ae09-e57f5af7d3c8"
+
+[[d1_databases]]
+binding = "BROWSER"
+database_name = "aegis-sync"
+database_id = "b95a43f3-906b-4917-827e-955fad618fdd"
+
+[triggers]
+crons = ["0 3 * * *"] # nightly prune (sessions, tombstones, rate-limit windows)
+
+[vars]
+CORS_ORIGIN = "*"

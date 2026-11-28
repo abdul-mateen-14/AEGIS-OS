@@ -19,6 +19,19 @@ deeper Settings integration turns out to be necessary, it will be done
 as an upstream-style contribution or an install-time override — not a
 source fork.
 
+## The shared identity
+
+The identity fields on this card are the SAME fields the browser's
+primary sync backend owns: `email` and `username` come from the
+`aegis-sync` database (reused read-only by the OS backend), and
+`avatar_url` / `display_name` are OS-owned fields served by
+`aegis-sync-os` — `GET /v1/os/identity` for this card, `PUT` to update
+them, and public resolution by username so any surface renders the same
+identity as the browser. One account, one password, same avatar and
+name everywhere — see [`docs/SYNC-OS.md`](../../docs/SYNC-OS.md).
+Wiring this card to the live backend (login + avatar editing) lands
+with the Store/account round.
+
 ## Build
 
 ```bash

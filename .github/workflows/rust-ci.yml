@@ -3,9 +3,9 @@ name: Rust CI
 on:
   push:
     branches: [main]
-    paths: ['aegis-rs/**', 'iso/**', 'branding/**', 'desktop/**', '.github/workflows/rust-ci.yml']
+    paths: ['aegis-rs/**', 'iso/**', 'branding/**', 'desktop/**', 'services/**', '.github/workflows/rust-ci.yml']
   pull_request:
-    paths: ['aegis-rs/**', 'iso/**', 'branding/**', 'desktop/**']
+    paths: ['aegis-rs/**', 'iso/**', 'branding/**', 'desktop/**', 'services/**']
   workflow_dispatch:
 
 concurrency:
@@ -71,3 +71,67 @@ jobs:
           test -f desktop/aegis-id/CMakeLists.txt
           test -f branding/icons/index.theme && grep -q "Inherits=cutefish" branding/icons/index.theme
           echo "desktop OK"
+
+      - name: aegis-sync-os structure + isolation guard present
+        run: |
+          test -f services/aegis-sync-os/wrangler.toml
+          grep -q 'database_id = ' services/aegis-sync-os/wrangler.toml
+          test -f services/aegis-sync-os/src/guard.js
+          test -f services/aegis-sync-os/migrations/0001_init.sql
+          # the deploy job must never target the browser worker
+          ! grep -qE 'name *= *"aegis-sync"$' services/aegis-sync-os/wrangler.toml
+          echo "services OK"
+
+  aegis-sync-os:
+    name: aegis-sync-os — tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: unit tests (guard / identity / util)
+        run: node --test services/aegis-sync-os/test/*.test.mjs
+
+  deploy-aegis-sync-os:
+    name: aegis-sync-os — deploy + live smoke (main only)
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    needs: [rust-workspace, packaging-sanity, aegis-sync-os]
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    environment: aegis-sync-os
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: apply OS migrations (OS database only)
+        working-directory: services/aegis-sync-os
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: npx --yes wrangler@4 d1 migrations apply aegis-sync-os --remote
+
+      - name: deploy worker
+        working-directory: services/aegis-sync-os
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: npx --yes wrangler@4 deploy
+
+      - name: live smoke (health only, read-only)
+        run: |
+          sleep 5
+          BODY=$(curl -sf https://aegis-sync-os.abdulmateen14.workers.dev/health)
+          echo "$BODY"
+          echo "$BODY" | grep -q '"ok":true'
+          echo "$BODY" | grep -q '"service":"aegis-sync-os"'
