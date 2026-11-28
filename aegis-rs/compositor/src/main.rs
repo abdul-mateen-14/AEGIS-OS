@@ -86,7 +86,7 @@ pub fn stack_layout(
     let h = output.size.h / windows as i32;
     (0..windows as i32)
         .map(|i| {
-            let mut r = Rectangle::new((output.loc.x, output.loc.y + i * h), output.size);
+            let mut r = Rectangle::new((output.loc.x, output.loc.y + i * h).into(), output.size);
             r.size.h = h;
             r
         })
@@ -351,7 +351,7 @@ mod tests {
     use super::*;
 
     fn output(w: i32, h: i32) -> Rectangle<i32, smithay::utils::Logical> {
-        Rectangle::new((0, 0), (w, h).into())
+        Rectangle::new((0, 0).into(), (w, h).into())
     }
 
     #[test]
