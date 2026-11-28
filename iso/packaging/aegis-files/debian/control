@@ -7,7 +7,6 @@ Maintainer: Aegis OS <z@z.ai>
 # package in the NEXT packaging round (desktop/framework submodule).
 # The deb build is gated on that landing; CI verifies this definition
 # and the rebrand rules until then.
-Build-Depends: debhelper-compat (= 13), cmake, pkg-config, qt6-base-dev, qt6-declarative-dev, qt6-quickcontrols2-dev, qt6-svg-dev, zlib1g-dev, libbz2-dev
 Standards-Version: 4.6.2
 Rules-Requires-Root: no
 
