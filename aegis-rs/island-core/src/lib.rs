@@ -98,7 +98,7 @@ pub fn resolve(stack: &[Kind]) -> Geometry {
         1 => state_geometry(stack[0]),
         _ => {
             let mut sorted: Vec<Kind> = stack.to_vec();
-            sorted.sort_by(|a, b| b.rank().cmp(&a.rank()));
+            sorted.sort_by_key(|k| std::cmp::Reverse(k.rank()));
             let w = lobe_width(sorted[0]) + LOBE_GAP + lobe_width(sorted[1]);
             let h = IDLE_HEIGHT;
             Geometry { w, h, r: island_radius(h) }
@@ -189,10 +189,11 @@ pub struct Island {
 
 impl Island {
     pub fn new() -> Self {
-        let mut i = Island::default();
-        i.width_spring = Some(Spring::new(IDLE_WIDTH as f64));
-        i.height_spring = Some(Spring::new(IDLE_HEIGHT as f64));
-        i
+        Island {
+            stack: Vec::new(),
+            width_spring: Some(Spring::new(IDLE_WIDTH as f64)),
+            height_spring: Some(Spring::new(IDLE_HEIGHT as f64)),
+        }
     }
 
     /// Publish an activity (idempotent per kind — the QML model keys on
@@ -266,7 +267,7 @@ mod tests {
     fn priority_order_matches_table_5b() {
         let mut ks = vec![Kind::Generic, Kind::Media, Kind::Charging,
                           Kind::Timer, Kind::AegisId, Kind::Call];
-        ks.sort_by(|a, b| b.rank().cmp(&a.rank()));
+        ks.sort_by_key(|k| std::cmp::Reverse(k.rank()));
         assert_eq!(ks, vec![Kind::Call, Kind::AegisId, Kind::Timer,
                             Kind::Media, Kind::Charging, Kind::Generic]);
     }
