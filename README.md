@@ -23,7 +23,8 @@ Smithay compositor lab, Store/CoreX plumbing. The previous Qt/QML system
 
 | Piece | State |
 | --- | --- |
-| `desktop/` | the adopted cutefish C++ stack — 11 pinned submodules, never fork-patched; rebrand applied at package time |
+| `desktop/` | the adopted cutefish C++ stack — 14 pinned submodules, never fork-patched; rebrand applied at package time |
+| `desktop/aegis-id/` | the Aegis-original identity module: avatar, device name, OS version, privacy contract |
 | `branding/` + `aegis-icons` package | the user's squircle icon theme as the DEFAULT (fallback: cutefish icons → hicolor) |
 | `aegis-rs/island-core` | the island's brain in Rust — priority stack, geometry records, spring solver; 10 unit tests |
 | `aegis-rs/compositor` | the Smithay compositor (research track) — compiles, tests green |

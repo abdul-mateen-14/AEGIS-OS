@@ -20,6 +20,10 @@ So the smooth, working UI layer is adopted **wholesale as upstream code**
 | `apps/terminal` | cutefishos/terminal | MIT | → Aegis Terminal |
 | `apps/settings` | cutefishos/settings | BSD-3 | → Aegis Settings |
 | `apps/calculator` | cutefishos/calculator | BSD-3 | → Aegis Calculator |
+| `apps/video-player` | cutefishos/video-player | BSD-3 | → Aegis Video |
+| `apps/text-editor` | cutefishos/text-editor | BSD-3 | → Aegis Editor |
+| `apps/system-monitor` | cutefishos/system-monitor | BSD-3 | → Aegis Monitor |
+| `aegis-id/` | Aegis-original | MIT | the identity module (avatar, device name, OS version, privacy) — our own code on the Aegis design tokens |
 
 Why submodules: provenance stays machine-checkable (upstream URL + pinned
 SHA in `.gitmodules`), the LICENSE files and copyright headers survive

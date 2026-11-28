@@ -1,0 +1,9 @@
+[Desktop Entry]
+Type=Application
+Name=Aegis ID
+GenericName=Identity
+Comment=Your device identity and privacy — Aegis OS
+Exec=aegis-id
+Icon=aegis-id
+Terminal=false
+Categories=Settings;

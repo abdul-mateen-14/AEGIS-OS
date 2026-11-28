@@ -1,0 +1,515 @@
+﻿2026-11-17T17:56:03.1653484Z Current runner version: '2.338.2'
+2026-11-17T17:56:03.1671985Z ##[group]Runner Image Provisioner
+2026-11-17T17:56:03.1672747Z Hosted Compute Agent
+2026-11-17T17:56:03.1673159Z Version: 20261103.629
+2026-11-17T17:56:03.1673643Z Commit: 15dbd9ccb5dbf34fae002b6ed1a2670f52df37bc
+2026-11-17T17:56:03.1674203Z Build Date: 2026-11-03T17:26:59Z
+2026-11-17T17:56:03.1674714Z Worker ID: {4bc6f715-1be6-428d-bdb1-b20f1eff1f48}
+2026-11-17T17:56:03.1675235Z Region: us-west-2
+2026-11-17T17:56:03.1675679Z Cloud: AWS
+2026-11-17T17:56:03.1676065Z ##[endgroup]
+2026-11-17T17:56:03.1677219Z ##[group]Operating System
+2026-11-17T17:56:03.1677755Z Ubuntu
+2026-11-17T17:56:03.1678174Z 26.04.1
+2026-11-17T17:56:03.1678558Z LTS
+2026-11-17T17:56:03.1678954Z ##[endgroup]
+2026-11-17T17:56:03.1679371Z ##[group]Runner Image
+2026-11-17T17:56:03.1679827Z Image: ubuntu-26.04
+2026-11-17T17:56:03.1680239Z Version: 20261111.82.6
+2026-11-17T17:56:03.1681202Z Included Software: https://github.com/actions/runner-images/blob/ubuntu26/20261111.82/images/ubuntu/Ubuntu2604-Readme.md
+2026-11-17T17:56:03.1682683Z Image Release: https://github.com/actions/runner-images/releases/tag/ubuntu26%2F20261111.82
+2026-11-17T17:56:03.1683419Z ##[endgroup]
+2026-11-17T17:56:03.1684239Z ##[group]GITHUB_TOKEN Permissions
+2026-11-17T17:56:03.1686122Z Contents: write
+2026-11-17T17:56:03.1686552Z Metadata: read
+2026-11-17T17:56:03.1686965Z ##[endgroup]
+2026-11-17T17:56:03.1688504Z Secret source: Actions
+2026-11-17T17:56:03.1689212Z Cache mode: write
+2026-11-17T17:56:03.1689770Z Prepare workflow directory
+2026-11-17T17:56:03.1922727Z Prepare all required actions
+2026-11-17T17:56:03.1958672Z Getting action download info
+2026-11-17T17:56:03.5592215Z Download action repository 'actions/checkout@v4' (SHA:11d5960a326750d5838078e36cf38b85af677262)
+2026-11-17T17:56:05.6884655Z Download action repository 'actions/upload-artifact@v4' (SHA:ea165f8d65b6e75b540449e92b4886f43607fa02)
+2026-11-17T17:56:05.9412993Z Complete job name: Boot ISO and capture screenshots
+2026-11-17T17:56:06.0082305Z ##[group]Run actions/checkout@v4
+2026-11-17T17:56:06.0083186Z with:
+2026-11-17T17:56:06.0083623Z   repository: abdul-mateen-14/AEGIS-OS
+2026-11-17T17:56:06.0086988Z   token: ***
+2026-11-17T17:56:06.0087406Z   ssh-strict: true
+2026-11-17T17:56:06.0087879Z   ssh-user: git
+2026-11-17T17:56:06.0088314Z   persist-credentials: true
+2026-11-17T17:56:06.0088772Z   clean: true
+2026-11-17T17:56:06.0089211Z   sparse-checkout-cone-mode: true
+2026-11-17T17:56:06.0089713Z   fetch-depth: 1
+2026-11-17T17:56:06.0090119Z   fetch-tags: false
+2026-11-17T17:56:06.0090570Z   show-progress: true
+2026-11-17T17:56:06.0091014Z   lfs: false
+2026-11-17T17:56:06.0091475Z   submodules: false
+2026-11-17T17:56:06.0092144Z   set-safe-directory: true
+2026-11-17T17:56:06.0092634Z   allow-unsafe-pr-checkout: false
+2026-11-17T17:56:06.0093372Z ##[endgroup]
+2026-11-17T17:56:10.0316194Z Syncing repository: abdul-mateen-14/AEGIS-OS
+2026-11-17T17:56:10.0319416Z ##[group]Getting Git version info
+2026-11-17T17:56:10.0320655Z Working directory is '/home/runner/work/AEGIS-OS/AEGIS-OS'
+2026-11-17T17:56:10.0322357Z [command]/usr/bin/git version
+2026-11-17T17:56:10.0323067Z git version 2.56.1
+2026-11-17T17:56:10.0332420Z ##[endgroup]
+2026-11-17T17:56:10.0343460Z Temporarily overriding HOME='/home/runner/work/_temp/50abcff8-fe78-4756-bbf8-dba74866a9c8' before making global git config changes
+2026-11-17T17:56:10.0345377Z Adding repository directory to the temporary git global config as a safe directory
+2026-11-17T17:56:10.0347050Z [command]/usr/bin/git config --global --add safe.directory /home/runner/work/AEGIS-OS/AEGIS-OS
+2026-11-17T17:56:10.0714591Z Deleting the contents of '/home/runner/work/AEGIS-OS/AEGIS-OS'
+2026-11-17T17:56:10.0717721Z ##[group]Initializing the repository
+2026-11-17T17:56:10.0722128Z [command]/usr/bin/git init /home/runner/work/AEGIS-OS/AEGIS-OS
+2026-11-17T17:56:10.1416281Z hint: Using 'master' as the name for the initial branch. This default branch name
+2026-11-17T17:56:10.1417807Z hint: will change to "main" in Git 3.0. To configure the initial branch name
+2026-11-17T17:56:10.1419641Z hint: to use in all of your new repositories, which will suppress this warning,
+2026-11-17T17:56:10.1421057Z hint: call:
+2026-11-17T17:56:10.1421606Z hint:
+2026-11-17T17:56:10.1422485Z hint: 	git config --global init.defaultBranch <name>
+2026-11-17T17:56:10.1423253Z hint:
+2026-11-17T17:56:10.1424003Z hint: Names commonly chosen instead of 'master' are 'main', 'trunk' and
+2026-11-17T17:56:10.1425347Z hint: 'development'. The just-created branch can be renamed via this command:
+2026-11-17T17:56:10.1426462Z hint:
+2026-11-17T17:56:10.1426995Z hint: 	git branch -m <name>
+2026-11-17T17:56:10.1427593Z hint:
+2026-11-17T17:56:10.1428525Z hint: Disable this message with "git config set advice.defaultBranchName false"
+2026-11-17T17:56:10.1447608Z Initialized empty Git repository in /home/runner/work/AEGIS-OS/AEGIS-OS/.git/
+2026-11-17T17:56:10.1456656Z [command]/usr/bin/git remote add origin https://github.com/abdul-mateen-14/AEGIS-OS
+2026-11-17T17:56:10.1522706Z ##[endgroup]
+2026-11-17T17:56:10.1523869Z ##[group]Disabling automatic garbage collection
+2026-11-17T17:56:10.1525060Z [command]/usr/bin/git config --local gc.auto 0
+2026-11-17T17:56:10.1548944Z ##[endgroup]
+2026-11-17T17:56:10.1549805Z ##[group]Setting up auth
+2026-11-17T17:56:10.1553192Z [command]/usr/bin/git config --local --name-only --get-regexp core\.sshCommand
+2026-11-17T17:56:10.1576005Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'core\.sshCommand' && git config --local --unset-all 'core.sshCommand' || :"
+2026-11-17T17:56:10.4229802Z [command]/usr/bin/git config --local --name-only --get-regexp http\.https\:\/\/github\.com\/\.extraheader
+2026-11-17T17:56:10.4257113Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'http\.https\:\/\/github\.com\/\.extraheader' && git config --local --unset-all 'http.https://github.com/.extraheader' || :"
+2026-11-17T17:56:10.4438831Z [command]/usr/bin/git config --local --name-only --get-regexp ^includeIf\.gitdir:
+2026-11-17T17:56:10.4464147Z [command]/usr/bin/git submodule foreach --recursive git config --local --show-origin --name-only --get-regexp remote.origin.url
+2026-11-17T17:56:10.4640424Z [command]/usr/bin/git config --local http.https://github.com/.extraheader AUTHORIZATION: basic ***
+2026-11-17T17:56:10.4669259Z ##[endgroup]
+2026-11-17T17:56:10.4669810Z ##[group]Fetching the repository
+2026-11-17T17:56:10.4675350Z [command]/usr/bin/git -c protocol.version=2 fetch --no-tags --prune --no-recurse-submodules --depth=1 origin +c3ac985e66797b892fa988d0fe6ac9ec65d534fc:refs/remotes/origin/main
+2026-11-17T17:56:23.1514864Z From https://github.com/abdul-mateen-14/AEGIS-OS
+2026-11-17T17:56:23.1515547Z  * [new ref]         c3ac985e66797b892fa988d0fe6ac9ec65d534fc -> origin/main
+2026-11-17T17:56:23.1519241Z ##[endgroup]
+2026-11-17T17:56:23.1519886Z ##[group]Determining the checkout info
+2026-11-17T17:56:23.1543140Z ##[endgroup]
+2026-11-17T17:56:23.1543722Z [command]/usr/bin/git sparse-checkout disable
+2026-11-17T17:56:23.1582188Z [command]/usr/bin/git config --local --unset-all extensions.worktreeConfig
+2026-11-17T17:56:23.1604476Z ##[group]Checking out the ref
+2026-11-17T17:56:23.1608539Z [command]/usr/bin/git checkout --progress --force -B main refs/remotes/origin/main
+2026-11-17T17:56:23.8988253Z Switched to a new branch 'main'
+2026-11-17T17:56:23.8995108Z branch 'main' set up to track 'origin/main'.
+2026-11-17T17:56:23.9020125Z ##[endgroup]
+2026-11-17T17:56:23.9068927Z [command]/usr/bin/git log -1 --format=%H
+2026-11-17T17:56:23.9088918Z c3ac985e66797b892fa988d0fe6ac9ec65d534fc
+2026-11-17T17:56:23.9280254Z ##[group]Run TAG="v0.6.70"
+2026-11-17T17:56:23.9280627Z [36;1mTAG="v0.6.70"[0m
+2026-11-17T17:56:23.9280915Z [36;1mif [ -z "$TAG" ]; then[0m
+2026-11-17T17:56:23.9281395Z [36;1m  TAG=$(curl -s "https://api.github.com/repos/abdul-mateen-14/AEGIS-OS/releases/latest" \[0m
+2026-11-17T17:56:23.9282076Z [36;1m    | python3 -c "import json,sys;print(json.load(sys.stdin)['tag_name'])")[0m
+2026-11-17T17:56:23.9282602Z [36;1mfi[0m
+2026-11-17T17:56:23.9282875Z [36;1mecho "tag=$TAG" >> "$GITHUB_OUTPUT"[0m
+2026-11-17T17:56:23.9283193Z [36;1mecho "Boot-testing: $TAG"[0m
+2026-11-17T17:56:23.9305869Z shell: /usr/bin/bash -e {0}
+2026-11-17T17:56:23.9306212Z ##[endgroup]
+2026-11-17T17:56:23.9361041Z Boot-testing: v0.6.70
+2026-11-17T17:56:23.9404664Z ##[group]Run # DNS guard — the 2026-11-11 v0.6.27 boot tests hung 45 min inside
+2026-11-17T17:56:23.9405151Z [36;1m# DNS guard — the 2026-11-11 v0.6.27 boot tests hung 45 min inside[0m
+2026-11-17T17:56:23.9405585Z [36;1m# apt on the runner's stub resolver (the same drift that broke the[0m
+2026-11-17T17:56:23.9406009Z [36;1m# ISO build container). Break the stub symlink, pin the two public[0m
+2026-11-17T17:56:23.9406470Z [36;1m# resolvers, and give apt hard retries with an index verdict.[0m
+2026-11-17T17:56:23.9406890Z [36;1msudo rm -f /etc/resolv.conf[0m
+2026-11-17T17:56:23.9407266Z [36;1mprintf "nameserver 1.1.1.1\nnameserver 8.8.8.8\n" | sudo tee /etc/resolv.conf >/dev/null[0m
+2026-11-17T17:56:23.9407718Z [36;1mfor attempt in 1 2 3; do[0m
+2026-11-17T17:56:23.9408032Z [36;1m  sudo apt-get update -qq || true[0m
+2026-11-17T17:56:23.9408375Z [36;1m  apt-cache show qemu-system-x86 >/dev/null 2>&1 && break[0m
+2026-11-17T17:56:23.9408877Z [36;1m  echo "archive indexes unavailable (attempt $attempt), retrying in 10 s"[0m
+2026-11-17T17:56:23.9409233Z [36;1m  sleep 10[0m
+2026-11-17T17:56:23.9409495Z [36;1m  [ "$attempt" = 3 ] && exit 1[0m
+2026-11-17T17:56:23.9409759Z [36;1mdone[0m
+2026-11-17T17:56:23.9410322Z [36;1msudo apt-get install -y -qq qemu-system-x86 ovmf >/dev/null[0m
+2026-11-17T17:56:23.9410686Z [36;1mqemu-system-x86_64 --version | head -1[0m
+2026-11-17T17:56:23.9411038Z [36;1mls -la /usr/share/OVMF/OVMF_CODE.fd || echo "no OVMF_CODE.fd"[0m
+2026-11-17T17:56:23.9411463Z [36;1m# KVM exists on public-repo runners but is often root-only; make it[0m
+2026-11-17T17:56:23.9412115Z [36;1m# usable so the boot runs in minutes instead of ~30. The capture[0m
+2026-11-17T17:56:23.9412535Z [36;1m# script still falls back to TCG automatically if this fails.[0m
+2026-11-17T17:56:23.9412891Z [36;1msudo chmod 666 /dev/kvm 2>/dev/null || true[0m
+2026-11-17T17:56:23.9413254Z [36;1mls -la /dev/kvm || echo "no /dev/kvm — TCG fallback"[0m
+2026-11-17T17:56:23.9413606Z [36;1mpip install -q pillow pycdlib[0m
+2026-11-17T17:56:23.9429222Z shell: /usr/bin/bash -e {0}
+2026-11-17T17:56:23.9429549Z ##[endgroup]
+2026-11-17T17:57:03.4109435Z 
+2026-11-17T17:57:03.4110793Z Running kernel seems to be up-to-date.
+2026-11-17T17:57:03.4111544Z 
+2026-11-17T17:57:03.4112412Z Restarting services...
+2026-11-17T17:57:03.4177360Z 
+2026-11-17T17:57:03.4177955Z Service restarts being deferred:
+2026-11-17T17:57:03.4183001Z  systemctl restart hosted-compute-agent.service
+2026-11-17T17:57:03.4183381Z 
+2026-11-17T17:57:03.4183526Z No containers need to be restarted.
+2026-11-17T17:57:03.4183779Z 
+2026-11-17T17:57:03.4184078Z No user sessions are running outdated binaries.
+2026-11-17T17:57:03.4184411Z 
+2026-11-17T17:57:03.4184675Z No VM guests are running outdated hypervisor (qemu) binaries on this host.
+2026-11-17T17:57:04.1683596Z QEMU emulator version 10.2.1 (Debian 1:10.2.1+ds-1ubuntu3.3)
+2026-11-17T17:57:04.1710543Z ls: cannot access '/usr/share/OVMF/OVMF_CODE.fd': No such file or directory
+2026-11-17T17:57:04.1712377Z no OVMF_CODE.fd
+2026-11-17T17:57:04.1795124Z crw-rw-rw- 1 root kvm 10, 232 Nov 17 17:55 /dev/kvm
+2026-11-17T17:57:07.6927414Z ##[group]Run TAG="v0.6.70"; VER="${TAG#v}"
+2026-11-17T17:57:07.6927780Z [36;1mTAG="v0.6.70"; VER="${TAG#v}"[0m
+2026-11-17T17:57:07.6928185Z [36;1mBASE="https://github.com/abdul-mateen-14/AEGIS-OS/releases/download/$TAG"[0m
+2026-11-17T17:57:07.6928574Z [36;1mmkdir -p iso && cd iso[0m
+2026-11-17T17:57:07.6928909Z [36;1m# asset downloads occasionally return a challenged/empty body —[0m
+2026-11-17T17:57:07.6929279Z [36;1m# validate every file and retry before trusting it[0m
+2026-11-17T17:57:07.6929714Z [36;1mfor i in 1 2 3; do[0m
+2026-11-17T17:57:07.6930084Z [36;1m  curl -sL --retry 3 -o SHA256SUMS "$BASE/SHA256SUMS"[0m
+2026-11-17T17:57:07.6930448Z [36;1m  grep -qE '^[0-9a-f]{64} ' SHA256SUMS && break[0m
+2026-11-17T17:57:07.6930826Z [36;1m  echo "SHA256SUMS invalid (attempt $i):"; head -c 200 SHA256SUMS; echo; sleep 8[0m
+2026-11-17T17:57:07.6931178Z [36;1mdone[0m
+2026-11-17T17:57:07.6931594Z [36;1mgrep -qE '^[0-9a-f]{64} ' SHA256SUMS || { echo "::error::SHA256SUMS still invalid"; exit 1; }[0m
+2026-11-17T17:57:07.6932161Z [36;1mfor P in part-00 part-01; do[0m
+2026-11-17T17:57:07.6932449Z [36;1m  for i in 1 2 3; do[0m
+2026-11-17T17:57:07.6932760Z [36;1m    curl -sL --retry 3 -O "$BASE/AegisOS-$VER-amd64.iso.$P"[0m
+2026-11-17T17:57:07.6933219Z [36;1m    [ "$(stat -c%s "AegisOS-$VER-amd64.iso.$P" 2>/dev/null || echo 0)" -gt 100000000 ] && break[0m
+2026-11-17T17:57:07.6933638Z [36;1m    echo "part $P too small (attempt $i), retrying"; sleep 8[0m
+2026-11-17T17:57:07.6933937Z [36;1m  done[0m
+2026-11-17T17:57:07.6934281Z [36;1m  [ "$(stat -c%s "AegisOS-$VER-amd64.iso.$P" 2>/dev/null || echo 0)" -gt 100000000 ] \[0m
+2026-11-17T17:57:07.6934677Z [36;1m    || { echo "::error::part $P still incomplete"; exit 1; }[0m
+2026-11-17T17:57:07.6934971Z [36;1mdone[0m
+2026-11-17T17:57:07.6935295Z [36;1mcat "AegisOS-$VER-amd64.iso.part-00" "AegisOS-$VER-amd64.iso.part-01" > AegisOS.iso[0m
+2026-11-17T17:57:07.6935693Z [36;1msha256sum -c SHA256SUMS[0m
+2026-11-17T17:57:07.6953473Z shell: /usr/bin/bash -e {0}
+2026-11-17T17:57:07.6953864Z ##[endgroup]
+2026-11-17T17:58:25.9351565Z AegisOS.iso: OK
+2026-11-17T17:58:25.9464273Z ##[group]Run python3 scripts/boot-capture.py iso/AegisOS.iso screenshots
+2026-11-17T17:58:25.9464978Z [36;1mpython3 scripts/boot-capture.py iso/AegisOS.iso screenshots[0m
+2026-11-17T17:58:25.9486857Z shell: /usr/bin/bash -e {0}
+2026-11-17T17:58:25.9487172Z ##[endgroup]
+2026-11-17T17:58:26.0067210Z [17:58:26] trying gpu=virtio-vga-gl accelerator=-enable-kvm
+2026-11-17T17:58:26.0636841Z [17:58:26] extracted /live/vmlinuz -> vmlinuz (17349000 bytes)
+2026-11-17T17:58:26.2134005Z [17:58:26] extracted /live/initrd.img -> initrd.img (213814822 bytes)
+2026-11-17T17:58:26.2134561Z [17:58:26] booting kernel directly with interactive serial console
+2026-11-17T17:58:26.2137173Z [17:58:26] qemu: qemu-system-x86_64 -enable-kvm -cpu host -m 4096 -smp 4 -device virtio-vga-gl -display none -device qemu-xhci -device usb-tablet -device virtio-net-pci,netdev=n0 -netdev user,id=n0 -cdrom iso/AegisOS.iso -boot d -no-reboot -qmp unix:/tmp/aegis-qmp.sock,server,nowait -chardev socket,id=ser0,path=/tmp/aegis-serial.sock,server=on,wait=off,logfile=serial.log -serial chardev:ser0 -kernel vmlinuz -initrd initrd.img -append boot=live components quiet splash vt.global_cursor_default=0 loglevel=3 hostname=aegis username=aegis autologin console=tty1 console=ttyS0,115200n8 plymouth.ignore-serial-consoles plymouth.debug=stream:/dev/ttyS0 plymouth.debug=file:/run/plymouth-boot-debug.log systemd.journald.forward_to_console=true systemd.show_status=yes
+2026-11-17T17:58:29.2144451Z [17:58:29] qemu exited immediately (rc=1); qemu.log:
+2026-11-17T17:58:29.2145242Z [17:58:29]   | qemu-system-x86_64: -device virtio-vga-gl: The display backend does not have OpenGL support enabled
+2026-11-17T17:58:29.2157178Z [17:58:29]   | It can be enabled with '-display BACKEND,gl=on' where BACKEND is the name of the display backend to use.
+2026-11-17T17:58:29.2157763Z [17:58:29] trying gpu=virtio-vga-gl accelerator=-accel
+2026-11-17T17:58:29.2245247Z [17:58:29] booting kernel directly with interactive serial console
+2026-11-17T17:58:29.2247483Z [17:58:29] qemu: qemu-system-x86_64 -accel tcg,thread=multi -cpu max -m 4096 -smp 4 -device virtio-vga-gl -display none -device qemu-xhci -device usb-tablet -device virtio-net-pci,netdev=n0 -netdev user,id=n0 -cdrom iso/AegisOS.iso -boot d -no-reboot -qmp unix:/tmp/aegis-qmp.sock,server,nowait -chardev socket,id=ser0,path=/tmp/aegis-serial.sock,server=on,wait=off,logfile=serial.log -serial chardev:ser0 -kernel vmlinuz -initrd initrd.img -append boot=live components quiet splash vt.global_cursor_default=0 loglevel=3 hostname=aegis username=aegis autologin console=tty1 console=ttyS0,115200n8 plymouth.ignore-serial-consoles plymouth.debug=stream:/dev/ttyS0 plymouth.debug=file:/run/plymouth-boot-debug.log systemd.journald.forward_to_console=true systemd.show_status=yes
+2026-11-17T17:58:32.2255723Z [17:58:32] qemu exited immediately (rc=1); qemu.log:
+2026-11-17T17:58:32.2256545Z [17:58:32]   | qemu-system-x86_64: -device virtio-vga-gl: The display backend does not have OpenGL support enabled
+2026-11-17T17:58:32.2257369Z [17:58:32]   | It can be enabled with '-display BACKEND,gl=on' where BACKEND is the name of the display backend to use.
+2026-11-17T17:58:32.2258070Z [17:58:32] trying gpu=virtio-vga accelerator=-enable-kvm
+2026-11-17T17:58:32.2348344Z [17:58:32] booting kernel directly with interactive serial console
+2026-11-17T17:58:32.2351003Z [17:58:32] qemu: qemu-system-x86_64 -enable-kvm -cpu host -m 4096 -smp 4 -device virtio-vga -display none -device qemu-xhci -device usb-tablet -device virtio-net-pci,netdev=n0 -netdev user,id=n0 -cdrom iso/AegisOS.iso -boot d -no-reboot -qmp unix:/tmp/aegis-qmp.sock,server,nowait -chardev socket,id=ser0,path=/tmp/aegis-serial.sock,server=on,wait=off,logfile=serial.log -serial chardev:ser0 -kernel vmlinuz -initrd initrd.img -append boot=live components quiet splash vt.global_cursor_default=0 loglevel=3 hostname=aegis username=aegis autologin console=tty1 console=ttyS0,115200n8 plymouth.ignore-serial-consoles plymouth.debug=stream:/dev/ttyS0 plymouth.debug=file:/run/plymouth-boot-debug.log systemd.journald.forward_to_console=true systemd.show_status=yes
+2026-11-17T17:58:35.2356862Z [17:58:35] accelerator in use: -enable-kvm; gpu: virtio-vga
+2026-11-17T17:58:35.2360565Z [17:58:35] QMP connected
+2026-11-17T17:58:35.2897314Z /home/runner/work/AEGIS-OS/AEGIS-OS/scripts/boot-capture.py:131: DeprecationWarning: Image.Image.getdata is deprecated and will be removed in Pillow 14 (2027-10-15). Use get_flattened_data instead.
+2026-11-17T17:58:35.2898596Z   px = list(im.getdata())
+2026-11-17T17:58:35.2976703Z /home/runner/work/AEGIS-OS/AEGIS-OS/scripts/boot-capture.py:1517: DeprecationWarning: Image.Image.getdata is deprecated and will be removed in Pillow 14 (2027-10-15). Use get_flattened_data instead.
+2026-11-17T17:58:35.2977465Z   vals = list(hsv.getdata())
+2026-11-17T17:58:35.3027797Z [17:58:35] boot-00: sat=84.6 val=13.2 dock-slots=12 t=0s
+2026-11-17T17:58:36.3660962Z [17:58:36] boot-01: sat=84.6 val=13.2 dock-slots=12 t=1s
+2026-11-17T17:58:37.4381465Z [17:58:37] boot-02: sat=84.6 val=13.2 dock-slots=12 t=2s
+2026-11-17T17:58:38.5132974Z [17:58:38] boot-03: sat=84.6 val=13.2 dock-slots=12 t=3s
+2026-11-17T17:58:39.5889442Z [17:58:39] boot-04: sat=84.6 val=13.2 dock-slots=12 t=4s
+2026-11-17T17:58:40.6700044Z [17:58:40] boot-05: sat=84.6 val=13.2 dock-slots=12 t=5s
+2026-11-17T17:58:41.7476229Z [17:58:41] boot-06: sat=84.6 val=13.2 dock-slots=12 t=7s
+2026-11-17T17:58:42.8231589Z [17:58:42] boot-07: sat=84.6 val=13.2 dock-slots=12 t=8s
+2026-11-17T17:58:43.8848039Z [17:58:43] boot-08: sat=84.6 val=13.2 dock-slots=12 t=9s
+2026-11-17T17:58:44.9463522Z [17:58:44] boot-09: sat=84.6 val=13.2 dock-slots=12 t=10s
+2026-11-17T17:58:46.0120624Z [17:58:46] boot-10: sat=84.6 val=13.2 dock-slots=12 t=11s
+2026-11-17T17:58:47.0782307Z [17:58:47] boot-11: sat=84.6 val=13.2 dock-slots=12 t=12s
+2026-11-17T17:58:49.6378846Z [17:58:49] boot-12: sat=84.6 val=13.3 dock-slots=12 t=14s
+2026-11-17T17:58:52.2112831Z [17:58:52] boot-13: sat=84.6 val=13.3 dock-slots=12 t=17s
+2026-11-17T17:58:54.7862492Z [17:58:54] boot-14: sat=84.6 val=13.3 dock-slots=12 t=20s
+2026-11-17T17:58:57.3364367Z [17:58:57] boot-15: sat=0.0 val=0.7 dock-slots=0 t=22s
+2026-11-17T17:58:59.8770523Z [17:58:59] boot-16: sat=0.0 val=0.7 dock-slots=0 t=25s
+2026-11-17T17:59:02.4143416Z [17:59:02] boot-17: sat=0.0 val=0.0 dock-slots=0 t=27s
+2026-11-17T17:59:04.9521493Z [17:59:04] boot-18: sat=0.0 val=0.0 dock-slots=0 t=30s
+2026-11-17T17:59:07.4897769Z [17:59:07] boot-19: sat=0.0 val=0.0 dock-slots=0 t=32s
+2026-11-17T17:59:10.0262807Z [17:59:10] boot-20: sat=0.0 val=0.0 dock-slots=0 t=35s
+2026-11-17T17:59:12.5633407Z [17:59:12] boot-21: sat=0.0 val=0.0 dock-slots=0 t=37s
+2026-11-17T17:59:15.1003849Z [17:59:15] boot-22: sat=0.0 val=0.0 dock-slots=0 t=40s
+2026-11-17T17:59:17.6376785Z [17:59:17] boot-23: sat=0.0 val=0.0 dock-slots=0 t=42s
+2026-11-17T17:59:20.1746860Z [17:59:20] boot-24: sat=0.0 val=0.0 dock-slots=0 t=45s
+2026-11-17T17:59:22.7124548Z [17:59:22] boot-25: sat=0.0 val=0.0 dock-slots=0 t=47s
+2026-11-17T17:59:42.7502134Z [17:59:42] boot-26: sat=0.0 val=0.0 dock-slots=0 t=68s
+2026-11-17T18:00:02.7875076Z [18:00:02] boot-27: sat=0.0 val=0.0 dock-slots=0 t=88s
+2026-11-17T18:00:22.8250069Z [18:00:22] boot-28: sat=0.0 val=0.0 dock-slots=0 t=108s
+2026-11-17T18:00:42.8625522Z [18:00:42] boot-29: sat=0.0 val=0.0 dock-slots=0 t=128s
+2026-11-17T18:01:02.8995986Z [18:01:02] boot-30: sat=0.0 val=0.0 dock-slots=0 t=148s
+2026-11-17T18:01:22.9377464Z [18:01:22] boot-31: sat=0.0 val=0.0 dock-slots=0 t=168s
+2026-11-17T18:01:42.9750254Z [18:01:42] boot-32: sat=0.0 val=0.0 dock-slots=0 t=188s
+2026-11-17T18:02:03.0118335Z [18:02:03] boot-33: sat=0.0 val=0.0 dock-slots=0 t=208s
+2026-11-17T18:02:23.0486504Z [18:02:23] boot-34: sat=0.0 val=0.0 dock-slots=0 t=228s
+2026-11-17T18:02:43.0856367Z [18:02:43] boot-35: sat=0.0 val=0.0 dock-slots=0 t=248s
+2026-11-17T18:03:03.1225499Z [18:03:03] boot-36: sat=0.0 val=0.0 dock-slots=0 t=268s
+2026-11-17T18:03:23.1590857Z [18:03:23] boot-37: sat=0.0 val=0.0 dock-slots=0 t=288s
+2026-11-17T18:03:43.1959113Z [18:03:43] boot-38: sat=0.0 val=0.0 dock-slots=0 t=308s
+2026-11-17T18:04:03.2324218Z [18:04:03] boot-39: sat=0.0 val=0.0 dock-slots=0 t=328s
+2026-11-17T18:04:23.2692712Z [18:04:23] boot-40: sat=0.0 val=0.0 dock-slots=0 t=348s
+2026-11-17T18:04:43.3058161Z [18:04:43] boot-41: sat=0.0 val=0.0 dock-slots=0 t=368s
+2026-11-17T18:05:03.3430393Z [18:05:03] boot-42: sat=0.0 val=0.0 dock-slots=0 t=388s
+2026-11-17T18:05:23.3802689Z [18:05:23] boot-43: sat=0.0 val=0.0 dock-slots=0 t=408s
+2026-11-17T18:05:43.4173949Z [18:05:43] boot-44: sat=0.0 val=0.0 dock-slots=0 t=428s
+2026-11-17T18:06:03.4548264Z [18:06:03] boot-45: sat=0.0 val=0.0 dock-slots=0 t=448s
+2026-11-17T18:06:23.4915587Z [18:06:23] boot-46: sat=0.0 val=0.0 dock-slots=0 t=468s
+2026-11-17T18:06:43.5283294Z [18:06:43] boot-47: sat=0.0 val=0.0 dock-slots=0 t=488s
+2026-11-17T18:07:03.5660368Z [18:07:03] boot-48: sat=0.0 val=0.0 dock-slots=0 t=508s
+2026-11-17T18:07:23.6036510Z [18:07:23] boot-49: sat=0.0 val=0.0 dock-slots=0 t=528s
+2026-11-17T18:07:43.6409004Z [18:07:43] boot-50: sat=0.0 val=0.0 dock-slots=0 t=548s
+2026-11-17T18:08:03.6781149Z [18:08:03] boot-51: sat=0.0 val=0.0 dock-slots=0 t=568s
+2026-11-17T18:08:23.7152381Z [18:08:23] boot-52: sat=0.0 val=0.0 dock-slots=0 t=588s
+2026-11-17T18:08:43.7521656Z [18:08:43] boot-53: sat=0.0 val=0.0 dock-slots=0 t=609s
+2026-11-17T18:09:03.7888792Z [18:09:03] boot-54: sat=0.0 val=0.0 dock-slots=0 t=629s
+2026-11-17T18:09:23.8258138Z [18:09:23] boot-55: sat=0.0 val=0.0 dock-slots=0 t=649s
+2026-11-17T18:09:43.8629780Z [18:09:43] boot-56: sat=0.0 val=0.0 dock-slots=0 t=669s
+2026-11-17T18:10:03.9006142Z [18:10:03] boot-57: sat=0.0 val=0.0 dock-slots=0 t=689s
+2026-11-17T18:10:23.9370051Z [18:10:23] boot-58: sat=0.0 val=0.0 dock-slots=0 t=709s
+2026-11-17T18:10:43.9738612Z [18:10:43] boot-59: sat=0.0 val=0.0 dock-slots=0 t=729s
+2026-11-17T18:11:04.0108840Z [18:11:04] boot-60: sat=0.0 val=0.0 dock-slots=0 t=749s
+2026-11-17T18:11:24.0481314Z [18:11:24] boot-61: sat=0.0 val=0.0 dock-slots=0 t=769s
+2026-11-17T18:11:44.0849611Z [18:11:44] boot-62: sat=0.0 val=0.0 dock-slots=0 t=789s
+2026-11-17T18:12:04.1219110Z [18:12:04] boot-63: sat=0.0 val=0.0 dock-slots=0 t=809s
+2026-11-17T18:12:24.1587579Z [18:12:24] boot-64: sat=0.0 val=0.0 dock-slots=0 t=829s
+2026-11-17T18:12:44.1962256Z [18:12:44] boot-65: sat=0.0 val=0.0 dock-slots=0 t=849s
+2026-11-17T18:13:04.2338155Z [18:13:04] boot-66: sat=0.0 val=0.0 dock-slots=0 t=869s
+2026-11-17T18:13:24.2711929Z [18:13:24] boot-67: sat=0.0 val=0.0 dock-slots=0 t=889s
+2026-11-17T18:13:44.3087050Z [18:13:44] boot-68: sat=0.0 val=0.0 dock-slots=0 t=909s
+2026-11-17T18:14:04.3461355Z [18:14:04] boot-69: sat=0.0 val=0.0 dock-slots=0 t=929s
+2026-11-17T18:14:24.3834462Z [18:14:24] boot-70: sat=0.0 val=0.0 dock-slots=0 t=949s
+2026-11-17T18:14:44.4201012Z [18:14:44] boot-71: sat=0.0 val=0.0 dock-slots=0 t=969s
+2026-11-17T18:15:04.4574369Z [18:15:04] boot-72: sat=0.0 val=0.0 dock-slots=0 t=989s
+2026-11-17T18:15:24.4943234Z [18:15:24] boot-73: sat=0.0 val=0.0 dock-slots=0 t=1009s
+2026-11-17T18:15:44.5316149Z [18:15:44] boot-74: sat=0.0 val=0.0 dock-slots=0 t=1029s
+2026-11-17T18:16:04.5697303Z [18:16:04] boot-75: sat=0.0 val=0.0 dock-slots=0 t=1049s
+2026-11-17T18:16:24.6071601Z [18:16:24] boot-76: sat=0.0 val=0.0 dock-slots=0 t=1069s
+2026-11-17T18:16:44.6445540Z [18:16:44] boot-77: sat=0.0 val=0.0 dock-slots=0 t=1089s
+2026-11-17T18:17:04.6824550Z [18:17:04] boot-78: sat=0.0 val=0.0 dock-slots=0 t=1109s
+2026-11-17T18:17:24.7200366Z [18:17:24] boot-79: sat=0.0 val=0.0 dock-slots=0 t=1129s
+2026-11-17T18:17:44.7572165Z [18:17:44] boot-80: sat=0.0 val=0.0 dock-slots=0 t=1150s
+2026-11-17T18:18:04.7942386Z [18:18:04] boot-81: sat=0.0 val=0.0 dock-slots=0 t=1170s
+2026-11-17T18:18:24.8319987Z [18:18:24] boot-82: sat=0.0 val=0.0 dock-slots=0 t=1190s
+2026-11-17T18:18:44.8323457Z [18:18:44] desktop did not appear — opening the serial console
+2026-11-17T18:19:14.5294625Z [18:19:14] serial login OK
+2026-11-17T18:19:18.5655358Z [18:19:18] serial-diag: ===TARGET===
+2026-11-17T18:19:18.5656208Z  | graphical.target
+2026-11-17T18:19:18.5656503Z  | active
+2026-11-17T18:19:18.5657401Z  | active
+2026-11-17T18:19:18.5657655Z  | aegis@aegis:~$
+2026-11-17T18:19:22.6295200Z [18:19:22] serial-diag: ===SDDMCONF===
+2026-11-17T18:19:22.6295567Z  | [Autologin]
+2026-11-17T18:19:22.6295812Z  | User=aegis
+2026-11-17T18:19:22.6296380Z  | ---
+2026-11-17T18:19:22.6296639Z  | total 0
+2026-11-17T18:19:22.6297183Z  | drwxr-xr-x 2 root root  97 Nov 17 16:54 .
+2026-11-17T18:19:22.6297513Z  | drwxr-xr-x 1 root root 660 Nov 17 17:58 ..
+2026-11-17T18:19:22.6297959Z  | -rw-r--r-- 1 root root 331 Apr 12  2026 50-ubuntu-budgie.conf
+2026-11-17T18:19:22.6298451Z  | -rw-r--r-- 1 root root 211 Nov 17 16:54 zz-aegis-live.conf
+2026-11-17T18:19:22.6298851Z  | -rw-r--r-- 1 root root 205 Nov 17 16:54 zz-aegis-theme.conf
+2026-11-17T18:19:22.6299204Z  | [Theme]
+2026-11-17T18:19:22.6299462Z  | Current=ubuntu-budgie-login
+2026-11-17T18:19:22.6299760Z  | ThemeDir=/us
+2026-11-17T18:19:26.7084093Z [18:19:26] serial-diag: ===SDDMLOG===
+2026-11-17T18:19:26.7084677Z  | [ 1249.860619] sudo[1464]: pam_unix(sudo:session): session opened for user root(uid=0) by aegis(uid=1000)
+2026-11-17T18:19:26.7088118Z  | [ 1249.861532] sudo[1464]: aegis : TTY=/dev/ttyS0 ; *** ; USER=root ; COMMAND=/usr/bin/journalctl -u sddm -b --no-pager
+2026-11-17T18:19:26.7088792Z  | [ 1249.869569] sudo[1464]: pam_unix(sudo:session): session closed for user root
+2026-11-17T18:19:26.7089497Z  | Nov 17 17:58:54 aegis systemd[1]: Starting sddm.service 
+2026-11-17T18:19:30.7825507Z [18:19:30] serial-diag: ===SESSIONLOG===
+2026-11-17T18:19:30.7826312Z  | [ 1253.942542] sudo[1472]: pam_unix(sudo:session): session opened for user root(uid=0) by aegis(uid=1000)
+2026-11-17T18:19:30.7829715Z  | [ 1253.943445] sudo[1472]: aegis : TTY=/dev/ttyS0 ; *** ; USER=root ; COMMAND=/usr/bin/journalctl -b --no-pager
+2026-11-17T18:19:30.7830490Z  | [ 1253.955354] sudo[1472]: pam_unix(sudo:session): session closed for user root
+2026-11-17T18:19:30.7831046Z  | Nov 17 17:58:55 aegis sddm[1130]: Session "/usr/share/wayland
+2026-11-17T18:19:34.8833779Z [18:19:34] serial-diag: ===KWIN===
+2026-11-17T18:19:34.8834303Z  | -rwxr-xr-x  1 root root  511792 Nov 14 09:20 /usr/bin/aegis-shell
+2026-11-17T18:19:34.8834959Z  | -rwxr-xr-x+ 1 root root 1489832 Nov  5 10:57 /usr/bin/kwin_wayland
+2026-11-17T18:19:34.8835600Z  | [ 1258.027398] sudo[1482]: pam_unix(sudo:session): session opened for user aegis(uid=1000) by aegis(uid=1000)
+2026-11-17T18:19:34.8836812Z  | [ 1258.028291] sudo[1482]: aegis : TTY=/dev/ttyS0 ; *** ; USER=aegis ; COMMAND=/usr/bin/kwin_wayland --version
+2026-11-17T18:19:34.8837873Z  | [ 1258.0
+2026-11-17T18:19:38.9714166Z [18:19:38] serial-diag: ===KWINRUN===
+2026-11-17T18:19:38.9714638Z  | total 0
+2026-11-17T18:19:38.9714965Z  | drwxr-xr-x   3 root root        100 Nov 17 17:58 .
+2026-11-17T18:19:38.9715425Z  | drwxr-xr-x  19 root root       4020 Nov 17 17:58 ..
+2026-11-17T18:19:38.9715853Z  | drwxr-xr-x   2 root root         80 Nov 17 17:58 by-path
+2026-11-17T18:19:38.9716305Z  | crw-rw----+  1 root video  226,   0 Nov 17 17:58 card0
+2026-11-17T18:19:38.9716799Z  | crw-rw----+  1 root render 226, 128 Nov 17 17:58 renderD128
+2026-11-17T18:19:38.9717172Z  | #!/bin/sh
+2026-11-17T18:19:38.9717581Z  | # wayland-session - run as user
+2026-11-17T18:19:38.9717932Z  | 
+2026-11-17T18:19:38.9718198Z  | # Note that the respective log
+2026-11-17T18:19:43.0840941Z [18:19:43] serial-diag: ===KWINTEST===
+2026-11-17T18:19:43.0843216Z  | [ 1266.207490] sudo[1497]: pam_unix(sudo:session): session opened for user aegis(uid=1000) by aegis(uid=1000) | [ 1266.207941] sudo[1497]: aegis : TTY=/dev/ttyS0 ; *** ; USER=aegis ; COMMAND=/usr/bin/sh -c export XDG_RUNTIME_DIR=/run/user/1000; timeout 8 kwin_wayland --xwayland 2>&1 | head -25 | No backend specified, automatically choosing drm
+2026-11-17T18:19:43.0844520Z  | Accepting client conn
+2026-11-17T18:19:47.1565554Z [18:19:47] serial-diag: ===SESSLOG===
+2026-11-17T18:19:47.1566272Z  | === aegis-session start Tue Nov 17 05:58:55 PM UTC 2026 uid=1000 seat=seat0 vt=2 XDG_RUNTIME_DIR=/run/user/1000 ===
+2026-11-17T18:19:47.1567106Z  | kwin started pid=1199
+2026-11-17T18:19:47.1567971Z  | No backend specified, automatically choosing drm
+2026-11-17T18:19:47.1568488Z  | Accepting client connections on sockets: QList("wayland-0")
+2026-11-17T18:19:47.1569198Z  | socket_ok=1; runtime dir: bus dbus-1 dconf doc gnupg openssh_agent pipewire-0 pipewire-0-manager pipewire-0-manager.lock pip
+2026-11-17T18:19:51.2417287Z [18:19:51] serial-diag: ===DRMSEAT===
+2026-11-17T18:19:51.2418097Z  | [ 1274.389797] systemd[1]: Starting sddm-backgrounds-cache.service - Update SDDM user backgrounds cache from AccountsService...
+2026-11-17T18:19:51.2418878Z  | [ 1274.395358] sudo[1515]: pam_unix(sudo:session): session opened for user root(uid=0) by aegis(uid=1000)
+2026-11-17T18:19:51.2419941Z  | [ 1274.398550] sudo[1515]: aegis : TTY=/dev/ttyS0 ; *** ; USER=root ; COMMAND=/usr/bin/udevadm info /dev/dri/card0
+2026-11-17T18:19:51.2420375Z  | [ 1274.402038
+2026-11-17T18:19:55.2944831Z [18:19:55] serial-diag: ===LDD===
+2026-11-17T18:19:55.2945272Z  | LDD-DONE
+2026-11-17T18:19:55.2945699Z  | aegis@aegis:~$
+2026-11-17T18:19:59.3555449Z [18:19:59] serial-diag: ===SDDMDOTLOG===
+2026-11-17T18:19:59.3559471Z  | [ 1282.525419] sudo[1549]: pam_unix(sudo:session): session opened for user root(uid=0) by aegis(uid=1000) | [ 1282.528147] sudo[1549]: aegis : TTY=/dev/ttyS0 ; *** ; USER=root ; COMMAND=/usr/bin/tail -40 /var/log/sddm.log | [ 1282.531326] sudo[1549]: pam_unix(sudo:session): session closed for user root
+2026-11-17T18:19:59.3560646Z  | [ 1282.537915] sudo[1553]: pam_unix(sudo:session): session op
+2026-11-17T18:20:03.3966791Z [18:20:03] serial-diag: ===FAILED===
+2026-11-17T18:20:03.3967334Z  |   UNIT                    LOAD   ACTIVE SUB    DESCRIPTION
+2026-11-17T18:20:03.3968913Z  | ● aegis-drivers.service   loaded failed failed Aegis first-boot GPU driver enablement (NVIDIA via ubuntu-drivers)
+2026-11-17T18:20:03.3969757Z  | ● casper-md5check.service loaded failed failed casper-md5check Verify Live ISO checksums
+2026-11-17T18:20:03.3970264Z  | 
+2026-11-17T18:20:03.3970766Z  | Legend: LOAD   → Reflects whether the unit definition was properly loaded.
+2026-11-17T18:20:03.3971283Z  |         ACTIVE → The high-level
+2026-11-17T18:20:07.4315141Z [18:20:07] serial-diag: ===SESS===
+2026-11-17T18:20:07.4315688Z  | SESSION  UID USER  SEAT  LEADER CLASS   TTY   IDLE SINCE
+2026-11-17T18:20:07.4316786Z  |       1 1000 aegis seat0 1139   user    tty2  no   [0;38:5:245m-    
+2026-11-17T18:20:07.4317430Z  |       2 1000 aegis [0;38:5:245m-     1143   manager [0;38:5:245m-     no   [0;38:5:245m-    
+2026-11-17T18:20:07.4318609Z  |       3 1000 aegis [0;38:5:245m-     1113   user    ttyS0 no   [0;38:5:245m-    
+2026-11-17T18:20:07.4319038Z  | 
+2026-11-17T18:20:07.4319283Z  | 3 sessions listed.
+2026-11-17T18:20:07.4319615Z  | aegis.desktop  plasma.desktop
+2026-11-17T18:20:07.4320003Z  | aegis@aeg
+2026-11-17T18:20:11.4983694Z [18:20:11] serial-diag: ===PROCS===
+2026-11-17T18:20:11.4984193Z  | avahi        903  0.0  0.1   6696  4564 ?        Ss   17:58   0:00 avahi-daemon: running [aegis.local]
+2026-11-17T18:20:11.4984862Z  | root        1113  0.0  0.1  11832  5904 ?        Ss   17:58   0:00 login -- aegis
+2026-11-17T18:20:11.4985261Z  | root        1130  0.0  0.7 165888 29436 ?        Ssl  17:58   0:00 /usr/bin/sddm
+2026-11-17T18:20:11.4985773Z  | aegis       1143  0.0  0.3  22760 13604 ?        Ss   17:58   0:00 /usr/lib/systemd/systemd --user
+2026-11-17T18:20:11.4986221Z  | aegis   
+2026-11-17T18:20:11.4986471Z [18:20:11] attempting live recovery over serial
+2026-11-17T18:20:20.7208034Z [18:20:20] recovery: [ 1298.731414] sudo[1576]: pam_unix(sudo:session): session opened for user root(uid=0) by aegis(uid=1000) | [ 1298.731995] sudo[1576]: aegis : TTY=/dev/ttyS0 ; *** ; USER=root ; COMMAND=/usr/bin/sed -i /^Session=[[:space:]]*$/d /etc/sddm.conf | [ 1298.739838] sudo[1576]: pam_unix(sudo:se
+2026-11-17T18:20:40.7777377Z [18:20:40] recover-0: sat=82.6 val=144.4 dock-slots=10
+2026-11-17T18:20:40.7778090Z [18:20:40] recovery worked — desktop is up
+2026-11-17T18:20:53.3178936Z /home/runner/work/AEGIS-OS/AEGIS-OS/scripts/boot-capture.py:1681: DeprecationWarning: Image.Image.getdata is deprecated and will be removed in Pillow 14 (2027-10-15). Use get_flattened_data instead.
+2026-11-17T18:20:53.4101436Z   px = list(im.getdata())
+2026-11-17T18:20:53.4102267Z [18:20:53] resolution 1280x800; dock slots: 12 (geometric)
+2026-11-17T18:20:59.4462913Z [18:20:59] serial login OK — seeding review fixtures
+2026-11-17T18:21:03.4974484Z [18:21:03] seed report.pdf: ok
+2026-11-17T18:21:05.5260808Z [18:21:05] seed photo.png: ok
+2026-11-17T18:21:07.5494644Z [18:21:07] seed archive.zip: ok
+2026-11-17T18:21:09.5736985Z [18:21:09] seed track.mp3: ok
+2026-11-17T18:21:11.5974730Z [18:21:11] seed notes.txt: ok
+2026-11-17T18:21:17.6402991Z [18:21:17] home: Desktop Downloads Pictures Templates archive.zip photo.png track.mp3 Documents Music Public Videos notes.txt report.pdf aegis@aegis:~$
+2026-11-17T18:21:32.9995891Z [18:21:32] click map rebuild failed (Coordinate 'right' is less than 'left') — keeping config map
+2026-11-17T18:21:43.1789927Z [18:21:43] plymouth boot debug: 7:watch_for_u: watching for udev graphics device and input device add and remove events
+2026-11-17T18:21:43.1790893Z  | 00:00:00.817 ../src/libply-splash-core/ply-device-manager.c:456:create_devi: Not creating devices for subsystem input because there is no configure XKB layout
+2026-11-17T18:21:43.1791698Z  | 00:00:00.817 ../src/libply-splash-core/ply-device-manager.c:461:create_devi: creating objects for drm devices
+2026-11-17T18:21:43.1792608Z  | 00:00:00.817 ../src/libply-splash-core/ply-device-manager.c:482:create_devi: found device /sys/devices/pci0000:00/0000:00:02.0/drm/card0
+2026-11-17T18:21:43.1793227Z  | 00:00:00.818 ../src/libply-splash-core/ply-device-manager.c:490:create_devi: device is initialized 1
+2026-11-17T18:21:43.1793824Z  | 00:00:00.818 ../src/libply-splash-core/ply-device-manager.c:494:create_devi: found node /dev/dri/card0
+2026-11-17T18:21:43.1794353Z  | 00:00:00.818 ../src/libply-splash-core/ply-device-manager.c:379:create_devi: device subsystem is drm
+2026-11-17T18:21:43.1794900Z  | 00:00:00.818 ../src/libply-splash-core/ply-device-manager.c:391:create_devi: found DRM device /dev/dri/card0
+2026-11-17T18:21:43.1795559Z  | 00:00:00.818 ../src/libply-splash-core/ply-device-manager.c:1111:create_dev: creating devices for /dev/dri/card0 (renderer type: 1) (terminal: /dev/tty1)
+2026-11-17T18:21:43.1796316Z  | 00:00:00.818 ../src/libply-splash-core/ply-renderer.c:247:ply_renderer_open: trying to open renderer plugin /usr/lib/x86_64-linux-gnu/plymouth/renderers/drm.so
+2026-11-17T18:21:43.1797450Z  | 00:00:00.818 ../src/plugins/renderers/drm/plugin.c:896:create_backend      : creating renderer backend for device /dev/dri/card0
+2026-11-17T18:21:43.1797969Z  | [ 1380.368170] sudo[3356]: pam_unix(sudo:session): session closed for user root
+2026-11-17T18:21:43.1798303Z  | BOOT-DEBUG-READ
+2026-11-17T18:21:43.1798530Z  | aegis@aegis:~$
+2026-11-17T18:21:55.1913387Z [18:21:55] 01c-launcher-shortcut: diff-vs-home=0.0 (Meta+Space via the aegis-shortcuts script)
+2026-11-17T18:22:04.8338106Z [18:22:04] window-state payload unparseable (Expecting value: line 1 column 1 (char 0)): raw[:140]='Call failed: The name org.aegis.Shell was not provided by any .service files'
+2026-11-17T18:22:08.8916551Z [18:22:08] 02-files: dbus launch -> proc//environ: No such file or directory
+2026-11-17T18:22:08.8917072Z  | Failed to connect to user scope bus via local transport: Connection refused
+2026-11-17T18:22:08.8918218Z 
+2026-11-17T18:22:08.8918383Z  | LAUNCH-02-files-OK
+2026-11-17T18:22:08.8918621Z  | aegis@aegis:~$
+2026-11-17T18:22:33.9378066Z [18:22:33] 02-files: diff-vs-home=0.0 dock-slots=10
+2026-11-17T18:22:35.9625387Z [18:22:35] 02-files: liveness: no process alive
+2026-11-17T18:22:35.9627402Z [18:22:35] 02-files attempt 1: screen looks unchanged, retrying
+2026-11-17T18:22:42.0196734Z [18:22:42] 02-files: dbus launch -> proc//environ: No such file or directory
+2026-11-17T18:22:42.0197242Z  | Failed to connect to user scope bus via local transport: Connection refused
+2026-11-17T18:22:42.0197776Z 
+2026-11-17T18:22:42.0198313Z  | LAUNCH-02-files-OK
+2026-11-17T18:22:42.0198555Z  | aegis@aegis:~$
+2026-11-17T18:23:07.0655446Z [18:23:07] 02-files: diff-vs-home=0.0 dock-slots=10
+2026-11-17T18:23:09.0931456Z [18:23:09] 02-files: liveness: no process alive
+2026-11-17T18:23:09.0932341Z [18:23:09] 02-files attempt 2: screen looks unchanged, retrying
+2026-11-17T18:23:15.1558119Z [18:23:15] 03-terminal: dbus launch -> c//environ: No such file or directory
+2026-11-17T18:23:15.1558718Z  | Failed to connect to user scope bus via local transport: Connection refused
+2026-11-17T18:23:15.1558995Z 
+2026-11-17T18:23:15.1559080Z  | LAUNCH-03-terminal-OK
+2026-11-17T18:23:15.1559687Z  | aegis@aegis:~$
+2026-11-17T18:23:33.2018704Z [18:23:33] 03-terminal: diff-vs-home=0.0 dock-slots=10
+2026-11-17T18:23:35.2288256Z [18:23:35] 03-terminal: liveness: no process alive
+2026-11-17T18:23:35.2289376Z [18:23:35] 03-terminal attempt 1: screen looks unchanged, retrying
+2026-11-17T18:23:41.2866683Z [18:23:41] 03-terminal: dbus launch -> c//environ: No such file or directory
+2026-11-17T18:23:41.2867417Z  | Failed to connect to user scope bus via local transport: Connection refused
+2026-11-17T18:23:41.2867686Z 
+2026-11-17T18:23:41.2867783Z  | LAUNCH-03-terminal-OK
+2026-11-17T18:23:41.2868008Z  | aegis@aegis:~$
+2026-11-17T18:23:59.3348489Z [18:23:59] 03-terminal: diff-vs-home=0.0 dock-slots=10
+2026-11-17T18:24:01.3594767Z [18:24:01] 03-terminal: liveness: no process alive
+2026-11-17T18:24:01.3595319Z [18:24:01] 03-terminal attempt 2: screen looks unchanged, retrying
+2026-11-17T18:24:07.4196422Z [18:24:07] 04-settings: dbus launch -> c//environ: No such file or directory
+2026-11-17T18:24:07.4196975Z  | Failed to connect to user scope bus via local transport: Connection refused
+2026-11-17T18:24:07.4197248Z 
+2026-11-17T18:24:07.4197595Z  | LAUNCH-04-settings-OK
+2026-11-17T18:24:07.4197888Z  | aegis@aegis:~$
+2026-11-17T18:24:37.4650808Z [18:24:37] 04-settings: diff-vs-home=0.0 dock-slots=10
+2026-11-17T18:24:39.4944659Z [18:24:39] 04-settings: liveness: no process alive
+2026-11-17T18:24:39.4945588Z [18:24:39] 04-settings attempt 1: screen looks unchanged, retrying
+2026-11-17T18:24:45.5533162Z [18:24:45] 04-settings: dbus launch -> c//environ: No such file or directory
+2026-11-17T18:24:45.5534497Z  | Failed to connect to user scope bus via local transport: Connection refused
+2026-11-17T18:24:45.5534823Z 
+2026-11-17T18:24:45.5535036Z  | LAUNCH-04-settings-OK
+2026-11-17T18:24:45.5535696Z  | aegis@aegis:~$
+2026-11-17T18:25:15.5992479Z [18:25:15] 04-settings: diff-vs-home=0.0 dock-slots=10
+2026-11-17T18:25:17.6374971Z [18:25:17] 04-settings: liveness: no process alive
+2026-11-17T18:25:17.6376809Z [18:25:17] 04-settings attempt 2: screen looks unchanged, retrying
+2026-11-17T18:25:19.6557637Z [18:25:19] header assert: no window hairline in files capture
+2026-11-17T18:25:19.6794584Z ##[error]Process completed with exit code 1.
+2026-11-17T18:25:19.6871345Z ##[group]Run actions/upload-artifact@v4
+2026-11-17T18:25:19.6871607Z with:
+2026-11-17T18:25:19.6872047Z   name: boot-test-v0.6.70
+2026-11-17T18:25:19.6872503Z   path: screenshots/**
+screenshots-vmware/**
+screenshots-isobios/**
+screenshots-isouefi/**
+serial.log
+serial-diag.txt
+qemu.log
+
+2026-11-17T18:25:19.6873010Z   retention-days: 90
+2026-11-17T18:25:19.6873258Z   if-no-files-found: warn
+2026-11-17T18:25:19.6873478Z   compression-level: 6
+2026-11-17T18:25:19.6873732Z   overwrite: false
+2026-11-17T18:25:19.6873957Z   include-hidden-files: false
+2026-11-17T18:25:19.6874214Z ##[endgroup]
+2026-11-17T18:25:19.8182711Z (node:3879) [DEP0040] DeprecationWarning: The `punycode` module is deprecated. Please use a userland alternative instead.
+2026-11-17T18:25:19.8183330Z (Use `node --trace-deprecation ...` to show where the warning was created)
+2026-11-17T18:25:19.8351146Z Multiple search paths detected. Calculating the least common ancestor of all paths
+2026-11-17T18:25:19.8353734Z The least common ancestor is /home/runner/work/AEGIS-OS/AEGIS-OS. This will be the root directory of the artifact
+2026-11-17T18:25:19.8354263Z With the provided path, there will be 93 files uploaded
+2026-11-17T18:25:19.8354756Z Artifact name is valid!
+2026-11-17T18:25:19.8355015Z Root directory input is valid!
+2026-11-17T18:25:20.4947333Z Beginning upload of artifact content to blob storage
+2026-11-17T18:25:20.7329458Z (node:3879) [DEP0169] DeprecationWarning: `url.parse()` behavior is not standardized and prone to errors that have security implications. Use the WHATWG URL API instead. CVEs are not issued for `url.parse()` vulnerabilities.
+2026-11-17T18:25:21.6390370Z Uploaded bytes 460644
+2026-11-17T18:25:21.7343582Z Finished uploading artifact content to blob storage!
+2026-11-17T18:25:21.7344487Z SHA256 digest of uploaded artifact zip is cbbd762af06c5705de8f1b920a7d31fdd5020d04d26a3305d9d462df8b55ea4b
+2026-11-17T18:25:21.7345089Z Finalizing artifact upload
+2026-11-17T18:25:22.1875307Z Artifact boot-test-v0.6.70.zip successfully finalized. Artifact ID 14356403765
+2026-11-17T18:25:22.1876197Z Artifact boot-test-v0.6.70 has been successfully uploaded! Final size is 460644 bytes. Artifact ID is 14356403765
+2026-11-17T18:25:22.1881480Z Artifact download URL: https://github.com/abdul-mateen-14/AEGIS-OS/actions/runs/44142355315/artifacts/14356403765
+2026-11-17T18:25:22.2072761Z Post job cleanup.
+2026-11-17T18:25:22.2757888Z [command]/usr/bin/git version
+2026-11-17T18:25:22.2795278Z git version 2.56.1
+2026-11-17T18:25:22.2815271Z Temporarily overriding HOME='/home/runner/work/_temp/84ac27e1-dfb6-4b08-baba-a9f368700efa' before making global git config changes
+2026-11-17T18:25:22.2816432Z Adding repository directory to the temporary git global config as a safe directory
+2026-11-17T18:25:22.2818918Z [command]/usr/bin/git config --global --add safe.directory /home/runner/work/AEGIS-OS/AEGIS-OS
+2026-11-17T18:25:22.2851001Z [command]/usr/bin/git config --local --name-only --get-regexp core\.sshCommand
+2026-11-17T18:25:22.2878544Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'core\.sshCommand' && git config --local --unset-all 'core.sshCommand' || :"
+2026-11-17T18:25:22.3152064Z [command]/usr/bin/git config --local --name-only --get-regexp http\.https\:\/\/github\.com\/\.extraheader
+2026-11-17T18:25:22.3180026Z http.https://github.com/.extraheader
+2026-11-17T18:25:22.3193465Z [command]/usr/bin/git config --local --unset-all http.https://github.com/.extraheader
+2026-11-17T18:25:22.3213217Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'http\.https\:\/\/github\.com\/\.extraheader' && git config --local --unset-all 'http.https://github.com/.extraheader' || :"
+2026-11-17T18:25:22.3414160Z [command]/usr/bin/git config --local --name-only --get-regexp ^includeIf\.gitdir:
+2026-11-17T18:25:22.3435247Z [command]/usr/bin/git submodule foreach --recursive git config --local --show-origin --name-only --get-regexp remote.origin.url
+2026-11-17T18:25:22.3734002Z Cleaning up orphan processes
+2026-11-17T18:25:22.3938977Z Terminate orphan process: pid (3595) (qemu-system-x86_64)
+2026-11-17T18:25:22.4024181Z ##[warning]Node.js 20 is deprecated. The following actions target Node.js 20 but are being forced to run on Node.js 24: actions/checkout@v4, actions/upload-artifact@v4. For more information see: https://github.blog/changelog/2025-09-19-deprecation-of-node-20-on-github-actions-runners/

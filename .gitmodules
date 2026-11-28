@@ -41,3 +41,12 @@ url = https://github.com/cutefishos/calculator.git
 [submodule "desktop/toolkit"]
 	url = https://github.com/cutefishos/cutefish-toolkit.git
 	path = desktop/toolkit
+[submodule "desktop/apps/video-player"]
+	path = desktop/apps/video-player
+	url = https://github.com/cutefishos/video-player.git
+[submodule "desktop/apps/text-editor"]
+	path = desktop/apps/text-editor
+	url = https://github.com/cutefishos/text-editor.git
+[submodule "desktop/apps/system-monitor"]
+	path = desktop/apps/system-monitor
+	url = https://github.com/cutefishos/system-monitor.git

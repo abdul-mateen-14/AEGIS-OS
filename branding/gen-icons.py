@@ -11,11 +11,11 @@ import re, os, sys
 from pathlib import Path
 
 THEME = str(Path(__file__).resolve().parent.parent
-       / "debian-live/config/includes.chroot/usr/share/icons/Aegis")
+       / "branding/icons")
 APPS = f"{THEME}/apps/scalable"
 
-# reference squircle template (identical for all icons)
-REF = open(f"{APPS}/system-file-manager.svg").read()
+# reference squircle template (identical for all icons) — any theme svg works
+REF = open(f"{APPS}/web-browser.svg").read()
 BG_PATH = re.search(r'<path d="(M99\.00[^"]+)" fill="url\(#g\)"/>', REF).group(1)
 HAIR_PATH = re.search(r'<path d="(M98\.40[^"]+)" fill="none" stroke="#ffffff"', REF).group(1)
 
@@ -47,6 +47,10 @@ def svg(gradient_stops, glyph):
             f'{glyph}\n</svg>\n')
 
 # glyph snippets (white primary, url(#g) cutouts) — 100x100 grid, glyph ≈52%
+IDCARD = ('<rect x="24" y="28" width="52" height="44" rx="8" fill="#ffffff"/>\n'
+          ' <circle cx="37.5" cy="42.5" r="5.5" fill="url(#g)"/>\n'
+          ' <path d="M29.5 60.5 q0 -8.5 8 -8.5 t8 8.5 Z" fill="url(#g)"/>\n'
+          ' <path d="M53 41 H69 M53 48 H69 M53 55 H64" fill="none" stroke="url(#g)" stroke-width="4" stroke-linecap="round"/>')
 FOLDER = ('<path d="M26 34 q0 -5 5 -5 h11 l5 5 h22 q5 0 5 5 v4 H26 Z" fill="#ffffff" fill-opacity="0.9"/>\n'
           ' <path d="M26 42 h48 q3 0 3 3 v19 q0 5 -5 5 H31 q-5 0 -5 -5 Z" fill="#ffffff"/>')
 TERMINAL = ('<rect x="26" y="30" width="48" height="40" rx="7" fill="#ffffff"/>\n'
@@ -77,6 +81,7 @@ PHOTOS = ('<rect x="26" y="30" width="48" height="40" rx="7" fill="#ffffff"/>\n'
 
 # per-icon gradient + glyph; None glyph = "recolor accents in existing glyph"
 SPECS = {
+    "aegis-id":            (((0, "#5B8BFF"), (1, "#1D4FEA")), IDCARD),
     "system-file-manager": (((0, "#5B8BFF"), (1, "#1D4FEA")), FOLDER),
     "utilities-terminal":  (((0, "#454C56"), (1, "#191D23")), TERMINAL),
     "preferences-system":  (((0, "#5A636F"), (1, "#2B323B")), GEAR),
@@ -105,6 +110,9 @@ for name, (stops, glyph) in SPECS.items():
 
 for name, accents in RECOLOR.items():
     p = f"{APPS}/{name}.svg"
+    if not os.path.exists(p):  # some theme members ship as PNG only
+        print("skip (png only)", name)
+        continue
     s = open(p).read()
     for a in accents:
         s = s.replace(f'fill="{a}"', 'fill="url(#g)"')

@@ -1,0 +1,15 @@
+Source: aegis-id
+Section: x11
+Priority: optional
+Maintainer: Aegis OS <z@z.ai>
+Build-Depends: debhelper-compat (= 13), cmake, qt6-base-dev, qt6-declarative-dev, qt6-quickcontrols2-dev
+Standards-Version: 4.6.2
+Rules-Requires-Root: no
+
+Package: aegis-id
+Architecture: amd64
+Depends: ${misc:Depends}, ${shlibs:Depends}
+Description: Aegis ID — the identity module of AEGIS OS
+ The device identity card: avatar, device name, user, OS version, and
+ the privacy contract (no telemetry, identity stays local). Aegis-
+ original; shares the aegis-icons theme. Ships in the Settings category.

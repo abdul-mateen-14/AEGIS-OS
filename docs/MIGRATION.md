@@ -60,7 +60,7 @@ That is the architecture:
 | 3.5 (this commit) | the adopted stack as submodules, DEFAULT-APPS manifest, aegis-icons package, the hybrid docs |
 | 4 | per-component packaging: aegis-files first (sets the cmake+sed-rebrand pattern), then terminal/settings/calculator; CI builds them |
 | 5 | the compositor session boots in CI (nested, headless): smoke test + screenshot; desktop-entry rebrand verified |
-| 6 | CoreX/Music/Store/Editor/Monitor rebuilt on fishui; Store + CoreX backends in Rust |
+| 6 | CoreX/Music/Store rebuilt (Video/Editor/Monitor are adopted cutefish bases per the user's W104 decision); Store + CoreX backends in Rust; Aegis ID gains account support when the Store lands |
 | 7 | iso/live/ assembles the ISO with the package exclusions from DEFAULT-APPS; installer |
 | 8 | boot matrix on real hardware; then judge the Rust-compositor question on evidence |
 

@@ -61,11 +61,13 @@ jobs:
 
       - name: desktop submodules + manifest
         run: |
-          grep -c '^\[submodule' .gitmodules | grep -qx 11 || { echo "expected 11 submodules in .gitmodules"; exit 1; }
+          grep -c '^\[submodule' .gitmodules | grep -qx 14 || { echo "expected 14 submodules in .gitmodules"; exit 1; }
           for d in compositor fishui qt-plugins core toolkit framework icons \
-                   apps/filemanager apps/terminal apps/settings apps/calculator; do
+                   apps/filemanager apps/terminal apps/settings apps/calculator \
+                   apps/video-player apps/text-editor apps/system-monitor; do
             test -f "desktop/$d/CMakeLists.txt" || { echo "empty submodule desktop/$d"; exit 1; }
           done
           test -f desktop/DEFAULT-APPS.md
+          test -f desktop/aegis-id/CMakeLists.txt
           test -f branding/icons/index.theme && grep -q "Inherits=cutefish" branding/icons/index.theme
           echo "desktop OK"

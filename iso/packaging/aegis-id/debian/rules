@@ -1,0 +1,11 @@
+#!/usr/bin/make -f
+
+%:
+	dh $@
+
+override_dh_auto_build:
+	cmake -S ../../../desktop/aegis-id -B build/aegis-id -DCMAKE_BUILD_TYPE=Release
+	cmake --build build/aegis-id
+
+override_dh_auto_install:
+	DESTDIR=$(CURDIR)/debian/aegis-id cmake --install build/aegis-id

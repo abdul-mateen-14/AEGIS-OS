@@ -1,0 +1,6 @@
+aegis-id (0.1.0) unstable; urgency=medium
+
+  * The identity module (W104): avatar, device name, user, OS version,
+    privacy line; built on Qt Quick with the Aegis design tokens.
+
+ -- Aegis OS <z@z.ai>  Fri, 28 Nov 2026 08:30:00 +0000

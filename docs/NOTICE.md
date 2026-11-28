@@ -18,6 +18,7 @@ not author. It is updated as the migration rounds land.
 | cutefish-qt-plugins | Qt platform theme | BSD-3 (© 2026 Reion Wong) | adopted AS-IS via submodule `desktop/qt-plugins` |
 | cutefish-core | system services (notifications, power …) | BSD-3 (© 2026 Reion Wong) | adopted AS-IS via submodule `desktop/core` |
 | cutefish filemanager / settings / calculator | bases for Aegis Files / Settings / Calculator | BSD-3 (© 2026 Reion Wong) | adopted AS-IS via submodules `desktop/apps/*`, rebranded at package time |
+| cutefish video-player / text-editor / system-monitor | bases for Aegis Video / Editor / Monitor | BSD-3 (© 2026 Reion Wong) | adopted AS-IS via submodules `desktop/apps/*` (user decision W104: these apps use the cutefish backend), rebranded at package time |
 | cutefish terminal | base for Aegis Terminal | MIT (© 2026 Reion Wong) | adopted AS-IS via submodule `desktop/apps/terminal` |
 | cutefish icons | system icon fallback under the Aegis theme | GPL | adopted AS-IS via submodule `desktop/icons` |
 | cutefishos | packaging MODEL + design reference | — | the per-component debian-dir layout and build.sh pattern |
