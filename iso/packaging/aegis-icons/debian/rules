@@ -8,7 +8,7 @@ override_dh_auto_build:
 
 override_dh_auto_install:
 	install -d debian/aegis-icons/usr/share/icons/Aegis
-	cp -r $(CURDIR)/../../branding/icons/. debian/aegis-icons/usr/share/icons/Aegis/
+	cp -r $(CURDIR)/../../../branding/icons/. debian/aegis-icons/usr/share/icons/Aegis/
 
 override_dh_installsystemd:
 
