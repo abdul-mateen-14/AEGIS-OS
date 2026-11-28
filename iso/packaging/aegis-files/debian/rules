@@ -8,7 +8,7 @@
 BUILDDIR := build/aegis-files
 
 override_dh_auto_build:
-	cmake -S ../../../desktop/apps/filemanager -B $(BUILDDIR) -DCMAKE_BUILD_TYPE=Release
+	cmake -S ../../../desktop/apps/filemanager -B $(BUILDDIR) -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=/usr
 	cmake --build $(BUILDDIR)
 
 override_dh_auto_install:
