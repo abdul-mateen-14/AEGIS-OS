@@ -1,0 +1,9 @@
+{
+  "name": "aegis-id-portal",
+  "private": true,
+  "type": "module",
+  "description": "Aegis ID — the central identity portal (Cloudflare Pages + Functions)",
+  "dependencies": {
+    "@simplewebauthn/server": "^13.1.1"
+  }
+}

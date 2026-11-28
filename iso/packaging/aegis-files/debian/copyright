@@ -1,0 +1,19 @@
+Format: https://www.debian.org/doc/packaging-manuals/copyright-format/1.0/
+Upstream-Name: filemanager
+Source: https://github.com/cutefishos/filemanager
+
+Files: *
+Copyright: 2026 Reion Wong <reionwong@gmail.com>
+License: BSD-3-clause
+ Redistribution and use in source and binary forms, with or without
+ modification, are permitted provided that the conditions in the
+ upstream LICENSE (desktop/apps/filemanager/LICENSE) are met.
+ .
+ The full upstream license text ships with the source; on Debian
+ systems it is installed alongside the package sources.
+
+Files: debian/*
+Copyright: 2026 Aegis OS <z@z.ai>
+License: MIT
+ Packaging logic for AEGIS OS; MIT licensed like the rest of the
+ Aegis-original metadata (see docs/NOTICE.md).

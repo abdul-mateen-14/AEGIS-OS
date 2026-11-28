@@ -1,0 +1,31 @@
+#!/usr/bin/make -f
+# Aegis Files: build the adopted cutefish filemanager, rebrand at
+# package time (binary name + desktop entry), never fork the source.
+
+%:
+	dh $@
+
+BUILDDIR := build/aegis-files
+
+override_dh_auto_build:
+	cmake -S ../../../desktop/apps/filemanager -B $(BUILDDIR) -DCMAKE_BUILD_TYPE=Release
+	cmake --build $(BUILDDIR)
+
+override_dh_auto_install:
+	DESTDIR=$(CURDIR)/debian/aegis-files cmake --install $(BUILDDIR)
+	# rebrand at package time: binary under the Aegis name
+	( cd debian/aegis-files/usr/bin && \
+	  for b in cutefish-filemanager filemanager; do \
+	    test -x $$b && mv $$b aegis-files || true; \
+	  done )
+	# rebrand at package time: desktop entry
+	install -d debian/aegis-files/usr/share/applications
+	sed -e 's|^Name=.*|Name=Aegis Files|' \
+	    -e 's|^Exec=.*|Exec=aegis-files %u|' \
+	    -e 's|cutefish-filemanager|aegis-files|g' \
+	    ../../../desktop/apps/filemanager/data/cutefish-filemanager.desktop \
+	    > debian/aegis-files/usr/share/applications/aegis-files.desktop
+
+override_dh_auto_test:
+	# the upstream test suite needs a display; CI packaging is build-only
+	true

@@ -1,0 +1,140 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Aegis ID — one identity for Aegis Browser, AEGIS OS and everything connected</title>
+  <meta name="description" content="Create your Aegis ID, sign in with Google or a passkey, and manage connections, passwords and settings for Aegis Browser and AEGIS OS.">
+  <link rel="stylesheet" href="./style.css">
+</head>
+<body>
+  <div class="glow" aria-hidden="true"></div>
+
+  <header class="top">
+    <div class="brand">
+      <div class="mark">A</div>
+      <div class="name">Aegis&nbsp;ID <span class="tag">central identity</span></div>
+    </div>
+    <nav class="top-links">
+      <a href="https://github.com/abdul-mateen-14/AEGIS-BROWSER" target="_blank" rel="noopener">Aegis Browser</a>
+      <a href="https://github.com/abdul-mateen-14/AEGIS-OS" target="_blank" rel="noopener">AEGIS OS</a>
+    </nav>
+  </header>
+
+  <main>
+    <!-- ══════════ auth view ══════════ -->
+    <section id="view-auth" class="card auth-card">
+      <h1>One ID.<br>Browser, OS, everywhere.</h1>
+      <p class="sub">Your Aegis ID signs you into Aegis Browser sync, AEGIS OS sync and every connection below — same account, same password or passkey, same avatar.</p>
+
+      <div class="tabs" role="tablist">
+        <button id="tab-in" class="tab active" role="tab">Sign in</button>
+        <button id="tab-up" class="tab" role="tab">Create account</button>
+      </div>
+
+      <button id="google-btn" class="btn google hidden">
+        <span class="g" aria-hidden="true">G</span> Continue with Google
+      </button>
+      <div id="google-note" class="note hidden">Google sign-in isn’t configured on this deployment yet.</div>
+
+      <div class="or"><span>or with email</span></div>
+
+      <!-- sign in -->
+      <form id="form-in" class="form">
+        <label>Email <input id="in-email" type="email" autocomplete="username webauthn" required></label>
+        <label>Password <input id="in-pass" type="password" autocomplete="current-password" required></label>
+        <button class="btn primary" type="submit">Sign in</button>
+        <button id="passkey-btn" class="btn ghost" type="button">Use a passkey</button>
+      </form>
+
+      <!-- create account -->
+      <form id="form-up" class="form hidden">
+        <label>Email <input id="up-email" type="email" autocomplete="username" required></label>
+        <label>Username <span class="hint">a-z 0-9 _ - · 3–24 chars · shown everywhere</span>
+          <input id="up-username" pattern="[a-zA-Z0-9_-]{3,24}" autocomplete="off" required>
+        </label>
+        <label>Password <span class="hint">stays on this device — we never send it</span>
+          <input id="up-pass" type="password" minlength="8" autocomplete="new-password" required>
+        </label>
+        <button class="btn primary" type="submit" id="up-submit">Create my Aegis ID</button>
+        <p class="fine">Your vault key is generated and wrapped on this device. Losing the password loses the synced data — that is the privacy design, not a bug.</p>
+      </form>
+
+      <div id="auth-error" class="error hidden" role="alert"></div>
+      <div id="auth-status" class="status hidden"></div>
+    </section>
+
+    <!-- ══════════ dashboard view ══════════ -->
+    <section id="view-dash" class="hidden">
+      <div class="dash-head card">
+        <div id="avatar" class="avatar">?</div>
+        <div class="who">
+          <h2 id="who-name">…</h2>
+          <div id="who-email" class="dim">…</div>
+          <div id="who-flags" class="flags"></div>
+        </div>
+        <button id="logout" class="btn ghost small">Sign out</button>
+      </div>
+
+      <div class="grid">
+        <div class="card">
+          <h3>Profile</h3>
+          <p class="dim small">Username and email come from your account (shared with the browser). Avatar and display name are managed here.</p>
+          <form id="form-profile" class="form">
+            <label>Display name <input id="pf-display" maxlength="64" placeholder="Shown on your Aegis ID card"></label>
+            <label>Avatar URL <span class="hint">https:// only</span>
+              <input id="pf-avatar" type="url" placeholder="https://…/avatar.png">
+            </label>
+            <button class="btn primary small" type="submit">Save profile</button>
+          </form>
+          <div id="public-line" class="dim small"></div>
+        </div>
+
+        <div class="card">
+          <h3>Security</h3>
+          <div class="row-between">
+            <div>
+              <b>Passkeys</b>
+              <div id="pk-count" class="dim small"></div>
+            </div>
+            <button id="pk-add" class="btn primary small">Add passkey</button>
+          </div>
+          <ul id="pk-list" class="list"></ul>
+          <hr>
+          <div class="row-between">
+            <div><b>Account password</b><div id="pw-state" class="dim small"></div></div>
+            <button id="pw-toggle" class="btn ghost small">Change</button>
+          </div>
+          <form id="form-pw" class="form hidden">
+            <label>Current password <input id="pw-old" type="password" autocomplete="current-password" required></label>
+            <label>New password <input id="pw-new" type="password" minlength="8" autocomplete="new-password" required></label>
+            <button class="btn primary small" type="submit">Update password</button>
+          </form>
+        </div>
+
+        <div class="card wide">
+          <h3>Connections</h3>
+          <p class="dim small">Everywhere this Aegis ID is signed in. Device lists come from the browser sync and the OS sync; the portal’s own sessions are listed too.</p>
+          <div id="conn-wrap" class="tables"><div class="dim">Loading…</div></div>
+        </div>
+
+        <div class="card wide danger">
+          <h3>Danger zone</h3>
+          <p class="dim small">Deletes the whole identity: the account in the sync backend (browser data included), OS data, and everything here. Ask twice, then it is gone.</p>
+          <form id="form-del" class="form hidden">
+            <label id="del-pass-label">Confirm password <input id="del-pass" type="password" autocomplete="current-password"></label>
+            <button class="btn danger-btn" type="submit">Delete my Aegis ID permanently</button>
+          </form>
+          <button id="del-toggle" class="btn ghost small">Delete account…</button>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <footer class="foot dim">
+    Aegis ID · the identity hub of the Aegis ecosystem · no telemetry · passwords never leave your device
+  </footer>
+
+  <script type="module" src="./app.js"></script>
+</body>
+</html>

@@ -1,0 +1,20 @@
+name = "aegis-id"
+pages_build_output_dir = "public"
+compatibility_date = "2025-10-01"
+
+# The portal's OWN storage only. It never binds the sync backends' databases —
+# account truth stays in the primary backend, reached through its public API.
+[[d1_databases]]
+binding = "IDDB"
+database_name = "aegis-id-db"
+database_id = "e128e69a-2b6c-46ba-b11c-781e80068137"
+
+[vars]
+PRIMARY_API = "https://aegis-sync.abdulmateen14.workers.dev"
+OS_API = "https://aegis-sync-os.abdulmateen14.workers.dev"
+RP_ID = "aegis-id.pages.dev"
+APP_ORIGIN = "https://aegis-id.pages.dev"
+
+# Secrets (set with `wrangler pages secret put <NAME> --project-name aegis-id`):
+#   GOOGLE_CLIENT_ID / GOOGLE_CLIENT_SECRET — Google sign-in (optional until
+#   the OAuth client is registered; see docs/IDENTITY-PORTAL.md)

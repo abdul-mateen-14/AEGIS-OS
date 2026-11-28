@@ -1,0 +1,8 @@
+aegis-files (0.1.0) stable; urgency=medium
+
+  * First packaging of the adopted cutefish filemanager as Aegis Files
+    (rebrand at package time: binary + desktop entry; no source fork).
+  * Deb build gated on the aegis-framework package (cutefish toolkit),
+    which lands in the next packaging round.
+
+ -- Aegis OS <z@z.ai>  Sat, 28 Nov 2026 10:00:00 +0000

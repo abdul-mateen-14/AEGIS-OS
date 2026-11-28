@@ -58,9 +58,9 @@ That is the architecture:
 | --- | --- |
 | 2–3 (done) | `old/` quarantine, branding rescued, island-core, aegis-compositor (Smithay), iso/ packaging skeleton, plymouth rebrand |
 | 3.5 (this commit) | the adopted stack as submodules, DEFAULT-APPS manifest, aegis-icons package, the hybrid docs |
-| 4 | per-component packaging: aegis-files first (sets the cmake+sed-rebrand pattern), then terminal/settings/calculator; CI builds them |
+| 4 | per-component packaging STARTED: aegis-files debian dir + rebrand-at-package-time rules (deb build gated on aegis-framework, the cutefish toolkit package — next); aegis-icons + aegis-id .debs BUILD and INSTALL in CI (the pipeline proof) |
 | 5 | the compositor session boots in CI (nested, headless): smoke test + screenshot; desktop-entry rebrand verified |
-| 6 | CoreX/Music/Store rebuilt (Video/Editor/Monitor are adopted cutefish bases per the user's W104 decision); Store + CoreX backends in Rust; aegis-sync-os LIVE — OS sync backend on Workers/D1, identity reused read-only from the browser's primary backend (docs/SYNC-OS.md); Aegis ID gains account support when the Store lands |
+| 6 | CoreX/Music/Store rebuilt (Video/Editor/Monitor are adopted cutefish bases per the user's W104 decision); Store + CoreX backends in Rust; aegis-sync-os LIVE (Workers/D1, identity reused read-only, docs/SYNC-OS.md); aegis-id.pages.dev LIVE — the central identity portal: create account, Google/passkey/password sign-in, connections/passwords/settings (docs/IDENTITY-PORTAL.md) |
 | 7 | iso/live/ assembles the ISO with the package exclusions from DEFAULT-APPS; installer |
 | 8 | boot matrix on real hardware; then judge the Rust-compositor question on evidence |
 

@@ -7,7 +7,9 @@ wholesale as pinned submodules (compositor, fishui, qt-plugins, core
 services, apps) — rebranded Aegis, with the user's squircle icon theme as
 the default icon set and exactly the Aegis default apps shipped. Rust
 stays where it is better: the Dynamic Island (Aegis-original), the
-Smithay compositor lab, Store/CoreX plumbing. The previous Qt/QML system
+Smithay compositor lab, Store plumbing. (CoreX — with its password
+manager — is the Aegis BROWSER and syncs through the browser's own
+backend, not an OS app.) The previous Qt/QML system
 (100 rounds) is quarantined under [`old/`](old/).
 
 - Architecture and why: [`docs/MIGRATION.md`](docs/MIGRATION.md).
@@ -26,6 +28,7 @@ Smithay compositor lab, Store/CoreX plumbing. The previous Qt/QML system
 | `desktop/` | the adopted cutefish C++ stack — 14 pinned submodules, never fork-patched; rebrand applied at package time |
 | `desktop/aegis-id/` | the Aegis-original identity module: avatar, device name, OS version, privacy contract |
 | `services/aegis-sync-os/` | the OS sync backend (Cloudflare Worker + D1, LIVE): OS-owned data, identity reused read-only from the browser's primary `aegis-sync` — [docs/SYNC-OS.md](docs/SYNC-OS.md) |
+| `services/aegis-id-portal/` | **[aegis-id.pages.dev](https://aegis-id.pages.dev)** — the central identity portal (Pages + Functions, LIVE): create account, Google + passkey + password sign-in, connections/passwords/settings for browser + OS — [docs/IDENTITY-PORTAL.md](docs/IDENTITY-PORTAL.md) |
 | `branding/` + `aegis-icons` package | the user's squircle icon theme as the DEFAULT (fallback: cutefish icons → hicolor) |
 | `aegis-rs/island-core` | the island's brain in Rust — priority stack, geometry records, spring solver; 10 unit tests |
 | `aegis-rs/compositor` | the Smithay compositor (research track) — compiles, tests green |
@@ -37,7 +40,7 @@ Smithay compositor lab, Store/CoreX plumbing. The previous Qt/QML system
 
 Full map in [`docs/MIGRATION.md`](docs/MIGRATION.md). Next up: per-app
 packaging (aegis-files sets the cmake+rebrand pattern) → the compositor
-session boots headless in CI with a screenshot → CoreX/Music/Store on
+session boots headless in CI with a screenshot → Music/Store on
 fishui → the ISO assembles with the DEFAULT-APPS exclusions → boot matrix.
 
 ## CI

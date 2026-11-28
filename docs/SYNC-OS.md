@@ -60,9 +60,10 @@ push to the OS backend is a 400, and vice versa.
 
 ## How the clients use it
 
-- **Aegis Browser** keeps talking to `aegis-sync` exactly as before —
-  untouched, still primary.
-- **AEGIS OS (CoreX + Aegis ID)**: the OS client fetches
+- **Aegis Browser / CoreX** keeps talking to `aegis-sync` exactly as
+  before — untouched, still primary. CoreX's password manager syncs
+  there as `password` items; the OS backend has no relationship to it.
+- **AEGIS OS (Aegis ID card + OS surfaces)**: the OS client fetches
   `/v1/os/auth/kdf-params`, derives the verifier client-side (same
   PBKDF2-SHA256 chain), logs in via `/v1/os/auth/login` (browser DB
   read-only), receives the wrapped vault key so end-to-end keys match

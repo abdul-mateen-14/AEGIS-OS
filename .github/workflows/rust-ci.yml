@@ -82,6 +82,53 @@ jobs:
           ! grep -qE 'name *= *"aegis-sync"$' services/aegis-sync-os/wrangler.toml
           echo "services OK"
 
+      - name: aegis-id portal structure
+        run: |
+          test -f services/aegis-id-portal/wrangler.toml
+          test -f services/aegis-id-portal/public/lib/aegis-crypto.mjs
+          test -f services/aegis-id-portal/functions/api/auth/passkey/start.js
+          test -f services/aegis-id-portal/functions/api/auth/google/start.js
+          ! grep -q 'database_id = "SET_AFTER_CREATE"' services/aegis-id-portal/wrangler.toml
+          echo "portal OK"
+
+      - name: aegis-files packaging definition
+        run: |
+          test -f iso/packaging/aegis-files/debian/control
+          test -f iso/packaging/aegis-files/debian/rules
+          test -f iso/packaging/aegis-files/debian/changelog
+          test -f iso/packaging/aegis-files/debian/copyright
+          grep -q "desktop/apps/filemanager" iso/packaging/aegis-files/debian/rules
+          grep -q "aegis-files" iso/packaging/aegis-files/debian/rules
+          grep -q "aegis-framework" iso/packaging/aegis-files/debian/control
+          echo "aegis-files OK"
+
+  packaging-debs:
+    name: debian packages that build today — aegis-icons + aegis-id
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: build deps
+        run: sudo apt-get update -qq && sudo apt-get install -y -qq dpkg-dev debhelper cmake qt6-base-dev qt6-declarative-dev qt6-quickcontrols2-dev file
+
+      - name: build aegis-icons (.deb)
+        working-directory: iso/packaging/aegis-icons
+        run: dpkg-buildpackage -us -uc -b
+
+      - name: build aegis-id (.deb)
+        working-directory: iso/packaging/aegis-id
+        run: dpkg-buildpackage -us -uc -b
+
+      - name: artifacts exist + installable
+        run: |
+          ls -la iso/packaging/*.deb
+          sudo apt-get install -y ./iso/packaging/aegis-icons_*.deb ./iso/packaging/aegis-id_*.deb
+          test -d /usr/share/icons/Aegis
+          test -x /usr/bin/aegis-id
+          echo "deb pipeline OK"
+
   aegis-sync-os:
     name: aegis-sync-os — tests
     runs-on: ubuntu-latest
@@ -97,6 +144,66 @@ jobs:
 
       - name: unit tests (guard / identity / util)
         run: node --test services/aegis-sync-os/test/*.test.mjs
+
+  aegis-id-portal:
+    name: aegis-id portal — tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: unit tests (crypto parity / helpers)
+        run: node --test services/aegis-id-portal/test/crypto.test.mjs services/aegis-id-portal/test/helpers.test.mjs
+
+      - name: functions parse
+        run: for f in $(find services/aegis-id-portal/functions -name '*.js'); do node --check "$f"; done
+
+  deploy-aegis-id-portal:
+    name: aegis-id portal — deploy + live smoke (main only)
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    needs: [rust-workspace, packaging-sanity, packaging-debs, aegis-sync-os, aegis-id-portal]
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    environment: aegis-sync-os
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: install function deps
+        working-directory: services/aegis-id-portal
+        run: npm install --no-fund --no-audit
+
+      - name: apply portal DB schema (idempotent)
+        working-directory: services/aegis-id-portal
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: npx --yes wrangler@4 d1 execute aegis-id-db --remote --file schema.sql
+
+      - name: deploy pages
+        working-directory: services/aegis-id-portal
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: npx --yes wrangler@4 pages deploy
+
+      - name: live smoke (read-only paths)
+        run: |
+          sleep 8
+          curl -sf https://aegis-id.pages.dev/ | grep -q "One ID."
+          curl -sf https://aegis-id.pages.dev/api/auth/google-status | grep -q '"configured":'
+          test "$(curl -s -o /dev/null -w '%{http_code}' https://aegis-id.pages.dev/api/auth/me)" = "401"
 
   deploy-aegis-sync-os:
     name: aegis-sync-os — deploy + live smoke (main only)
