@@ -1,0 +1,29 @@
+#!/bin/sh
+# Set the Aegis squircle theme as the default icon theme.
+set -e
+
+# XDG standard: kdeglobals [Icons] IconTheme
+if [ -f /etc/skel/.config/kdeglobals ]; then
+    sed -i 's/^IconTheme=.*/IconTheme=Aegis/' /etc/skel/.config/kdeglobals || true
+fi
+
+# cutefish appearance daemon config (the desktop reads this one)
+APPEARANCE_DIR=/etc/skel/.config/cutefish
+mkdir -p "$APPEARANCE_DIR"
+if command -v python3 >/dev/null 2>&1; then
+    python3 - "$APPEARANCE_DIR" <<'EOF'
+import json, os, sys
+d = sys.argv[1]
+p = os.path.join(d, 'appearance.conf')
+cfg = {}
+if os.path.exists(p):
+    try:
+        cfg = json.load(open(p))
+    except Exception:
+        cfg = {}
+cfg['iconTheme'] = 'Aegis'
+json.dump(cfg, open(p, 'w'), indent=2)
+EOF
+fi
+
+exit 0

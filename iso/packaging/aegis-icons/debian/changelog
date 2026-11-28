@@ -1,0 +1,8 @@
+aegis-icons (0.1.0) unstable; urgency=medium
+
+  * The squircle icon theme as a data package (W103): ships the user's
+    29-icon set + places + devices, index.theme fallback chain
+    cutefish->hicolor, default theme set in postinst (kdeglobals + the
+    cutefish appearance config).
+
+ -- Aegis OS <z@z.ai>  Fri, 28 Nov 2026 07:00:00 +0000

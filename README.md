@@ -2,51 +2,53 @@
 
 > Private. Secure. Beautiful. Fast.
 
-**The Rust system.** AEGIS OS is being rebuilt from scratch as a fully
-Rust desktop — compositor, shell (Dynamic Island + dock), launcher and
-apps — on the cutefishos design and packaging model, shipping as a Debian
-live ISO. The previous Qt/QML system (100 rounds of iterations) is
-quarantined under [`old/`](old/) and will be deleted once the new stack
-passes its boot matrix.
+**The hybrid system.** The UI layer is the cutefishos desktop — adopted
+wholesale as pinned submodules (compositor, fishui, qt-plugins, core
+services, apps) — rebranded Aegis, with the user's squircle icon theme as
+the default icon set and exactly the Aegis default apps shipped. Rust
+stays where it is better: the Dynamic Island (Aegis-original), the
+Smithay compositor lab, Store/CoreX plumbing. The previous Qt/QML system
+(100 rounds) is quarantined under [`old/`](old/).
 
-- The honest Rust answer: it is not automatically faster or leaner than
-  C++ — the wins are memory safety in the compositor, dropping Qt's
-  runtime weight, and a migration the compiler can carry. See
-  [`docs/MIGRATION.md`](docs/MIGRATION.md).
-- Provenance and third-party licenses: [`docs/NOTICE.md`](docs/NOTICE.md).
-- Preserved designs: [`branding/`](branding/) — the user's icon theme
-  (settings, store, music, terminal, files, corex …), wallpapers, logos,
-  sddm theme — and the island's behavior contract
-  ([`docs/DESIGN-TOKENS.md`](docs/DESIGN-TOKENS.md),
-  [`docs/LIVE-ACTIVITY-API.md`](docs/LIVE-ACTIVITY-API.md)).
+- Architecture and why: [`docs/MIGRATION.md`](docs/MIGRATION.md).
+- The app manifest — what ships, what is removed:
+  [`desktop/DEFAULT-APPS.md`](desktop/DEFAULT-APPS.md).
+- Provenance and licenses: [`docs/NOTICE.md`](docs/NOTICE.md).
+- Preserved designs: [`branding/`](branding/) — icons, wallpapers, logos,
+  sddm theme; the island's contract:
+  [`docs/DESIGN-TOKENS.md`](docs/DESIGN-TOKENS.md),
+  [`docs/LIVE-ACTIVITY-API.md`](docs/LIVE-ACTIVITY-API.md).
 
-## What exists today (W102)
+## What exists today (W103)
 
 | Piece | State |
 | --- | --- |
-| `aegis-rs/island-core` | the Dynamic Island's brain in Rust — priority stack, geometry records, spring solver; 10 unit tests pinning the contract |
-| `aegis-rs/compositor` (`aegis-compositor`) | the Wayland compositor on Smithay — nested winit backend, xdg-shell window mapping, stack-layout seed; the DRM/udev + layer-shell rounds follow |
-| `iso/packaging/` | per-component `debian/` dirs + `build.sh` (the cutefish packaging model), `aegis-desktop` metapackage |
+| `desktop/` | the adopted cutefish C++ stack — 11 pinned submodules, never fork-patched; rebrand applied at package time |
+| `branding/` + `aegis-icons` package | the user's squircle icon theme as the DEFAULT (fallback: cutefish icons → hicolor) |
+| `aegis-rs/island-core` | the island's brain in Rust — priority stack, geometry records, spring solver; 10 unit tests |
+| `aegis-rs/compositor` | the Smithay compositor (research track) — compiles, tests green |
+| `iso/packaging/` | per-component debian dirs + `build.sh`; `aegis-compositor`, `aegis-icons`, `aegis-desktop` |
 | `iso/plymouth/aegis-logo/` | boot splash — abyss background, Aegis mark |
-| `old/` | the complete previous OS, read-only, until round 8 |
+| `old/` | the complete previous OS, read-only, until the new system's boot matrix |
 
-## The migration rounds
+## The rounds
 
-Full map in [`docs/MIGRATION.md`](docs/MIGRATION.md). Short form:
-compositor on real hardware + the island renderer (r3) → terminal +
-launcher (r4) → files + control center (r5) → music, store, CoreX (r6) →
-the ISO assembles itself in live-build (r7) → boot matrix, effects,
-`old/` deleted (r8).
+Full map in [`docs/MIGRATION.md`](docs/MIGRATION.md). Next up: per-app
+packaging (aegis-files sets the cmake+rebrand pattern) → the compositor
+session boots headless in CI with a screenshot → CoreX/Music/Store on
+fishui → the ISO assembles with the DEFAULT-APPS exclusions → boot matrix.
 
 ## CI
 
 `Rust CI` runs on every push: `cargo test --workspace` + clippy (strict)
-over `aegis-rs/`, plus a packaging-structure check over `iso/`.
+over `aegis-rs/`, and a structure check over `iso/` + the 11 `desktop/`
+submodules.
 
 ## Attribution
 
-The compositor is built on [Smithay](https://github.com/Smithay/smithay)
-(MIT); the boot splash derives from the cutefish-logo plymouth theme
-(GPL-2.0+); the packaging model follows
-[cutefishos](https://github.com/cutefishos). Details and license rows:
-[`docs/NOTICE.md`](docs/NOTICE.md).
+The desktop UI is [cutefishos](https://github.com/cutefishos) (BSD-3/MIT,
+© Reion Wong) adopted as upstream code — submodule provenance in
+[`desktop/README.md`](desktop/README.md), license rows in
+[`docs/NOTICE.md`](docs/NOTICE.md). The compositor lab is built on
+[Smithay](https://github.com/Smithay/smithay) (MIT); the boot splash
+derives from the cutefish-logo plymouth theme (GPL-2.0+).

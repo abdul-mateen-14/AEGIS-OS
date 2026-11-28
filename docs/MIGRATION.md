@@ -1,66 +1,75 @@
-# AEGIS OS — the complete Rust migration
+# AEGIS OS — the hybrid architecture (final)
 
-Status: **new system started** (W102). Decision record: the previous QML
-shell (100 rounds, now `old/`) never reached the completeness of a mature
-desktop and its apps' backends kept regressing. The new system adopts the
-cutefishos DESIGN and ISO MODEL as the base and rebuilds the ENTIRE desktop
-stack in Rust. The user's direction: *"create everything from scratch and
-use rust completely… pick the cutefish iso source files, edit the brand
-details, the icons I said to maintain, and the whole c++ code with rust —
-I need complete migration."*
+Status: **adopted** (W103). Decision record, in the user's own words:
+*"use rust where it is better and c++ where it is better — like if we use
+c++ we can simply copy most of the content from cutefishos … what i want
+is the smooth system for icons and ui use cutefish os but for certain
+icons and default apps go with aegis icons i gave you and the default
+apps i told and remove all the other default apps cutefish and ubuntu etc
+uses."*
 
-## Why Rust (the honest engineering answer)
+That is the architecture:
 
-Rust does not automatically run faster or use less RAM than C++ — both are
-native, GC-free languages with comparable steady-state performance. The
-real wins for AEGIS:
+```
+┌───────────────────────────────────────────────────────────────┐
+│ Aegis app set (desktop/DEFAULT-APPS.md): Files, Terminal,     │
+│ Settings, Calculator (adopted, rebranded) + CoreX, Music,     │
+│ Store, Editor, Monitor (Aegis-original, rebuilt)              │
+├───────────────────────────────────────────────────────────────┤
+│ Aegis squircle icon theme (the user's designs) as DEFAULT;    │
+│ cutefish icons as system fallback; adwaita last resort        │
+├───────────────────────────────────────────────────────────────┤
+│ cutefish C++ UI stack, adopted WHOLESALE as submodules:       │
+│ compositor (WM + desktop shell + launchpad + lock), fishui,   │
+│ qt-plugins, core services, toolkit + framework                │
+│ → the "smooth system" — never fork-patched, rebrand lives in  │
+│   iso/packaging (desktop-entry renames, icon defaults)        │
+├───────────────────────────────────────────────────────────────┤
+│ Rust where it is better (aegis-rs/): island-core (the island  │
+│ brain, AEGIS-original), the Smithay compositor lab, Store     │
+│ and CoreX backend plumbing                                    │
+├───────────────────────────────────────────────────────────────┤
+│ Debian live ISO vehicle + Aegis plymouth + packaging (the     │
+│ cutefish packaging model, per-component debian dirs)          │
+└───────────────────────────────────────────────────────────────┘
+```
 
-1. **Memory safety in the compositor** — the process that touches the GPU,
-   every window's buffers and untrusted Wayland clients. C++ compositors
-   die by use-after-free and data races; Smithay-based Rust compositors
-   cannot have those classes of bugs.
-2. **No Qt runtime weight** — the old stack's RAM was never the language,
-   it was Qt/QML's scene graph and runtime. The Rust stack (Smithay +
-   iced-class UIs) drops that layer entirely.
-3. **Fearless refactoring** — the compiler carries the migration; a 400k
-   line port is possible precisely because behavior contracts are pinned
-   by tests (island-core's 10 tests are the pattern).
+## Why this shape
 
-The reference that this is viable in production: System76's COSMIC — a
-full Rust desktop (compositor, panel, launcher, apps) shipping on
-Pop!_OS.
+- **The smooth UI comes ready-made.** cutefish's Qt stack is complete and
+  actively developed (the compositor had commits the same day we
+  surveyed). Rebuilding that smoothness in Rust from zero is the
+  multi-year road; adopting it under our branding is the short one —
+  and it is exactly what the user chose.
+- **Rust stays where it wins.** The Dynamic Island does not exist in
+  cutefish — its brain is Aegis-original Rust with 10 pinning tests. The
+  Smithay compositor crate remains the research track (a Rust compositor
+  is the round-8+ option once the system ships). Store/apt/CoreX
+  plumbing lands in Rust.
+- **Provenance stays pristine.** The adopted stack lives as git
+  submodules pinned to upstream SHAs — LICENSE files and copyright
+  headers untouched, updates are a rebase-free `submodule update`.
+  BSD-3 (9 repos) + MIT (terminal) make this clean; their icon theme is
+  GPL and keeps its license. Attribution lives in NOTICE.md.
 
-## Attribution and licenses
+## Rounds (adjusted)
 
-- **Smithay** (compositor framework, MIT) — `aegis-compositor` is adapted
-  from Smithay's `minimal` example, MIT notice retained in the source.
-- **cutefish plymouth theme** (GPL-2.0+) — `iso/plymouth/aegis-logo/`
-  derives from cutefish-logo; GPL header + author credits retained, colors
-  and logo rebranded.
-- **cutefishos** — surveyed as the design/ISO model. Its C++ code is NOT
-  vendored: the migration is a Rust re-implementation of the same role
-  each cutefish component plays, not a line-by-line translation (a Qt/C++
-  → Rust translation cannot be literal — the toolkits don't map).
-- AEGIS-original code: MIT.
+| Round | Delivers |
+| --- | --- |
+| 2–3 (done) | `old/` quarantine, branding rescued, island-core, aegis-compositor (Smithay), iso/ packaging skeleton, plymouth rebrand |
+| 3.5 (this commit) | the adopted stack as submodules, DEFAULT-APPS manifest, aegis-icons package, the hybrid docs |
+| 4 | per-component packaging: aegis-files first (sets the cmake+sed-rebrand pattern), then terminal/settings/calculator; CI builds them |
+| 5 | the compositor session boots in CI (nested, headless): smoke test + screenshot; desktop-entry rebrand verified |
+| 6 | CoreX/Music/Store/Editor/Monitor rebuilt on fishui; Store + CoreX backends in Rust |
+| 7 | iso/live/ assembles the ISO with the package exclusions from DEFAULT-APPS; installer |
+| 8 | boot matrix on real hardware; then judge the Rust-compositor question on evidence |
 
-## The round map (each round = one session, CI-green at the end)
+## What was preserved and where
 
-| Round | Delivers | Replaces (cutefish role) |
-| --- | --- | --- |
-| 2 (done) | `aegis-rs/` workspace: `island-core` (island brain, 10 tests) + `aegis-compositor` (Smithay, nested winit, xdg-shell, stack layout seed); `iso/` packaging + plymouth; `old/` quarantine; branding rescued | — |
-| 3 | DRM/udev backend + libinput seats (real hardware sessions); `zwlr_layer_shell_v1` in the compositor; `aegis-shell` v0: the island renderer (island-core drives the springs) + the dock as layer surfaces | compositor shell/, kwin effects |
-| 4 | `aegis-terminal` (Rust, vte-class backend), the launcher (type-to-filter on the layer-shell surface) | terminal, launcher |
-| 5 | `aegis-files` (the backend that plagued the old OS, rebuilt on Rust fs primitives + inotify), Control Center | filemanager, settings |
-| 6 | `aegis-music`, `aegis-store` (flatpak/apt plumbing in Rust), CoreX browser shell integration | apps |
-| 7 | `iso/live/` live-build config assembles the ISO: kernel+firmware+NetworkManager vehicle, aegis-desktop metapackage, plymouth, the installer (adopt cutefish-installer's flow, port to Rust) | ISO/installer |
-| 8 | The boot matrix on real hardware; effects pass (blur as a render element — the QML war becomes a shader); `old/` sources deleted once the new system passes every assert the old one passed | — |
-
-## What is preserved from the old system
-
-- `branding/icons/` — the 29-icon squircle theme (settings, store, music,
-  terminal, files, corex …) — the user's designs, verbatim.
-- `branding/theme/` — wallpapers, sddm, colors, desktop entries.
-- `branding/logos/` — the Aegis mark.
-- `docs/DESIGN-TOKENS.md`, `docs/LIVE-ACTIVITY-API.md` — the island's
-  behavior contract the Rust port must satisfy (island-core already does).
-- `old/` — everything else, quarantined read-only until round 8.
+- `branding/` — icons (29 squircle app icons + places + devices), theme
+  (wallpapers, sddm, colors), logos, the icon generator.
+- `docs/DESIGN-TOKENS.md`, `docs/LIVE-ACTIVITY-API.md` — the island
+  contract.
+- `aegis-rs/` — island-core + the Smithay compositor (the Rust track).
+- `old/` — the previous OS, read-only, until the new system passes its
+  boot matrix.

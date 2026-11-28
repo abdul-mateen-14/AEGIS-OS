@@ -1,0 +1,16 @@
+Source: aegis-icons
+Section: x11
+Priority: optional
+Maintainer: Aegis OS <z@z.ai>
+Build-Depends: debhelper-compat (= 13)
+Standards-Version: 4.6.2
+Rules-Requires-Root: no
+
+Package: aegis-icons
+Architecture: all
+Depends: ${misc:Depends}
+Description: Aegis OS squircle icon theme
+ The user-designed squircle icon language (proposal plate 09): every app
+ icon (settings, store, music, terminal, files, corex, ...), places and
+ devices on one shared squircle mask + sheen + hairline. Default theme of
+ AEGIS OS; falls back to the cutefish icon theme for generic glyphs.

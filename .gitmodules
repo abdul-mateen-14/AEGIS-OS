@@ -1,0 +1,43 @@
+[submodule "desktop/compositor"]
+path = desktop/compositor
+url = https://github.com/cutefishos/cutefish-compositor.git
+
+[submodule "desktop/fishui"]
+path = desktop/fishui
+url = https://github.com/cutefishos/fishui.git
+
+[submodule "desktop/qt-plugins"]
+path = desktop/qt-plugins
+url = https://github.com/cutefishos/qt-plugins.git
+
+[submodule "desktop/core"]
+path = desktop/core
+url = https://github.com/cutefishos/cutefish-core.git
+
+[submodule "desktop/framework"]
+path = desktop/framework
+url = https://github.com/cutefishos/cutefish-framework.git
+
+[submodule "desktop/icons"]
+path = desktop/icons
+url = https://github.com/cutefishos/icons.git
+
+[submodule "desktop/apps/filemanager"]
+path = desktop/apps/filemanager
+url = https://github.com/cutefishos/filemanager.git
+
+[submodule "desktop/apps/terminal"]
+path = desktop/apps/terminal
+url = https://github.com/cutefishos/terminal.git
+
+[submodule "desktop/apps/settings"]
+path = desktop/apps/settings
+url = https://github.com/cutefishos/settings.git
+
+[submodule "desktop/apps/calculator"]
+path = desktop/apps/calculator
+url = https://github.com/cutefishos/calculator.git
+
+[submodule "desktop/toolkit"]
+	url = https://github.com/cutefishos/cutefish-toolkit.git
+	path = desktop/toolkit

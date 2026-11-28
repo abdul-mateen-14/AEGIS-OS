@@ -3,9 +3,9 @@ name: Rust CI
 on:
   push:
     branches: [main]
-    paths: ['aegis-rs/**', 'iso/**', 'branding/**', '.github/workflows/rust-ci.yml']
+    paths: ['aegis-rs/**', 'iso/**', 'branding/**', 'desktop/**', '.github/workflows/rust-ci.yml']
   pull_request:
-    paths: ['aegis-rs/**', 'iso/**', 'branding/**']
+    paths: ['aegis-rs/**', 'iso/**', 'branding/**', 'desktop/**']
   workflow_dispatch:
 
 concurrency:
@@ -26,6 +26,9 @@ jobs:
         with:
           components: clippy
 
+      - name: System deps (xkbcommon / EGL link libs)
+        run: sudo apt-get update -qq && sudo apt-get install -y -qq libxkbcommon-dev libegl-dev libgl-dev
+
       - name: cargo test (the behavior contracts)
         working-directory: aegis-rs
         run: cargo test --workspace
@@ -35,12 +38,14 @@ jobs:
         run: cargo clippy --workspace --all-targets -- -D warnings
 
   packaging-sanity:
-    name: iso/packaging structure
+    name: iso/packaging + desktop structure
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
-      - name: Checkout
+      - name: Checkout (with submodules)
         uses: actions/checkout@v4
+        with:
+          submodules: recursive
 
       - name: debian dirs well-formed
         run: |
@@ -53,3 +58,14 @@ jobs:
           test -f iso/plymouth/aegis-logo/aegis-logo.plymouth
           test -f iso/plymouth/aegis-logo/logo.png
           echo "packaging OK"
+
+      - name: desktop submodules + manifest
+        run: |
+          grep -c '^\[submodule' .gitmodules | grep -qx 11 || { echo "expected 11 submodules in .gitmodules"; exit 1; }
+          for d in compositor fishui qt-plugins core toolkit framework icons \
+                   apps/filemanager apps/terminal apps/settings apps/calculator; do
+            test -f "desktop/$d/CMakeLists.txt" || { echo "empty submodule desktop/$d"; exit 1; }
+          done
+          test -f desktop/DEFAULT-APPS.md
+          test -f branding/icons/index.theme && grep -q "Inherits=cutefish" branding/icons/index.theme
+          echo "desktop OK"

@@ -1,0 +1,18 @@
+#!/usr/bin/make -f
+
+%:
+	dh $@
+
+override_dh_auto_build:
+	# data package: nothing to build
+
+override_dh_auto_install:
+	install -d debian/aegis-icons/usr/share/icons/Aegis
+	cp -r $(CURDIR)/../../branding/icons/. debian/aegis-icons/usr/share/icons/Aegis/
+
+override_dh_installsystemd:
+
+override_dh_auto_test:
+	true
+
+.PHONY: override_dh_installsystemd override_dh_auto_test

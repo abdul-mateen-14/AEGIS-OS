@@ -12,7 +12,15 @@ not author. It is updated as the migration rounds land.
 | wayland-rs (wayland-server/protocols) | Wayland protocol stack | MIT | crates.io |
 | NetworkManager + firmware | invisible plumbing on the ISO | GPL-2.0+ / LGPL | upstream |
 | plymouth (aegis-logo theme) | boot splash | GPL-2.0+ (theme) | derived from cutefish-logo (© 2016 Uri Herrera, 2013 Frédéric Gaudet, Charlie Brej lineage) — credits retained in the script, colors/logo rebranded |
-| cutefishos | the design + ISO packaging MODEL (per-component debian dirs, script splash, self-built installer flow) | BSD-3 / GPL mix | surveyed as the model; C++ NOT vendored — the Rust migration re-implements the roles, not the lines |
+| cutefish-compositor | window management, desktop shell, launchpad, lock screen | BSD-3 (© 2026 Reion Wong) | adopted AS-IS via submodule `desktop/compositor` (pinned upstream SHA) |
+| cutefish-toolkit, -framework | base library, system API clients | BSD-3 (© 2026 Reion Wong) | adopted AS-IS via submodules `desktop/toolkit`, `desktop/framework` |
+| fishui | the Qt widget library (the UI look) | BSD-3 (© 2026 Reion Wong) | adopted AS-IS via submodule `desktop/fishui` |
+| cutefish-qt-plugins | Qt platform theme | BSD-3 (© 2026 Reion Wong) | adopted AS-IS via submodule `desktop/qt-plugins` |
+| cutefish-core | system services (notifications, power …) | BSD-3 (© 2026 Reion Wong) | adopted AS-IS via submodule `desktop/core` |
+| cutefish filemanager / settings / calculator | bases for Aegis Files / Settings / Calculator | BSD-3 (© 2026 Reion Wong) | adopted AS-IS via submodules `desktop/apps/*`, rebranded at package time |
+| cutefish terminal | base for Aegis Terminal | MIT (© 2026 Reion Wong) | adopted AS-IS via submodule `desktop/apps/terminal` |
+| cutefish icons | system icon fallback under the Aegis theme | GPL | adopted AS-IS via submodule `desktop/icons` |
+| cutefishos | packaging MODEL + design reference | — | the per-component debian-dir layout and build.sh pattern |
 
 ## The old system (quarantined under old/)
 
