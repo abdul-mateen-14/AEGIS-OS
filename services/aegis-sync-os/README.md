@@ -73,3 +73,14 @@ npx wrangler deploy                                      # from this dir
 Deployment needs `CLOUDFLARE_API_TOKEN` + `CLOUDFLARE_ACCOUNT_ID` (GitHub
 Actions secrets; never committed). The live worker:
 `https://aegis-sync-os.abdulmateen14.workers.dev`.
+
+## Live smoke + isolation proof
+
+`test/smoke-live.mjs` runs the full API flow against the live
+deployment (health → register on the primary backend → OS login →
+identity → sync roundtrip/conflicts/tombstones → rotation → cleanup)
+and ends with the isolation proof: the browser DB row counts must be
+identical before and after. Run manually with
+`CLOUDFLARE_API_TOKEN/CLOUDFLARE_ACCOUNT_ID/OS_DB_ID/BROWSER_DB_ID` set
+(never committed). Last run (2026-11-28): **32 pass, 0 fail**, browser
+DB unchanged.
