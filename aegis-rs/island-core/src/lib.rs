@@ -296,11 +296,20 @@ mod tests {
     #[test]
     fn island_morphs_idle_to_media_and_back() {
         let mut isl = Island::new();
+        // The renderer contract: targets track the resolved geometry every
+        // frame, the springs do the moving.
+        let chase = |isl: &mut Island| {
+            let g = isl.geometry();
+            isl.width_spring().set_target(g.w as f64);
+            isl.height_spring().set_target(g.h as f64);
+        };
         isl.publish(Kind::Media);
-        let g = isl.geometry();
-        assert_eq!(g.w, 356);
+        chase(&mut isl);
+        assert_eq!(isl.geometry().w, 356);
         let mut frames = 0;
-        while !isl.width_spring().settled() && frames < 600 {
+        while !(isl.width_spring().settled() && isl.height_spring().settled())
+            && frames < 600
+        {
             isl.width_spring().step(1.0 / 60.0);
             isl.height_spring().step(1.0 / 60.0);
             frames += 1;
@@ -308,7 +317,10 @@ mod tests {
         assert!((isl.width_spring().value - 356.0).abs() < 0.5);
         assert!((isl.height_spring().value - 96.0).abs() < 0.5);
         isl.end(Kind::Media);
-        while !isl.width_spring().settled() && frames < 1200 {
+        chase(&mut isl);
+        while !(isl.width_spring().settled() && isl.height_spring().settled())
+            && frames < 1200
+        {
             isl.width_spring().step(1.0 / 60.0);
             isl.height_spring().step(1.0 / 60.0);
             frames += 1;
